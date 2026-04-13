@@ -1,5 +1,12 @@
 #! /usr/local/bin/python3
-"""Check and assert that dicts are equal ignoring some keys."""
+"""Compare mapping objects while ignoring selected keys.
+
+This primarily exists as a tool for developers of applications that use
+configuration classes derived from ``Config``.
+It is also useful in test code that wants a readable failure message
+before asserting equality of configuration objects in applications that
+use the library.
+"""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
@@ -11,7 +18,13 @@ import sys
 
 def _print_dict_differs(msg: str, lhs: Mapping[str, object],
                         rhs: Mapping[str, object]) -> None:
-    """Print message and dicts."""
+    """Print a detailed mismatch report to standard error.
+
+    Args:
+        msg: Summary of the mismatch that was detected.
+        lhs: Left-hand mapping after any ignored keys were removed.
+        rhs: Right-hand mapping after any ignored keys were removed.
+    """
     print(f'{msg}\n' +
           f'Number of keys in left dict: {len(lhs)}\n' +
           f'Number of keys in right dict: {len(rhs)}\n' +
@@ -21,12 +34,21 @@ def _print_dict_differs(msg: str, lhs: Mapping[str, object],
 
 def assert_dict_equal(lhs: Mapping[str, object], rhs: Mapping[str, object],
                       ignorekeys: list[str]) -> None:
-    """Check and assert that dicts are equal ignoring some keys.
+    """Assert that two mappings are equal after ignoring selected keys.
 
-    Try to print differences to stderr.
-    @param lhs  Left hand side dict.
-    @param rhs  Right hand side dict.
-    @param ignorekeys  Keys to ignore when comparing.
+    The function makes defensive copies, removes any keys listed in
+    ``ignorekeys`` from both sides, prints a readable difference report when
+    a mismatch is detected, and finally raises ``AssertionError`` through the
+    normal ``assert`` statements.
+
+    Args:
+        lhs: Left-hand mapping to compare.
+        rhs: Right-hand mapping to compare.
+        ignorekeys: Keys to drop from both mappings before comparison.
+
+    Raises:
+        AssertionError: The mappings do not match after ignored keys have been
+                        removed.
     """
     lhs_val = deepcopy(lhs)
     rhs_val = deepcopy(rhs)

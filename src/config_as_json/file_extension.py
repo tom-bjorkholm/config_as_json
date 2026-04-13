@@ -1,7 +1,7 @@
 #! /usr/local/bin/python3
-"""Functions to add and remove file extensions."""
+"""Normalize filenames by removing or appending configured extensions."""
 
-# Copyright (c) 2024-2025 Tom Björkholm
+# Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
 
@@ -13,7 +13,19 @@ from typing import Optional
 def fix_file_extension(filename: str, ext_to_add: str,
                        ext_to_remove: Optional[str] = None,
                        for_reading: bool = False) -> str:
-    """Add and remove file extensions as needed."""
+    """Return ``filename`` with the desired extension normalization applied.
+
+    Args:
+        filename: Path text to normalize.
+        ext_to_add: Extension that should be present in the returned value.
+        ext_to_remove: Optional extension that should be stripped before
+            ``ext_to_add`` is applied.
+        for_reading: If ``True`` and ``filename`` already exists as written,
+            return it unchanged.
+
+    Returns:
+        The normalized filename.
+    """
     ret = deepcopy(filename)
     low = ret.lower()
     if for_reading and path.exists(path=ret):

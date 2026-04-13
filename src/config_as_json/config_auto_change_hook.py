@@ -1,5 +1,10 @@
 #! /usr/local/bin/python3
-"""Base class for configuration auto change hooks."""
+"""Define callbacks for automatic configuration adjustments.
+
+Hooks let an application learn that configuration input needed help while it
+was parsed, for example because a missing optional key received a default
+value or because an old key name was transparently mapped to a new one.
+"""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
@@ -8,51 +13,53 @@ from copy import deepcopy
 
 
 class ConfigAutoChangeHook():
-    """Hook to let application know if config was automatically changed.
+    """Collect and report automatic configuration changes during parsing.
 
-    Application that wants this kind of information should derive from this
-    class and register derived class as hook in Config.
+    Applications that want to react when configuration data is normalized
+    should derive from this class and pass an instance to ``Config``.
     """
 
     def __init__(self) -> None:
-        """Construct a ConfigAutoChangeHook object."""
+        """Initialize empty change tracking state."""
         self.old_keys: list[str] = []
         self.def_val_keys: list[str] = []
 
     def auto_changed(self, old_keys_handled: list[str],
                      def_vals_handled: list[str]) -> None:
-        """Let application know about changes.
+        """React after parsing finished with one or more automatic changes.
 
-        Called by parser at end of JSON parsing.
-        Intended to be overriden in derived class interested in changes.
-        @param old_keys_handled  The old key names read into configuration.
-        @param def_vals_handled  The keys given default values.
+        Derived classes override this method to log, warn, or otherwise react
+        when configuration input was normalized.
+
+        Args:
+            old_keys_handled: Legacy key names that were accepted and mapped
+                onto their current names.
+            def_vals_handled: Keys that were filled with default values during
+                parsing.
         """
 
     def old_key_handled(self, old_key: str) -> None:
-        """Record that an old keyword was handled.
+        """Record that one legacy key name was accepted and remapped.
 
-        Called by parser whenever an old keyword is changed.
-        Derived class may override this, but it is usually better
-        to override auto_changed method.
+        Args:
+            old_key: Legacy key name that was handled.
         """
         self.old_keys.append(old_key)
 
     def default_value_provided(self, def_val_key: str) -> None:
-        """Record that a default value was provided for keyword.
+        """Record that parsing supplied a default value for one key.
 
-        Called by parser whenever a default value is provided to a key.
-        Derived class may override this, but it is usually better
-        to override auto_changed method.
+        Args:
+            def_val_key: Key that was absent from input and received a default
+                value instead.
         """
         self.def_val_keys.append(def_val_key)
 
     def all_autochanges_done(self) -> None:
-        """Inform application if automatic changes were done.
+        """Notify the hook once all automatic changes have been collected.
 
-        Called by parser when all automatic changes to JSON are done.
-        Do NOT override this in derived class.
-        Instead do override auto_changed.
+        The default implementation calls :meth:`auto_changed` once if at
+        least one automatic change was recorded.
         """
         if self.old_keys or self.def_val_keys:
             self.auto_changed(old_keys_handled=deepcopy(self.old_keys),

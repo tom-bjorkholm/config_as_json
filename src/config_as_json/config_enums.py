@@ -1,5 +1,11 @@
 #! /usr/local/bin/python3
-"""Enumerations used in configuration of excel list transform."""
+"""Enumerations currently shipped as part of the public configuration API.
+
+Several of these enums originate from the application that is being factored
+out into this reusable library. They remain public so existing configuration
+classes can continue to serialize readable symbolic names instead of raw
+integers.
+"""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
@@ -9,21 +15,21 @@ from enum import Enum, auto
 
 
 class FileType(Enum):
-    """Is I/O file excel or CSV."""
+    """Identify whether a file is handled as Excel or CSV data."""
 
     EXCEL = auto()
     CSV = auto()
 
 
 class SplitWhere(Enum):
-    """Use leftmost or rightmost separator for splitting."""
+    """Choose whether splitting uses the leftmost or rightmost separator."""
 
     LEFTMOST = auto()
     RIGHTMOST = auto()
 
 
 class ExcelLib(Enum):
-    """Use specified library for excel reading or writing."""
+    """Select which Excel library should perform I/O operations."""
 
     OPENPYXL = auto()
     XLSXWRITER = auto()
@@ -31,7 +37,7 @@ class ExcelLib(Enum):
 
 
 class RewriteKind(Enum):
-    """Kind of write operation to apply."""
+    """Describe which text-rewrite operation should be applied."""
 
     STRIP = auto()
     REMOVECHARS = auto()
@@ -40,14 +46,14 @@ class RewriteKind(Enum):
 
 
 class CaseSensitivity(Enum):
-    """Shall matching be case sensitive or not."""
+    """Control whether string matching respects case differences."""
 
     MATCH_CASE = auto()
     IGNORE_CASE = auto()
 
 
 class ColumnRef(Enum):
-    """Are columns referenced by number or name."""
+    """Describe whether columns are referenced by number or by name."""
 
     BY_NUMBER = auto()
     BY_NAME = auto()

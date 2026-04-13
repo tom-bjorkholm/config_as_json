@@ -1,5 +1,14 @@
 #! /usr/local/bin/python3
-"""Base class to read and write configurations."""
+"""Implement the core configuration model for config-as-json.
+
+Applications derive from :class:`Config`, create one instance attribute for
+each supported configuration setting, and use those attribute values as the
+default configuration. Each such configuration setting can also have a value
+type of dict or list, or even a nested dict or list.
+The base class then provides JSON serialization, parsing, schema-like key
+checks, optional-value filling, backward-compatible key renaming, and a
+collection of validation helpers for common patterns.
+"""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
@@ -9,7 +18,6 @@ from copy import deepcopy
 import json
 import sys
 import csv
-import sys
 from collections import Counter
 from typing import Any, Optional, Type, TypeVar, Mapping, NamedTuple, \
     Callable, Sequence, TextIO
@@ -26,24 +34,53 @@ Keya = TypeVar('Keya', str, Enum, RewriteKind)
 
 BackwardCompatible = NamedTuple('BackwardCompatible',
                                 [('old', str), ('new', str)])
+"""Describe a configuration key rename from an old name to a new name."""
 
 
-class ConfigEncoder(json.JSONEncoder):
-    """Encoder for enumerations in config."""
+class _ConfigEncoder(json.JSONEncoder):
+    """Encode configuration objects with enum values stored as names."""
 
     def default(self, o: object) -> object:
-        """Define default encoding of enumerations."""
+        """Serialize enum members using their symbolic names.
+
+        Args:
+            o: Object supplied by ``json.dumps`` for custom encoding.
+
+        Returns:
+            The JSON-serializable representation of ``o``.
+
+        Raises:
+            TypeError: The object cannot be serialized by this encoder or its
+                base implementation.
+        """
         if isinstance(o, (Enum, IntEnum)):
             return str(o.name)
         return super().default(o)
 
 
 class ConfigBadJson(json.JSONDecodeError):
-    """Exception class for bad JSON in configuration."""
+    """Report JSON input that could not be interpreted as configuration."""
 
 
 def over_ride_needed(stri: str) -> Any:
-    """Tell programmer override is needed."""
+    """Act as a placeholder conversion function for incomplete subclasses.
+
+    The base :meth:`Config.parse_converters` implementation uses this helper
+    to make missing converter customization obvious. Subclasses that need to
+    coerce parsed JSON values should override ``parse_converters`` and return
+    real conversion recipes.
+
+    Args:
+        stri: Parsed JSON value that needs conversion.
+
+    Returns:
+        A sentinel value only in the degenerate case where no conversion was
+        actually needed.
+
+    Raises:
+        NotImplementedError: A subclass relied on the placeholder converter
+            for a real conversion.
+    """
     if stri is not None:
         msg = 'Override of Config.parse_converters needed.'
         raise NotImplementedError(msg)
@@ -53,13 +90,17 @@ def over_ride_needed(stri: str) -> Any:
 ParseConverter = NamedTuple('ParseConverter', [('result_type', type),
                                                ('func', Callable[..., Any]),
                                                ('args', dict[str, Any])])
+"""Describe how one parsed JSON value should be converted after loading."""
 
 
 class Config():
-    """Base class for classes that read and write configurations.
+    """Base class for application-specific JSON-backed configuration models.
 
-    Derive from this class to and have the configuration parameters
-    as instance member variables of the derived class.
+    A derived class declares the supported configuration schema by assigning
+    instance attributes before calling ``super().__init__``. Those initial
+    attribute values form the default configuration. The base class can then
+    read JSON into the object, write the current values back to JSON, fill in
+    optional keys, and apply controlled backward-compatible key renames.
     """
 
     def __init__(self, from_json_data_text: Optional[str],
@@ -67,12 +108,30 @@ class Config():
                  auto_ch_hook: ConfigAutoChangeHook =
                  ConfigAutoChangeHook(),
                  stderr_file: TextIO = sys.stderr) -> None:
-        """Construct configuration base class.
+        """Initialize a derived configuration object.
 
-        Derived class __init__ must create all object variables
-        before calling super().__init__()
-        Derived class __init__ usually does checking after
-        call to super().__init__()
+        A derived ``__init__`` is expected to assign every supported
+        configuration attribute before calling this constructor. If neither
+        JSON source argument is supplied, those attribute values remain in
+        place as the default configuration. If a JSON source is supplied, the
+        parsed data is applied to the same attributes instead.
+
+        Args:
+            from_json_data_text: Optional JSON text to parse directly.
+            from_json_filename: Optional path to a JSON file to read.
+            auto_ch_hook: Hook that is notified about automatic changes such
+                as filled default values or renamed backward-compatible keys.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Raises:
+            AttributeError: The derived class did not declare any public
+                configuration attributes before calling ``super().__init__``.
+            TypeError: ``_unchecked_dicts`` exists but is not a list.
+            ValueError: Both JSON text and a JSON file were supplied.
+            KeyError: Parsed data is missing required keys or contains
+                unexpected keys.
+            ConfigBadJson: The supplied JSON could not be decoded or converted
+                into the expected configuration structure.
         """
         self._stderr_file: TextIO = stderr_file
         self._hook_cfg_autochange: ConfigAutoChangeHook = \
@@ -91,20 +150,26 @@ class Config():
             msg = '_unchecked_dicts must be a list'
             raise TypeError(msg)
         self._hook_dict = self.parse_converters()
+        if from_json_data_text is None and from_json_filename is not None:
+            msg = 'Either JSON text or JSON file can be provided, but not '
+            msg += 'both.'
+            raise ValueError(msg)
         if from_json_data_text is not None:
             self.parse_json(from_json_data_text)
         elif from_json_filename is not None:
             self.read(from_json_filename)
 
     def parse_converters(self) -> dict[str, ParseConverter]:
-        """Get converters for use when parsing JSON.
+        """Return post-load conversion rules for parsed JSON values.
 
-        Override in derived class.
-        Return None if no conversions.
-        Return dict of dict for use in json decoder hook.
-        Structure of return value shall be:
-        {key: {'result type': res_type, 'func': function,
-        'args': {arg_name: arg_value}}}.
+        Derived classes override this method when some keys should accept a
+        JSON representation that needs conversion into a richer Python type,
+        for example turning enum names into enum members.
+
+        Returns:
+            A mapping from JSON key name to a :class:`ParseConverter`
+            describing the expected parsed type, the conversion callable, and
+            keyword arguments passed to that callable.
         """
         return {'in_type': ParseConverter(result_type=int,
                                           func=over_ride_needed,
@@ -115,7 +180,19 @@ class Config():
                         j_keys: list[str],
                         ok_to_use_defaults: bool,
                         stderr_file: TextIO) -> None:
-        """Check if keys in imported JSON match exptected keys."""
+        """Validate that parsed keys match the declared configuration keys.
+
+        Args:
+            expected_keys: Keys declared by the configuration object.
+            j_keys: Keys found in parsed JSON data.
+            ok_to_use_defaults: Whether missing declared keys may fall back to
+                defaults supplied by the configuration object.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Raises:
+            KeyError: The JSON data is missing a required key or contains an
+                unexpected key.
+        """
         if not ok_to_use_defaults:
             for i in expected_keys:
                 if i not in j_keys:
@@ -133,7 +210,22 @@ class Config():
                          key: str, ok_to_use_defaults: bool,
                          unchecked_dicts: list[str],
                          stderr_file: TextIO) -> None:
-        """Check and parse dictionary."""
+        """Recursively validate nested dictionaries against default values.
+
+        Args:
+            self_data: Default value currently stored on the configuration
+                object.
+            json_data: Parsed JSON value for the same key.
+            key: Name of the configuration key being checked.
+            ok_to_use_defaults: Whether missing nested keys may use defaults.
+            unchecked_dicts: Keys whose nested dictionary contents should not
+                be validated recursively.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Raises:
+            KeyError: The JSON structure for the key does not match the
+                expected dictionary shape.
+        """
         if not isinstance(self_data, dict) and \
                 not isinstance(json_data, dict):
             return
@@ -157,7 +249,15 @@ class Config():
                                         stderr_file)
 
     def _json_parse_obj_hook(self, indict: dict[str, Any]) -> dict[str, Any]:
-        """Convert str to correct type."""
+        """Apply configured post-load conversions to one decoded JSON object.
+
+        Args:
+            indict: Dictionary produced by ``json.loads``.
+
+        Returns:
+            A copy of ``indict`` where configured keys have been converted to
+            their intended Python representation.
+        """
         hookd = self._hook_dict
         if hookd is None:
             return indict  # pragma: no cover
@@ -170,15 +270,25 @@ class Config():
         return ret
 
     def _def_vals_for_optional(self) -> dict[str, JsonType]:
-        """Get default values for optional config parameters.
+        """Return default values for optional configuration keys.
 
-        Derived class shall override this method if it has
-        optional config parameters.
+        Derived classes override this method when some configuration keys are
+        optional in input files but should still be present on the in-memory
+        object after parsing.
+
+        Returns:
+            A mapping from optional key name to the default value that should
+            be supplied when the key is absent from JSON input.
         """
         return {}
 
     def _add_optional_configs(self, json_data: dict[str, JsonType]) -> None:
-        """Add optional config parameters to json data as needed."""
+        """Insert missing optional keys into parsed JSON data.
+
+        Args:
+            json_data: Parsed JSON object that will be applied to the
+                configuration instance.
+        """
         defval = self._def_vals_for_optional()
         for key, value in defval.items():
             if key not in json_data:
@@ -187,10 +297,14 @@ class Config():
                     def_val_key=key)
 
     def _backward_compatible(self) -> list[BackwardCompatible]:
-        """Get names of backward compatible config parameters.
+        """Return configuration key renames that remain accepted as input.
 
-        Derived class shall override this method if it has
-        backward compatible config parameter names.
+        Derived classes override this method to describe legacy key names that
+        should be mapped onto their current names during parsing.
+
+        Returns:
+            A list of ``BackwardCompatible`` entries describing accepted key
+            renames.
         """
         return []
 
@@ -198,7 +312,17 @@ class Config():
     def _bwcompat_single(rename: BackwardCompatible,
                          json_data: dict[str, JsonType],
                          stderr_file: TextIO) -> bool:
-        """Find and rename a single backward compatible in JSON data."""
+        """Apply one backward-compatible key rename in a nested dictionary.
+
+        Args:
+            rename: Legacy-to-current key mapping to apply.
+            json_data: Parsed JSON dictionary to update in place.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Returns:
+            ``True`` if the old key name was found and replaced anywhere in
+            ``json_data``, otherwise ``False``.
+        """
         assert rename.old is not None
         assert rename.new is not None
         assert rename.old != rename.new
@@ -231,7 +355,17 @@ class Config():
     def _bwcompat_single_lst(rename: BackwardCompatible,
                              json_data: list[JsonType],
                              stderr_file: TextIO) -> bool:
-        """Find and rename a single backward compatible in JSON data."""
+        """Apply one backward-compatible key rename inside nested lists.
+
+        Args:
+            rename: Legacy-to-current key mapping to apply.
+            json_data: Parsed JSON list to walk recursively.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Returns:
+            ``True`` if the old key name was found and replaced anywhere in
+            ``json_data``, otherwise ``False``.
+        """
         ret: bool = False
         for value in json_data:
             if isinstance(value, dict):
@@ -248,7 +382,11 @@ class Config():
 
     def _rename_backward_compatible(self,
                                     json_data: dict[str, JsonType]) -> None:
-        """Rename any backward compatible config parameter to new name."""
+        """Apply all declared backward-compatible key renames in place.
+
+        Args:
+            json_data: Parsed JSON object to normalize before validation.
+        """
         bwcompat = self._backward_compatible()
         for name in bwcompat:
             if self._bwcompat_single(rename=name, json_data=json_data,
@@ -257,7 +395,20 @@ class Config():
 
     def parse_json(self, from_json_text: str,
                    ok_to_use_defaults: bool = False) -> None:
-        """Parse a string of JSON data and set self to that."""
+        """Parse JSON text and apply it to the configuration object.
+
+        Args:
+            from_json_text: JSON document describing configuration values.
+            ok_to_use_defaults: Whether missing declared keys may remain at
+                their already assigned default values.
+
+        Raises:
+            ConfigBadJson: The text is not valid configuration JSON.
+            KeyError: The parsed configuration does not match the declared
+                keys or nested dictionary structure.
+            NotImplementedError: A required custom converter was not supplied
+                by a derived class.
+        """
         self._hook_dict = self.parse_converters()
         hook = self._json_parse_obj_hook if self._hook_dict is not None \
             else None
@@ -291,26 +442,42 @@ class Config():
                 setattr(self, i, data[i])
 
     def as_json_string(self) -> str:
-        """Return string with this configuration as JSON data."""
+        """Serialize the current configuration object to formatted JSON.
+
+        Returns:
+            A JSON document containing every public, non-callable instance
+            attribute on the configuration object.
+        """
         data = {}
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
         for i in self_keys:
             data[i] = getattr(self, i)
-        return json.dumps(data, sort_keys=True, indent=4, cls=ConfigEncoder)
+        return json.dumps(data, sort_keys=True, indent=4, cls=_ConfigEncoder)
 
     def read(self, from_json_filename: PathOrStr,
              ok_to_use_defaults: bool = False) -> None:
-        """Read configuration JSON from named file."""
+        """Read configuration JSON from a file and apply it to the object.
+
+        Args:
+            from_json_filename: File containing configuration JSON.
+            ok_to_use_defaults: Whether missing declared keys may remain at
+                their already assigned default values.
+        """
         file_must_exist(filename=from_json_filename,
                         with_content_txt='with configuration JSON input')
-        with open(from_json_filename, "r", encoding='UTF-8') as file:
+        with open(file=from_json_filename, mode='r', encoding='UTF-8') as file:
             data = file.read()
             self.parse_json(data, ok_to_use_defaults)
 
-    def write(self, to_json_filename: str) -> None:
-        """Create named file with configuration as JSON."""
-        with open(to_json_filename, "w", encoding='UTF-8') as file:
+    def write(self, to_json_filename: PathOrStr) -> None:
+        """Write the current configuration to a JSON file.
+
+        Args:
+            to_json_filename: Destination file that should receive the
+                formatted JSON document.
+        """
+        with open(file=to_json_filename, mode='w', encoding='UTF-8') as file:
             text = self.as_json_string()
             file.write(text)
 
@@ -320,17 +487,34 @@ class Config():
                         quoting: Optional[str], quotechar: Optional[str],
                         lineterminator: Optional[str],
                         escapechar: Optional[str]
-                        ) -> type[csv.Dialect]:
-        """Get CSV dialect object matching arguments."""
-        ret: Optional[type[csv.Dialect]] = None
+                        ) -> csv.Dialect:
+        """Build a ``csv.Dialect`` from serialized configuration fields.
+
+        Args:
+            name: Name of a standard-library dialect template to start from.
+            delimiter: Optional field delimiter override.
+            quoting: Optional quoting constant name such as
+                ``'csv.quote_all'``.
+            quotechar: Optional quoting character override.
+            lineterminator: Optional line terminator override.
+            escapechar: Optional escape character override.
+
+        Returns:
+            A configured ``csv.Dialect`` instance.
+
+        Raises:
+            KeyError: ``name`` or ``quoting`` is not one of the supported
+                serialized values.
+        """
+        ret: Optional[csv.Dialect] = None
         if name is None or name.lower() == 'csv.excel':
-            ret = csv.excel
+            ret = csv.excel()
             ret.lineterminator = '\r\n'
         elif name.lower() == 'csv.excel_tab':
-            ret = csv.excel_tab
+            ret = csv.excel_tab()
             ret.lineterminator = '\r\n'
         elif name.lower() == 'csv.unix_dialect':
-            ret = csv.unix_dialect
+            ret = csv.unix_dialect()
             ret.lineterminator = '\n'
         else:
             errmsg = f'Unknown csv dialect: {name}'
@@ -368,15 +552,18 @@ class Config():
     def check_array_keys(name_of_cfg: str, array: Sequence[Mapping[str, Any]],
                          mandatory_keys: list[str],
                          allowed_keys: Optional[list[str]] = None) -> None:
-        """Check an array of dicts that all keys match allowed/mandatory.
+        """Validate keys in a list of mapping objects.
 
-        Check that all keys of the list of dict are allowed.
-        A key is allowed if listed in mandatory_keys of allowed_keys.
-        Check that all mandatory keys exist in all dicts in the list.
-        @param nam_of_cfg The name of the configuration used in error message.
-        @param array The array of dicts to check.
-        @param mandatory_keys An array of the mandatory keys.
-        @param allowed_keys An array of allowed keys excluding madatory keys.
+        Every mapping in ``array`` must contain all keys in
+        ``mandatory_keys`` and may only contain those keys plus any keys in
+        ``allowed_keys``.
+
+        Args:
+            name_of_cfg: Name used in user-facing error messages.
+            array: Sequence of mappings to validate.
+            mandatory_keys: Keys that must be present in every mapping.
+            allowed_keys: Extra optional keys that are accepted in addition to
+                the mandatory keys.
         """
         to_allow = deepcopy(mandatory_keys)
         in_cfg = f' in config of {name_of_cfg}'
@@ -399,14 +586,15 @@ class Config():
                        inp: Sequence[Mapping[str, Any]],
                        key: str, key_optional: bool, valtype: type,
                        min_size_list: int) -> None:
-        """Check that input is a list of dicts of str to list of valtype.
+        """Validate a list of mappings that carry one typed value per row.
 
-        @param paramname The configuration parameter name (for err msg)
-        @param inp    The input to check. Expect to be list[dict[str, valtype]
-        @param key    The key to check value of in each dict in list
-        @param key_optional Is it OK that key is missing in dict?
-        @param valtype The type that is in value for key
-        @param min_size_list Minimum number of elements in list
+        Args:
+            paramname: Configuration parameter name used in diagnostics.
+            inp: Sequence that should be a list of dictionaries.
+            key: Key whose value type should be checked in each dictionary.
+            key_optional: Whether dictionaries may omit ``key``.
+            valtype: Expected runtime type for the value stored at ``key``.
+            min_size_list: Minimum allowed number of dictionaries in ``inp``.
         """
         errtxt = f'Error in parameter {paramname}. '
         if not isinstance(inp, list):
@@ -446,15 +634,17 @@ class Config():
                            key: str, key_optional: bool,
                            valtype: type, min_size_outer_list: int,
                            min_size_inner_list: int) -> None:
-        """Check that input is a list of dicts of str to list of valtype.
+        """Validate a list of mappings whose checked value is itself a list.
 
-        @param paramname The configuration parameter name (for err msg)
-        @param inp    The input to check. Expect to be list[dict[str, list[]]
-        @param key    The key to check value of in each dict in list
-        @param key_optional Is it OK that key is missing in dict?
-        @param valtype The type that is in list that is value for key
-        @param min_size_outer_list Minimum number of elements in outer list
-        @param min_size_inner_list Minimum number of elements in inner list
+        Args:
+            paramname: Configuration parameter name used in diagnostics.
+            inp: Sequence that should be a list of dictionaries.
+            key: Key whose value should be a list of ``valtype`` items.
+            key_optional: Whether dictionaries may omit ``key``.
+            valtype: Expected runtime type for each item in the inner list.
+            min_size_outer_list: Minimum number of dictionaries in ``inp``.
+            min_size_inner_list: Minimum number of items in each checked inner
+                list.
         """
         Config.check_lst_dict(paramname=paramname, inp=inp,
                               key=key, key_optional=key_optional,
@@ -484,7 +674,16 @@ class Config():
 
     @staticmethod
     def value_of_type(input_value: Any, to_type: Any) -> Any:
-        """Convert input to given type."""
+        """Return ``input_value`` as an instance of ``to_type``.
+
+        Args:
+            input_value: Value to normalize.
+            to_type: Target runtime type or constructor.
+
+        Returns:
+            ``input_value`` unchanged when it already has the expected type,
+            otherwise the result of calling ``to_type(input_value)``.
+        """
         if isinstance(input_value, to_type):
             return input_value
         return to_type(input_value)
@@ -495,17 +694,19 @@ class Config():
                           kind_key: str, kind_type: type,
                           dict_of_templates: Mapping[Keya, Mapping[str, type]]
                           ) -> None:
-        """Check a list of dicts that all dicts matches a template.
+        """Validate a list of dictionaries against type templates.
 
-        Check that all dicts in list of dicts matches one of the
-        templates. The templates are each a dict and all keys must
-        match one of the template dicts. For each key in matching
-        template the value must be of the template value type.
-        @param nam_of_cfg The name of the configuration used in error message.
-        @param array The array of dicts to check.
-        @param kind_key The key of the kind enum that determines template.
-        @param kind_type The type of enum that is used as kind enum.
-        @param dict_of_templates  The dict of template dicts.
+        Each row in ``array`` selects its expected template through
+        ``kind_key``. The selected template then defines which keys must
+        exist and which runtime types their values must have.
+
+        Args:
+            name_of_cfg: Name used in user-facing error messages.
+            array: List of dictionaries to validate.
+            kind_key: Key whose value selects the expected template.
+            kind_type: Type used to normalize the value at ``kind_key``.
+            dict_of_templates: Mapping from kind value to a dictionary of
+                expected keys and value types.
         """
         Msgs = NamedTuple('Msgs', [('in_cfg', str), ('bad_arg', str),
                                    ('bad_templ', str)])
@@ -550,14 +751,30 @@ class Config():
 
     @staticmethod
     def get_converter_dict(enum_type: Type[Enum]) -> ParseConverter:
-        """Get dict for converting to given enum_type."""
+        """Build a converter recipe for enum-valued configuration fields.
+
+        Args:
+            enum_type: Enum class that should be reconstructed from text.
+
+        Returns:
+            A ``ParseConverter`` that parses strings with
+            :func:`string_to_enum_best_match`.
+        """
         return ParseConverter(result_type=enum_type,
                               func=string_to_enum_best_match,
                               args={'num_type': enum_type})
 
     @staticmethod
     def valid_char_encoding(enc: str) -> bool:
-        """Check if character encoding is valid."""
+        """Return whether ``enc`` names a valid text encoding.
+
+        Args:
+            enc: Encoding name to test.
+
+        Returns:
+            ``True`` when Python recognizes ``enc`` as a text encoding,
+            otherwise ``False``.
+        """
         try:
             with TemporaryFile(mode='w', encoding=enc) as _:
                 pass
@@ -569,7 +786,11 @@ class Config():
 
     @staticmethod
     def check_char_encoding(enc: str) -> None:
-        """Report error and exit if character encoding is not valid."""
+        """Fail fast when a named character encoding is not recognized.
+
+        Args:
+            enc: Encoding name to validate.
+        """
         if not Config.valid_char_encoding(enc=enc):
             print(f'{enc} is not a recognized encoding', file=sys.stderr)
             sys.exit(1)
@@ -577,7 +798,12 @@ class Config():
     @staticmethod
     def check_no_duplicates(expanded_data: list[str] | list[int],
                             param_name: str) -> None:
-        """Error report duplicate data."""
+        """Fail if a sequence contains duplicate values.
+
+        Args:
+            expanded_data: Sequence whose values must be unique.
+            param_name: Configuration parameter name used in diagnostics.
+        """
         dup = [str(k) for k, v in Counter(expanded_data).items() if v > 1]
         if len(dup) == 0:
             return

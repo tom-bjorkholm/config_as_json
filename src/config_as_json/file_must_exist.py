@@ -1,21 +1,30 @@
 #! /usr/local/bin/python3
-"""Function for checking that file exists."""
+"""Check that a required input file exists before continuing."""
 
 # Copyright (c) 2024-2025 Tom Björkholm
 # MIT License
 
 
 from pathlib import Path
-from typing import TextIO
+from typing import TextIO, Optional
 import sys
-from typing import Optional
 from config_as_json.commontypes import PathOrStr
 
 
 def file_must_exist(filename: PathOrStr,
                     with_content_txt: Optional[str] = None,
                     stderr_file: TextIO = sys.stderr) -> None:
-    """Check that input file exists. Exit if not."""
+    """Terminate with a helpful message when an expected file is missing.
+
+    Args:
+        filename: Path to the file that must exist.
+        with_content_txt: Optional human-readable description of the expected
+            file contents.
+        stderr_file: Stream used for user-facing diagnostics.
+
+    Raises:
+        SystemExit: The file does not exist.
+    """
     if not isinstance(filename, Path):
         filename = Path(filename)
     if not filename.exists():

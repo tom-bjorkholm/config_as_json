@@ -1,5 +1,11 @@
 #! /usr/local/bin/python3
-"""Common type definitions used for type hints."""
+"""Collect shared type aliases and typing helpers for the package.
+
+The aliases in this module describe JSON-compatible values, path-like input,
+and a few row-oriented data structures that were moved together with the
+original application code. They remain part of the current public API during
+the library extraction.
+"""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
@@ -33,12 +39,25 @@ DataCov = TypeVar('DataCov', NumDataSeq, NameDataMap)
 
 type JsonType = \
     'Union[None, int, str, bool, List[JsonType], Dict[str, JsonType]]'
+"""Recursive JSON value accepted by the configuration helpers."""
 
 # helper functions
 
 
 def num_row_to_str_list(row: NumRowSeq) -> list[str]:
-    """Convert NumRow to list of str."""
+    """Convert a row of scalar values to a list of strings.
+
+    Args:
+        row: Sequence of optional scalar values.
+
+    Returns:
+        A new list where every non-``None`` value has been converted to
+        ``str``.
+
+    Raises:
+        TypeError: ``row`` contains ``None`` where a string value is
+            required.
+    """
     ret: list[str] = []
     for i in row:
         if isinstance(i, str):
@@ -51,7 +70,15 @@ def num_row_to_str_list(row: NumRowSeq) -> list[str]:
 
 
 def str_list_to_num_row(row: list[str]) -> NumRow:
-    """Convert list of str to NumRow."""
+    """Treat a list of strings as a numeric-row compatible value.
+
+    Args:
+        row: List of strings to reinterpret.
+
+    Returns:
+        The same list, typed as ``NumRow`` for callers that work with the
+        shared row aliases.
+    """
     return cast(NumRow, row)
 
 
@@ -59,7 +86,19 @@ T = TypeVar('T')
 
 
 def get_checked_type(value: Optional[Any], istype: type[T]) -> T:
-    """Get value narrowed to be of type istype."""
+    """Return ``value`` after asserting that it has the expected type.
+
+    Args:
+        value: Value to narrow to a more specific type.
+        istype: Expected runtime type.
+
+    Returns:
+        ``value`` typed as ``T`` after the checks have passed.
+
+    Raises:
+        AssertionError: ``value`` is ``None`` or not an instance of
+            ``istype``.
+    """
     assert value is not None
     assert isinstance(value, istype)
     return value

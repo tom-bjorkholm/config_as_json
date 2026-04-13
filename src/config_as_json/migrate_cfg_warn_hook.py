@@ -1,7 +1,7 @@
 #! /usr/local/bin/python3
-"""Class that warns user to migrate configuration file."""
+"""Warn users when backward compatibility was needed during parsing."""
 
-# Copyright (c) 2024-2025 Tom Björkholm
+# Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
 import sys
@@ -10,11 +10,16 @@ from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 
 
 class MigrateCfgWarnHook(ConfigAutoChangeHook):
-    """Class that warns user to migrate configuration file."""
+    """Emit a migration warning when automatic compatibility changes occur."""
 
     @staticmethod
     def migrate_warn_msg() -> str:
-        """Get message warning user suggesting migrating config."""
+        """Return the standard warning shown for old configuration files.
+
+        Returns:
+            Warning text encouraging the user to migrate the configuration to
+            the newest supported format.
+        """
         txt = '\nBackward compatibility was used to read configuration file.'
         txt += '\nThis version of the program understood the configuration,\n'
         txt += 'but newer versions of the program may not understand it.\n\n'
@@ -24,9 +29,11 @@ class MigrateCfgWarnHook(ConfigAutoChangeHook):
 
     def auto_changed(self, old_keys_handled: list[str],
                      def_vals_handled: list[str]) -> None:
-        """Warn user to migrate configuration.
+        """Print the standard migration warning.
 
-        Override of base class method.
-        Automatic changes have been made, this means configuration file is old.
+        Args:
+            old_keys_handled: Legacy key names accepted during parsing.
+            def_vals_handled: Keys that were filled with default values during
+                parsing.
         """
         print(self.migrate_warn_msg(), file=sys.stderr, end='')

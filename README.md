@@ -1,88 +1,140 @@
 # config-as-json
 
-> **👤 Looking to use this in your program**  
-> This repository is for developers of the package. If you want to install
-> and use `config-as-json` including writing programs that use them, please visit
-> the **PyPI project page [https://pypi.org/project/config-as-json](https://pypi.org/project/config-as-json)
-> for installation instructions and user documentation.
+> Looking for installation and user-facing package information?
+> See [README_pypi.md](README_pypi.md) or the
+> [PyPI project page](https://pypi.org/project/config-as-json).
 
-## What is it
+## Repository purpose
 
-The `config-as-json` package provides a base class Config with functionality to read all member variables of a derived class object from a JSON file with helpful error messages to user who created the config file. It provides also functionality to write all member variables of derived class object to a JSON file.
+`config-as-json` is being extracted from an application into a reusable
+library.
 
-## For developers
+The intended library model is:
 
-### Cloning
+- An application derives its own configuration class from
+  `config_as_json.config.Config`.
+- The derived class creates one instance attribute per supported
+  configuration parameter. Supported configuration parameters can also
+  be dicts and lists.
+- The values assigned in the derived class constructor are the default
+  configuration values.
+- The library writes those values as JSON, reads JSON back into the object,
+  and helps users with clear diagnostics when configuration data is missing,
+  misspelled, outdated, or of the wrong type.
 
-The version-reporter repo uses submodules. To clone it use the command:
+At the current extraction stage, the documentation in `src/config_as_json`
+and the README files describe the intended contract even where the copied code
+still needs cleanup to match it fully.
 
-````sh
-git clone --recurse-submodules git@bitbucket.org:tom-bjorkholm/version-reporter.git
-````
+## Product vision and boundaries
 
-If you forgot to include the `--recurse-submodules` in your `git clone` command
-you can fix it later with the command:
+This package is about representing an application's configuration as a Python
+object with an explicit schema and a JSON representation.
 
-````sh
-git submodule update --init --recursive 
-````
+The library is intended to:
 
-To update the version of thr submodule repo that you see in the main repo use the command:
+- Keep the application's configuration schema visible in normal Python code.
+- Use the derived class itself as the source of default values.
+- Read and write human-editable JSON configuration files.
+- Support evolution of the configuration format through optional keys,
+  converters, and backward-compatible key renames.
+- Help end users with actionable error messages instead of silent fallback.
 
-````sh
+The library is not intended to invent configuration structure dynamically or
+to hide the application's schema behind a large generic framework.
+
+The current public surface still includes some helpers and enums copied from
+the source application. They remain public during this extraction so existing
+code can keep working. For now, maintainers should treat all current top-level
+modules in `src/config_as_json/` as public API.
+
+## Main building blocks
+
+- `config_as_json.config.Config`
+  The base class for derived configuration classes.
+- `config_as_json.config_factory`
+  Helpers for selecting among several configuration classes by inspecting JSON
+  input.
+- `config_as_json.config_auto_change_hook`
+  Hook interface for reporting automatic changes applied during parsing.
+- `config_as_json.migrate_cfg`
+  Helper for reading an older configuration file and writing it back in the
+  newest supported format.
+- `config_as_json.migrate_cfg_warn_hook`
+  Standard hook that warns users when backward compatibility was needed.
+- Utility modules such as `str_to_enum`, `file_extension`,
+  `file_must_exist`, `commontypes`, `config_enums`, and
+  `assert_dict_equal`
+  These are part of the current public surface and are documented as such in
+  this phase.
+
+## Related documentation
+
+- User-facing package overview: [README_pypi.md](README_pypi.md)
+- Example directory: [example/src/example/README.md](example/src/example/README.md)
+- Public API notes: [doc/api.md](doc/api.md)
+- Protected/internal API notes: [doc/protected_api.md](doc/protected_api.md)
+- Build system design: [common_build_tools/README.md](common_build_tools/README.md)
+
+The example directory is linked here already because it is the planned home
+for worked examples, even though its current content is still only a
+placeholder.
+
+## Cloning
+
+This repository uses submodules. Clone it with:
+
+```sh
+git clone --recurse-submodules \
+  git@bitbucket.org:tom-bjorkholm/config_as_json.git
+```
+
+If you already cloned without submodules, initialize them with:
+
+```sh
+git submodule update --init --recursive
+```
+
+To update the checked-out submodule revisions:
+
+```sh
 git submodule update --remote --merge
-````
+```
 
-### Needed environment
+## Supported Python versions
 
-#### OS
+- Package runtime baseline: Python 3.12 or newer
+- Maintainer validation target: Python 3.12, 3.13, and 3.14
+- Main day-to-day development: usually the newest supported Python version
 
-For running the script and running the test suite you need a mac or a Linux computer.
-Even if the resulting package can be installed and used on Windows, the scripts for
-building and testing are only implemented for mac and Linux.
+## Development workflow
 
-#### Python version
+On macOS and Linux, the normal workflow is:
 
-Please see README_pypi.md for information on needed python version.
-Main development is on newest Python version.
+1. Run `./run_setup_build_environment.py` once after cloning or when the
+   build environment needs to be recreated.
+2. Run `./run_build.py` for the normal build-and-test cycle.
+3. Run `./run_clean_build.py` before review or release work that needs a
+   completely fresh build.
 
-### Quick start
+The helper scripts are:
 
-1. Clone this repository
-2. Run `./run_setup_build_environment.py` to set up the build environment
-3. Run `./run_build.py`  to build and test the package
+- `run_setup_build_environment.py`
+  Create or refresh the build environment.
+- `run_build.py`
+  Build the package and run the configured checks in the project virtual
+  environment.
+- `run_clean.py`
+  Remove files generated by the build system.
+- `run_clean_build.py`
+  Perform a clean build from scratch. This is especially useful because some
+  duplicate-code diagnostics only appear on a clean build.
+- `run_pypi_build.py`
+  Create the distribution artifacts intended for PyPI publishing.
 
-### Building application
-
-There are 3 main scripts (and 2 extra convinience scripts) for building the application:
-
-- `run_setup_build_environment.py` Run this script first to get the
-  environment set up for building.
-- `run_build.py` Run this script to build an installation package (.whl) and
-  to run the tests on it in a venv (virtual environment).
-- `run_clean.py` Deletes all files that was produced by the build to start
-  over from a clean state.
-- `run_clean_build.py` Combines the use of `run_clean.py`,
-  `run_setup_build_environment.py` and `run_build.py` into one script.
-  Pylint discover some duplicate code warnings only on a clean build so this
-  is useful.
-- `run_pypi_build.py` Builds for PyPI upload and can do the upload too.
-
-The "testing" includes pytest, pylint, flake8 and mypy.
-
-After running `run_build.py` you can open `reports/index.html` to see all test
-reports.
-
-### More build system information
-
-The file `./common_build_tools/README.md` (in git submodule - see above) contains more
-information about the build system. This README can also be viewed at
-[https://bitbucket.org/tom-bjorkholm/common_build_tools/src/master/README.md](https://bitbucket.org/tom-bjorkholm/common_build_tools/src/master/README.md)
+The standard verification suite includes pytest, pylint, flake8, and mypy.
+After a build, the generated reports can be browsed through
+`reports/index.html`.
 
 ## Test summary
 
-- Test result: 1 warning, 1 error in 2s
-- No flake8 warnings.
-- mypy errors.
-- Built version(s): 0.0.1
-- Build and test using Python 3.14.3

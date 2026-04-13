@@ -11,7 +11,7 @@ from os import remove as os_remove
 from enum import Enum, auto
 import csv
 import pytest
-from config_as_json.config import ConfigEncoder, \
+from config_as_json.config import _ConfigEncoder, \
     ConfigBadJson, over_ride_needed, Config
 from config_as_json.assert_dict_equal import assert_dict_equal
 
@@ -27,7 +27,7 @@ class EnumInTesting(Enum):
                                       (EnumInTesting.BARFOO, 'BARFOO')])
 def test_config_encode(capsys, obj, res):
     """Test ConfigEncoder."""
-    enc = ConfigEncoder()
+    enc = _ConfigEncoder()
     ret = enc.default(obj)
     out, err = capsys.readouterr()
     assert ret == res
@@ -38,7 +38,7 @@ def test_config_encode(capsys, obj, res):
 @pytest.mark.parametrize('obj', [1, 'hello'])
 def test_config_encode_bad(obj):
     """Test ConfigEncoder with bad arguments."""
-    enc = ConfigEncoder()
+    enc = _ConfigEncoder()
     with pytest.raises(TypeError):
         _ = enc.default(obj)
 

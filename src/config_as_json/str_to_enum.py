@@ -1,5 +1,5 @@
 #! /usr/local/bin/python3
-"""Functions to fuzzy parse string into enum."""
+"""Convert strings into enum members using forgiving matching rules."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
@@ -12,11 +12,22 @@ SomeEnum = TypeVar('SomeEnum', bound=Enum)
 
 
 def string_to_enum_best_match(inp: str, num_type: type[SomeEnum]) -> SomeEnum:
-    """Find the enum that is the best match for string.
+    """Return the enum member whose name best matches ``inp``.
 
-    Parameters:
-    inp: the string that should match an enum value
-    num_type: the enumeration class to find enum values in
+    Matching first tries exact name lookups using common case variants. If no
+    exact name is found, the function accepts a unique prefix match ignoring
+    case.
+
+    Args:
+        inp: Text that should name an enum member.
+        num_type: Enum class to search.
+
+    Returns:
+        The matching enum member.
+
+    Raises:
+        AssertionError: ``inp`` is not a string.
+        KeyError: No enum member matches or the prefix is ambiguous.
     """
     assert isinstance(inp, str), 'string_to_enum_best_match called ' + \
         f'with {type(inp).__name__} not str as expected.'
