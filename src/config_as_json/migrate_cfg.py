@@ -28,7 +28,8 @@ def migrate_cfg(infile: PathOrStr, outfile: PathOrStr,
         outfile: Destination path for the migrated configuration file.
         match_configs: Ordered matcher/class pairs used to choose the correct
             configuration class for ``infile``.
-        stderr_file: Stream used for user-facing diagnostics.
+        stderr_file: Stream used for user-facing diagnostics. Defaults to
+            ``sys.stderr``.
 
     Returns:
         ``0`` after a successful migration.
@@ -48,7 +49,8 @@ def migrate_cfg(infile: PathOrStr, outfile: PathOrStr,
     cfg = config_factory_from_json(match_configs=match_configs,
                                    from_json_filename=infile,
                                    from_json_data_text=None,
-                                   auto_ch_hook=ConfigAutoChangeHook(),
+                                   auto_ch_hook=ConfigAutoChangeHook(
+                                       stderr_file=stderr_file),
                                    stderr_file=stderr_file)
     cfg.write(to_json_filename=outfile)
     return 0

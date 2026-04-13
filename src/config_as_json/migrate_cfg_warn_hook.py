@@ -4,7 +4,6 @@
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
-import sys
 from copy import deepcopy
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 
@@ -36,4 +35,4 @@ class MigrateCfgWarnHook(ConfigAutoChangeHook):
             def_vals_handled: Keys that were filled with default values during
                 parsing.
         """
-        print(self.migrate_warn_msg(), file=sys.stderr, end='')
+        print(self.migrate_warn_msg(), file=self._stderr_file, end='')

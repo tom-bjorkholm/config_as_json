@@ -1,4 +1,5 @@
 #! /usr/local/bin/python3
+# mypy: disable-error-code=no-untyped-def
 """Test class ConfigAutoChangeHook."""
 
 # Copyright (c) 2024-2026 Tom Björkholm

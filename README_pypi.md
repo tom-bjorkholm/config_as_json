@@ -67,3 +67,9 @@ with it.
 MIT
 
 ## Test summary
+
+- Test result: 2962 passed in 6s
+- No flake8 warnings.
+- No mypy errors found.
+- Built version(s): 0.0.1
+- Build and test using Python 3.14.3

@@ -1,4 +1,5 @@
 #! /usr/local/bin/python3
+# mypy: disable-error-code=no-untyped-def
 """Test common types."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -28,7 +29,7 @@ def test_num_row_to_str_lst_ok(capsys, ind, outd):
 
 def test_num_row_to_str_lst_nok(capsys):
     """Test num_row_to_str_list for not OK case."""
-    ind = ['a', 2, None, 'x']
+    ind: list[str | int | None] = ['a', 2, None, 'x']
     with pytest.raises(TypeError) as exc:
         _ = num_row_to_str_list(ind)
     out, err = capsys.readouterr()

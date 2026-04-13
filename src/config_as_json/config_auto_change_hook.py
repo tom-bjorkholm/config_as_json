@@ -10,6 +10,8 @@ value or because an old key name was transparently mapped to a new one.
 # MIT License
 
 from copy import deepcopy
+import sys
+from typing import Optional, TextIO
 
 
 class ConfigAutoChangeHook():
@@ -19,10 +21,37 @@ class ConfigAutoChangeHook():
     should derive from this class and pass an instance to ``Config``.
     """
 
-    def __init__(self) -> None:
-        """Initialize empty change tracking state."""
+    def __init__(self, stderr_file: Optional[TextIO] = None) -> None:
+        """Initialize empty change tracking state.
+
+        Args:
+            stderr_file: Stream used by hooks that emit diagnostics.
+                Defaults to ``sys.stderr``.
+        """
+        if stderr_file is None:
+            stderr_file = sys.stderr
+        self._stderr_file: TextIO = stderr_file
         self.old_keys: list[str] = []
         self.def_val_keys: list[str] = []
+
+    def __deepcopy__(self, memo: dict[int, object]) -> 'ConfigAutoChangeHook':
+        """Copy hook state while preserving the configured stream object.
+
+        Args:
+            memo: Standard ``copy.deepcopy`` memo dictionary.
+
+        Returns:
+            A deep-copied hook instance with the same diagnostic stream.
+        """
+        copied = type(self).__new__(type(self))
+        memo[id(self)] = copied
+        copied.__dict__ = {}
+        for key, value in self.__dict__.items():
+            if key == '_stderr_file':
+                copied.__dict__[key] = value
+            else:
+                copied.__dict__[key] = deepcopy(value, memo)
+        return copied
 
     def auto_changed(self, old_keys_handled: list[str],
                      def_vals_handled: list[str]) -> None:

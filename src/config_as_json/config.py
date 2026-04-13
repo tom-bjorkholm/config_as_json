@@ -105,9 +105,8 @@ class Config():
 
     def __init__(self, from_json_data_text: Optional[str],
                  from_json_filename: Optional[PathOrStr],
-                 auto_ch_hook: ConfigAutoChangeHook =
-                 ConfigAutoChangeHook(),
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
+                 stderr_file: Optional[TextIO] = None) -> None:
         """Initialize a derived configuration object.
 
         A derived ``__init__`` is expected to assign every supported
@@ -133,9 +132,14 @@ class Config():
             ConfigBadJson: The supplied JSON could not be decoded or converted
                 into the expected configuration structure.
         """
+        if stderr_file is None:
+            stderr_file = sys.stderr
         self._stderr_file: TextIO = stderr_file
+        if auto_ch_hook is None:
+            auto_ch_hook = ConfigAutoChangeHook(stderr_file=stderr_file)
         self._hook_cfg_autochange: ConfigAutoChangeHook = \
             deepcopy(auto_ch_hook)
+        self._hook_cfg_autochange._stderr_file = stderr_file
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
         if not self_keys:
@@ -150,7 +154,7 @@ class Config():
             msg = '_unchecked_dicts must be a list'
             raise TypeError(msg)
         self._hook_dict = self.parse_converters()
-        if from_json_data_text is None and from_json_filename is not None:
+        if from_json_data_text is not None and from_json_filename is not None:
             msg = 'Either JSON text or JSON file can be provided, but not '
             msg += 'both.'
             raise ValueError(msg)
@@ -159,7 +163,7 @@ class Config():
         elif from_json_filename is not None:
             self.read(from_json_filename)
 
-    def parse_converters(self) -> dict[str, ParseConverter]:
+    def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
         """Return post-load conversion rules for parsed JSON values.
 
         Derived classes override this method when some keys should accept a
@@ -206,7 +210,7 @@ class Config():
                 raise KeyError(errmsg)
 
     @staticmethod
-    def check_dict_parse(self_data: dict[str, Any], json_data: dict[str, Any],
+    def check_dict_parse(self_data: dict[str, Any], json_data: dict[str, Any],  # pylint: disable=too-many-arguments,too-many-positional-arguments # noqa: E501
                          key: str, ok_to_use_defaults: bool,
                          unchecked_dicts: list[str],
                          stderr_file: TextIO) -> None:
@@ -311,7 +315,7 @@ class Config():
     @staticmethod
     def _bwcompat_single(rename: BackwardCompatible,
                          json_data: dict[str, JsonType],
-                         stderr_file: TextIO) -> bool:
+                         stderr_file: TextIO = sys.stderr) -> bool:
         """Apply one backward-compatible key rename in a nested dictionary.
 
         Args:
@@ -354,7 +358,7 @@ class Config():
     @staticmethod
     def _bwcompat_single_lst(rename: BackwardCompatible,
                              json_data: list[JsonType],
-                             stderr_file: TextIO) -> bool:
+                             stderr_file: TextIO = sys.stderr) -> bool:
         """Apply one backward-compatible key rename inside nested lists.
 
         Args:
@@ -465,7 +469,8 @@ class Config():
                 their already assigned default values.
         """
         file_must_exist(filename=from_json_filename,
-                        with_content_txt='with configuration JSON input')
+                        with_content_txt='configuration JSON input',
+                        stderr_file=self._stderr_file)
         with open(file=from_json_filename, mode='r', encoding='UTF-8') as file:
             data = file.read()
             self.parse_json(data, ok_to_use_defaults)
@@ -486,7 +491,8 @@ class Config():
                         delimiter: Optional[str],
                         quoting: Optional[str], quotechar: Optional[str],
                         lineterminator: Optional[str],
-                        escapechar: Optional[str]
+                        escapechar: Optional[str],
+                        stderr_file: TextIO = sys.stderr
                         ) -> csv.Dialect:
         """Build a ``csv.Dialect`` from serialized configuration fields.
 
@@ -498,6 +504,8 @@ class Config():
             quotechar: Optional quoting character override.
             lineterminator: Optional line terminator override.
             escapechar: Optional escape character override.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
 
         Returns:
             A configured ``csv.Dialect`` instance.
@@ -518,7 +526,7 @@ class Config():
             ret.lineterminator = '\n'
         else:
             errmsg = f'Unknown csv dialect: {name}'
-            print(errmsg, file=sys.stderr)
+            print(errmsg, file=stderr_file)
             raise KeyError(errmsg)
         if delimiter is not None:
             ret.delimiter = delimiter
@@ -534,7 +542,7 @@ class Config():
             ret.quoting = csv.QUOTE_NONNUMERIC
         else:
             errmsg = f'Unknown csv quoting: {quoting}'
-            print(errmsg, file=sys.stderr)
+            print(errmsg, file=stderr_file)
             raise KeyError(errmsg)
         if quotechar is None:
             ret.quotechar = '"'
@@ -551,7 +559,8 @@ class Config():
     @staticmethod
     def check_array_keys(name_of_cfg: str, array: Sequence[Mapping[str, Any]],
                          mandatory_keys: list[str],
-                         allowed_keys: Optional[list[str]] = None) -> None:
+                         allowed_keys: Optional[list[str]] = None,
+                         stderr_file: TextIO = sys.stderr) -> None:
         """Validate keys in a list of mapping objects.
 
         Every mapping in ``array`` must contain all keys in
@@ -564,6 +573,8 @@ class Config():
             mandatory_keys: Keys that must be present in every mapping.
             allowed_keys: Extra optional keys that are accepted in addition to
                 the mandatory keys.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
         """
         to_allow = deepcopy(mandatory_keys)
         in_cfg = f' in config of {name_of_cfg}'
@@ -573,19 +584,20 @@ class Config():
             for used_key in list(i.keys()):
                 if used_key not in to_allow:
                     bad_k = f'Found non-allowed key "{used_key}"'
-                    print(bad_k + in_cfg, file=sys.stderr)
+                    print(bad_k + in_cfg, file=stderr_file)
                     sys.exit(1)
             for k in mandatory_keys:
                 if k not in list(i.keys()):
                     miss = f'Missing key "{k}"'
-                    print(miss + in_cfg, file=sys.stderr)
+                    print(miss + in_cfg, file=stderr_file)
                     sys.exit(1)
 
     @staticmethod
     def check_lst_dict(paramname: str,  # pylint: disable=too-many-arguments,too-many-positional-arguments # noqa: E501
                        inp: Sequence[Mapping[str, Any]],
                        key: str, key_optional: bool, valtype: type,
-                       min_size_list: int) -> None:
+                       min_size_list: int,
+                       stderr_file: TextIO = sys.stderr) -> None:
         """Validate a list of mappings that carry one typed value per row.
 
         Args:
@@ -595,37 +607,39 @@ class Config():
             key_optional: Whether dictionaries may omit ``key``.
             valtype: Expected runtime type for the value stored at ``key``.
             min_size_list: Minimum allowed number of dictionaries in ``inp``.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
         """
         errtxt = f'Error in parameter {paramname}. '
         if not isinstance(inp, list):
             err_txt2 = f'Expected list but found {type(inp).__name__}\n'
-            print(errtxt + err_txt2 + str(inp), file=sys.stderr)
+            print(errtxt + err_txt2 + str(inp), file=stderr_file)
             sys.exit(1)
         assert isinstance(inp, list)
         if len(inp) < min_size_list:
             sizeerr: str = f'\nMinimum {min_size_list} elements needed ' + \
                            f'in list but only {len(inp)} found.'
-            print(errtxt + sizeerr, file=sys.stderr)
+            print(errtxt + sizeerr, file=stderr_file)
             sys.exit(1)
         for elem in inp:
             if not isinstance(elem, dict):
                 err_txt3 = 'Expected dict in list but found ' + \
                            f'{type(elem).__name__}\n'
-                print(errtxt + err_txt3 + str(elem), file=sys.stderr)
+                print(errtxt + err_txt3 + str(elem), file=stderr_file)
                 sys.exit(1)
             assert isinstance(elem, dict)
             if key not in elem:
                 if key_optional:
                     return
                 err_txt4 = f'Expected key {key} not in dict in list\n'
-                print(errtxt + err_txt4 + str(elem), file=sys.stderr)
+                print(errtxt + err_txt4 + str(elem), file=stderr_file)
                 sys.exit(1)
             val = elem[key]
             if not isinstance(val, valtype):
                 err_txt5 = f'Value for key {key} expected to be of type ' + \
                            f'{valtype.__name__} but is of type ' + \
                            f'{type(val).__name__}\n'
-                print(errtxt + err_txt5 + str(val), file=sys.stderr)
+                print(errtxt + err_txt5 + str(val), file=stderr_file)
                 sys.exit(1)
 
     @staticmethod
@@ -633,7 +647,8 @@ class Config():
                            inp: Sequence[Mapping[str, Any]],
                            key: str, key_optional: bool,
                            valtype: type, min_size_outer_list: int,
-                           min_size_inner_list: int) -> None:
+                           min_size_inner_list: int,
+                           stderr_file: TextIO = sys.stderr) -> None:
         """Validate a list of mappings whose checked value is itself a list.
 
         Args:
@@ -645,10 +660,13 @@ class Config():
             min_size_outer_list: Minimum number of dictionaries in ``inp``.
             min_size_inner_list: Minimum number of items in each checked inner
                 list.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
         """
         Config.check_lst_dict(paramname=paramname, inp=inp,
                               key=key, key_optional=key_optional,
-                              valtype=list, min_size_list=min_size_outer_list)
+                              valtype=list, min_size_list=min_size_outer_list,
+                              stderr_file=stderr_file)
         assert isinstance(inp, list)
         errtxt = f'Error in parameter {paramname}.\n'
         for elem in inp:
@@ -662,14 +680,14 @@ class Config():
                 errtxt2 = f'List for key {key} shall be minimum ' + \
                           f'{min_size_inner_list} elements.\nBut it ' + \
                           f'is {len(val)} elements only.\n'
-                print(errtxt + errtxt2 + str(val), file=sys.stderr)
+                print(errtxt + errtxt2 + str(val), file=stderr_file)
                 sys.exit(1)
             for item in val:
                 if not isinstance(item, valtype):
                     errtxt3 = f'Value for key {key} expected to be ' + \
                               f'list of {valtype.__name__}\n' + \
                               f'But element in list is {type(item).__name__}\n'
-                    print(errtxt + errtxt3 + str(val), file=sys.stderr)
+                    print(errtxt + errtxt3 + str(val), file=stderr_file)
                     sys.exit(1)
 
     @staticmethod
@@ -689,10 +707,13 @@ class Config():
         return to_type(input_value)
 
     @staticmethod
-    def check_array_dicts(name_of_cfg: str,  # pylint: disable=too-many-locals
+    # pylint: disable=too-many-locals
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def check_array_dicts(name_of_cfg: str,
                           array: list[dict[str, Any]],
                           kind_key: str, kind_type: type,
-                          dict_of_templates: Mapping[Keya, Mapping[str, type]]
+                          dict_of_templates: Mapping[Keya, Mapping[str, type]],
+                          stderr_file: TextIO = sys.stderr
                           ) -> None:
         """Validate a list of dictionaries against type templates.
 
@@ -707,6 +728,8 @@ class Config():
             kind_type: Type used to normalize the value at ``kind_key``.
             dict_of_templates: Mapping from kind value to a dictionary of
                 expected keys and value types.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
         """
         Msgs = NamedTuple('Msgs', [('in_cfg', str), ('bad_arg', str),
                                    ('bad_templ', str)])
@@ -715,38 +738,38 @@ class Config():
                     bad_templ='Internal error: template not dict of dicts')
         if not isinstance(array, list):
             print(msgs.bad_arg + msgs.in_cfg + '(list_of_dicts)',
-                  file=sys.stderr)
+                  file=stderr_file)
             sys.exit(1)
         if not isinstance(dict_of_templates, dict):
             print(msgs.bad_templ + msgs.in_cfg + '(dict_of_templates)',
-                  file=sys.stderr)
+                  file=stderr_file)
             raise KeyError(msgs.bad_templ + msgs.in_cfg +
                            '(dict_of_templates)')
         for key1, template in dict_of_templates.items():
             if not isinstance(template, dict):
                 msg = f' in template for {key1.name}'
-                print(msgs.bad_templ + msgs.in_cfg + msg, file=sys.stderr)
+                print(msgs.bad_templ + msgs.in_cfg + msg, file=stderr_file)
                 raise KeyError(msgs.bad_templ + msgs.in_cfg + msg)
         for i, row in enumerate(array):
             litem = f'(list index {i})'
             if not isinstance(row, dict):
-                print(msgs.bad_arg + msgs.in_cfg + litem, file=sys.stderr)
+                print(msgs.bad_arg + msgs.in_cfg + litem, file=stderr_file)
                 sys.exit(1)
             if kind_key not in row:
                 msg = f'Key {kind_key} not in dict'
-                print(msg + msgs.in_cfg + litem, file=sys.stderr)
+                print(msg + msgs.in_cfg + litem, file=stderr_file)
                 sys.exit(1)
             kind = Config.value_of_type(row[kind_key], kind_type)
             for key2, valtype in dict_of_templates[kind].items():
                 if key2 not in row:
                     msg = f'Key {key2} not in dict'
-                    print(msg + msgs.in_cfg + litem, file=sys.stderr)
+                    print(msg + msgs.in_cfg + litem, file=stderr_file)
                     sys.exit(1)
                 if not isinstance(row[key2], valtype):
                     msg = f'Value for key {key2} = {row[key2]} '
                     msg += f'is not {valtype.__name__} '
                     msg += f'it is {type(row[key2]).__name__} '
-                    print(msg + msgs.in_cfg + litem, file=sys.stderr)
+                    print(msg + msgs.in_cfg + litem, file=stderr_file)
                     sys.exit(1)
 
     @staticmethod
@@ -785,29 +808,35 @@ class Config():
         return True
 
     @staticmethod
-    def check_char_encoding(enc: str) -> None:
+    def check_char_encoding(enc: str,
+                            stderr_file: TextIO = sys.stderr) -> None:
         """Fail fast when a named character encoding is not recognized.
 
         Args:
             enc: Encoding name to validate.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
         """
         if not Config.valid_char_encoding(enc=enc):
-            print(f'{enc} is not a recognized encoding', file=sys.stderr)
+            print(f'{enc} is not a recognized encoding', file=stderr_file)
             sys.exit(1)
 
     @staticmethod
     def check_no_duplicates(expanded_data: list[str] | list[int],
-                            param_name: str) -> None:
+                            param_name: str,
+                            stderr_file: TextIO = sys.stderr) -> None:
         """Fail if a sequence contains duplicate values.
 
         Args:
             expanded_data: Sequence whose values must be unique.
             param_name: Configuration parameter name used in diagnostics.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
         """
         dup = [str(k) for k, v in Counter(expanded_data).items() if v > 1]
         if len(dup) == 0:
             return
         msg = f'Duplicates not allowed in {param_name}. Duplicate values: '  # noqa: E713, E501
         msg += ','.join(dup)
-        print(msg, file=sys.stderr)
+        print(msg, file=stderr_file)
         sys.exit(1)

@@ -1,4 +1,5 @@
 #! /usr/local/bin/python3
+# mypy: disable-error-code="no-untyped-def,no-untyped-call"
 """Test the Config class (part 2 of tests)."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -6,8 +7,9 @@
 
 # pylint: disable=duplicate-code
 
-from typing import Optional  # pylint: disable=unused-import,ungrouped-imports # noqa: E501
+from typing import Any, Optional, cast  # pylint: disable=unused-import,ungrouped-imports # noqa: E501
 from copy import deepcopy
+import sys
 import pytest
 from config_as_json.config import Config, BackwardCompatible
 from config_as_json.commontypes import JsonType
@@ -41,7 +43,7 @@ def test_cfg_valid_chr_enc_nok(capsys, enc):
                          ['utf-8', 'iso8859-1'])
 def test_cfg_check_chr_enc_ok(capsys, enc):
     """Test OK cases of check_char_encoding."""
-    Config.check_char_encoding(enc)
+    Config.check_char_encoding(enc, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -52,7 +54,7 @@ def test_cfg_check_chr_enc_ok(capsys, enc):
 def test_cfg_check_chr_enc_nok(capsys, enc):
     """Test not OK cases of check_char_encoding."""
     with pytest.raises(SystemExit):
-        Config.check_char_encoding(enc)
+        Config.check_char_encoding(enc, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert f'{enc} is not a recognized encoding' in err
@@ -156,7 +158,7 @@ def test_bw_compat_single1(capsys, ind, outd, ren, errtxt):
     """Test Config._bwcompat_single for case 1."""
     data = deepcopy(ind)
     Config._bwcompat_single(rename=ren,  # pylint: disable=protected-access # noqa: E501
-                            json_data=data)
+                            json_data=data, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert err == errtxt
@@ -164,14 +166,15 @@ def test_bw_compat_single1(capsys, ind, outd, ren, errtxt):
 
 
 @pytest.mark.parametrize('ren',
-                         [BackwardCompatible(old=None, new='sun'),
-                          BackwardCompatible(old='foo', new=None),
+                         [BackwardCompatible(old=cast(Any, None), new='sun'),
+                          BackwardCompatible(old='foo', new=cast(Any, None)),
                           BackwardCompatible(old='foo', new='foo')])
 def test_bw_compat_single2(capsys, ren):
     """Test Config._bwcompat_single for not OK case."""
     with pytest.raises(AssertionError):
         Config._bwcompat_single(rename=ren,  # pylint: disable=protected-access # noqa: E501
-                                json_data={'a': 'b'})
+                                json_data={'a': 'b'},
+                                stderr_file=sys.stderr)
     out, _ = capsys.readouterr()
     assert '' == out
 
@@ -196,7 +199,7 @@ def test_bwcompat_single_lst1(capsys, ind, outd, ren, errtxt):
     """Test Config._bwcompat_single_lst for case 1."""
     data = deepcopy(ind)
     Config._bwcompat_single_lst(rename=ren,  # pylint: disable=protected-access # noqa: E501
-                                json_data=data)
+                                json_data=data, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert err == errtxt
@@ -250,7 +253,8 @@ def test_check_list_dict_ok(capsys,  # pylint: disable=too-many-arguments, too-m
                             par, inp, key, opt, vtype, mls):
     """Test OK cases of Config.check_lst_dict."""
     Config.check_lst_dict(paramname=par, inp=inp, key=key,
-                          key_optional=opt, valtype=vtype, min_size_list=mls)
+                          key_optional=opt, valtype=vtype,
+                          min_size_list=mls, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -292,7 +296,8 @@ def test_check_list_dict_nok(capsys,  # pylint: disable=too-many-arguments, too-
     with pytest.raises(SystemExit):
         Config.check_lst_dict(paramname=par, inp=inp, key=key,
                               key_optional=opt, valtype=vtype,
-                              min_size_list=mls)
+                              min_size_list=mls,
+                              stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     for msg in msgs:
@@ -315,7 +320,8 @@ def test_check_list_dict_lst_ok(capsys,  # pylint: disable=too-many-arguments, t
     Config.check_lst_dict_lst(paramname=par, inp=inp, key=key,
                               key_optional=opt, valtype=vtype,
                               min_size_outer_list=mlso,
-                              min_size_inner_list=mlsi)
+                              min_size_inner_list=mlsi,
+                              stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -358,7 +364,8 @@ def test_check_list_dict_lst_nok(capsys,  # pylint: disable=too-many-arguments, 
         Config.check_lst_dict_lst(paramname=par, inp=inp, key=key,
                                   key_optional=opt, valtype=vtype,
                                   min_size_outer_list=mlso,
-                                  min_size_inner_list=mlsi)
+                                  min_size_inner_list=mlsi,
+                                  stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     for msg in msgs:

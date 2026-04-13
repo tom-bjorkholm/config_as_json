@@ -1,4 +1,5 @@
 #! /usr/local/bin/python3
+# mypy: disable-error-code=no-untyped-def
 """The test cases string_to_enum_best_match function."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -6,8 +7,8 @@
 
 # pylint: disable=duplicate-code
 
-
 from enum import Enum, auto
+from typing import Any, cast
 import pytest
 from config_as_json.str_to_enum import string_to_enum_best_match
 
@@ -65,12 +66,11 @@ def test_string_to_enum_best_match_match2(x, y):
 def test_string_to_enum_best_match_bad(x):
     """Test string to best match function with bad input."""
     with pytest.raises(KeyError):
-        z = string_to_enum_best_match(x, Tty)
-        assert z == 'no match'  # never reached
+        _ = string_to_enum_best_match(x, Tty)
 
 
 def test_string_to_enum_bmatch_int():
     """Test string_to_enum_best_match with int not str input."""
     with pytest.raises(AssertionError) as exc:
-        _ = string_to_enum_best_match(5, YesNoAsk)
+        _ = string_to_enum_best_match(cast(Any, 5), YesNoAsk)
     assert 'string_to_enum_best_match called with int not str' in str(exc)

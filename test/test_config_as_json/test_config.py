@@ -1,4 +1,5 @@
 #! /usr/local/bin/python3
+# mypy: disable-error-code="no-untyped-def,no-untyped-call"
 """Test the Config class."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -10,6 +11,8 @@ from tempfile import NamedTemporaryFile as ntf
 from os import remove as os_remove
 from enum import Enum, auto
 import csv
+import sys
+from typing import Any, cast
 import pytest
 from config_as_json.config import _ConfigEncoder, \
     ConfigBadJson, over_ride_needed, Config
@@ -45,7 +48,7 @@ def test_config_encode_bad(obj):
 
 def test_over_ride_needed_1(capsys):
     """Test over_ride_needed with None."""
-    ret = over_ride_needed(None)
+    ret = over_ride_needed(cast(Any, None))
     out, err = capsys.readouterr()
     assert 42 == ret
     assert '' == err
@@ -89,19 +92,35 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
 
     def get_csv_dialect1(self):
         """Get CSV dialect 1."""
-        return self.get_csv_dialect(**self.csv_dialect1)
+        return self.get_csv_dialect(
+            name=self.csv_dialect1['name'],
+            delimiter=self.csv_dialect1['delimiter'],
+            quoting=self.csv_dialect1['quoting'],
+            quotechar=self.csv_dialect1['quotechar'],
+            lineterminator=self.csv_dialect1['lineterminator'],
+            escapechar=self.csv_dialect1['escapechar'],
+            stderr_file=self._stderr_file)
 
     def get_csv_dialect2(self):
         """Get CSV dialect 2."""
-        return self.get_csv_dialect(**self.csv_dialect2)
+        return self.get_csv_dialect(
+            name=self.csv_dialect2['name'],
+            delimiter=self.csv_dialect2['delimiter'],
+            quoting=self.csv_dialect2['quoting'],
+            quotechar=self.csv_dialect2['quotechar'],
+            lineterminator=self.csv_dialect2['lineterminator'],
+            escapechar=self.csv_dialect2['escapechar'],
+            stderr_file=self._stderr_file)
 
     def check_array_configs(self):
         """Check that keywords in configuration arrays are OK."""
         abc_keys = ['def', 'geh', 'ijk']
-        self.check_array_keys('abc', self.abc, abc_keys)
+        self.check_array_keys('abc', self.abc, abc_keys,
+                              stderr_file=self._stderr_file)
         pqr_keys = ['gh', 'ij', 'mn']
         for _, val in self.pqr.items():
-            self.check_array_keys('pqr', val, pqr_keys)
+            self.check_array_keys('pqr', val, pqr_keys,
+                                  stderr_file=self._stderr_file)
 
     def parse_converters(self):
         """Get converters for use when parsing JSON.
@@ -118,7 +137,6 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
                 'gh': self.get_converter_dict(EnumInTesting)}
 
 
-@pytest.mark.smoke
 def test_config_something_def(capsys):
     """Test default values of ConfigSomething."""
     xst = ConfigSomething()
@@ -142,9 +160,11 @@ def test_config_something_def(capsys):
     assert 'pqr' in scfg
     assert 'FOOBAR' in scfg
     zst = ConfigSomething()
-    assert_dict_equal(xst.__dict__, zst.__dict__, ['_hook_cfg_autochange'])
+    assert_dict_equal(xst.__dict__, zst.__dict__, ['_hook_cfg_autochange'],
+                      stderr_file=sys.stderr)
     yst = ConfigSomething(from_json_text=scfg)
-    assert_dict_equal(yst.__dict__, xst.__dict__, ['_hook_cfg_autochange'])
+    assert_dict_equal(yst.__dict__, xst.__dict__, ['_hook_cfg_autochange'],
+                      stderr_file=sys.stderr)
     assert isinstance(yst.kind, EnumInTesting)
     assert isinstance(yst.aa1, str)
     assert isinstance(yst.abc, list)
@@ -202,7 +222,8 @@ def test_config_something_changed2(capsys, mno_not_pqr, value):
     scfg = xst.as_json_string()
     yst = ConfigSomething(from_json_text=scfg)
     out, err = capsys.readouterr()
-    assert_dict_equal(xst.__dict__, yst.__dict__, ['_hook_cfg_autochange'])
+    assert_dict_equal(xst.__dict__, yst.__dict__, ['_hook_cfg_autochange'],
+                      stderr_file=sys.stderr)
     if mno_not_pqr:
         assert yst.mno == value
     else:
@@ -441,7 +462,7 @@ def test_config_something_csv_ok_1(capsys):
     dial = yst.get_csv_dialect2()
     assert dial.delimiter == '+'
     assert dial.__module__ == 'csv'
-    assert dial is csv.excel
+    assert isinstance(dial, csv.excel)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -523,11 +544,11 @@ def csv_combinations_chcker(nam,   # pylint: disable=too-many-arguments, too-man
                 assert dial.quoting == csv.QUOTE_NONNUMERIC
         if nam is not None:
             if nam == 'csv.excel':
-                assert dial is csv.excel
+                assert isinstance(dial, csv.excel)
             if nam == 'csv.excel_tab':
-                assert dial is csv.excel_tab
+                assert isinstance(dial, csv.excel_tab)
             if nam == 'csv.unix_dialect':
-                assert dial is csv.unix_dialect
+                assert isinstance(dial, csv.unix_dialect)
 
 
 @pytest.mark.parametrize('nam,er1', [('csv.excel', False),
@@ -651,7 +672,7 @@ def test_config_something3_bad(capsys):
     yst = ConfigSomething3(from_json_text=scfg)
     out, err = capsys.readouterr()
     assert xst.in_type != yst.in_type
-    assert xst.in_type.name == yst.in_type
+    assert xst.in_type.name == cast(str, yst.in_type)
     assert out == ''
     assert err == ''
 
@@ -687,7 +708,7 @@ class ConfigSomething5(Config):
     def __init__(self, from_json_text=None, from_json_filename=None):
         """Construct configuration for test."""
         self.in_type = EnumInTesting.FOOBAR
-        self._unchecked_dicts = 'in_type'
+        self._unchecked_dicts = cast(Any, 'in_type')
         super().__init__(from_json_text, from_json_filename)
 
     def parse_converters(self):
@@ -764,7 +785,8 @@ def test_value_of_type(capsys, inp, totype, res):
 def test_check_array_keys_ok(capsys, arr, mand, allow):
     """Test ok cases for check_array_keys."""
     Config.check_array_keys(name_of_cfg='test_py', array=arr,
-                            mandatory_keys=mand, allowed_keys=allow)
+                            mandatory_keys=mand, allowed_keys=allow,
+                            stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -787,7 +809,8 @@ def test_check_array_keys_nok(capsys, arr, mand, allow, msg):
     """Test not ok cases for check_array_keys."""
     with pytest.raises(SystemExit):
         Config.check_array_keys(name_of_cfg='test_py', array=arr,
-                                mandatory_keys=mand, allowed_keys=allow)
+                                mandatory_keys=mand, allowed_keys=allow,
+                                stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert msg in err
@@ -809,7 +832,8 @@ def test_check_array_keys_nok(capsys, arr, mand, allow, msg):
 def test_check_array_dicts_ok(capsys, arr, kkey, ktype, tmplts):
     """Test ok cases for check_array_dicts."""
     Config.check_array_dicts(name_of_cfg='test_py', array=arr, kind_key=kkey,
-                             kind_type=ktype, dict_of_templates=tmplts)
+                             kind_type=ktype, dict_of_templates=tmplts,
+                             stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -831,7 +855,8 @@ def test_check_array_dicts_nok1(capsys,  # pylint: disable=too-many-arguments,to
     with pytest.raises(KeyError) as exc:
         Config.check_array_dicts(name_of_cfg='test_py', array=arr,
                                  kind_key=kkey, kind_type=ktype,
-                                 dict_of_templates=tmplts)
+                                 dict_of_templates=tmplts,
+                                 stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert msg in str(exc)
     assert out == ''
@@ -884,7 +909,8 @@ def test_check_array_dicts_nok2(capsys,  # pylint: disable=too-many-arguments,to
     with pytest.raises(SystemExit):
         Config.check_array_dicts(name_of_cfg='test_py', array=arr,
                                  kind_key=kkey, kind_type=ktype,
-                                 dict_of_templates=tmplts)
+                                 dict_of_templates=tmplts,
+                                 stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert msg in err
@@ -895,7 +921,7 @@ def test_check_array_dicts_nok2(capsys,  # pylint: disable=too-many-arguments,to
                           ([1, 4, 3, 2], 'test')])
 def test_check_no_dupl_ok(capsys, data, par):
     """Test check_no_duplicates for OK cases."""
-    Config.check_no_duplicates(data, par)
+    Config.check_no_duplicates(data, par, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -907,7 +933,7 @@ def test_check_no_dupl_ok(capsys, data, par):
 def test_check_no_dupl_nok(capsys, data, par):
     """Test check:_no_cuplicates for OK cases."""
     with pytest.raises(SystemExit):
-        Config.check_no_duplicates(data, par)
+        Config.check_no_duplicates(data, par, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Duplicates not allowed in' in err

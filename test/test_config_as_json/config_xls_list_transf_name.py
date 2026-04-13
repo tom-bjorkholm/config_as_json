@@ -5,23 +5,28 @@
 # MIT License
 
 
-from typing import Optional
+import sys
+from typing import Optional, TextIO
 from config_as_json.config_enums import SplitWhere, ColumnRef
-from config_excel_list_transform import \
-    ConfigExcelListTransform, RuleOrder, ColInfo
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
+from .config_excel_list_transform import \
+    ConfigExcelListTransform, RuleOrder, ColInfo
 
 
 class ConfigXlsListTransfName(ConfigExcelListTransform[str]):  # pylint: disable=too-many-instance-attributes, line-too-long # noqa: E501
     """Class with configuration for excel list transform."""
 
     def __init__(self,
-                 from_json_text: Optional[str] = None,
+                 from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
-                 auto_ch_hook: ConfigAutoChangeHook =
-                 MigrateCfgWarnHook()) -> None:
+                 auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
+                 stderr_file: Optional[TextIO] = None) -> None:
         """Construct configuration for excel list transform."""
+        if stderr_file is None:
+            stderr_file = sys.stderr
+        if auto_ch_hook is None:
+            auto_ch_hook = MigrateCfgWarnHook(stderr_file=stderr_file)
         col_to_use = ['street', 'street number', 'name', 'last name',
                       'Phone', 'Phone', 'Phone', 'Phone', 'Phone',
                       'Last Name']
@@ -41,7 +46,9 @@ class ConfigXlsListTransfName(ConfigExcelListTransform[str]):  # pylint: disable
              'WhatsApp']
         super().__init__(col_ref=ColumnRef.BY_NAME,
                          colinfo=colinfo, tinfo='a',
-                         from_json_text=from_json_text,
+                         from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook)
-        self.check_no_duplicates(self.s10_column_order, 's10_column_order')
+                         auto_ch_hook=auto_ch_hook,
+                         stderr_file=stderr_file)
+        self.check_no_duplicates(self.s10_column_order, 's10_column_order',
+                                 stderr_file=self._stderr_file)

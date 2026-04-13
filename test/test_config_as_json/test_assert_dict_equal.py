@@ -1,9 +1,11 @@
 #! /usr/local/bin/python3
+# mypy: disable-error-code=no-untyped-def
 """Test assert_dict_equal."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
+import sys
 import pytest
 from config_as_json.assert_dict_equal import _print_dict_differs, \
     assert_dict_equal
@@ -15,7 +17,7 @@ def test_print_dict_differs(capsys):
     rhs = {'d': 'e', 'f': 4, 'g': 5}
     msg = 'A small test message'
     _print_dict_differs(msg=msg,  # pylint: disable=protected-access
-                        lhs=lhs, rhs=rhs)
+                        lhs=lhs, rhs=rhs, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert msg in err
@@ -36,7 +38,7 @@ def test_print_dict_differs(capsys):
                            ['d', 'b'])])
 def test_assert_dict_equal_ok1(capsys, lhs, rhs, ign):
     """Test OK cases for assert_dict_equal."""
-    assert_dict_equal(lhs, rhs, ign)
+    assert_dict_equal(lhs, rhs, ign, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -58,7 +60,7 @@ def test_assert_dict_equal_ok1(capsys, lhs, rhs, ign):
 def test_assert_dict_equal_nok1(capsys, lhs, rhs, ign, msgs):
     """Test not OK cases for assert_dict_equal."""
     with pytest.raises(AssertionError):
-        assert_dict_equal(lhs, rhs, ign)
+        assert_dict_equal(lhs, rhs, ign, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     for msg in msgs:

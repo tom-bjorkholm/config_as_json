@@ -19,8 +19,9 @@ def file_must_exist(filename: PathOrStr,
     Args:
         filename: Path to the file that must exist.
         with_content_txt: Optional human-readable description of the expected
-            file contents.
-        stderr_file: Stream used for user-facing diagnostics.
+                          file contents.
+        stderr_file: Stream used for user-facing diagnostics. Defaults to
+                     ``sys.stderr``.
 
     Raises:
         SystemExit: The file does not exist.

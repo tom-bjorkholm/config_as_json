@@ -1,4 +1,5 @@
 #! /usr/local/bin/python3
+# mypy: disable-error-code=no-untyped-def
 """Test the config_as_json file extension utility functionality."""
 
 # Copyright (c) 2024-2026 Tom Björkholm

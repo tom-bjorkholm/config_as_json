@@ -70,7 +70,8 @@ def _config_factory_get_text(from_json_text: Optional[str],
         return from_json_text
     assert from_json_filename is not None
     file_must_exist(filename=from_json_filename,
-                    with_content_txt='configuration JSON input')
+                    with_content_txt='configuration JSON input',
+                    stderr_file=stderr_file)
     with open(from_json_filename, mode='r', encoding='UTF-8') as file:
         text = file.read()
         return text
