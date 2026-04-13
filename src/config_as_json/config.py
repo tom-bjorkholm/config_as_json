@@ -9,15 +9,16 @@ from copy import deepcopy
 import json
 import sys
 import csv
+import sys
 from collections import Counter
 from typing import Any, Optional, Type, TypeVar, Mapping, NamedTuple, \
-    Callable, Sequence
+    Callable, Sequence, TextIO
 from enum import Enum, IntEnum
 from tempfile import TemporaryFile
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.config_enums import RewriteKind
 from config_as_json.file_must_exist import file_must_exist
-from config_as_json.commontypes import JsonType
+from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 
 
@@ -62,9 +63,10 @@ class Config():
     """
 
     def __init__(self, from_json_data_text: Optional[str],
-                 from_json_filename: Optional[str],
+                 from_json_filename: Optional[PathOrStr],
                  auto_ch_hook: ConfigAutoChangeHook =
-                 ConfigAutoChangeHook()) -> None:
+                 ConfigAutoChangeHook(),
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration base class.
 
         Derived class __init__ must create all object variables
@@ -72,6 +74,7 @@ class Config():
         Derived class __init__ usually does checking after
         call to super().__init__()
         """
+        self._stderr_file: TextIO = stderr_file
         self._hook_cfg_autochange: ConfigAutoChangeHook = \
             deepcopy(auto_ch_hook)
         self_keys = [i for i in vars(self).keys() if not
@@ -110,24 +113,26 @@ class Config():
     @staticmethod
     def check_key_match(expected_keys: list[str],
                         j_keys: list[str],
-                        ok_to_use_defaults: bool) -> None:
+                        ok_to_use_defaults: bool,
+                        stderr_file: TextIO) -> None:
         """Check if keys in imported JSON match exptected keys."""
         if not ok_to_use_defaults:
             for i in expected_keys:
                 if i not in j_keys:
                     errmsg = f'No value for {i} in JSON data'
-                    print(errmsg, file=sys.stderr)
+                    print(errmsg, file=stderr_file)
                     raise KeyError(errmsg)
         for i in j_keys:
             if i not in expected_keys:
                 errmsg = f'Unexpected parameter {i} in JSON data'
-                print(errmsg, file=sys.stderr)
+                print(errmsg, file=stderr_file)
                 raise KeyError(errmsg)
 
     @staticmethod
     def check_dict_parse(self_data: dict[str, Any], json_data: dict[str, Any],
                          key: str, ok_to_use_defaults: bool,
-                         unchecked_dicts: list[str]) -> None:
+                         unchecked_dicts: list[str],
+                         stderr_file: TextIO) -> None:
         """Check and parse dictionary."""
         if not isinstance(self_data, dict) and \
                 not isinstance(json_data, dict):
@@ -135,20 +140,21 @@ class Config():
         if isinstance(self_data, dict):
             if not isinstance(json_data, dict):
                 errmsg = f'Not dictionary for {key} in JSON data'
-                print(errmsg, file=sys.stderr)
+                print(errmsg, file=stderr_file)
                 raise KeyError(errmsg)
         if not isinstance(self_data, dict):
             errmsg = f'Unexpected dictionary for {key} in JSON data'
-            print(errmsg, file=sys.stderr)
+            print(errmsg, file=stderr_file)
             raise KeyError(errmsg)
         if key in unchecked_dicts:
             return
         Config.check_key_match(list(self_data.keys()), list(json_data.keys()),
-                               ok_to_use_defaults)
+                               ok_to_use_defaults, stderr_file)
         for i in self_data.keys():
             if i in json_data:
                 Config.check_dict_parse(self_data[i], json_data[i], i,
-                                        ok_to_use_defaults, unchecked_dicts)
+                                        ok_to_use_defaults, unchecked_dicts,
+                                        stderr_file)
 
     def _json_parse_obj_hook(self, indict: dict[str, Any]) -> dict[str, Any]:
         """Convert str to correct type."""
@@ -190,7 +196,8 @@ class Config():
 
     @staticmethod
     def _bwcompat_single(rename: BackwardCompatible,
-                         json_data: dict[str, JsonType]) -> bool:
+                         json_data: dict[str, JsonType],
+                         stderr_file: TextIO) -> bool:
         """Find and rename a single backward compatible in JSON data."""
         assert rename.old is not None
         assert rename.new is not None
@@ -198,11 +205,11 @@ class Config():
         ret: bool = False
         if rename.old in json_data:
             if rename.new in json_data:
-                print('Inconsistent configuration:', file=sys.stderr)
+                print('Inconsistent configuration:', file=stderr_file)
                 print(f'Both new config parameter {rename.new} and '
                       f'old {rename.old} present.',
-                      file=sys.stderr)
-                print(f'Ignoring old parameter {rename.old}', file=sys.stderr)
+                      file=stderr_file)
+                print(f'Ignoring old parameter {rename.old}', file=stderr_file)
                 del json_data[rename.old]
             else:
                 json_data[rename.new] = json_data[rename.old]
@@ -211,27 +218,32 @@ class Config():
         for _, value in json_data.items():
             if isinstance(value, dict):
                 assert isinstance(value, dict)
-                ret |= Config._bwcompat_single(rename=rename, json_data=value)
+                ret |= Config._bwcompat_single(rename=rename, json_data=value,
+                                               stderr_file=stderr_file)
             if isinstance(value, list):
                 assert isinstance(value, list)
                 ret |= Config._bwcompat_single_lst(rename=rename,
-                                                   json_data=value)
+                                                   json_data=value,
+                                                   stderr_file=stderr_file)
         return ret
 
     @staticmethod
     def _bwcompat_single_lst(rename: BackwardCompatible,
-                             json_data: list[JsonType]) -> bool:
+                             json_data: list[JsonType],
+                             stderr_file: TextIO) -> bool:
         """Find and rename a single backward compatible in JSON data."""
         ret: bool = False
         for value in json_data:
             if isinstance(value, dict):
                 assert isinstance(value, dict)
                 ret |= Config._bwcompat_single(rename=rename,
-                                               json_data=value)
+                                               json_data=value,
+                                               stderr_file=stderr_file)
             if isinstance(value, list):
                 assert isinstance(value, list)
                 ret |= Config._bwcompat_single_lst(rename=rename,
-                                                   json_data=value)
+                                                   json_data=value,
+                                                   stderr_file=stderr_file)
         return ret
 
     def _rename_backward_compatible(self,
@@ -239,7 +251,8 @@ class Config():
         """Rename any backward compatible config parameter to new name."""
         bwcompat = self._backward_compatible()
         for name in bwcompat:
-            if self._bwcompat_single(rename=name, json_data=json_data):
+            if self._bwcompat_single(rename=name, json_data=json_data,
+                                     stderr_file=self._stderr_file):
                 self._hook_cfg_autochange.old_key_handled(old_key=name.old)
 
     def parse_json(self, from_json_text: str,
@@ -258,7 +271,7 @@ class Config():
             msg += 'Probably incorrectly edited configuration,\n'
             msg += 'or using wrong file (not config file) as configuration.\n'
             msg += str(exc)
-            print(msg, file=sys.stderr)
+            print(msg, file=self._stderr_file)
             if isinstance(exc, json.JSONDecodeError):
                 raise ConfigBadJson(msg=msg, doc=exc.doc, pos=exc.pos) from exc
             raise ConfigBadJson(msg=msg, doc='', pos=0) from exc
@@ -267,12 +280,14 @@ class Config():
         self._hook_cfg_autochange.all_autochanges_done()
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
-        self.check_key_match(self_keys, data.keys(), ok_to_use_defaults)
+        self.check_key_match(self_keys, data.keys(), ok_to_use_defaults,
+                             self._stderr_file)
         for i in self_keys:
             if i in data.keys():
                 self.check_dict_parse(getattr(self, i), data[i], i,
                                       ok_to_use_defaults,
-                                      self._unchecked_dicts)
+                                      self._unchecked_dicts,
+                                      self._stderr_file)
                 setattr(self, i, data[i])
 
     def as_json_string(self) -> str:
@@ -284,7 +299,7 @@ class Config():
             data[i] = getattr(self, i)
         return json.dumps(data, sort_keys=True, indent=4, cls=ConfigEncoder)
 
-    def read(self, from_json_filename: str,
+    def read(self, from_json_filename: PathOrStr,
              ok_to_use_defaults: bool = False) -> None:
         """Read configuration JSON from named file."""
         file_must_exist(filename=from_json_filename,

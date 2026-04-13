@@ -7,9 +7,14 @@
 
 from typing import Optional, cast, Sequence, Mapping, TypeVar, \
     Any
+from pathlib import Path
 from datetime import datetime
 # imports needed by mypy, but not by python:
 from typing import Union, List, Dict  # pylint: disable=unused-import,ungrouped-imports # noqa: E501
+
+
+type PathOrStr = Path | str
+"""Path or string representing a file name."""
 
 
 # types used to describe input and output data

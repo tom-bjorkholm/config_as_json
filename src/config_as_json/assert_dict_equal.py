@@ -4,13 +4,13 @@
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
-from typing import Mapping, Any
+from typing import Mapping
 from copy import deepcopy
 import sys
 
 
-def _print_dict_differs(msg: str, lhs: Mapping[str, Any],
-                        rhs: Mapping[str, Any]) -> None:
+def _print_dict_differs(msg: str, lhs: Mapping[str, object],
+                        rhs: Mapping[str, object]) -> None:
     """Print message and dicts."""
     print(f'{msg}\n' +
           f'Number of keys in left dict: {len(lhs)}\n' +
@@ -19,7 +19,7 @@ def _print_dict_differs(msg: str, lhs: Mapping[str, Any],
           file=sys.stderr)
 
 
-def assert_dict_equal(lhs: Mapping[str, Any], rhs: Mapping[str, Any],
+def assert_dict_equal(lhs: Mapping[str, object], rhs: Mapping[str, object],
                       ignorekeys: list[str]) -> None:
     """Check and assert that dicts are equal ignoring some keys.
 
