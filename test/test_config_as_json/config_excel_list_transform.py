@@ -19,6 +19,7 @@ from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.commontypes import JsonType
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
+from config_as_json.validator import ValidationList
 
 
 type CsvSpec = dict[str, Optional[str]]
@@ -432,3 +433,7 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
         self.check_array_keys('s02_merge_rows', self.s02_merge_rows,
                               mandatory_keys=keys, allowed_keys=None,
                               stderr_file=self._stderr_file)
+
+    def get_validation_list(self) -> ValidationList:
+        """Get validation list for use when validating the Config object."""
+        return []

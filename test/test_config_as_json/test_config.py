@@ -17,6 +17,7 @@ import pytest
 from config_as_json.config import _ConfigEncoder, \
     ConfigBadJson, over_ride_needed, Config
 from config_as_json.assert_dict_equal import assert_dict_equal
+from config_as_json.validator import ValidationList
 
 
 class EnumInTesting(Enum):
@@ -135,6 +136,10 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
         return {'kind': self.get_converter_dict(EnumInTesting),
                 'ijk': self.get_converter_dict(EnumInTesting),
                 'gh': self.get_converter_dict(EnumInTesting)}
+
+    def get_validation_list(self) -> ValidationList:
+        """Get validation list for use when validating the Config object."""
+        return []
 
 
 def test_config_something_def(capsys):
@@ -639,6 +644,10 @@ class ConfigSomething2(Config):
         self.in_type = EnumInTesting.FOOBAR
         super().__init__(from_json_text, from_json_filename)
 
+    def get_validation_list(self) -> ValidationList:
+        """Get validation list for use when validating the Config object."""
+        return []
+
 
 def test_config_something2_bad(capsys):
     """Test error handling no parsse_converters."""
@@ -664,6 +673,10 @@ class ConfigSomething3(Config):
         """Use no parse converters."""
         return None
 
+    def get_validation_list(self) -> ValidationList:
+        """Get validation list for use when validating the Config object."""
+        return []
+
 
 def test_config_something3_bad(capsys):
     """Test error handling no parsse_converters."""
@@ -688,6 +701,10 @@ class ConfigSomething4(Config):
     def parse_converters(self):
         """Use no parse converters."""
         return {'in_type': self.get_converter_dict(EnumInTesting)}
+
+    def get_validation_list(self) -> ValidationList:
+        """Get validation list for use when validating the Config object."""
+        return []
 
 
 def test_config_something4_ok(capsys):
@@ -715,6 +732,10 @@ class ConfigSomething5(Config):
         """Use no parse converters."""
         return {'in_type': self.get_converter_dict(EnumInTesting)}
 
+    def get_validation_list(self) -> ValidationList:
+        """Get validation list for use when validating the Config object."""
+        return []
+
 
 def test_config_something5_bad(capsys):
     """Test error handling no parsse_converters."""
@@ -737,6 +758,10 @@ class ConfigEmpty(Config):
     def parse_converters(self):
         """Use no parse converters."""
         return None
+
+    def get_validation_list(self) -> ValidationList:
+        """Get validation list for use when validating the Config object."""
+        return []
 
 
 def test_config_empty_bad(capsys):
