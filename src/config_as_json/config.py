@@ -132,6 +132,8 @@ class Config():
                 unexpected keys.
             ConfigBadJson: The supplied JSON could not be decoded or converted
                 into the expected configuration structure.
+            NotImplementedError: The derived class did not implement
+                ``get_validation_list``.
         """
         if stderr_file is None:
             stderr_file = sys.stderr
@@ -852,6 +854,8 @@ class Config():
 
         The derived class shall override this method to return a list of
         Validation objects describing the validations for the Config object.
+        This is mandatory even for derived classes that do not currently use
+        validation and only want to return an empty list.
 
         Returns:
             A list of Validation objects describing the validations for
@@ -873,6 +877,10 @@ class Config():
         of the Validation objects in the list. A previous validation may
         normalize or change a configuration value that is used in a later
         validation.
+        A member validator returns the value that shall be stored back into the
+        member, even if that returned value is ``None``.
+        A whole-config validator may instead mutate the Config object
+        directly.
 
         Raises:
             InvalidConfiguration: The Config object is not valid.

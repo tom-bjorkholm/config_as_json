@@ -27,11 +27,16 @@ def not_one_of_allowed_values(member_name: str, member_value: object,
 
     Construct a message that a value is not one of the allowed values.
     If ``stderr_file`` is not ``None``, the message is written to it.
+
+    This helper is special: passing ``stderr_file`` as ``None`` explicitly
+    suppresses printing while still returning the constructed message.
+
     Args:
         member_name: The name of the member that has the invalid value.
         member_value: The invalid value of the member,
         allowed_values: The allowed values for the member.
         stderr_file: The file to optionally write error messages to.
+            If set to ``None`` explicitly, printing is suppressed.
 
     Returns:
         A string containing the error message.
@@ -65,11 +70,11 @@ class Validator:
         """Initialize the validator."""
 
     def validate(self, config: 'Config',
-                 stderr_file: Optional[TextIO] = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Validate the aspect of the entire Config object.
 
         The validate method must be implemented in a derived class, if used
-        used for validating the entire Config object.
+        for validating the entire Config object.
 
         The validator shall validate the entire Config object.
         If the validation check fails, the error message shall be written to
@@ -95,9 +100,8 @@ class Validator:
 
     def validate_member(self, config: 'Config',
                         member_name: str,
-                        member_value: Optional[object],
-                        stderr_file: Optional[TextIO]
-                        = sys.stderr) -> Optional[object]:
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate the aspect of the Config object for a specific member.
 
         The validate_member method must be implemented in a derived class, if
@@ -125,11 +129,10 @@ class Validator:
             A normalized value if the validation check passes,
             otherwise the exception is raised. This returned value will be
             used as the value of the member in the Config object.
-            Return the original value if you only validate, and do not want
+            Return the original value if you only validate and do not want
             to change the value of the member in the Config object.
-            Notice: The returned value is a corrected value that will be
-            used as the value of the member in the Config object, even if
-            the returned value is None.
+            Notice: The returned value is used as the new member value, even if
+            it is ``None``.
         """
         msg = 'Validator.validate_member() must be implemented in a ' + \
             'derived class.'
@@ -142,8 +145,12 @@ class Validator:
 
 def string_best_match(value: str, allowed_values: Sequence[str],
                       member_name: str,
-                      stderr_file: Optional[TextIO] = sys.stderr) -> str:
+                      stderr_file: TextIO = sys.stderr) -> str:
     """Return the best match for a string value from a list of allowed values.
+
+    The helper first accepts a direct match among ``value`` and a few common
+    case variants. If that fails, it accepts a unique prefix match ignoring
+    case.
 
     Args:
         value: The value to match.
@@ -213,8 +220,7 @@ class StrValidator(Validator):
     def validate_member(self, config: 'Config',
                         member_name: str,
                         member_value: object,
-                        stderr_file: Optional[TextIO]
-                        = sys.stderr) -> Optional[object]:
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate the aspect of the Config object for a specific str member.
 
         Raises:
@@ -231,11 +237,11 @@ class StrValidator(Validator):
         Returns:
             A normalized value if the validation check passes, otherwise
             an exception is raised.
-            Returns the original value when only validated, and does not want
+            Returns the original value when only validated and does not want
             to change the value of the member in the Config object.
-            Notice: The returned value is a corrected value that will be
-            used as the value of the member in the Config object, even if
-            the returned value is None.
+            When ``best_match`` is used, the returned value is the matched
+            entry from ``allowed_values``. This can normalize the member value
+            even when ``normalize`` is ``False``.
         """
         if not isinstance(member_value, str):
             msg = 'Invalid configuration: ' + \
@@ -264,7 +270,7 @@ class StrValidator(Validator):
                                         allowed_values)
 
     def validate(self, config: 'Config',
-                 stderr_file: Optional[TextIO] = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Cannot validate complete Config object with this validator."""
         msg = 'Cannot validate complete Config object with a StrValidator.'
         assert config is not None
@@ -292,7 +298,7 @@ class Validation(NamedTuple):
     validator: Validator
     """The validator to use for the validation.
 
-    The ``validate_membeer`` method of the validator is called once for each
+    The ``validate_member`` method of the validator is called once for each
     member name to validate (with the member name and value, in addition to
     the complete Config object).
     If ``member_names`` is ``None``, the ``validate`` method is called once
