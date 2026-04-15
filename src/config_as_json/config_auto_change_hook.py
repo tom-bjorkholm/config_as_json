@@ -11,7 +11,7 @@ value or because an old key name was transparently mapped to a new one.
 
 from copy import deepcopy
 import sys
-from typing import Optional, TextIO
+from typing import TextIO
 
 
 class ConfigAutoChangeHook():
@@ -21,15 +21,13 @@ class ConfigAutoChangeHook():
     should derive from this class and pass an instance to ``Config``.
     """
 
-    def __init__(self, stderr_file: Optional[TextIO] = None) -> None:
+    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
         """Initialize empty change tracking state.
 
         Args:
             stderr_file: Stream used by hooks that emit diagnostics.
                 Defaults to ``sys.stderr``.
         """
-        if stderr_file is None:
-            stderr_file = sys.stderr
         self._stderr_file: TextIO = stderr_file
         self.old_keys: list[str] = []
         self.def_val_keys: list[str] = []

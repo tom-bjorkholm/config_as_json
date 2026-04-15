@@ -5,6 +5,8 @@
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
+from typing import TextIO
+import sys
 import pytest
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
@@ -13,7 +15,8 @@ from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 class ConfigAutoChangeHookVer(ConfigAutoChangeHook):
     """Class to test ConfigAutoChangeHook."""
 
-    def __init__(self, old_key_ver: list[str], def_keys_ver: list[str]):
+    def __init__(self, old_key_ver: list[str], def_keys_ver: list[str],
+                 stderr_file: TextIO = sys.stderr):
         """Construct a ConfigAutoChangeHook obejct."""
         super().__init__()
         self.num = 0
@@ -38,7 +41,8 @@ class ConfigAutoChangeHookVer(ConfigAutoChangeHook):
                           (['a', 'b'], ['c'], 1)])
 def test_conf_auto_hook_ch_ok1(capsys, okv, dkv, num):
     """Test OK cases of ConfigAutoChangeHook."""
-    hook = ConfigAutoChangeHookVer(old_key_ver=okv, def_keys_ver=dkv)
+    hook = ConfigAutoChangeHookVer(old_key_ver=okv, def_keys_ver=dkv,
+                                   stderr_file=sys.stderr)
     for i in okv:
         hook.old_key_handled(i)
     for j in dkv:
@@ -66,7 +70,7 @@ def test_conf_auto_hook_ch_ok1(capsys, okv, dkv, num):
                            MigrateCfgWarnHook.migrate_warn_msg())])
 def test_migrate_hook_ch_ok1(capsys, okv, dkv, msg):
     """Test OK cases of ConfigAutoChangeHook."""
-    hook = MigrateCfgWarnHook()
+    hook = MigrateCfgWarnHook(stderr_file=sys.stderr)
     for i in okv:
         hook.old_key_handled(i)
     for j in dkv:
