@@ -5,6 +5,7 @@
 # MIT License
 
 from copy import deepcopy
+from typing import TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 
 
@@ -27,12 +28,14 @@ class MigrateCfgWarnHook(ConfigAutoChangeHook):
         return deepcopy(txt)  # copy to make sure original is not manipulated.
 
     def auto_changed(self, old_keys_handled: list[str],
-                     def_vals_handled: list[str]) -> None:
+                     def_vals_handled: list[str],
+                     stderr_file: TextIO) -> None:
         """Print the standard migration warning.
 
         Args:
             old_keys_handled: Legacy key names accepted during parsing.
             def_vals_handled: Keys that were filled with default values during
                 parsing.
+            stderr_file: Stream used for user-facing diagnostics.
         """
-        print(self.migrate_warn_msg(), file=self._stderr_file, end='')
+        print(self.migrate_warn_msg(), file=stderr_file, end='')

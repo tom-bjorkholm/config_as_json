@@ -6,7 +6,8 @@
 # MIT License
 
 import sys
-from typing import Optional, Sequence
+from io import StringIO
+from typing import Optional, Sequence, TextIO
 import pytest
 from config_as_json.config import Config
 from config_as_json.validator import InvalidConfiguration, \
@@ -17,23 +18,25 @@ from config_as_json.validator import InvalidConfiguration, \
 class ConfigMissingValidationList(Config):
     """Config class used to test missing get_validation_list()."""
 
-    def __init__(self, from_json_data_text: Optional[str] = None) -> None:
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct test config object."""
         self.value = 'alpha'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None)
+                         from_json_filename=None, stderr_file=stderr_file)
 
 
 class EmptyValidationConfig(Config):
     """Config class used as a small helper in validator tests."""
 
-    def __init__(self, from_json_data_text: Optional[str] = None) -> None:
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct test config object."""
         self.value = 'seed'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None)
+                         from_json_filename=None, stderr_file=stderr_file)
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return []
 
@@ -111,14 +114,15 @@ class ReplaceWithNoneValidator(Validator):
 class ValidationOrderConfig(Config):
     """Config class used to test validation order and write-back."""
 
-    def __init__(self, from_json_data_text: Optional[str] = None) -> None:
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct test config object."""
         self.name = 'alpha'
         self.alias = 'beta'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None)
+                         from_json_filename=None, stderr_file=stderr_file)
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return [
             Validation(member_names=['name'],
@@ -132,12 +136,13 @@ class ValidationOrderConfig(Config):
 class MissingMemberConfig(Config):
     """Config class used to test validation of a missing member."""
 
-    def __init__(self) -> None:
+    def __init__(self, stderr_file: TextIO) -> None:
         """Construct test config object."""
         self.value = 'alpha'
-        super().__init__(from_json_data_text=None, from_json_filename=None)
+        super().__init__(from_json_data_text=None, from_json_filename=None,
+                         stderr_file=stderr_file)
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return [Validation(member_names=['missing'],
                            validator=IdentityValidator())]
@@ -146,12 +151,13 @@ class MissingMemberConfig(Config):
 class NoneWriteBackConfig(Config):
     """Config class used to test member write-back of None."""
 
-    def __init__(self) -> None:
+    def __init__(self, stderr_file: TextIO) -> None:
         """Construct test config object."""
         self.value = 'alpha'
-        super().__init__(from_json_data_text=None, from_json_filename=None)
+        super().__init__(from_json_data_text=None, from_json_filename=None,
+                         stderr_file=stderr_file)
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return [Validation(member_names=['value'],
                            validator=ReplaceWithNoneValidator())]
@@ -160,18 +166,19 @@ class NoneWriteBackConfig(Config):
 class PaletteConfig(Config):
     """Config class used for StrValidator integration tests."""
 
-    def __init__(self, from_json_data_text: Optional[str] = None) -> None:
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct test config object."""
         self.shade = 'GREEN'
         self.accent = 'blu'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None)
+                         from_json_filename=None, stderr_file=stderr_file)
 
     def accent_names(self) -> Sequence[str]:
         """Return the allowed accent names."""
         return ['blue', 'black']
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return [
             Validation(member_names=['shade'],
@@ -216,7 +223,7 @@ def test_str_validator_ok(capsys, validator, member_value, expected):
 def test_missing_get_validation_list_raises(capsys):
     """Test that direct Config subclasses must implement validation list."""
     with pytest.raises(NotImplementedError) as exc:
-        _ = ConfigMissingValidationList()
+        _ = ConfigMissingValidationList(stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert 'Config.get_validation_list() must be implemented' in str(exc.value)
     assert out == ''
@@ -225,7 +232,7 @@ def test_missing_get_validation_list_raises(capsys):
 
 def test_validate_applies_member_and_whole_config_in_order(capsys):
     """Test that validation order and write-back work as documented."""
-    cfg = ValidationOrderConfig()
+    cfg = ValidationOrderConfig(stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert cfg.name == 'ALPHA'
     assert cfg.alias == 'ALPHA:beta!'
@@ -236,16 +243,29 @@ def test_validate_applies_member_and_whole_config_in_order(capsys):
 def test_validate_missing_member_raises_attribute_error(capsys):
     """Test validation failure when a listed member does not exist."""
     with pytest.raises(AttributeError) as exc:
-        _ = MissingMemberConfig()
+        _ = MissingMemberConfig(stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert 'Member missing not found in Config object' in str(exc.value)
     assert out == ''
     assert 'Member missing not found in Config object' in err
 
 
+def test_validate_missing_member_uses_supplied_stderr_file(capsys):
+    """Test validation failure routing to an explicitly supplied stream."""
+    stderr_file = StringIO()
+    with pytest.raises(AttributeError) as exc:
+        _ = MissingMemberConfig(stderr_file=stderr_file)
+    out, err = capsys.readouterr()
+    assert 'Member missing not found in Config object' in str(exc.value)
+    assert out == ''
+    assert err == ''
+    assert 'Member missing not found in Config object' in \
+        stderr_file.getvalue()
+
+
 def test_validate_member_can_write_back_none(capsys):
     """Test that a member validator can replace a member with None."""
-    cfg = NoneWriteBackConfig()
+    cfg = NoneWriteBackConfig(stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert cfg.value is None
     assert out == ''
@@ -265,7 +285,7 @@ def test_not_one_of_allowed_values_can_suppress_printing(capsys):
 
 def test_base_validator_methods_raise_not_implemented(capsys):
     """Test the default Validator methods used without overriding."""
-    cfg = EmptyValidationConfig()
+    cfg = EmptyValidationConfig(stderr_file=sys.stderr)
     validator = Validator()
     with pytest.raises(NotImplementedError) as exc:
         validator.validate(cfg, sys.stderr)

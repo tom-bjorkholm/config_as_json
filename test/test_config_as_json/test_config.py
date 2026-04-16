@@ -9,10 +9,11 @@
 
 from tempfile import NamedTemporaryFile as ntf
 from os import remove as os_remove
+from io import StringIO
 from enum import Enum, auto
 import csv
 import sys
-from typing import Any, cast
+from typing import Any, cast, TextIO
 import pytest
 from config_as_json.config import _ConfigEncoder, \
     ConfigBadJson, over_ride_needed, Config
@@ -70,7 +71,8 @@ def test_over_ride_needed_2(capsys):
 class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None):
+    def __init__(self, from_json_text=None, from_json_filename=None,
+                 stderr_file: TextIO = sys.stderr):
         """Construct configuration for test."""
         self.csv_dialect1 = {'name': 'csv.excel', 'delimiter': ',',
                              'quoting': None, 'quotechar': '"',
@@ -88,10 +90,11 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
                     'qr': [{'gh': EnumInTesting.BARFOO, 'ij': 'st', 'mn': 3},
                            {'gh': EnumInTesting.BARFOO, 'ij': 'uv', 'mn': 4}]}
         self._unchecked_dicts = ['mno', 'pqr']
-        super().__init__(from_json_text, from_json_filename)
-        self.check_array_configs()
+        super().__init__(from_json_text, from_json_filename,
+                         stderr_file=stderr_file)
+        self.check_array_configs(stderr_file=stderr_file)
 
-    def get_csv_dialect1(self):
+    def get_csv_dialect1(self, stderr_file: TextIO):
         """Get CSV dialect 1."""
         return self.get_csv_dialect(
             name=self.csv_dialect1['name'],
@@ -100,9 +103,9 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
             quotechar=self.csv_dialect1['quotechar'],
             lineterminator=self.csv_dialect1['lineterminator'],
             escapechar=self.csv_dialect1['escapechar'],
-            stderr_file=self._stderr_file)
+            stderr_file=stderr_file)
 
-    def get_csv_dialect2(self):
+    def get_csv_dialect2(self, stderr_file: TextIO):
         """Get CSV dialect 2."""
         return self.get_csv_dialect(
             name=self.csv_dialect2['name'],
@@ -111,17 +114,17 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
             quotechar=self.csv_dialect2['quotechar'],
             lineterminator=self.csv_dialect2['lineterminator'],
             escapechar=self.csv_dialect2['escapechar'],
-            stderr_file=self._stderr_file)
+            stderr_file=stderr_file)
 
-    def check_array_configs(self):
+    def check_array_configs(self, stderr_file: TextIO):
         """Check that keywords in configuration arrays are OK."""
         abc_keys = ['def', 'geh', 'ijk']
         self.check_array_keys('abc', self.abc, abc_keys,
-                              stderr_file=self._stderr_file)
+                              stderr_file=stderr_file)
         pqr_keys = ['gh', 'ij', 'mn']
         for _, val in self.pqr.items():
             self.check_array_keys('pqr', val, pqr_keys,
-                                  stderr_file=self._stderr_file)
+                                  stderr_file=stderr_file)
 
     def parse_converters(self):
         """Get converters for use when parsing JSON.
@@ -137,7 +140,7 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
                 'ijk': self.get_converter_dict(EnumInTesting),
                 'gh': self.get_converter_dict(EnumInTesting)}
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return []
 
@@ -270,14 +273,14 @@ def test_config_something_changed2(capsys, mno_not_pqr, value):
                            'Missing key "mn"')])
 def test_config_something_cha_bad(capsys, abc_not_pqr, value, exm):
     """Test ConfigSomething with bad changed values."""
-    xst = ConfigSomething()
+    xst = ConfigSomething(stderr_file=sys.stderr)
     if abc_not_pqr:
         xst.abc = value
     else:
         xst.pqr = value
     scfg = xst.as_json_string()
     with pytest.raises(SystemExit):
-        _ = ConfigSomething(from_json_text=scfg)
+        _ = ConfigSomething(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert exm in err
@@ -331,10 +334,10 @@ def test_config_something_writeinit(capsys, indel, outdel):
                           ('{"csv_dialect1" : {"delimiter" : ":"}}', ':')])
 def test_config_smt_read_incompl1(capsys, txt, indel):
     """Test ConfigSomething read incomplete 1."""
-    yst = ConfigSomething()
+    yst = ConfigSomething(stderr_file=sys.stderr)
     outdelold = yst.csv_dialect2['delimiter']
     indelold = yst.csv_dialect1['delimiter']
-    yst.parse_json(txt, ok_to_use_defaults=True)
+    yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
     assert yst.csv_dialect1['delimiter'] == indel
     assert yst.csv_dialect2['delimiter'] == outdelold
     assert yst.csv_dialect1['delimiter'] != indelold
@@ -348,9 +351,9 @@ def test_config_smt_read_incompl1(capsys, txt, indel):
                           '{"csv_dialect1": {"delimiter" : ";"}}'])
 def test_config_smt_read_incompl2(capsys, txt):
     """Test ConfigSomething read incomplete 2."""
-    yst = ConfigSomething()
+    yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=False)
+        yst.parse_json(txt, ok_to_use_defaults=False, stderr_file=sys.stderr)
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
     assert out == ''
@@ -359,15 +362,36 @@ def test_config_smt_read_incompl2(capsys, txt):
 
 def test_config_smt_read_nonexist(capsys):
     """Test ConfigSomething read non-existing."""
-    yst = ConfigSomething()
+    yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(SystemExit) as exc_info:
         yst.read(from_json_filename='file-that-does-not-exist',
-                 ok_to_use_defaults=True)
+                 ok_to_use_defaults=True, stderr_file=sys.stderr)
     assert exc_info.type is SystemExit
     out, err = capsys.readouterr()
     assert out == ''
     assert 'File file-that-does-not-exist' in err
     assert 'with configuration JSON input does not exist' in err
+
+
+def test_config_smt_read_uses_supplied_stderr_file(capsys):
+    """Test that read() forwards a custom stderr stream to parse_json()."""
+    yst = ConfigSomething(stderr_file=sys.stderr)
+    stderr_file = StringIO()
+    filename = None
+    with ntf(mode='w', delete=False, encoding='UTF-8') as tfile:
+        filename = tfile.name
+        tfile.write('not valid json')
+    try:
+        with pytest.raises(ConfigBadJson):
+            yst.read(from_json_filename=filename, stderr_file=stderr_file)
+    finally:
+        assert filename is not None
+        os_remove(filename)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert 'Config.parse_json failed to load JSON from string/file.' in \
+        stderr_file.getvalue()
 
 
 @pytest.mark.parametrize('txt',
@@ -376,7 +400,7 @@ def test_config_smt_read_nonexist(capsys):
 def test_config_smt_init_incompl(capsys, txt):
     """Test ConfigSomething init incomplete."""
     with pytest.raises(KeyError) as exc_info:
-        yst = ConfigSomething(from_json_text=txt)
+        yst = ConfigSomething(from_json_text=txt, stderr_file=sys.stderr)
         assert yst.csv_dialect1['delimiter'] == ''
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
@@ -389,9 +413,9 @@ def test_config_smt_init_incompl(capsys, txt):
                           '{"csv_dialec": {"delimiter" : ";"}}'])
 def test_config_something_read_bad(capsys, txt):
     """Test ConfigSomething read bad."""
-    yst = ConfigSomething()
+    yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True)
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
     assert out == ''
@@ -403,9 +427,9 @@ def test_config_something_read_bad(capsys, txt):
                           '{"csv_dialect2t": {"delimiter" : ";"}}'])
 def test_config_something_read_bad2(capsys, txt):
     """Test ConfigSomething read bad 2."""
-    yst = ConfigSomething()
+    yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True)
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
     assert out == ''
@@ -417,9 +441,9 @@ def test_config_something_read_bad2(capsys, txt):
                           'do you beleave in music'])
 def test_config_something_read_bad3(capsys, txt):
     """Test ConfigSomething read bad 3."""
-    yst = ConfigSomething()
+    yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(ConfigBadJson) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True)
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert exc_info.type is ConfigBadJson
     assert 'failed to load JSON' in str(exc_info)
@@ -432,9 +456,10 @@ def test_config_something_read_bad3(capsys, txt):
                           b'\xff'])
 def test_config_something_read_bad4(capsys, txt):
     """Test ConfigSomething read bad 4."""
-    yst = ConfigSomething()
+    yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(ConfigBadJson) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True)
+        yst.parse_json(txt, ok_to_use_defaults=True,
+                       stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert exc_info.type is ConfigBadJson
     assert 'decode byte 0xff in position 0' in str(exc_info)
@@ -448,9 +473,10 @@ def test_config_something_read_bad4(capsys, txt):
                            'Unexpected dictionary for')])
 def test_config_smt_read_dict_mism(capsys, txt, errtxt):
     """Test ConfigSomething read dict mismatch."""
-    yst = ConfigSomething()
+    yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True)
+        yst.parse_json(txt, ok_to_use_defaults=True,
+                       stderr_file=sys.stderr)
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
     assert out == ''
@@ -459,12 +485,12 @@ def test_config_smt_read_dict_mism(capsys, txt, errtxt):
 
 def test_config_something_csv_ok_1(capsys):
     """Test ConfigSomething csv OK 1."""
-    yst = ConfigSomething()
+    yst = ConfigSomething(stderr_file=sys.stderr)
     txt = """{"csv_dialect2": {"name": "csv.excel", "delimiter": "+",
     "quoting": null, "quotechar": "'",
     "lineterminator": null, "escapechar": null}}"""
-    yst.parse_json(txt, ok_to_use_defaults=True)
-    dial = yst.get_csv_dialect2()
+    yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
+    dial = yst.get_csv_dialect2(stderr_file=sys.stderr)
     assert dial.delimiter == '+'
     assert dial.__module__ == 'csv'
     assert isinstance(dial, csv.excel)
@@ -475,13 +501,13 @@ def test_config_something_csv_ok_1(capsys):
 
 def test_config_something_csv_bad_1(capsys):
     """Test ConfigSomething csv bad 1."""
-    yst = ConfigSomething()
+    yst = ConfigSomething(stderr_file=sys.stderr)
     txt = """{"csv_dialect2": {"name": "csv.excelent", "delimiter": "+",
     "quoting": null, "quotechar": "'",
     "lineterminator": null, "escapechar": null}}"""
     with pytest.raises(KeyError) as exc_info:
         yst.parse_json(txt, ok_to_use_defaults=True)
-        dial = yst.get_csv_dialect2()
+        dial = yst.get_csv_dialect2(stderr_file=sys.stderr)
         assert dial.delimiter == '+'
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
@@ -493,9 +519,9 @@ def test_config_something_csv_bad_1(capsys):
 def test_config_smt_csv_def(capsys):
     """Test ConfigSomething csv default."""
     yst = ConfigSomething()
-    out = yst.get_csv_dialect2()
+    out = yst.get_csv_dialect2(stderr_file=sys.stderr)
     assert out.delimiter == ','
-    inp = yst.get_csv_dialect1()
+    inp = yst.get_csv_dialect1(stderr_file=sys.stderr)
     assert inp.delimiter == ','
     out, err = capsys.readouterr()
     assert out == ''
@@ -522,12 +548,12 @@ def csv_combinations_chcker(nam,   # pylint: disable=too-many-arguments, too-man
     if err:
         with pytest.raises(KeyError) as exc_info:
             yst.parse_json(scfg, ok_to_use_defaults=True)
-            dial = yst.get_csv_dialect2()
+            dial = yst.get_csv_dialect2(stderr_file=sys.stderr)
             assert dial.delimiter == dlm
         assert exc_info.type is KeyError
     else:
         yst.parse_json(scfg, ok_to_use_defaults=True)
-        dial = yst.get_csv_dialect2()
+        dial = yst.get_csv_dialect2(stderr_file=sys.stderr)
         if dlm is not None:
             assert dial.delimiter == dlm
         if esc is not None:
@@ -639,12 +665,14 @@ def test_config_smt_csv_comb_f6(capsys,  # pylint: disable=too-many-arguments, t
 class ConfigSomething2(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None):
+    def __init__(self, from_json_text=None, from_json_filename=None,
+                 stderr_file: TextIO = sys.stderr):
         """Construct configuration for test."""
         self.in_type = EnumInTesting.FOOBAR
-        super().__init__(from_json_text, from_json_filename)
+        super().__init__(from_json_text, from_json_filename,
+                         stderr_file=stderr_file)
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return []
 
@@ -654,7 +682,7 @@ def test_config_something2_bad(capsys):
     xst = ConfigSomething2()
     scfg = xst.as_json_string()
     with pytest.raises(NotImplementedError) as exc:
-        _ = ConfigSomething2(from_json_text=scfg)
+        _ = ConfigSomething2(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert 'Override of Config.parse_converters needed.' in str(exc)
     assert out == ''
@@ -664,25 +692,27 @@ def test_config_something2_bad(capsys):
 class ConfigSomething3(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None):
+    def __init__(self, from_json_text=None, from_json_filename=None,
+                 stderr_file: TextIO = sys.stderr):
         """Construct configuration for test."""
         self.in_type = EnumInTesting.FOOBAR
-        super().__init__(from_json_text, from_json_filename)
+        super().__init__(from_json_text, from_json_filename,
+                         stderr_file=stderr_file)
 
     def parse_converters(self):
         """Use no parse converters."""
         return None
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return []
 
 
 def test_config_something3_bad(capsys):
     """Test error handling no parsse_converters."""
-    xst = ConfigSomething3()
+    xst = ConfigSomething3(stderr_file=sys.stderr)
     scfg = xst.as_json_string()
-    yst = ConfigSomething3(from_json_text=scfg)
+    yst = ConfigSomething3(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert xst.in_type != yst.in_type
     assert xst.in_type.name == cast(str, yst.in_type)
@@ -693,25 +723,27 @@ def test_config_something3_bad(capsys):
 class ConfigSomething4(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None):
+    def __init__(self, from_json_text=None, from_json_filename=None,
+                 stderr_file: TextIO = sys.stderr):
         """Construct configuration for test."""
         self.in_type = EnumInTesting.FOOBAR
-        super().__init__(from_json_text, from_json_filename)
+        super().__init__(from_json_text, from_json_filename,
+                         stderr_file=stderr_file)
 
     def parse_converters(self):
         """Use no parse converters."""
         return {'in_type': self.get_converter_dict(EnumInTesting)}
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return []
 
 
 def test_config_something4_ok(capsys):
     """Test error handling no parsse_converters."""
-    xst = ConfigSomething4()
+    xst = ConfigSomething4(stderr_file=sys.stderr)
     scfg = xst.as_json_string()
-    yst = ConfigSomething4(from_json_text=scfg)
+    yst = ConfigSomething4(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert isinstance(xst.in_type, type(yst.in_type))
     assert xst.in_type == yst.in_type
@@ -722,17 +754,19 @@ def test_config_something4_ok(capsys):
 class ConfigSomething5(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None):
+    def __init__(self, from_json_text=None, from_json_filename=None,
+                 stderr_file: TextIO = sys.stderr):
         """Construct configuration for test."""
         self.in_type = EnumInTesting.FOOBAR
         self._unchecked_dicts = cast(Any, 'in_type')
-        super().__init__(from_json_text, from_json_filename)
+        super().__init__(from_json_text, from_json_filename,
+                         stderr_file=stderr_file)
 
     def parse_converters(self):
         """Use no parse converters."""
         return {'in_type': self.get_converter_dict(EnumInTesting)}
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return []
 
@@ -740,7 +774,7 @@ class ConfigSomething5(Config):
 def test_config_something5_bad(capsys):
     """Test error handling no parsse_converters."""
     with pytest.raises(TypeError) as exc:
-        _ = ConfigSomething5()
+        _ = ConfigSomething5(stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '_unchecked_dicts must be a list' in str(exc)
     assert out == ''
@@ -750,16 +784,18 @@ def test_config_something5_bad(capsys):
 class ConfigEmpty(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None):
+    def __init__(self, from_json_text=None, from_json_filename=None,
+                 stderr_file: TextIO = sys.stderr):
         """Construct configuration for test."""
         self._unchecked_dictscfg = ['in_type']
-        super().__init__(from_json_text, from_json_filename)
+        super().__init__(from_json_text, from_json_filename,
+                         stderr_file=stderr_file)
 
     def parse_converters(self):
         """Use no parse converters."""
         return None
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return []
 

@@ -6,6 +6,7 @@
 # MIT License
 
 from tempfile import TemporaryDirectory
+from typing import TextIO
 import sys
 import pytest
 from config_as_json.assert_dict_equal import assert_dict_equal
@@ -30,13 +31,14 @@ def _match_configs() -> MatchConfigSeq:
 
 
 def _config_from_file(filename: str,
-                      auto_ch_hook: ConfigAutoChangeHook) -> \
+                      auto_ch_hook: ConfigAutoChangeHook,
+                      stderr_file: TextIO) -> \
         ConfigXlsListTransfName | ConfigXlsListTransfNum:
     """Create one of the copied test configurations from a file."""
     cfg = config_factory_from_json(match_configs=_match_configs(),
                                    auto_ch_hook=auto_ch_hook,
                                    from_json_filename=filename,
-                                   stderr_file=sys.stderr)
+                                   stderr_file=stderr_file)
     assert isinstance(cfg, (ConfigXlsListTransfName, ConfigXlsListTransfNum))
     return cfg
 
@@ -45,7 +47,7 @@ def test_config_factory_from_json_name_cfg(capsys):
     """Select the name-based configuration class from legacy JSON."""
     cfg = _config_from_file(
         'test/test_config_as_json/bak_compat_0_7_13_name.cfg',
-        MigrateCfgWarnHook())
+        MigrateCfgWarnHook(), stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert isinstance(cfg, ConfigXlsListTransfName)
     assert cfg.column_ref.name == 'BY_NAME'
@@ -57,7 +59,7 @@ def test_config_factory_from_json_number_cfg(capsys):
     """Select the number-based configuration class from legacy JSON."""
     cfg = _config_from_file(
         'test/test_config_as_json/bak_compat_0_7_13_number.cfg',
-        MigrateCfgWarnHook())
+        MigrateCfgWarnHook(), stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert isinstance(cfg, ConfigXlsListTransfNum)
     assert cfg.column_ref.name == 'BY_NUMBER'
@@ -104,7 +106,8 @@ def test_migrate_cfg_name(capsys):
         res = migrate_cfg(infile=infilename, outfile=outfilename,
                           match_configs=_match_configs(),
                           stderr_file=sys.stderr)
-        cfg = _config_from_file(outfilename, ConfigAutoChangeHook())
+        cfg = _config_from_file(outfilename, ConfigAutoChangeHook(),
+                                stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert_dict_equal(refcfg.__dict__, cfg.__dict__, ['_hook_cfg_autochange'],
                       stderr_file=sys.stderr)
@@ -130,7 +133,8 @@ def test_migrate_cfg_number(capsys):
         res = migrate_cfg(infile=infilename, outfile=outfilename,
                           match_configs=_match_configs(),
                           stderr_file=sys.stderr)
-        cfg = _config_from_file(outfilename, ConfigAutoChangeHook())
+        cfg = _config_from_file(outfilename, ConfigAutoChangeHook(),
+                                stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert_dict_equal(refcfg.__dict__, cfg.__dict__, ['_hook_cfg_autochange'],
                       stderr_file=sys.stderr)

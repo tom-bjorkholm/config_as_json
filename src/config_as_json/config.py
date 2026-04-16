@@ -107,7 +107,7 @@ class Config():
     def __init__(self, from_json_data_text: Optional[str],
                  from_json_filename: Optional[PathOrStr],
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: Optional[TextIO] = None) -> None:
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Initialize a derived configuration object.
 
         A derived ``__init__`` is expected to assign every supported
@@ -135,14 +135,10 @@ class Config():
             NotImplementedError: The derived class did not implement
                 ``get_validation_list``.
         """
-        if stderr_file is None:
-            stderr_file = sys.stderr
-        self._stderr_file: TextIO = stderr_file
         if auto_ch_hook is None:
-            auto_ch_hook = ConfigAutoChangeHook(stderr_file=stderr_file)
+            auto_ch_hook = ConfigAutoChangeHook()
         self._hook_cfg_autochange: ConfigAutoChangeHook = \
             deepcopy(auto_ch_hook)
-        self._hook_cfg_autochange._stderr_file = stderr_file
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
         if not self_keys:
@@ -162,10 +158,10 @@ class Config():
             msg += 'both.'
             raise ValueError(msg)
         if from_json_data_text is not None:
-            self.parse_json(from_json_data_text)
+            self.parse_json(from_json_data_text, stderr_file=stderr_file)
         elif from_json_filename is not None:
-            self.read(from_json_filename)
-        self.validate()
+            self.read(from_json_filename, stderr_file=stderr_file)
+        self.validate(stderr_file=stderr_file)
 
     def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
         """Return post-load conversion rules for parsed JSON values.
@@ -389,26 +385,31 @@ class Config():
         return ret
 
     def _rename_backward_compatible(self,
-                                    json_data: dict[str, JsonType]) -> None:
+                                    json_data: dict[str, JsonType],
+                                    stderr_file: TextIO) -> None:
         """Apply all declared backward-compatible key renames in place.
 
         Args:
             json_data: Parsed JSON object to normalize before validation.
+            stderr_file: Stream used for user-facing diagnostics.
         """
         bwcompat = self._backward_compatible()
         for name in bwcompat:
             if self._bwcompat_single(rename=name, json_data=json_data,
-                                     stderr_file=self._stderr_file):
+                                     stderr_file=stderr_file):
                 self._hook_cfg_autochange.old_key_handled(old_key=name.old)
 
     def parse_json(self, from_json_text: str,
-                   ok_to_use_defaults: bool = False) -> None:
+                   ok_to_use_defaults: bool = False,
+                   stderr_file: TextIO = sys.stderr) -> None:
         """Parse JSON text and apply it to the configuration object.
 
         Args:
             from_json_text: JSON document describing configuration values.
             ok_to_use_defaults: Whether missing declared keys may remain at
                 their already assigned default values.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
 
         Raises:
             ConfigBadJson: The text is not valid configuration JSON.
@@ -430,23 +431,23 @@ class Config():
             msg += 'Probably incorrectly edited configuration,\n'
             msg += 'or using wrong file (not config file) as configuration.\n'
             msg += str(exc)
-            print(msg, file=self._stderr_file)
+            print(msg, file=stderr_file)
             if isinstance(exc, json.JSONDecodeError):
                 raise ConfigBadJson(msg=msg, doc=exc.doc, pos=exc.pos) from exc
             raise ConfigBadJson(msg=msg, doc='', pos=0) from exc
         self._add_optional_configs(data)
-        self._rename_backward_compatible(data)
-        self._hook_cfg_autochange.all_autochanges_done()
+        self._rename_backward_compatible(data, stderr_file=stderr_file)
+        self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
         self.check_key_match(self_keys, data.keys(), ok_to_use_defaults,
-                             self._stderr_file)
+                             stderr_file)
         for i in self_keys:
             if i in data.keys():
                 self.check_dict_parse(getattr(self, i), data[i], i,
                                       ok_to_use_defaults,
                                       self._unchecked_dicts,
-                                      self._stderr_file)
+                                      stderr_file)
                 setattr(self, i, data[i])
 
     def as_json_string(self) -> str:
@@ -464,20 +465,24 @@ class Config():
         return json.dumps(data, sort_keys=True, indent=4, cls=_ConfigEncoder)
 
     def read(self, from_json_filename: PathOrStr,
-             ok_to_use_defaults: bool = False) -> None:
+             ok_to_use_defaults: bool = False,
+             stderr_file: TextIO = sys.stderr) -> None:
         """Read configuration JSON from a file and apply it to the object.
 
         Args:
             from_json_filename: File containing configuration JSON.
             ok_to_use_defaults: Whether missing declared keys may remain at
                 their already assigned default values.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
         """
         file_must_exist(filename=from_json_filename,
                         with_content_txt='configuration JSON input',
-                        stderr_file=self._stderr_file)
+                        stderr_file=stderr_file)
         with open(file=from_json_filename, mode='r', encoding='UTF-8') as file:
             data = file.read()
-            self.parse_json(data, ok_to_use_defaults)
+            self.parse_json(data, ok_to_use_defaults,
+                            stderr_file=stderr_file)
 
     def write(self, to_json_filename: PathOrStr) -> None:
         """Write the current configuration to a JSON file.
@@ -845,7 +850,7 @@ class Config():
         print(msg, file=stderr_file)
         sys.exit(1)
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Return the validation list for the Config object.
 
         The validation list is used to validate the Config object after it has
@@ -857,6 +862,9 @@ class Config():
         This is mandatory even for derived classes that do not currently use
         validation and only want to return an empty list.
 
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+
         Returns:
             A list of Validation objects describing the validations for
             the Config object. The order of the Validation objects in the list
@@ -865,11 +873,11 @@ class Config():
         """
         msg = 'Config.get_validation_list() must be implemented in a ' + \
             'derived class.'
-        print(msg, file=self._stderr_file)
+        print(msg, file=stderr_file)
         raise NotImplementedError(msg)
         return []  # pylint: disable=unreachable
 
-    def validate(self) -> None:
+    def validate(self, stderr_file: TextIO) -> None:
         """Validate the Config object.
 
         The validation is performed by the validation list returned by
@@ -891,11 +899,14 @@ class Config():
                                  method of the Validator class.
             AttributeError: A member name in the validation list is not a
                             valid member name of the Config object.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
         """
-        validation_list = self.get_validation_list()
+        validation_list = self.get_validation_list(stderr_file=stderr_file)
         for valdtn in validation_list:
             if valdtn.member_names is None:
-                valdtn.validator.validate(self, self._stderr_file)
+                valdtn.validator.validate(self, stderr_file)
             else:
                 for member_name in valdtn.member_names:
                     if not hasattr(self, member_name):
@@ -904,11 +915,11 @@ class Config():
                         msg += 'in validation of '
                         msg += f'{valdtn.validator.__class__.__name__} '
                         msg += 'in Config.validate().'
-                        print(msg, file=self._stderr_file)
+                        print(msg, file=stderr_file)
                         raise AttributeError(msg)
                     member_value = getattr(self, member_name)
                     ret = valdtn.validator.validate_member(self,
                                                            member_name,
                                                            member_value,
-                                                           self._stderr_file)
+                                                           stderr_file)
                     setattr(self, member_name, ret)

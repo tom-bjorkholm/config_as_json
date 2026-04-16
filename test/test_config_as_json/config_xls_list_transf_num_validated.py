@@ -25,12 +25,10 @@ class ConfigXlsListTransfNumValidated(  # pylint: disable=too-many-instance-attr
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: Optional[TextIO] = None) -> None:
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for excel list transform."""
-        if stderr_file is None:
-            stderr_file = sys.stderr
         if auto_ch_hook is None:
-            auto_ch_hook = MigrateCfgWarnHook(stderr_file=stderr_file)
+            auto_ch_hook = MigrateCfgWarnHook()
         self.s04_remove_columns: RuleRemove = [1, 2, 3]
         self.s06_place_columns_first: RulePlace = [7, 3, 6]
         col_to_use = [15, 16, 1, 2, 5, 5, 5, 5, 5, 6]
@@ -54,7 +52,7 @@ class ConfigXlsListTransfNumValidated(  # pylint: disable=too-many-instance-attr
                          auto_ch_hook=auto_ch_hook,
                          stderr_file=stderr_file)
 
-    def sort_sx_hook(self) -> None:
+    def sort_sx_hook(self, stderr_file: TextIO = sys.stderr) -> None:
         """Sort s[0-9]_ as needed as needed (hook)."""
         self.s03_split_columns = sorted(self.s03_split_columns, key=get_column)
         self.s04_remove_columns = sorted(self.s04_remove_columns)
@@ -73,9 +71,9 @@ class ConfigXlsListTransfNumValidated(  # pylint: disable=too-many-instance-attr
         """Return the optional insert-column key name for this config."""
         return 'name'
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
-        ret = super().get_validation_list()
+        ret = super().get_validation_list(stderr_file=stderr_file)
         ret.extend([
             Validation(member_names=['s04_remove_columns',
                                      's06_place_columns_first'],

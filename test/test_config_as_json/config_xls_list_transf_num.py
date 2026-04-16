@@ -37,12 +37,10 @@ class ConfigXlsListTransfNum(ConfigExcelListTransform[int]):  # pylint: disable=
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: Optional[TextIO] = None) -> None:
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for excel list transform."""
-        if stderr_file is None:
-            stderr_file = sys.stderr
         if auto_ch_hook is None:
-            auto_ch_hook = MigrateCfgWarnHook(stderr_file=stderr_file)
+            auto_ch_hook = MigrateCfgWarnHook()
         self.s04_remove_columns: RuleRemove = [1, 2, 3]
         self.s06_place_columns_first: RulePlace = [7, 3, 6]
         col_to_use = [15, 16, 1, 2, 5, 5, 5, 5, 5, 6]
@@ -66,13 +64,13 @@ class ConfigXlsListTransfNum(ConfigExcelListTransform[int]):  # pylint: disable=
                          stderr_file=stderr_file)
         self.check_no_duplicates(self.s04_remove_columns,
                                  's04_remove_columns',
-                                 stderr_file=self._stderr_file)
+                                 stderr_file=stderr_file)
         self._check_increasing_multi(self.s05_merge_columns,
                                      's05_merge_columns', 2,
-                                     stderr_file=self._stderr_file)
+                                     stderr_file=stderr_file)
         self.check_no_duplicates(self.s06_place_columns_first,
                                  's06_place_columns_first',
-                                 stderr_file=self._stderr_file)
+                                 stderr_file=stderr_file)
 
     def sort_sx_hook(self) -> None:
         """Sort s[0-9]_ as needed as needed (hook)."""

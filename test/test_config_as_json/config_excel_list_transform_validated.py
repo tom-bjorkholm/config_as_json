@@ -19,7 +19,7 @@ from .config_excel_list_transform import ColInfo, Column, Rule, RuleMerge, \
 
 
 class ConfigMethodValidator(Validator):
-    """Call one no-argument validation method on the Config object."""
+    """Call one validation method on the Config object."""
 
     def __init__(self, method_name: str) -> None:
         """Store the method name to call during validation."""
@@ -27,11 +27,15 @@ class ConfigMethodValidator(Validator):
 
     def validate(self, config: Config,
                  stderr_file: TextIO = sys.stderr) -> None:
-        """Validate by calling the named method on the Config object."""
-        _ = stderr_file
+        """Validate by calling the named method on the Config object.
+
+        Args:
+            config: Config object whose method should be called.
+            stderr_file: Stream passed through to the named method.
+        """
         method = getattr(config, self._method_name)
         assert callable(method)
-        method()
+        method(stderr_file=stderr_file)
 
 
 class CharEncodingValidator(Validator):
@@ -140,12 +144,10 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: Optional[TextIO] = None) -> None:
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for excel list transform."""
-        if stderr_file is None:
-            stderr_file = sys.stderr
         if auto_ch_hook is None:
-            auto_ch_hook = MigrateCfgWarnHook(stderr_file=stderr_file)
+            auto_ch_hook = MigrateCfgWarnHook()
         copy_common_state_from_legacy(self, col_ref, colinfo, tinfo,
                                       auto_ch_hook, stderr_file)
         super().__init__(from_json_data_text=from_json_data_text,
@@ -153,7 +155,7 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
                          auto_ch_hook=auto_ch_hook,
                          stderr_file=stderr_file)
 
-    def sort_sx_hook(self) -> None:
+    def sort_sx_hook(self, stderr_file: TextIO) -> None:
         """Sort s[0-9]_ as needed (hook)."""
 
     def _split_last_key(self) -> str:
@@ -166,30 +168,50 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
         msg = '_insert_last_key() must be implemented in a derived class.'
         raise NotImplementedError(msg)
 
-    def _validate_array_configs(self) -> None:
-        """Validate the keyword sets used by the configuration arrays."""
+    def _validate_array_configs(self, stderr_file: TextIO) -> None:
+        """Validate the keyword sets used by the configuration arrays.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
         LegacyConfigExcelListTransform.check_array_configs(
             legacy_self, split_last=self._split_last_key(),
-            insert_last=self._insert_last_key())
+            insert_last=self._insert_last_key(),
+            stderr_file=stderr_file)
 
-    def _validate_rewrite_configs(self) -> None:
-        """Validate the rewrite-column configuration."""
+    def _validate_rewrite_configs(self, stderr_file: TextIO) -> None:
+        """Validate the rewrite-column configuration.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
         LegacyConfigExcelListTransform.check_rewrite_configs(
-            legacy_self, coltype=self._columntype)
+            legacy_self, coltype=self._columntype,
+            stderr_file=stderr_file)
 
-    def _validate_split_row_cfg(self) -> None:
-        """Validate the split-row configuration."""
+    def _validate_split_row_cfg(self, stderr_file: TextIO) -> None:
+        """Validate the split-row configuration.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
-        LegacyConfigExcelListTransform.check_split_row_cfg(legacy_self)
+        LegacyConfigExcelListTransform.check_split_row_cfg(
+            legacy_self, stderr_file=stderr_file)
 
-    def _validate_merge_row_cfg(self) -> None:
-        """Validate the merge-row configuration."""
+    def _validate_merge_row_cfg(self, stderr_file: TextIO) -> None:
+        """Validate the merge-row configuration.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
-        LegacyConfigExcelListTransform.check_merge_row_cfg(legacy_self)
+        LegacyConfigExcelListTransform.check_merge_row_cfg(
+            legacy_self, stderr_file=stderr_file)
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return [
             Validation(member_names=None,

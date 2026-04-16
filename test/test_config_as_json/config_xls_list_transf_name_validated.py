@@ -23,12 +23,10 @@ class ConfigXlsListTransfNameValidated(  # pylint: disable=too-many-instance-att
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: Optional[TextIO] = None) -> None:
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for excel list transform."""
-        if stderr_file is None:
-            stderr_file = sys.stderr
         if auto_ch_hook is None:
-            auto_ch_hook = MigrateCfgWarnHook(stderr_file=stderr_file)
+            auto_ch_hook = MigrateCfgWarnHook()
         col_to_use = ['street', 'street number', 'name', 'last name',
                       'Phone', 'Phone', 'Phone', 'Phone', 'Phone',
                       'Last Name']
@@ -62,9 +60,9 @@ class ConfigXlsListTransfNameValidated(  # pylint: disable=too-many-instance-att
         """Return the optional insert-column key name for this config."""
         return None
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
-        ret = super().get_validation_list()
+        ret = super().get_validation_list(stderr_file=stderr_file)
         ret.append(Validation(member_names=['s10_column_order'],
                               validator=NoDuplicateItemsValidator()))
         return ret

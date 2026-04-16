@@ -7,7 +7,7 @@
 
 # pylint: disable=duplicate-code
 
-from typing import Any, Optional, cast  # pylint: disable=unused-import,ungrouped-imports # noqa: E501
+from typing import Any, Optional, cast, TextIO  # pylint: disable=unused-import,ungrouped-imports # noqa: E501
 from copy import deepcopy
 import sys
 import pytest
@@ -65,26 +65,28 @@ class AbcConfig(Config):
     """Class to test defualt values."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
-                 from_json_filename: Optional[str] = None) -> None:
+                 from_json_filename: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct test config object."""
         self.ab = 'a1b2'
         self.cd = 'c3d4'
         self.ef = 'e5f6'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=from_json_filename)
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
 
     def _def_vals_for_optional(self) -> dict[str, JsonType]:
         """Return default values for optional parameters."""
         return {'cd': 'cd99', 'ef': 'ef99'}
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return []
 
 
 def test_cfg_abc_dump_ok(capsys):
     """Test dump of default constructed AbcConfig."""
-    abc = AbcConfig()
+    abc = AbcConfig(stderr_file=sys.stderr)
     jstext = abc.as_json_string()
     out, err = capsys.readouterr()
     assert '' == out
@@ -125,7 +127,8 @@ def test_cfg_def_val_json_ok(capsys, jstext, aval, cval, fval):
 def test_cfg_def_val_json_nok(capsys, jstext):
     """Test construction of cfg from json with default values."""
     with pytest.raises(KeyError):
-        _ = AbcConfig(from_json_data_text=jstext, from_json_filename=None)
+        _ = AbcConfig(from_json_data_text=jstext, from_json_filename=None,
+                      stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert 'No value for ab in' in err
@@ -214,11 +217,12 @@ def test_bwcompat_single_lst1(capsys, ind, outd, ren, errtxt):
 class DummyCfg(Config):
     """Dummy Config for testing only."""
 
-    def __init__(self):
+    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
         """Create a DummyCfg object."""
         self.aa = 'text'
         super().__init__(from_json_data_text='{ "aa": "text" }',
-                         from_json_filename=None)
+                         from_json_filename=None,
+                         stderr_file=stderr_file)
 
     def _backward_compatible(self) -> list[BackwardCompatible]:
         return [
@@ -227,7 +231,7 @@ class DummyCfg(Config):
             BackwardCompatible(old='c', new='z')
         ]
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return []
 
@@ -239,9 +243,9 @@ class DummyCfg(Config):
 def test_rename_backward_compatible(capsys, ind, outd, errtxt):
     """Test Config._rename_backward_compatible."""
     data = deepcopy(ind)
-    cfg = DummyCfg()
+    cfg = DummyCfg(stderr_file=sys.stderr)
     cfg._rename_backward_compatible(  # pylint: disable=protected-access # noqa: E501
-                                    json_data=data)
+                                    json_data=data, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert err == errtxt

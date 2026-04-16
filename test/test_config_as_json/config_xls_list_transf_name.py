@@ -21,12 +21,10 @@ class ConfigXlsListTransfName(ConfigExcelListTransform[str]):  # pylint: disable
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: Optional[TextIO] = None) -> None:
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for excel list transform."""
-        if stderr_file is None:
-            stderr_file = sys.stderr
         if auto_ch_hook is None:
-            auto_ch_hook = MigrateCfgWarnHook(stderr_file=stderr_file)
+            auto_ch_hook = MigrateCfgWarnHook()
         col_to_use = ['street', 'street number', 'name', 'last name',
                       'Phone', 'Phone', 'Phone', 'Phone', 'Phone',
                       'Last Name']
@@ -51,4 +49,4 @@ class ConfigXlsListTransfName(ConfigExcelListTransform[str]):  # pylint: disable
                          auto_ch_hook=auto_ch_hook,
                          stderr_file=stderr_file)
         self.check_no_duplicates(self.s10_column_order, 's10_column_order',
-                                 stderr_file=self._stderr_file)
+                                 stderr_file=stderr_file)

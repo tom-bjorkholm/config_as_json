@@ -49,8 +49,7 @@ def migrate_cfg(infile: PathOrStr, outfile: PathOrStr,
     cfg = config_factory_from_json(match_configs=match_configs,
                                    from_json_filename=infile,
                                    from_json_data_text=None,
-                                   auto_ch_hook=ConfigAutoChangeHook(
-                                       stderr_file=stderr_file),
+                                   auto_ch_hook=ConfigAutoChangeHook(),
                                    stderr_file=stderr_file)
     cfg.write(to_json_filename=outfile)
     return 0

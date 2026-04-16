@@ -6,6 +6,8 @@
 # MIT License
 
 import sys
+from io import StringIO
+import pytest
 from config_as_json.assert_dict_equal import assert_dict_equal
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from .config_xls_list_transf_name import ConfigXlsListTransfName
@@ -66,3 +68,34 @@ def test_validated_num_cfg_matches_legacy_compat_file(capsys):
     assert_cfg_equal(refcfg, cfg)
     assert out == ''
     assert err == ''
+
+
+def test_legacy_name_cfg_uses_supplied_stderr_file(capsys):
+    """Test legacy helper diagnostics with an explicitly supplied stream."""
+    template = ConfigXlsListTransfName()
+    template.s07_rename_columns[0]['column'] = 'last name'
+    stderr_file = StringIO()
+    with pytest.raises(SystemExit):
+        _ = ConfigXlsListTransfName(
+            from_json_data_text=template.as_json_string(),
+            stderr_file=stderr_file)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert 'Duplicates not allowed in s07_rename_columns.' in \
+        stderr_file.getvalue()
+
+
+def test_validated_name_cfg_uses_supplied_stderr_file(capsys):
+    """Test validated helper diagnostics with an explicitly supplied stream."""
+    template = ConfigXlsListTransfNameValidated()
+    template.s07_rename_columns[0]['extra'] = 'boom'
+    stderr_file = StringIO()
+    with pytest.raises(SystemExit):
+        _ = ConfigXlsListTransfNameValidated(
+            from_json_data_text=template.as_json_string(),
+            stderr_file=stderr_file)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert 'Found non-allowed key "extra"' in stderr_file.getvalue()

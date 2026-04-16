@@ -81,12 +81,10 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: Optional[TextIO] = None) -> None:
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for excel list transform."""
-        if stderr_file is None:
-            stderr_file = sys.stderr
         if auto_ch_hook is None:
-            auto_ch_hook = MigrateCfgWarnHook(stderr_file=stderr_file)
+            auto_ch_hook = MigrateCfgWarnHook()
         assert isinstance(colinfo.tinfo, type(tinfo))
         self._columntype: type[Column] = type(tinfo)
         self.column_ref: ColumnRef = col_ref
@@ -152,24 +150,36 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                          auto_ch_hook=auto_ch_hook,
                          stderr_file=stderr_file)
         self.check_array_configs(split_last=colinfo.split_last,
-                                 insert_last=colinfo.insert_last)
+                                 insert_last=colinfo.insert_last,
+                                 stderr_file=stderr_file)
         self.sort_sx_hook()
         self._check_no_duplicate_single(self.s03_split_columns,
-                                        's03_split_columns', colinfo.tinfo)
+                                        's03_split_columns',
+                                        colinfo.tinfo,
+                                        stderr_file=stderr_file)
         self._check_no_duplicate_single(self.s07_rename_columns,
-                                        's07_rename_columns', colinfo.tinfo)
+                                        's07_rename_columns',
+                                        colinfo.tinfo,
+                                        stderr_file=stderr_file)
         self._check_no_duplicate_single(self.s08_insert_columns,
-                                        's08_insert_columns', colinfo.tinfo)
-        self.check_rewrite_configs(coltype=type(colinfo.tinfo))
+                                        's08_insert_columns',
+                                        colinfo.tinfo,
+                                        stderr_file=stderr_file)
+        self.check_rewrite_configs(coltype=type(colinfo.tinfo),
+                                   stderr_file=stderr_file)
         self.check_char_encoding(self.in_csv_encoding,
-                                 stderr_file=self._stderr_file)
+                                 stderr_file=stderr_file)
         self.check_char_encoding(self.out_csv_encoding,
-                                 stderr_file=self._stderr_file)
-        self.check_split_row_cfg()
-        self.check_merge_row_cfg()
+                                 stderr_file=stderr_file)
+        self.check_split_row_cfg(stderr_file=stderr_file)
+        self.check_merge_row_cfg(stderr_file=stderr_file)
 
-    def get_out_csv_dialect(self) -> Dialect:
-        """Get CSV dialect for output file."""
+    def get_out_csv_dialect(self, stderr_file: TextIO) -> Dialect:
+        """Get CSV dialect for output file.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         assert self.out_csv_dialect['name'] is not None
         return self.get_csv_dialect(
             name=self.out_csv_dialect['name'],
@@ -178,10 +188,14 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             quotechar=self.out_csv_dialect['quotechar'],
             lineterminator=self.out_csv_dialect['lineterminator'],
             escapechar=self.out_csv_dialect['escapechar'],
-            stderr_file=self._stderr_file)
+            stderr_file=stderr_file)
 
-    def get_in_csv_dialect(self) -> Dialect:
-        """Get CSV dialect for input file from Portfolio."""
+    def get_in_csv_dialect(self, stderr_file: TextIO) -> Dialect:
+        """Get CSV dialect for input file from Portfolio.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         assert self.in_csv_dialect['name'] is not None
         return self.get_csv_dialect(
             name=self.in_csv_dialect['name'],
@@ -190,7 +204,7 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             quotechar=self.in_csv_dialect['quotechar'],
             lineterminator=self.in_csv_dialect['lineterminator'],
             escapechar=self.in_csv_dialect['escapechar'],
-            stderr_file=self._stderr_file)
+            stderr_file=stderr_file)
 
     def sort_sx_hook(self) -> None:
         """Sort s[0-9]_ as needed (hook)."""
@@ -251,9 +265,15 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
     @staticmethod
     def _check_no_duplicate_single(rule: Rule[Column] | RuleSplit[Column],
                                    param_name: str, tinfo: Column,
-                                   stderr_file: TextIO = sys.stderr
-                                   ) -> None:
-        """Flag as error if column is refered to multiple times."""
+                                   stderr_file: TextIO) -> None:
+        """Flag as error if column is refered to multiple times.
+
+        Args:
+            rule: Rule list whose ``column`` values must be unique.
+            param_name: Configuration parameter name used in diagnostics.
+            tinfo: Sample value used to identify the column type.
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         cols: list[Column] = ConfigExcelListTransform.get_cols_single(rule,
                                                                       tinfo)
         ConfigExcelListTransform.check_no_duplicates(
@@ -262,9 +282,15 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
     @staticmethod
     def _check_no_duplicate_multi(rule: RuleMerge[Column],
                                   param_name: str, tinfo: Column,
-                                  stderr_file: TextIO = sys.stderr
-                                  ) -> None:
-        """Flag as error if column is refered to multiple times."""
+                                  stderr_file: TextIO) -> None:
+        """Flag as error if column is refered to multiple times.
+
+        Args:
+            rule: Rule list whose merged columns must be unique.
+            param_name: Configuration parameter name used in diagnostics.
+            tinfo: Sample value used to identify the column type.
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         cols: list[Column] = ConfigExcelListTransform.get_cols_multi(rule,
                                                                      tinfo)
         ConfigExcelListTransform.check_no_duplicates(
@@ -273,8 +299,15 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
     @staticmethod
     def _check_increasing_multi(rule: RuleMerge[Column], param_name: str,
                                 tinfo: Column,
-                                stderr_file: TextIO = sys.stderr) -> None:
-        """Flag as error if order is not increasing."""
+                                stderr_file: TextIO) -> None:
+        """Flag as error if order is not increasing.
+
+        Args:
+            rule: Rule list whose merged columns must stay in order.
+            param_name: Configuration parameter name used in diagnostics.
+            tinfo: Sample value used to identify the column type.
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         cols: list[Column] = ConfigExcelListTransform.get_cols_multi(rule,
                                                                      tinfo)
         seen: Optional[Column] = None
@@ -314,36 +347,49 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                 'column_ref': self.get_converter_dict(ColumnRef)}
 
     def check_array_configs(self, split_last: str,
-                            insert_last: Optional[str]) -> None:
-        """Check that keywords in configuration arrays are OK."""
+                            insert_last: Optional[str],
+                            stderr_file: TextIO) -> None:
+        """Check that keywords in configuration arrays are OK.
+
+        Args:
+            split_last: Final allowed key in split-column rules.
+            insert_last: Optional extra allowed key in insert-column rules.
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         split_col_keys = ['column', 'separator', 'where', split_last]
         self.check_array_keys('s03_split_columns', self.s03_split_columns,
                               split_col_keys,
-                              stderr_file=self._stderr_file)
+                              stderr_file=stderr_file)
         merge_col_keys = ['columns', 'separator']
         self.check_array_keys('s05_merge_columns', self.s05_merge_columns,
                               merge_col_keys,
-                              stderr_file=self._stderr_file)
+                              stderr_file=stderr_file)
         rename_col_keys = ['column', 'name']
         self.check_array_keys('s07_rename_columns', self.s07_rename_columns,
                               rename_col_keys,
-                              stderr_file=self._stderr_file)
+                              stderr_file=stderr_file)
         insert_col_keys = ['column', 'value']
         if insert_last is not None:
             assert insert_last is not None  # keep mypy happy
             insert_col_keys.append(insert_last)
         self.check_array_keys('s08_insert_columns', self.s08_insert_columns,
                               insert_col_keys,
-                              stderr_file=self._stderr_file)
+                              stderr_file=stderr_file)
 
-    def check_rewrite_configs(self, coltype: type) -> None:
-        """Check the rewrite column configuration."""
+    def check_rewrite_configs(self, coltype: type,
+                              stderr_file: TextIO) -> None:
+        """Check the rewrite column configuration.
+
+        Args:
+            coltype: Expected runtime type for the configured columns.
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         rewrite_col_mand_keys: list[str] = ['column', 'kind', 'case']
         rewrite_col_opt_keys: list[str] = ['chars', 'from', 'to']
         self.check_array_keys('s09_rewrite_columns', self.s09_rewrite_columns,
                               mandatory_keys=rewrite_col_mand_keys,
                               allowed_keys=rewrite_col_opt_keys,
-                              stderr_file=self._stderr_file)
+                              stderr_file=stderr_file)
         template = {RewriteKind.STRIP: {'column': coltype,
                                         'kind': RewriteKind,
                                         'chars': str,
@@ -364,13 +410,19 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                                array=self.s09_rewrite_columns,
                                kind_key='kind', kind_type=RewriteKind,
                                dict_of_templates=template,
-                               stderr_file=self._stderr_file)
+                               stderr_file=stderr_file)
 
     @staticmethod
     def check_sep_not_sep(separators: list[str],
                           not_separators: list[str],
-                          stderr_file: TextIO = sys.stderr) -> None:
-        """Check relationship between separators and not separators."""
+                          stderr_file: TextIO) -> None:
+        """Check relationship between separators and not separators.
+
+        Args:
+            separators: Accepted separators in the split rule.
+            not_separators: Escaped strings that must not trigger a split.
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         for notsep in not_separators:
             if notsep in separators:
                 print('Error in s01_split_rows:\n' +
@@ -388,52 +440,60 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                       'any separator.', file=stderr_file)
                 sys.exit(1)
 
-    def check_split_row_cfg(self) -> None:
-        """Check the split row configuration."""
+    def check_split_row_cfg(self, stderr_file: TextIO) -> None:
+        """Check the split row configuration.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         keys = ['column', 'separators', 'not_separators']
         self.check_lst_dict(paramname='s01_split_rows',
                             inp=self.s01_split_rows, key='column',
                             key_optional=False, valtype=self._columntype,
                             min_size_list=0,
-                            stderr_file=self._stderr_file)
+                            stderr_file=stderr_file)
         self.check_array_keys('s01_split_rows', self.s01_split_rows,
                               mandatory_keys=keys, allowed_keys=None,
-                              stderr_file=self._stderr_file)
+                              stderr_file=stderr_file)
         self.check_lst_dict_lst(paramname='s01_split_rows',
                                 inp=self.s01_split_rows, key='separators',
                                 key_optional=False, valtype=str,
                                 min_size_outer_list=0, min_size_inner_list=1,
-                                stderr_file=self._stderr_file)
+                                stderr_file=stderr_file)
         self.check_lst_dict_lst(paramname='s01_split_rows',
                                 inp=self.s01_split_rows, key='not_separators',
                                 key_optional=False, valtype=str,
                                 min_size_outer_list=0, min_size_inner_list=0,
-                                stderr_file=self._stderr_file)
+                                stderr_file=stderr_file)
         for elem in self.s01_split_rows:
             sep = elem['separators']
             assert isinstance(sep, list)
             nosep = elem['not_separators']
             assert isinstance(nosep, list)
             self.check_sep_not_sep(separators=sep, not_separators=nosep,
-                                   stderr_file=self._stderr_file)
+                                   stderr_file=stderr_file)
 
-    def check_merge_row_cfg(self) -> None:
-        """Check the merge rows configuration."""
+    def check_merge_row_cfg(self, stderr_file: TextIO) -> None:
+        """Check the merge rows configuration.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+        """
         keys = ['columns', 'separator']
         self.check_lst_dict_lst(paramname='s02_merge_rows',
                                 inp=self.s02_merge_rows, key='columns',
                                 key_optional=False, valtype=self._columntype,
                                 min_size_outer_list=0, min_size_inner_list=1,
-                                stderr_file=self._stderr_file)
+                                stderr_file=stderr_file)
         self.check_lst_dict(paramname='s02_merge_rows',
                             inp=self.s02_merge_rows, key='separator',
                             key_optional=False, valtype=str,
                             min_size_list=0,
-                            stderr_file=self._stderr_file)
+                            stderr_file=stderr_file)
         self.check_array_keys('s02_merge_rows', self.s02_merge_rows,
                               mandatory_keys=keys, allowed_keys=None,
-                              stderr_file=self._stderr_file)
+                              stderr_file=stderr_file)
 
-    def get_validation_list(self) -> ValidationList:
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Get validation list for use when validating the Config object."""
         return []
