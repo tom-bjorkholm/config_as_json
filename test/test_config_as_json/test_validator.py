@@ -7,12 +7,12 @@
 
 import sys
 from io import StringIO
-from typing import Optional, Sequence, TextIO
+from typing import Any, Optional, Sequence, TextIO, cast
 import pytest
 from config_as_json.config import Config
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue, StrValidator, Validation, ValidationList, \
-    Validator, not_one_of_allowed_values
+    Validator, not_one_of_allowed_values, string_best_match
 
 
 class ConfigMissingValidationList(Config):
@@ -281,6 +281,17 @@ def test_not_one_of_allowed_values_can_suppress_printing(capsys):
     assert 'orange' in ret
     assert out == ''
     assert err == ''
+
+
+def test_string_best_match_rejects_invalid_value_type(capsys):
+    """Test that string_best_match rejects non-string values."""
+    with pytest.raises(InvalidConfiguration) as exc:
+        string_best_match(cast(Any, 42), ['red', 'green'],
+                          'value', sys.stderr)
+    out, err = capsys.readouterr()
+    assert 'Value for value is not a string.' in str(exc.value)
+    assert out == ''
+    assert 'Value for value is not a string.' in err
 
 
 def test_base_validator_methods_raise_not_implemented(capsys):

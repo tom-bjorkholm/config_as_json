@@ -6,7 +6,7 @@
 # MIT License
 
 from tempfile import TemporaryDirectory
-from typing import TextIO
+from typing import Any, TextIO, cast
 import sys
 import pytest
 from config_as_json.assert_dict_equal import assert_dict_equal
@@ -89,6 +89,70 @@ def test_config_factory_from_json_nok_missing_input(capsys):
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Either JSON text or JSON file needed' in err
+
+
+def test_config_factory_from_json_nok_both_inputs(capsys):
+    """Fail cleanly when both JSON input sources were supplied."""
+    with pytest.raises(RuntimeError):
+        config_factory_from_json(match_configs=_match_configs(),
+                                 auto_ch_hook=ConfigAutoChangeHook(),
+                                 from_json_filename='unused.cfg',
+                                 from_json_data_text='{}',
+                                 stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Both cannot be given' in err
+
+
+def test_json_value_matcher_returns_false_for_missing_key(capsys):
+    """Return False when the distinguishing key is missing."""
+    matcher = JsonValueMatcher('column_ref', 'BY_NAME')
+    ret = matcher('{"other_key": "BY_NAME"}', sys.stderr)
+    out, err = capsys.readouterr()
+    assert ret is False
+    assert out == ''
+    assert err == ''
+
+
+def test_json_value_matcher_compares_non_string_values(capsys):
+    """Compare non-string JSON values with ordinary equality."""
+    matcher = JsonValueMatcher('version', 2)
+    ret = matcher('{"version": 2}', sys.stderr)
+    out, err = capsys.readouterr()
+    assert ret is True
+    assert out == ''
+    assert err == ''
+
+
+def test_json_value_matcher_rejects_invalid_json(capsys):
+    """Stop with a helpful message for malformed JSON text."""
+    matcher = JsonValueMatcher('column_ref', 'BY_NAME')
+    with pytest.raises(SystemExit):
+        matcher('{"column_ref": ', sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Configuration JSON cannot be decoded.' in err
+
+
+def test_json_value_matcher_rejects_invalid_utf8_bytes(capsys):
+    """Stop with a helpful message for invalid UTF-8 byte input."""
+    matcher = JsonValueMatcher('column_ref', 'BY_NAME')
+    with pytest.raises(SystemExit):
+        matcher(cast(Any, b'\xff'), sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Invalid UTF-8 in configuration data.' in err
+    assert 'decode byte 0xff in position 0' in err
+
+
+def test_json_value_matcher_rejects_non_dict_top_level(capsys):
+    """Stop with a helpful message for non-dictionary top-level JSON."""
+    matcher = JsonValueMatcher('column_ref', 'BY_NAME')
+    with pytest.raises(SystemExit):
+        matcher('["BY_NAME"]', sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Top level not dict' in err
 
 
 def test_migrate_cfg_name(capsys):
