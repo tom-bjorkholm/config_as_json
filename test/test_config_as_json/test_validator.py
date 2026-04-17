@@ -14,6 +14,9 @@ from config_as_json.validator import IntFloatValidator, \
     InvalidConfiguration, InvalidConfigurationValue, StrValidator, \
     Validation, ValidationList, Validator, not_one_of_allowed_values, \
     string_best_match
+from .validator_test_helpers import \
+    EmptyValidationConfig, SingleMemberValidationConfig, \
+    assert_validate_member_failure, assert_validate_member_ok
 
 
 class ConfigMissingValidationList(Config):
@@ -25,21 +28,6 @@ class ConfigMissingValidationList(Config):
         self.value = 'alpha'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=None, stderr_file=stderr_file)
-
-
-class EmptyValidationConfig(Config):
-    """Config class used as a small helper in validator tests."""
-
-    def __init__(self, from_json_data_text: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Construct test config object."""
-        self.value = 'seed'
-        super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=stderr_file)
-
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
-        return []
 
 
 class UppercaseValidator(Validator):
@@ -192,31 +180,6 @@ class PaletteConfig(Config):
                            best_match=True))]
 
 
-class SingleMemberValidationConfig(Config):
-    """Config class used to test one member validator in integration."""
-
-    def __init__(self, member_name: str, member_value: object,
-                 validator: Validator,
-                 from_json_data_text: Optional[str] = None) -> None:
-        """Construct one-member config object with injected validation."""
-        self._member_name = member_name
-        self._validator = validator
-        setattr(self, member_name, member_value)
-        super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=sys.stderr)
-
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
-        _ = stderr_file
-        return [Validation(member_names=[self._member_name],
-                           validator=self._validator)]
-
-
-def casefold_lt(left: str, right: str) -> bool:
-    """Compare two strings case-insensitively."""
-    return left.casefold() < right.casefold()
-
-
 @pytest.mark.parametrize('validator, member_value, expected',
                          [(StrValidator(['red', 'green'],
                                         ignore_case=False),
@@ -238,12 +201,7 @@ def casefold_lt(left: str, right: str) -> bool:
                            'blu', 'blue')])
 def test_str_validator_ok(capsys, validator, member_value, expected):
     """Test OK cases of StrValidator."""
-    cfg = EmptyValidationConfig()
-    ret = validator.validate_member(cfg, 'value', member_value, sys.stderr)
-    out, err = capsys.readouterr()
-    assert ret == expected
-    assert out == ''
-    assert err == ''
+    assert_validate_member_ok(capsys, validator, member_value, expected)
 
 
 def test_missing_get_validation_list_raises(capsys):
@@ -342,25 +300,17 @@ def test_base_validator_methods_raise_not_implemented(capsys):
 def test_str_validator_rejects_invalid_member_type(capsys):
     """Test that StrValidator rejects non-string values."""
     validator = StrValidator(['red', 'green'], ignore_case=False)
-    cfg = EmptyValidationConfig()
-    with pytest.raises(InvalidConfiguration) as exc:
-        validator.validate_member(cfg, 'value', 42, sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'Value for value is not a string.' in str(exc.value)
-    assert out == ''
-    assert 'Value for value is not a string.' in err
+    assert_validate_member_failure(
+        capsys, validator, 42, InvalidConfiguration,
+        'Value for value is not a string.')
 
 
 def test_str_validator_rejects_disallowed_value(capsys):
     """Test that StrValidator rejects unknown values."""
     validator = StrValidator(['red', 'green'], ignore_case=False)
-    cfg = EmptyValidationConfig()
-    with pytest.raises(InvalidConfigurationValue) as exc:
-        validator.validate_member(cfg, 'value', 'blue', sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'Value blue for value' in str(exc.value)
-    assert out == ''
-    assert 'Value blue for value' in err
+    assert_validate_member_failure(
+        capsys, validator, 'blue', InvalidConfigurationValue,
+        'Value blue for value')
 
 
 def test_str_validator_rejects_ambiguous_best_match(capsys):
@@ -368,13 +318,9 @@ def test_str_validator_rejects_ambiguous_best_match(capsys):
     validator = StrValidator(['blue', 'black'],
                              ignore_case=False,
                              best_match=True)
-    cfg = EmptyValidationConfig()
-    with pytest.raises(InvalidConfigurationValue) as exc:
-        validator.validate_member(cfg, 'value', 'bl', sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'Value bl for value' in str(exc.value)
-    assert out == ''
-    assert 'Value bl for value' in err
+    assert_validate_member_failure(
+        capsys, validator, 'bl', InvalidConfigurationValue,
+        'Value bl for value')
 
 
 def test_str_validator_cannot_validate_whole_config(capsys):
@@ -439,12 +385,7 @@ def test_int_float_validator_init_rejects_invalid_constraints(
                           (IntFloatValidator(None, None, [2.0]), 2.0, 2.0)])
 def test_int_float_validator_ok(capsys, validator, member_value, expected):
     """Test OK cases of IntFloatValidator."""
-    cfg = EmptyValidationConfig()
-    ret = validator.validate_member(cfg, 'value', member_value, sys.stderr)
-    out, err = capsys.readouterr()
-    assert ret == expected
-    assert out == ''
-    assert err == ''
+    assert_validate_member_ok(capsys, validator, member_value, expected)
 
 
 @pytest.mark.parametrize(
@@ -462,13 +403,8 @@ def test_int_float_validator_ok(capsys, validator, member_value, expected):
 def test_int_float_validator_rejects_invalid_member_values(
         capsys, validator, member_value, exc_type, message):
     """Test IntFloatValidator failures for value type and constraints."""
-    cfg = EmptyValidationConfig()
-    with pytest.raises(exc_type) as exc:
-        validator.validate_member(cfg, 'value', member_value, sys.stderr)
-    out, err = capsys.readouterr()
-    assert message in str(exc.value)
-    assert out == ''
-    assert message in err
+    assert_validate_member_failure(
+        capsys, validator, member_value, exc_type, message)
 
 
 def test_int_float_validator_cannot_validate_whole_config(capsys):
