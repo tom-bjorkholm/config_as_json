@@ -6,7 +6,7 @@
 
 import sys
 from typing import Callable, NamedTuple, Optional, Sequence, TextIO, \
-    TYPE_CHECKING
+    TYPE_CHECKING, TypeVar, Generic, cast
 if TYPE_CHECKING:
     from config_as_json.config import Config
 
@@ -274,6 +274,144 @@ class StrValidator(Validator):
         """Cannot validate complete Config object with this validator."""
         msg = 'Cannot validate complete Config object with a StrValidator.'
         assert config is not None
+        print(msg, file=stderr_file)
+        raise InvalidConfiguration(msg)
+
+
+IntFloat = TypeVar('IntFloat', int, float)
+"""Numeric type accepted by IntFloatValidator."""
+
+Basictype = TypeVar('Basictype', int, float, str, bool)
+"""Basic scalar type accepted by the list validators."""
+
+
+def _ensure_int_float_type(value_type: type[object]) -> None:
+    """Reject unsupported runtime types for IntFloatValidator."""
+    if value_type not in (int, float):
+        msg = 'IntFloatValidator only supports exact int or float values.'
+        raise TypeError(msg)
+
+
+class IntFloatValidator(Validator, Generic[IntFloat]):
+    """Validate one int or float member against numeric constraints."""
+
+    def __init__(self, min_value: Optional[IntFloat],
+                 max_value: Optional[IntFloat],
+                 allowed_values: Optional[Sequence[IntFloat]]) -> None:
+        """Initialize the validator.
+
+        The validator checks that the member value has one runtime type,
+        either ``int`` or ``float``. The value must satisfy every configured
+        constraint: lower bound, upper bound, and allowed-values membership.
+        At least one of min_value, max_value, or allowed_values must be
+        provided.
+
+        Args:
+            min_value: Minimum allowed member value.
+                       If ``None``, no minimum value is checked.
+            max_value: Maximum allowed member value.
+                       If ``None``, no maximum value is checked.
+            allowed_values: The only allowed values for the member.
+                       If ``None``, no allowed-values check is done.
+
+        Raises:
+            ValueError: If no constraints are provided.
+            ValueError: If allowed_values is provided as an empty sequence.
+            ValueError: If min_value is greater than max_value.
+            TypeError: If unsupported or mixed runtime types are used.
+        """
+        if min_value is None and max_value is None and allowed_values is None:
+            msg: str = 'At least one of min_value, max_value, '
+            msg += 'or allowed_values must be provided.'
+            raise ValueError(msg)
+        if allowed_values is not None and not allowed_values:
+            msg = 'If provided, allowed_values must be a non-empty sequence.'
+            raise ValueError(msg)
+        value_type: Optional[type[IntFloat]] = \
+            type(min_value) if min_value is not None else \
+            type(max_value) if max_value is not None else None
+        if value_type is None and allowed_values is not None:
+            assert allowed_values is not None
+            value_type = type(allowed_values[0])
+        assert value_type is not None  # logically impossible
+        _ensure_int_float_type(value_type)
+        self._value_type: type[IntFloat] = value_type
+        if min_value is not None and not isinstance(min_value,
+                                                    self._value_type):
+            msg = 'min_value must be of type ' + self._value_type.__name__
+            raise TypeError(msg)
+        if max_value is not None and not isinstance(max_value,
+                                                    self._value_type):
+            msg = 'max_value must be of type ' + self._value_type.__name__
+            raise TypeError(msg)
+        if allowed_values is not None and not all(
+                isinstance(v, value_type) for v in allowed_values):
+            msg = 'allowed_values must be a sequence of '
+            msg += value_type.__name__
+            raise TypeError(msg)
+        if min_value is not None and max_value is not None:
+            assert min_value is not None
+            assert max_value is not None
+            if min_value > max_value:
+                msg = 'min_value must be less than or equal to max_value.'
+                raise ValueError(msg)
+        self.min_value: Optional[IntFloat] = min_value
+        self.max_value: Optional[IntFloat] = max_value
+        self.allowed_values: Optional[Sequence[IntFloat]] = allowed_values
+
+    def validate_member(self, config: 'Config',
+                        member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Validate the aspect of the Config object for a specific member.
+
+        Args:
+            config: The Config object to validate.
+            member_name: The name of the member to validate.
+            member_value: The value of the member to validate.
+            stderr_file: The file to write error messages to.
+
+        Raises:
+            InvalidConfiguration: The configuration is invalid.
+            InvalidConfigurationValue: The value of a configuration member is
+                                       not one of the allowed values.
+        Returns:
+            The member value if the validation check passes, otherwise
+            an exception is raised.
+        """
+        _ = config
+        if not isinstance(member_value, self._value_type):
+            msg = 'Invalid configuration: '
+            msg += f'Value for {member_name} is not of type '
+            msg += f'{self._value_type.__name__}.'
+            print(msg, file=stderr_file)
+            raise InvalidConfiguration(msg)
+        value: IntFloat = cast(IntFloat, member_value)  # type: ignore[redundant-cast] # noqa: E501
+        if self.min_value is not None and value < self.min_value:
+            msg = 'Invalid configuration: '
+            msg += f'Value {value} for {member_name} is less than minimum '
+            msg += f'{self.min_value}.'
+            print(msg, file=stderr_file)
+            raise InvalidConfiguration(msg)
+        if self.max_value is not None and value > self.max_value:
+            msg = 'Invalid configuration: '
+            msg += f'Value {value} for {member_name} is greater than maximum '
+            msg += f'{self.max_value}.'
+            print(msg, file=stderr_file)
+            raise InvalidConfiguration(msg)
+        if self.allowed_values is not None and \
+                value not in self.allowed_values:
+            _ = not_one_of_allowed_values(member_name, value,
+                                          self.allowed_values, stderr_file)
+            raise InvalidConfigurationValue(member_name, value,
+                                            self.allowed_values)
+        return value
+
+    def validate(self, config: 'Config',
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Cannot validate complete Config object with this validator."""
+        msg = 'Cannot validate complete Config object with an '
+        msg += 'IntFloatValidator.'
         print(msg, file=stderr_file)
         raise InvalidConfiguration(msg)
 

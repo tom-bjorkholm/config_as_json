@@ -10,9 +10,10 @@ from io import StringIO
 from typing import Any, Optional, Sequence, TextIO, cast
 import pytest
 from config_as_json.config import Config
-from config_as_json.validator import InvalidConfiguration, \
-    InvalidConfigurationValue, StrValidator, Validation, ValidationList, \
-    Validator, not_one_of_allowed_values, string_best_match
+from config_as_json.validator import IntFloatValidator, \
+    InvalidConfiguration, InvalidConfigurationValue, StrValidator, \
+    Validation, ValidationList, Validator, not_one_of_allowed_values, \
+    string_best_match
 
 
 class ConfigMissingValidationList(Config):
@@ -189,6 +190,31 @@ class PaletteConfig(Config):
                        validator=StrValidator(
                            self.accent_names, ignore_case=False,
                            best_match=True))]
+
+
+class SingleMemberValidationConfig(Config):
+    """Config class used to test one member validator in integration."""
+
+    def __init__(self, member_name: str, member_value: object,
+                 validator: Validator,
+                 from_json_data_text: Optional[str] = None) -> None:
+        """Construct one-member config object with injected validation."""
+        self._member_name = member_name
+        self._validator = validator
+        setattr(self, member_name, member_value)
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=None, stderr_file=sys.stderr)
+
+    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
+        """Get validation list for use when validating the Config object."""
+        _ = stderr_file
+        return [Validation(member_names=[self._member_name],
+                           validator=self._validator)]
+
+
+def casefold_lt(left: str, right: str) -> bool:
+    """Compare two strings case-insensitively."""
+    return left.casefold() < right.casefold()
 
 
 @pytest.mark.parametrize('validator, member_value, expected',
@@ -380,5 +406,101 @@ def test_palette_config_uses_str_validator_on_parsed_json(capsys):
     out, err = capsys.readouterr()
     assert cfg.shade == 'red'
     assert cfg.accent == 'black'
+    assert out == ''
+    assert err == ''
+
+
+@pytest.mark.parametrize(
+    'min_value, max_value, allowed_values, exc_type, message',
+    [(None, None, None, ValueError,
+      'At least one of min_value, max_value, or allowed_values'),
+     (None, None, [], ValueError, 'allowed_values must be a non-empty'),
+     (3, 2, None, ValueError,
+      'min_value must be less than or equal to max_value'),
+     (True, None, None, TypeError,
+      'IntFloatValidator only supports exact int or float values'),
+     (1, 2.0, None, TypeError, 'max_value must be of type int'),
+     (None, 2.0, [1.0, 2], TypeError,
+      'allowed_values must be a sequence of float')])
+def test_int_float_validator_init_rejects_invalid_constraints(
+        min_value, max_value, allowed_values, exc_type, message):
+    """Test IntFloatValidator constructor validation."""
+    with pytest.raises(exc_type) as exc:
+        IntFloatValidator(min_value=min_value, max_value=max_value,
+                          allowed_values=allowed_values)
+    assert message in str(exc.value)
+
+
+@pytest.mark.parametrize('validator, member_value, expected',
+                         [(IntFloatValidator(1, 5, None), 1, 1),
+                          (IntFloatValidator(1, 5, [2, 3, 5]), 3, 3),
+                          (IntFloatValidator(None, 1.5, [0.5, 1.5]),
+                           0.5, 0.5),
+                          (IntFloatValidator(None, None, [2.0]), 2.0, 2.0)])
+def test_int_float_validator_ok(capsys, validator, member_value, expected):
+    """Test OK cases of IntFloatValidator."""
+    cfg = EmptyValidationConfig()
+    ret = validator.validate_member(cfg, 'value', member_value, sys.stderr)
+    out, err = capsys.readouterr()
+    assert ret == expected
+    assert out == ''
+    assert err == ''
+
+
+@pytest.mark.parametrize(
+    'validator, member_value, exc_type, message',
+    [(IntFloatValidator(1, 5, None), 1.0, InvalidConfiguration,
+      'Value for value is not of type int'),
+     (IntFloatValidator(1.0, 5.0, None), 1, InvalidConfiguration,
+      'Value for value is not of type float'),
+     (IntFloatValidator(2, None, None), 1, InvalidConfiguration,
+      'Value 1 for value is less than minimum 2'),
+     (IntFloatValidator(None, 3, None), 4, InvalidConfiguration,
+      'Value 4 for value is greater than maximum 3'),
+     (IntFloatValidator(1, 5, [2, 3]), 4, InvalidConfigurationValue,
+      'Value 4 for value is not one of the allowed values')])
+def test_int_float_validator_rejects_invalid_member_values(
+        capsys, validator, member_value, exc_type, message):
+    """Test IntFloatValidator failures for value type and constraints."""
+    cfg = EmptyValidationConfig()
+    with pytest.raises(exc_type) as exc:
+        validator.validate_member(cfg, 'value', member_value, sys.stderr)
+    out, err = capsys.readouterr()
+    assert message in str(exc.value)
+    assert out == ''
+    assert message in err
+
+
+def test_int_float_validator_cannot_validate_whole_config(capsys):
+    """Test that IntFloatValidator is only for member validation."""
+    validator = IntFloatValidator(1, 5, None)
+    cfg = EmptyValidationConfig()
+    with pytest.raises(InvalidConfiguration) as exc:
+        validator.validate(cfg, sys.stderr)
+    out, err = capsys.readouterr()
+    assert 'Cannot validate complete Config object' in str(exc.value)
+    assert out == ''
+    assert 'Cannot validate complete Config object' in err
+
+
+def test_int_float_validator_requires_allowed_value_to_be_in_range(capsys):
+    """Test that allowed values do not bypass range validation."""
+    validator = IntFloatValidator(1, 5, [6])
+    cfg = EmptyValidationConfig()
+    with pytest.raises(InvalidConfiguration) as exc:
+        validator.validate_member(cfg, 'value', 6, sys.stderr)
+    out, err = capsys.readouterr()
+    assert 'Value 6 for value is greater than maximum 5' in str(exc.value)
+    assert out == ''
+    assert 'Value 6 for value is greater than maximum 5' in err
+
+
+def test_int_float_validator_integration_uses_parsed_json(capsys):
+    """Test IntFloatValidator integration through Config.validate()."""
+    cfg = SingleMemberValidationConfig(
+        'value', 2, IntFloatValidator(1, 5, [2, 3]),
+        from_json_data_text='{"value": 3}')
+    out, err = capsys.readouterr()
+    assert getattr(cfg, 'value') == 3
     assert out == ''
     assert err == ''
