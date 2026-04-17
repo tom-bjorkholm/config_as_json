@@ -20,6 +20,34 @@ class InvalidConfiguration(ValueError):
         self.message: str = message
 
 
+def _not_one_of_allowed_values_message(
+        member_name: str, member_value: object,
+        allowed_values: Sequence[object], stderr_file: Optional[TextIO],
+        member_index: Optional[int] = None) -> str:
+    """Construct an allowed-values error message and optionally print it.
+
+    Args:
+        member_name: The name of the member that has the invalid value.
+        member_value: The invalid value of the member.
+        allowed_values: The allowed values for the member.
+        stderr_file: The file to optionally write error messages to.
+            If set to ``None`` explicitly, printing is suppressed.
+        member_index: Optional index of the invalid element in a list value.
+
+    Returns:
+        A string containing the error message.
+    """
+    message = 'Invalid configuration: '
+    message += f'Value {member_value} for {member_name} '
+    if member_index is not None:
+        message += f'at index {member_index} '
+    message += 'is not one of the allowed values: '
+    message += ', '.join(str(v) for v in allowed_values)
+    if stderr_file is not None:
+        print(message, file=stderr_file)
+    return message
+
+
 def not_one_of_allowed_values(member_name: str, member_value: object,
                               allowed_values: Sequence[object],
                               stderr_file: Optional[TextIO]) -> str:
@@ -41,13 +69,9 @@ def not_one_of_allowed_values(member_name: str, member_value: object,
     Returns:
         A string containing the error message.
     """
-    message = 'Invalid configuration: '
-    message += f'Value {member_value} for {member_name} '
-    message += 'is not one of the allowed values: '
-    message += ', '.join(str(v) for v in allowed_values)
-    if stderr_file is not None:
-        print(message, file=stderr_file)
-    return message
+    return _not_one_of_allowed_values_message(
+        member_name=member_name, member_value=member_value,
+        allowed_values=allowed_values, stderr_file=stderr_file)
 
 
 class InvalidConfigurationValue(InvalidConfiguration):
@@ -281,8 +305,72 @@ class StrValidator(Validator):
 IntFloat = TypeVar('IntFloat', int, float)
 """Numeric type accepted by IntFloatValidator."""
 
-Basictype = TypeVar('Basictype', int, float, str, bool)
-"""Basic scalar type accepted by the list validators."""
+
+ConstraintValue = TypeVar('ConstraintValue', int, float, str, bool)
+"""Value type used when validating shared constraint arguments."""
+
+
+def _validate_and_get_constraint_value_type(
+        min_value: Optional[ConstraintValue],
+        max_value: Optional[ConstraintValue],
+        allowed_values: Optional[Sequence[ConstraintValue]],
+        lt_comparator: Callable[[ConstraintValue, ConstraintValue], bool] =
+        lambda x, y: x < y) -> type[ConstraintValue]:
+    """Validate shared constructor constraints and return their type.
+
+    The helper validates the common constructor arguments used by validators
+    that support lower bounds, upper bounds, and allowed-values membership.
+    It infers one runtime type from the provided constraints and verifies
+    that all provided constraint values are instances of that type.
+
+    Args:
+        min_value: Optional minimum allowed value.
+        max_value: Optional maximum allowed value.
+        allowed_values: Optional allowed values.
+        lt_comparator: Comparator used when checking that ``min_value`` is
+            not greater than ``max_value``.
+
+    Returns:
+        The inferred runtime type shared by all provided constraint values.
+
+    Raises:
+        ValueError: If no constraints are provided.
+        ValueError: If ``allowed_values`` is provided as an empty sequence.
+        ValueError: If ``min_value`` is greater than ``max_value``.
+        TypeError: If provided constraints use incompatible runtime types.
+    """
+    if min_value is None and max_value is None and allowed_values is None:
+        msg: str = 'At least one of min_value, max_value, '
+        msg += 'or allowed_values must be provided.'
+        raise ValueError(msg)
+    if allowed_values is not None and not allowed_values:
+        msg = 'If provided, allowed_values must be a non-empty sequence.'
+        raise ValueError(msg)
+    value_type: Optional[type[ConstraintValue]] = \
+        type(min_value) if min_value is not None else \
+        type(max_value) if max_value is not None else None
+    if value_type is None and allowed_values is not None:
+        assert allowed_values is not None
+        value_type = type(allowed_values[0])
+    assert value_type is not None  # logically impossible
+    if min_value is not None and not isinstance(min_value, value_type):
+        msg = 'min_value must be of type ' + value_type.__name__
+        raise TypeError(msg)
+    if max_value is not None and not isinstance(max_value, value_type):
+        msg = 'max_value must be of type ' + value_type.__name__
+        raise TypeError(msg)
+    if allowed_values is not None and not all(
+            isinstance(value, value_type) for value in allowed_values):
+        msg = 'allowed_values must be a sequence of '
+        msg += value_type.__name__
+        raise TypeError(msg)
+    if min_value is not None and max_value is not None:
+        assert min_value is not None
+        assert max_value is not None
+        if lt_comparator(max_value, min_value):
+            msg = 'min_value must be less than or equal to max_value.'
+            raise ValueError(msg)
+    return value_type
 
 
 def _ensure_int_float_type(value_type: type[object]) -> None:
@@ -320,41 +408,11 @@ class IntFloatValidator(Validator, Generic[IntFloat]):
             ValueError: If min_value is greater than max_value.
             TypeError: If unsupported or mixed runtime types are used.
         """
-        if min_value is None and max_value is None and allowed_values is None:
-            msg: str = 'At least one of min_value, max_value, '
-            msg += 'or allowed_values must be provided.'
-            raise ValueError(msg)
-        if allowed_values is not None and not allowed_values:
-            msg = 'If provided, allowed_values must be a non-empty sequence.'
-            raise ValueError(msg)
-        value_type: Optional[type[IntFloat]] = \
-            type(min_value) if min_value is not None else \
-            type(max_value) if max_value is not None else None
-        if value_type is None and allowed_values is not None:
-            assert allowed_values is not None
-            value_type = type(allowed_values[0])
-        assert value_type is not None  # logically impossible
+        value_type = _validate_and_get_constraint_value_type(
+            min_value=min_value, max_value=max_value,
+            allowed_values=allowed_values)
         _ensure_int_float_type(value_type)
         self._value_type: type[IntFloat] = value_type
-        if min_value is not None and not isinstance(min_value,
-                                                    self._value_type):
-            msg = 'min_value must be of type ' + self._value_type.__name__
-            raise TypeError(msg)
-        if max_value is not None and not isinstance(max_value,
-                                                    self._value_type):
-            msg = 'max_value must be of type ' + self._value_type.__name__
-            raise TypeError(msg)
-        if allowed_values is not None and not all(
-                isinstance(v, value_type) for v in allowed_values):
-            msg = 'allowed_values must be a sequence of '
-            msg += value_type.__name__
-            raise TypeError(msg)
-        if min_value is not None and max_value is not None:
-            assert min_value is not None
-            assert max_value is not None
-            if min_value > max_value:
-                msg = 'min_value must be less than or equal to max_value.'
-                raise ValueError(msg)
         self.min_value: Optional[IntFloat] = min_value
         self.max_value: Optional[IntFloat] = max_value
         self.allowed_values: Optional[Sequence[IntFloat]] = allowed_values
