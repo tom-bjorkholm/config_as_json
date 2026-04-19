@@ -6,50 +6,38 @@
 
 from tempfile import TemporaryDirectory
 import pytest
-from example.e01_simple_config import SimpleConfig, YesNoAsk, main
+from example.e01_simple_config import main
+from .helpers import CONFIGURED_SIMPLE_CONFIG, DEFAULT_SIMPLE_CONFIG
+from .helpers import assert_simple_config_written_by_main
 
 
 def test_simple_config_set_uses_defaults_when_no_overrides(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Write a configuration file with only the default values."""
-    with TemporaryDirectory() as dirname:
-        config_file = dirname + '/simple.cfg'
-        main(['set', '--output', config_file])
-        config = SimpleConfig(from_json_filename=config_file)
-        with open(config_file, encoding='UTF-8') as file_obj:
-            json_text = file_obj.read()
-    out, err = capsys.readouterr()
-    assert out == f'Configuration written to {config_file}\n'
-    assert err == ''
-    assert config.name == 'simple or complex'
-    assert config.answer == 42
-    assert config.approximation == pytest.approx(3.14159)
-    assert config.easy is True
-    assert config.confirmation == YesNoAsk.ASK
+    json_text = assert_simple_config_written_by_main(
+        capsys,
+        main,
+        [],
+        DEFAULT_SIMPLE_CONFIG,
+        read_json_text=True
+    )
+    assert json_text is not None
     assert '"confirmation": "ASK"' in json_text
 
 
 def test_simple_config_set_stores_overrides(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Convert command line text to values and store them in JSON."""
-    with TemporaryDirectory() as dirname:
-        config_file = dirname + '/simple.cfg'
-        main(['set',
-              '--output', config_file,
-              '--name', 'configured',
-              '--answer', '7',
-              '--approximation', '2.5',
-              '--easy', 'FALSE',
-              '--confirmation', 'nO'])
-        config = SimpleConfig(from_json_filename=config_file)
-    out, err = capsys.readouterr()
-    assert out == f'Configuration written to {config_file}\n'
-    assert err == ''
-    assert config.name == 'configured'
-    assert config.answer == 7
-    assert config.approximation == pytest.approx(2.5)
-    assert config.easy is False
-    assert config.confirmation == YesNoAsk.NO
+    _ = assert_simple_config_written_by_main(
+        capsys,
+        main,
+        ['--name', 'configured',
+         '--answer', '7',
+         '--approximation', '2.5',
+         '--easy', 'FALSE',
+         '--confirmation', 'nO'],
+        CONFIGURED_SIMPLE_CONFIG
+    )
 
 
 def test_simple_config_print_reads_written_file(
