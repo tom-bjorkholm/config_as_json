@@ -44,9 +44,9 @@ python3 -m example.e01_simple_config set -o /tmp/simple.cfg \
 python3 -m example.e01_simple_config print -i /tmp/simple.cfg
 ```
 
-## `e01_simple_config.py`
+## e01_simple_config.py
 
-[https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e01_simple_config.py](Source code for e01_simple_config.py)
+[Source code for e01_simple_config.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e01_simple_config.py)
 
 This example keeps the configuration deliberately small so that the main
 ideas are easy to see:
