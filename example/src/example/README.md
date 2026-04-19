@@ -34,7 +34,7 @@ them locally (or to run variations you want to test).
 There is no package with the example programs.
 
 With the `config_as_json` package installed in your environment,
-you may also choose to close the complete repository and run
+you may also choose to clone the complete repository and run
 some examples like this:
 
 ```sh
@@ -46,7 +46,7 @@ python3 -m example.e01_simple_config print -i /tmp/simple.cfg
 
 ## e01_simple_config.py
 
-[Source code for e01_simple_config.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e01_simple_config.py)
+[Source code for e01_simple_config.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e01_simple_config.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e01_simple_config.py)
 
 This example keeps the configuration deliberately small so that the main
 ideas are easy to see:
@@ -67,3 +67,18 @@ There is a function that changes configuration values, and writes the
 configuration to a JSON file. There is another function that reads
 in the configuration from a JSON file and prints the configuration values
 to standard out.
+
+In this example we use simple normal assignments to and from instance
+attributes to keep the code as easy to understand as possible for the
+beginner.
+
+## e02_simple_config_get_setattr.py
+
+[Source code for e02_simple_config_get_setattr.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e02_simple_config_get_setattr.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e02_simple_config_get_setattr.py)
+
+This second example is very similar to the first example and it shares much
+of the code by importing from the first example.
+
+The difference here is that setattr and getattr are used to set and get
+configuration variables. In some situations (like when looping over the
+configuration variables) this approach needs less code.
