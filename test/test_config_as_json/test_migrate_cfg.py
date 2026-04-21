@@ -11,13 +11,13 @@ import sys
 import pytest
 from config_as_json.assert_dict_equal import assert_dict_equal
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.config_enums import FileType
 from config_as_json.config_factory import config_factory_from_json, \
     JsonValueMatcher, MatchConfig, MatchConfigSeq
 from config_as_json.migrate_cfg import migrate_cfg
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from .config_xls_list_transf_name import ConfigXlsListTransfName
 from .config_xls_list_transf_num import ConfigXlsListTransfNum
+from .config_enums import FileType
 
 
 def _match_configs() -> MatchConfigSeq:

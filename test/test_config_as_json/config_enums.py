@@ -1,11 +1,5 @@
 #! /usr/local/bin/python3
-"""Enumerations currently shipped as part of the public configuration API.
-
-Several of these enums originate from the application that is being factored
-out into this reusable library. They remain public so existing configuration
-classes can continue to serialize readable symbolic names instead of raw
-integers.
-"""
+"""Enumerations used in the test suite."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License

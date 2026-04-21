@@ -24,14 +24,13 @@ from typing import Any, Optional, Type, TypeVar, Mapping, NamedTuple, \
 from enum import Enum, IntEnum
 from tempfile import TemporaryFile
 from config_as_json.str_to_enum import string_to_enum_best_match
-from config_as_json.config_enums import RewriteKind
 from config_as_json.file_must_exist import file_must_exist
 from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.validator import ValidationList
 
 
-Keya = TypeVar('Keya', str, Enum, RewriteKind)
+Keya = TypeVar('Keya', str, Enum)
 
 BackwardCompatible = NamedTuple('BackwardCompatible',
                                 [('old', str), ('new', str)])

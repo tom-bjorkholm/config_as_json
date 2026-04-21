@@ -7,12 +7,12 @@
 import sys
 from typing import Optional, TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.config_enums import ColumnRef, SplitWhere
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.validator import Validation, ValidationList
 from .config_excel_list_transform import ColInfo
 from .config_excel_list_transform_validated import \
     ConfigExcelListTransformValidated, NoDuplicateItemsValidator
+from .config_enums import ColumnRef, SplitWhere
 
 
 class ConfigXlsListTransfNameValidated(  # pylint: disable=too-many-instance-attributes, line-too-long, duplicate-code # noqa: E501

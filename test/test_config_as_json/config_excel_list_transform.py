@@ -9,17 +9,17 @@ import sys
 from copy import deepcopy
 from enum import Enum
 from typing import Optional, Callable, TypeVar, NamedTuple, TextIO, \
-    Generic, TypedDict
+    Generic, TypedDict, Mapping, cast
 from csv import Dialect
 from config_as_json.config import Config, ParseConverter, \
     BackwardCompatible
-from config_as_json.config_enums import FileType, SplitWhere, \
-    ExcelLib, RewriteKind, CaseSensitivity, ColumnRef
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.commontypes import JsonType
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.validator import ValidationList
+from .config_enums import FileType, SplitWhere, \
+    ExcelLib, RewriteKind, CaseSensitivity, ColumnRef
 
 
 type CsvSpec = dict[str, Optional[str]]
@@ -406,10 +406,11 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                                                  'kind': RewriteKind,
                                                  'from': str, 'to': str,
                                                  'case': CaseSensitivity}}
+        mtemplate = cast(Mapping[Enum, Mapping[str, type]], template)
         self.check_array_dicts(name_of_cfg='s09_rewrite_columns',
                                array=self.s09_rewrite_columns,
                                kind_key='kind', kind_type=RewriteKind,
-                               dict_of_templates=template,
+                               dict_of_templates=mtemplate,
                                stderr_file=stderr_file)
 
     @staticmethod

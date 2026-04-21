@@ -9,13 +9,13 @@ from copy import deepcopy
 from typing import Generic, Optional, TextIO, cast
 from config_as_json.config import BackwardCompatible, Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.config_enums import ColumnRef
 from config_as_json.commontypes import JsonType
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.validator import Validation, ValidationList, Validator
 from .config_excel_list_transform import ColInfo, Column, Rule, RuleMerge, \
     RuleSplit, \
     ConfigExcelListTransform as LegacyConfigExcelListTransform
+from .config_enums import ColumnRef
 
 
 class ConfigMethodValidator(Validator):

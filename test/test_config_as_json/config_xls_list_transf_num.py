@@ -7,12 +7,12 @@
 
 import sys
 from typing import Optional, TextIO
-from config_as_json.config_enums import SplitWhere, ColumnRef
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from .config_excel_list_transform import \
     ConfigExcelListTransform, RulePlace, RuleRemove, \
     SingleRuleMerge, SingleRuleSplit, SingleRule, ColInfo
+from .config_enums import SplitWhere, ColumnRef
 
 
 def get_column(rule:  SingleRuleSplit[int] | SingleRule[int]) -> int:
