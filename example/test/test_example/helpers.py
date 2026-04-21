@@ -4,12 +4,16 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+import json
+from io import StringIO
+from types import ModuleType
 from tempfile import TemporaryDirectory
-from typing import Callable, NamedTuple, Optional
+from typing import Callable, NamedTuple, Optional, Protocol, TextIO, TypeVar
 import pytest
 from config_as_json.commontypes import PathOrStr
 from example.cmd_line_handling import SetValues
 from example.e01_simple_config import SimpleConfig, YesNoAsk
+from example.e03_scalar_validators import Severity
 
 
 class ExpectedSimpleConfig(NamedTuple):
@@ -40,6 +44,89 @@ CONFIGURED_SIMPLE_CONFIG = ExpectedSimpleConfig(
     confirmation=YesNoAsk.NO
 )
 """Representative overridden values used by simple config tests."""
+
+
+# pylint: disable=too-few-public-methods
+class SupportsValidatedExampleConfig(Protocol):
+    """Protocol for the e03 and e04 example configuration objects."""
+
+    issue_type: str
+    number_of_iterations: int
+    estimate: int
+    severity: Severity
+    confidence: float
+
+
+class SupportsValidatedExampleConfigWrite(
+        SupportsValidatedExampleConfig,
+        Protocol):
+    """Protocol for validated example configs that can be written."""
+
+    def write(self, to_json_filename: PathOrStr,
+              stderr_file: TextIO = ...) -> None:
+        """Write the configuration to a file."""
+
+
+ConfigInstance_co = TypeVar(
+    'ConfigInstance_co',
+    bound=SupportsValidatedExampleConfigWrite,
+    covariant=True
+)
+
+
+class ValidatedExampleConfigFactory(
+        Protocol[ConfigInstance_co]):
+    """Factory protocol for the e03 and e04 example config classes."""
+
+    def __call__(self, from_json_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = ...) -> ConfigInstance_co:
+        """Create a validated example config instance."""
+# pylint: enable=too-few-public-methods
+
+
+class ExpectedValidatedExampleConfig(NamedTuple):
+    """Expected values for the e03 and e04 example configurations."""
+
+    issue_type: str
+    number_of_iterations: int
+    estimate: int
+    severity: Severity
+    confidence: float
+
+
+DEFAULT_VALIDATED_EXAMPLE_CONFIG = ExpectedValidatedExampleConfig(
+    issue_type='Story',
+    number_of_iterations=10,
+    estimate=5,
+    severity=Severity.INFO,
+    confidence=0.95
+)
+"""Default values used by the e03 and e04 example configurations."""
+
+
+CONFIGURED_VALIDATED_EXAMPLE_CONFIG = ExpectedValidatedExampleConfig(
+    issue_type='Bug',
+    number_of_iterations=20,
+    estimate=13,
+    severity=Severity.ERROR,
+    confidence=0.5
+)
+"""Representative overridden values used by the e03 and e04 tests."""
+
+
+class ValidatedExampleSpec(NamedTuple):
+    """Describe one example program that uses the shared validator tests."""
+
+    test_id: str
+    module: ModuleType
+    factory_name: str
+    config_factory: ValidatedExampleConfigFactory[
+        SupportsValidatedExampleConfigWrite]
+    set_command: Callable[[SetValues, PathOrStr], None]
+    print_command: Callable[[PathOrStr], None]
+    main_func: Callable[[Optional[list[str]]], None]
+    config_basename: str
 
 
 def assert_simple_config_values(
@@ -109,3 +196,93 @@ def _assert_written_simple_config(
     assert_write_command_output(capsys, config_file)
     assert_simple_config_values(config, expected)
     return json_text
+
+
+def assert_validated_example_config_values(
+        config: SupportsValidatedExampleConfig,
+        expected: ExpectedValidatedExampleConfig) -> None:
+    """Assert the stored values in an e03 or e04 example config."""
+    assert config.issue_type == expected.issue_type
+    assert config.number_of_iterations == expected.number_of_iterations
+    assert config.estimate == expected.estimate
+    assert config.severity == expected.severity
+    assert config.confidence == pytest.approx(expected.confidence)
+
+
+def assert_validated_example_config_written_by_set_command(
+        capsys: pytest.CaptureFixture[str],
+        example_spec: ValidatedExampleSpec,
+        set_values: SetValues,
+        expected: ExpectedValidatedExampleConfig,
+        read_json_text: bool = False) -> Optional[str]:
+    """Run a validated-example set helper and assert the written config."""
+    with TemporaryDirectory() as dirname:
+        config_file = dirname + '/' + example_spec.config_basename
+        example_spec.set_command(set_values, config_file)
+        config = example_spec.config_factory(from_json_filename=config_file)
+        json_text: Optional[str] = None
+        if read_json_text:
+            with open(config_file, encoding='UTF-8') as file_obj:
+                json_text = file_obj.read()
+        assert_write_command_output(capsys, config_file)
+    assert_validated_example_config_values(config, expected)
+    return json_text
+
+
+def write_validated_example_config_json(
+        config_file: str,
+        extra_values: Optional[dict[str, object]] = None) -> None:
+    """Write JSON text with the schema expected by the e03/e04 examples."""
+    json_data: dict[str, object] = {
+        'issue_type': 'Story',
+        'number_of_iterations': 10,
+        'estimate': 5,
+        'severity': 'INFO',
+        'confidence': 0.95
+    }
+    if extra_values is not None:
+        json_data.update(extra_values)
+    with open(config_file, 'w', encoding='UTF-8') as file_obj:
+        json.dump(json_data, file_obj)
+
+
+def patch_validated_example_config_stderr(
+        monkeypatch: pytest.MonkeyPatch,
+        example_spec: ValidatedExampleSpec,
+        stderr_buffer: TextIO) -> None:
+    """Patch an e03/e04 config factory to force diagnostics to one stream."""
+
+    def create_config(from_json_text: Optional[str] = None,
+                      from_json_filename: Optional[PathOrStr] = None,
+                      stderr_file: TextIO = stderr_buffer) -> \
+            SupportsValidatedExampleConfigWrite:
+        _ = stderr_file
+        config = example_spec.config_factory(
+            from_json_text=from_json_text,
+            from_json_filename=from_json_filename,
+            stderr_file=stderr_buffer
+        )
+        original_write = config.write
+
+        def capturing_write(to_json_filename: PathOrStr,
+                            stderr_file: TextIO = stderr_buffer) -> None:
+            _ = stderr_file
+            original_write(to_json_filename, stderr_file=stderr_buffer)
+
+        setattr(config, 'write', capturing_write)
+        return config
+
+    monkeypatch.setattr(example_spec.module, example_spec.factory_name,
+                        create_config)
+
+
+def assert_validator_error_output(
+        capsys: pytest.CaptureFixture[str],
+        stderr_buffer: StringIO,
+        expected_fragments: list[str]) -> None:
+    """Assert that validation failed and reported the expected message."""
+    out, _ = capsys.readouterr()
+    err = stderr_buffer.getvalue()
+    assert out == ''
+    for expected_fragment in expected_fragments:
+        assert expected_fragment in err

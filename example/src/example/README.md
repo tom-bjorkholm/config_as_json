@@ -114,10 +114,17 @@ example stops instead of continuing with bad configuration data.
 
 [Source code for e04_third_party_class.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py)
 
-This example shows how an application programmer can structure configuration if
-a 3rd party library wants to get configuration parameters using a class
-defined in that library. By deriving the example configuration class from
-both the `Config` class from `config_as_json`, and from the 3rd party
-parameter class, the application programmer gets the full functionality of
-this package for the 3rd party parameter class, including saving as JSON,
-reading from JSON, and validation.
+This example shows how to work with a third-party parameter class that
+already defines the configuration members and their default values.
+
+The example configuration class derives both from `Config` and from the
+third-party parameter class. The third-party base class is initialized first
+so that its public attributes already exist when `Config` inspects the
+instance. That lets the application keep using the class shape expected by
+the third-party library, while also getting JSON writing, JSON reading,
+enum conversion, and validation from `config_as_json`.
+
+The validators in this example are the same as in `e03_scalar_validators.py`.
+The new thing to notice is that the validated members come from the
+third-party base class instead of being created directly in the
+`Config` subclass.

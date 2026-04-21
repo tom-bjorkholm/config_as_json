@@ -1,12 +1,13 @@
 #! /usr/local/bin/python3
-"""Show how to use a third-party class as a configuration value.
+"""Show how to use a third-party parameter class with ``Config``.
 
-This example is similar to e03_scalar_validators.py, but instead
-of having the configuration parameters defined in the __init__ method,
-of the class derived from Config, we have them defined in some
-third-party class, that we cannot modify, but we can inherit from
-it. This is useful when we some third-party library wants it's
-configuration parameters to be passed in using a class they provide.
+This example is similar to ``e03_scalar_validators.py``, but the
+configuration members are not defined directly in the class derived from
+``Config``. Instead they come from a third-party class that we cannot
+modify, but that we can inherit from.
+
+This is useful when some third-party library expects its configuration
+parameters to be passed using a class that the library provides.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -40,8 +41,9 @@ class ThirdPartyParams:  # pylint: disable=too-few-public-methods
         self.confidence: float = 0.95
 
 
-# Here is the an example configuration class, similar to e01_simple_config.py,
-# but with validators added to the scalar values.
+# Here is an example configuration class, similar to
+# e01_simple_config.py, but with validators added to the scalar values,
+# and the configuration members coming from a third-party base class.
 
 
 class ExampleConfig4(ThirdPartyParams, Config):
@@ -61,9 +63,10 @@ class ExampleConfig4(ThirdPartyParams, Config):
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
         """
-        # Here we need to make sure that ThirdPartyParams is initialized first,
-        # and also the 2 base classes requires different argumants, so we call
-        # the base class __init__ methods explicitly for each base class.
+        # The third-party class creates the public attributes that make up the
+        # configuration schema, so we must initialize it before Config.
+        # The 2 base classes need different arguments, so in this multiple
+        # inheritance case we call their __init__ methods explicitly.
         ThirdPartyParams.__init__(self)
         Config.__init__(self, from_json_data_text=from_json_text,
                         from_json_filename=from_json_filename,
@@ -71,9 +74,13 @@ class ExampleConfig4(ThirdPartyParams, Config):
 
     def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Return extra validators for this example configuration."""
-        _ = stderr_file  # just to keep pylint happy
+        # The method receives stderr_file because custom validators may need
+        # it, but the predefined validators used in this example do not.
+        _ = stderr_file
         # Here we state what validators to use for the configuration values.
         # The validators are the same as in e03_scalar_validators.py.
+        # The important difference in this example is that the members being
+        # validated come from the third-party base class.
         num_iter_validator = IntFloatValidator(min_value=1, max_value=100,
                                                allowed_values=None)
         estimate_validator = IntFloatValidator(min_value=None, max_value=None,
@@ -114,7 +121,9 @@ def e04_third_party_class_set(set_values: SetValues,
         set_values: Values that should differ from the defaults.
         config_file: Path where to write the configuration file.
     """
-    # This is the same as in e02_simple_config_get_setattr.py.
+    # This is the same pattern as in e02_simple_config_get_setattr.py.
+    # We create the configuration object, optionally override some defaults,
+    # and then let Config.write() validate before the JSON file is written.
     config = ExampleConfig4()
     for key, value in set_values.items():
         if hasattr(config, key):
@@ -136,7 +145,9 @@ def e04_third_party_class_print(config_file: PathOrStr) -> None:
     Args:
         config_file: Path to the configuration file to read.
     """
-    # This is the same as in e01_simple_config.py
+    # The reading and printing looks as in e01_simple_config.py.
+    # The difference is only where the configuration members originally came
+    # from: here they were created by the third-party base class.
     try:
         config = ExampleConfig4(from_json_filename=config_file)
         print(f'Configuration read from {config_file}')
