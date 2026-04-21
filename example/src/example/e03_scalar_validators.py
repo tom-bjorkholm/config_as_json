@@ -1,12 +1,10 @@
 #! /usr/local/bin/python3
 """Show how to add validators to scalar configuration values.
 
-This example is similar to e01_simple_config.py, but also uses
-the predefined validators available in the config_as_json package.
-It shows how to add validators to scalar configuration values.
+This example is similar to e01_simple_config.py, but it also uses the
+predefined validators from the config_as_json package.
 The validators are added to the configuration class by overriding the
 get_validation_list method.
-
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -40,7 +38,7 @@ class Severity(Enum):
     CRITICAL = auto()
 
 
-# Here is the an example configuration class, similar to e01_simple_config.py,
+# Here is an example configuration class, similar to e01_simple_config.py,
 # but with validators added to the scalar values.
 
 class ExampleConfig(Config):
@@ -75,9 +73,11 @@ class ExampleConfig(Config):
     # pylint: disable=duplicate-code
     def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
         """Return extra validators for this example configuration."""
-        _ = stderr_file  # just to keep pylint happy
+        # The method receives stderr_file because custom validators may need
+        # it, but the predefined validators used in this example do not.
+        _ = stderr_file
         # Here we state what validators to use for the configuration values.
-        # In this example we the validator classes defined in the
+        # In this example we use the validator classes defined in the
         # config_as_json package.
         # For number_of_iterations that is an integer, we specify the minimum
         # value to 1 and the maximum value to 100.
@@ -95,8 +95,8 @@ class ExampleConfig(Config):
         # and that we should ignore case and normalize the string to match
         # the case of one of the allowed values. This is similar to how
         # enums have only a predefined set of allowed values, but this is for
-        # when you need to the type to be a string. (The allowed values,
-        # list might be returned from 3rd party code, for example.)
+        # when you need the type to be a string. (The allowed-values list
+        # might be returned from 3rd party code, for example.)
         issue_type_validator = StrValidator(allowed_values=['Story', 'Task',
                                                             'Bug', 'Epic'],
                                             ignore_case=True, normalize=True)

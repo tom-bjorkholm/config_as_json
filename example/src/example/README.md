@@ -88,11 +88,27 @@ configuration variables) this approach needs less code.
 [Source code for e03_scalar_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e03_scalar_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e03_scalar_validators.py)
 
 We introduce the concept of validators in the third example.
-The application programmer can use the predefined validator classes to validate
-that a configuration is consistent. By specifying arguments to the
+The application programmer can use the predefined validator classes to
+validate that a configuration is consistent. By specifying arguments to the
 validators we can define what values are allowed for which configuration
-parameter. In this example we only show how to validate single scalar
-configuration parameters individually.
+parameter.
+
+In this example we still use only scalar configuration values, but we now
+show four common validation patterns:
+
+- `number_of_iterations` must stay within an integer range
+- `estimate` must be one of a fixed set of allowed integer values
+- `confidence` must stay within a floating-point range
+- `issue_type` must be one of a fixed set of allowed strings
+
+The `issue_type` validator also ignores case and normalizes the stored value
+to the exact spelling from the allowed-values list. This shows that a
+validator can both reject invalid input and normalize valid input.
+
+The example also demonstrates that validation happens both when the
+configuration is written and when it is read back. If an invalid value is
+encountered, the `Config` base class prints a helpful error message and the
+example stops instead of continuing with bad configuration data.
 
 ## e04_third_party_class.py
 
