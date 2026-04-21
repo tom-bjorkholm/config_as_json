@@ -47,6 +47,30 @@ CONFIGURED_SIMPLE_CONFIG = ExpectedSimpleConfig(
 
 
 # pylint: disable=too-few-public-methods
+class SupportsWrite(Protocol):
+    """Protocol for config objects that can be written to a file."""
+
+    def write(self, to_json_filename: PathOrStr,
+              stderr_file: TextIO = ...) -> None:
+        """Write the configuration to a file."""
+
+
+WriteConfigInstance_co = TypeVar(
+    'WriteConfigInstance_co',
+    bound=SupportsWrite,
+    covariant=True
+)
+
+
+class WriteConfigFactory(Protocol[WriteConfigInstance_co]):
+    """Factory protocol for config classes that support write()."""
+
+    def __call__(self, from_json_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = ...) -> WriteConfigInstance_co:
+        """Create a writable config instance."""
+
+
 class SupportsValidatedExampleConfig(Protocol):
     """Protocol for the e03 and e04 example configuration objects."""
 
@@ -58,13 +82,10 @@ class SupportsValidatedExampleConfig(Protocol):
 
 
 class SupportsValidatedExampleConfigWrite(
+        SupportsWrite,
         SupportsValidatedExampleConfig,
         Protocol):
     """Protocol for validated example configs that can be written."""
-
-    def write(self, to_json_filename: PathOrStr,
-              stderr_file: TextIO = ...) -> None:
-        """Write the configuration to a file."""
 
 
 ConfigInstance_co = TypeVar(
@@ -75,13 +96,9 @@ ConfigInstance_co = TypeVar(
 
 
 class ValidatedExampleConfigFactory(
+        WriteConfigFactory[ConfigInstance_co],
         Protocol[ConfigInstance_co]):
     """Factory protocol for the e03 and e04 example config classes."""
-
-    def __call__(self, from_json_text: Optional[str] = None,
-                 from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = ...) -> ConfigInstance_co:
-        """Create a validated example config instance."""
 # pylint: enable=too-few-public-methods
 
 
@@ -146,6 +163,63 @@ def assert_write_command_output(
     out, err = capsys.readouterr()
     assert out == f'Configuration written to {config_file}\n'
     assert err == ''
+
+
+def write_json_file(config_file: str, json_data: dict[str, object]) -> None:
+    """Write one JSON object to a file using UTF-8."""
+    with open(config_file, 'w', encoding='UTF-8') as file_obj:
+        json.dump(json_data, file_obj)
+
+
+def patch_config_factory_stderr(
+        monkeypatch: pytest.MonkeyPatch,
+        module: ModuleType,
+        factory_name: str,
+        config_factory: WriteConfigFactory[WriteConfigInstance_co],
+        stderr_buffer: TextIO) -> None:
+    """Patch one config factory so all diagnostics go to one stream."""
+
+    def create_config(from_json_text: Optional[str] = None,
+                      from_json_filename: Optional[PathOrStr] = None,
+                      stderr_file: TextIO = stderr_buffer) -> \
+            WriteConfigInstance_co:
+        """Create one config instance with patched diagnostics."""
+        _ = stderr_file
+        config = config_factory(from_json_text=from_json_text,
+                                from_json_filename=from_json_filename,
+                                stderr_file=stderr_buffer)
+        original_write = config.write
+
+        def capturing_write(to_json_filename: PathOrStr,
+                            stderr_file: TextIO = stderr_buffer) -> None:
+            """Write using the patched stderr stream."""
+            _ = stderr_file
+            original_write(to_json_filename, stderr_file=stderr_buffer)
+
+        setattr(config, 'write', capturing_write)
+        return config
+
+    monkeypatch.setattr(module, factory_name, create_config)
+
+
+def assert_main_round_trip_print_output(
+        capsys: pytest.CaptureFixture[str],
+        main_func: Callable[[Optional[list[str]]], None],
+        config_basename: str,
+        set_args: list[str],
+        expected_lines: list[str]) -> None:
+    """Run one example through set then print and assert the output."""
+    with TemporaryDirectory() as dirname:
+        config_file = dirname + '/' + config_basename
+        main_func(['set', '--output', config_file, *set_args])
+        _ = capsys.readouterr()
+        main_func(['print', '--input', config_file])
+        out, err = capsys.readouterr()
+    assert err == ''
+    assert out == '\n'.join([
+        f'Configuration read from {config_file}',
+        *expected_lines
+    ]) + '\n'
 
 
 def assert_simple_config_written_by_main(
@@ -242,8 +316,7 @@ def write_validated_example_config_json(
     }
     if extra_values is not None:
         json_data.update(extra_values)
-    with open(config_file, 'w', encoding='UTF-8') as file_obj:
-        json.dump(json_data, file_obj)
+    write_json_file(config_file, json_data)
 
 
 def patch_validated_example_config_stderr(
@@ -251,29 +324,11 @@ def patch_validated_example_config_stderr(
         example_spec: ValidatedExampleSpec,
         stderr_buffer: TextIO) -> None:
     """Patch an e03/e04 config factory to force diagnostics to one stream."""
-
-    def create_config(from_json_text: Optional[str] = None,
-                      from_json_filename: Optional[PathOrStr] = None,
-                      stderr_file: TextIO = stderr_buffer) -> \
-            SupportsValidatedExampleConfigWrite:
-        _ = stderr_file
-        config = example_spec.config_factory(
-            from_json_text=from_json_text,
-            from_json_filename=from_json_filename,
-            stderr_file=stderr_buffer
-        )
-        original_write = config.write
-
-        def capturing_write(to_json_filename: PathOrStr,
-                            stderr_file: TextIO = stderr_buffer) -> None:
-            _ = stderr_file
-            original_write(to_json_filename, stderr_file=stderr_buffer)
-
-        setattr(config, 'write', capturing_write)
-        return config
-
-    monkeypatch.setattr(example_spec.module, example_spec.factory_name,
-                        create_config)
+    patch_config_factory_stderr(monkeypatch,
+                                example_spec.module,
+                                example_spec.factory_name,
+                                example_spec.config_factory,
+                                stderr_buffer)
 
 
 def assert_validator_error_output(

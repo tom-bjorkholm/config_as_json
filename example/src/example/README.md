@@ -128,3 +128,35 @@ The validators in this example are the same as in `e03_scalar_validators.py`.
 The new thing to notice is that the validated members come from the
 third-party base class instead of being created directly in the
 `Config` subclass.
+
+## e05_custom_validator.py
+
+[Source code for e05_custom_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e05_custom_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e05_custom_validator.py)
+
+This example shows how to derive your own validator class from
+`Validator`, and when that is useful.
+
+The configuration has 2 string values:
+
+- `output_format`
+- `output_subtype`
+
+The important rule is that they depend on each other:
+
+- for `CSV`, the subtype must be `excelDialect` or `unixDialect`
+- for `Excel`, the subtype must be `PylightXL`, `OpenPyxl`, or
+  `XlsxWriter`
+
+The example first uses ordinary `StrValidator` objects to normalize the
+spelling of both strings. After that it runs a custom validator on the
+whole configuration object by returning
+`Validation(member_names=None, validator=...)`.
+
+This is often the cleanest design when one configuration value is only
+valid in combination with another value. The example also includes a
+small stub output library class, just to show how an application might
+use the validated configuration after reading it.
+
+In this example we also show that it is a good idea to have separate
+exception types for mistakes by the end user, compared to programming
+errors by the application programmer.
