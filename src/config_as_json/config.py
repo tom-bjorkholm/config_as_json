@@ -450,13 +450,16 @@ class Config():
                                       stderr_file)
                 setattr(self, i, data[i])
 
-    def as_json_string(self) -> str:
+    def as_json_string(self, stderr_file: TextIO) -> str:
         """Serialize the current configuration object to formatted JSON.
 
         Returns:
             A JSON document containing every public, non-callable instance
             attribute on the configuration object.
         """
+        # We validate the configuration before writing it to JSON,
+        # to make sure that the configuration is valid so it can be read back
+        self.validate(stderr_file=stderr_file)
         data = {}
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
@@ -484,15 +487,16 @@ class Config():
             self.parse_json(data, ok_to_use_defaults,
                             stderr_file=stderr_file)
 
-    def write(self, to_json_filename: PathOrStr) -> None:
+    def write(self, to_json_filename: PathOrStr,
+              stderr_file: TextIO = sys.stderr) -> None:
         """Write the current configuration to a JSON file.
 
         Args:
             to_json_filename: Destination file that should receive the
                 formatted JSON document.
         """
+        text = self.as_json_string(stderr_file=stderr_file)
         with open(file=to_json_filename, mode='w', encoding='UTF-8') as file:
-            text = self.as_json_string()
             file.write(text)
 
     @staticmethod

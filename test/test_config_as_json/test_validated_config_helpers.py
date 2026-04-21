@@ -77,7 +77,8 @@ def test_legacy_name_cfg_uses_supplied_stderr_file(capsys):
     stderr_file = StringIO()
     with pytest.raises(SystemExit):
         _ = ConfigXlsListTransfName(
-            from_json_data_text=template.as_json_string(),
+            from_json_data_text=template.as_json_string(
+                stderr_file=stderr_file),
             stderr_file=stderr_file)
     out, err = capsys.readouterr()
     assert out == ''
@@ -93,7 +94,8 @@ def test_validated_name_cfg_uses_supplied_stderr_file(capsys):
     stderr_file = StringIO()
     with pytest.raises(SystemExit):
         _ = ConfigXlsListTransfNameValidated(
-            from_json_data_text=template.as_json_string(),
+            from_json_data_text=template.as_json_string(
+                stderr_file=stderr_file),
             stderr_file=stderr_file)
     out, err = capsys.readouterr()
     assert out == ''

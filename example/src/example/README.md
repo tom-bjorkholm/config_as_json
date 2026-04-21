@@ -82,3 +82,26 @@ of the code by importing from the first example.
 The difference here is that setattr and getattr are used to set and get
 configuration variables. In some situations (like when looping over the
 configuration variables) this approach needs less code.
+
+## e03_scalar_validators.py
+
+[Source code for e03_scalar_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e03_scalar_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e03_scalar_validators.py)
+
+We introduce the concept of validators in the third example.
+The application programmer can use the predefined validator classes to validate
+that a configuration is consistent. By specifying specifying arguments to the
+validators we can define what values are allowed for which configuration
+parameter. In this example we only show how to validate single scalar
+configuration parameters individually.
+
+## 04_third_party_class.py
+
+[Source code for e04_third_party_class.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py)
+
+This example shows how an application programmer can structure configuration if
+a 3rd party library used, wants to get configuration parameters using a class
+defined in the 3rd party library. By deriving the example configuration class from
+both the Config class from config-as-json, and from the 3rd party parameter class,
+the application programmer get the full functionality of this package for the
+3rd party parameter class, including: saving as JSON file, reading from JSON file
+and validation.

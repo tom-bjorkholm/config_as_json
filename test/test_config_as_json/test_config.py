@@ -163,7 +163,7 @@ def test_config_something_def(capsys):
     assert len(xst.pqr['qr']) == 2
     assert 'mn' in xst.pqr['qr'][0]
     assert xst.pqr['qr'][0]['mn'] == 3
-    scfg = xst.as_json_string()
+    scfg = xst.as_json_string(stderr_file=sys.stderr)
     assert len(scfg) > 1
     assert 'pqr' in scfg
     assert 'FOOBAR' in scfg
@@ -200,7 +200,7 @@ def test_config_something_changed(capsys, indel, outdel):
     xst = ConfigSomething()
     xst.csv_dialect1['delimiter'] = indel
     xst.csv_dialect2['delimiter'] = outdel
-    scfg = xst.as_json_string()
+    scfg = xst.as_json_string(stderr_file=sys.stderr)
     yst = ConfigSomething(from_json_text=scfg)
     assert yst.csv_dialect1['delimiter'] == indel
     assert yst.csv_dialect2['delimiter'] == outdel
@@ -227,7 +227,7 @@ def test_config_something_changed2(capsys, mno_not_pqr, value):
         xst.mno = value
     else:
         xst.pqr = value
-    scfg = xst.as_json_string()
+    scfg = xst.as_json_string(stderr_file=sys.stderr)
     yst = ConfigSomething(from_json_text=scfg)
     out, err = capsys.readouterr()
     assert_dict_equal(xst.__dict__, yst.__dict__, ['_hook_cfg_autochange'],
@@ -278,7 +278,7 @@ def test_config_something_cha_bad(capsys, abc_not_pqr, value, exm):
         xst.abc = value
     else:
         xst.pqr = value
-    scfg = xst.as_json_string()
+    scfg = xst.as_json_string(stderr_file=sys.stderr)
     with pytest.raises(SystemExit):
         _ = ConfigSomething(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
@@ -680,7 +680,7 @@ class ConfigSomething2(Config):
 def test_config_something2_bad(capsys):
     """Test error handling no parsse_converters."""
     xst = ConfigSomething2()
-    scfg = xst.as_json_string()
+    scfg = xst.as_json_string(stderr_file=sys.stderr)
     with pytest.raises(NotImplementedError) as exc:
         _ = ConfigSomething2(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
@@ -711,7 +711,7 @@ class ConfigSomething3(Config):
 def test_config_something3_bad(capsys):
     """Test error handling no parsse_converters."""
     xst = ConfigSomething3(stderr_file=sys.stderr)
-    scfg = xst.as_json_string()
+    scfg = xst.as_json_string(stderr_file=sys.stderr)
     yst = ConfigSomething3(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert xst.in_type != yst.in_type
@@ -742,7 +742,7 @@ class ConfigSomething4(Config):
 def test_config_something4_ok(capsys):
     """Test error handling no parsse_converters."""
     xst = ConfigSomething4(stderr_file=sys.stderr)
-    scfg = xst.as_json_string()
+    scfg = xst.as_json_string(stderr_file=sys.stderr)
     yst = ConfigSomething4(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert isinstance(xst.in_type, type(yst.in_type))

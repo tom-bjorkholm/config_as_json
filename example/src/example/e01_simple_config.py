@@ -184,6 +184,7 @@ INPUT_SPECS = [
 """Command line values that the example exposes for ``set``."""
 
 
+# pylint: disable=duplicate-code
 def main(args: Optional[list[str]] = None) -> None:
     """Run the example command line interface.
 

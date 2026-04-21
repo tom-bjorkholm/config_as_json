@@ -87,7 +87,7 @@ class AbcConfig(Config):
 def test_cfg_abc_dump_ok(capsys):
     """Test dump of default constructed AbcConfig."""
     abc = AbcConfig(stderr_file=sys.stderr)
-    jstext = abc.as_json_string()
+    jstext = abc.as_json_string(stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err

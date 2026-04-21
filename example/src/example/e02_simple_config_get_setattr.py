@@ -98,6 +98,7 @@ def e02_simple_config_print(config_file: PathOrStr) -> None:
 # what this example is trying to teach.
 # -----------------------------------------------------------------------------
 
+# pylint: disable=duplicate-code
 def main(args: Optional[list[str]] = None) -> None:
     """Run the example command line interface.
 
