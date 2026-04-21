@@ -24,7 +24,7 @@ from config_as_json.validator import ValidationList, Validation,  \
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
 
-# We define an enum just just as we did in e01_simple_config.py.
+# We define an enum just as we did in e01_simple_config.py.
 # A special aspect of enums in the configuration is that the base class Config
 # will by itself validate the enum members, so we do not need to add any
 # validators for them (provided that all defined enum members are valid).
@@ -93,7 +93,7 @@ class ExampleConfig(Config):
                                                  allowed_values=None)
         # For issue_type that is a string, we specify the allowed values,
         # and that we should ignore case and normalize the string to match
-        # the case of one of the allowed values. This is similart to how
+        # the case of one of the allowed values. This is similar to how
         # enums have only a predefined set of allowed values, but this is for
         # when you need to the type to be a string. (The allowed values,
         # list might be returned from 3rd party code, for example.)
@@ -136,6 +136,9 @@ def e03_scalar_validators_set(set_values: SetValues,
         config_file: Path where to write the configuration file.
     """
     # This is the same as in e02_simple_config_get_setattr.py.
+    # We start from the default configuration, apply only the values that
+    # the caller explicitly asked to change, and then let Config.write()
+    # validate everything before the JSON file is written.
     config = ExampleConfig()
     for key, value in set_values.items():
         if hasattr(config, key):
@@ -157,7 +160,9 @@ def e03_scalar_validators_print(config_file: PathOrStr) -> None:
     Args:
         config_file: Path to the configuration file to read.
     """
-    # This is the same as in e01_simple_config.py
+    # The reading and printing looks as in e01_simple_config.py
+    # Reading the configuration also triggers validation. If the stored file
+    # is invalid, the Config object prints the error and we stop quietly.
     try:
         config = ExampleConfig(from_json_filename=config_file)
         print(f'Configuration read from {config_file}')
@@ -173,14 +178,14 @@ def e03_scalar_validators_print(config_file: PathOrStr) -> None:
 # -----------------------------------------------------------------------------
 # The rest of this file is the command line handling code.
 # This is to be able to run the example from the command line,
-# but it could be done in any other way, and is not part of the
-# what this example is trying to teach.
+# but it could be done in any other way, and is not part of what this example
+# is trying to teach.
 # -----------------------------------------------------------------------------
 
 # pylint: disable=duplicate-code
 INPUT_SPECS = [
     InputSpec(name='issue_type', single=True, value_type=str),
-    InputSpec(name='num_iter', single=True, value_type=int),
+    InputSpec(name='number_of_iterations', single=True, value_type=int),
     InputSpec(name='estimate', single=True, value_type=int),
     InputSpec(name='severity', single=True, value_type=Severity),
     InputSpec(name='confidence', single=True, value_type=float)

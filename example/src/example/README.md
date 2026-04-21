@@ -11,11 +11,11 @@ the ones that match the configuration case you are interested in.
 All examples use the shared command-line helper in
 `cmd_line_handling.py`. That means they follow the same basic style:
 you choose an output file to write configuration to with `-o` and
-input file to read configuration from with `-i`.
+an input file to read configuration from with `-i`.
 The command lines have two sub-commands `set` and `print`.
-The sub-command `set` is optionally changes some configuration
-values (to something else than the default) based on command line
-arguments, and writes the configuration to a file.
+The sub-command `set` optionally changes some configuration
+values from their defaults based on command-line arguments, and writes
+the configuration to a file.
 The sub-command `print` reads the configuration from a file,
 and prints the configuration to standard output.
 
@@ -28,9 +28,9 @@ pip install --upgrade config-as-json
 
 The example programs are *not* included in the package you install.
 
-The example programs are intended to be read in a browser towards to
+The example programs are intended to be read in a browser in the
 Bitbucket repository, and you can download them from Bitbucket to run
-them locally (or to run variations you want to test).
+them locally, or to run variations you want to test.
 There is no package with the example programs.
 
 With the `config_as_json` package installed in your environment,
@@ -58,7 +58,7 @@ ideas are easy to see:
 
 This shows the first example configuration class, that is a simple
 configuration class that uses only scalar values. Our configuration class
-is derived from the base class Config and may have any name and any number
+is derived from the base class `Config` and may have any name and any number
 of instance attributes. The instance attributes are the configuration values.
 Later examples will teach more complex patterns, but what is shown here is
 actually enough for many applications.
@@ -89,19 +89,19 @@ configuration variables) this approach needs less code.
 
 We introduce the concept of validators in the third example.
 The application programmer can use the predefined validator classes to validate
-that a configuration is consistent. By specifying specifying arguments to the
+that a configuration is consistent. By specifying arguments to the
 validators we can define what values are allowed for which configuration
 parameter. In this example we only show how to validate single scalar
 configuration parameters individually.
 
-## 04_third_party_class.py
+## e04_third_party_class.py
 
 [Source code for e04_third_party_class.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py)
 
 This example shows how an application programmer can structure configuration if
-a 3rd party library used, wants to get configuration parameters using a class
-defined in the 3rd party library. By deriving the example configuration class from
-both the Config class from config-as-json, and from the 3rd party parameter class,
-the application programmer get the full functionality of this package for the
-3rd party parameter class, including: saving as JSON file, reading from JSON file
-and validation.
+a 3rd party library wants to get configuration parameters using a class
+defined in that library. By deriving the example configuration class from
+both the `Config` class from `config_as_json`, and from the 3rd party
+parameter class, the application programmer gets the full functionality of
+this package for the 3rd party parameter class, including saving as JSON,
+reading from JSON, and validation.

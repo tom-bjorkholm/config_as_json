@@ -1,7 +1,7 @@
 #! /usr/local/bin/python3
 """Show a second example of a small configuration class backed by JSON.
 
-This example example is the same as the first example, but uses the
+This example is the same as the first example, but uses the
 setattr function to set the configuration values, and the getattr
 function to get the configuration values. This is to show that the
 attributes can be accessed as normal Python attributes.
@@ -24,7 +24,7 @@ from .e01_simple_config import SimpleConfig, INPUT_SPECS
 
 
 # To simplify the error checking in the examples that use setattr and getattr,
-# we define a helper function get the list of the normal instance attribute
+# we define a helper function to get the list of the normal instance attribute
 # names.
 
 def get_normal_instance_attribute_names(config: Config) -> list[str]:
@@ -94,8 +94,8 @@ def e02_simple_config_print(config_file: PathOrStr) -> None:
 # -----------------------------------------------------------------------------
 # The rest of this file is the command line handling code.
 # This is to be able to run the example from the command line,
-# but it could be done in any other way, and is not part of the
-# what this example is trying to teach.
+# but it could be done in any other way, and is not part of what this example
+# is trying to teach.
 # -----------------------------------------------------------------------------
 
 # pylint: disable=duplicate-code

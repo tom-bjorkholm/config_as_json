@@ -22,7 +22,7 @@ from config_as_json.validator import ValidationList, Validation,  \
     IntFloatValidator, StrValidator, InvalidConfiguration, \
     InvalidConfigurationValue
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
-from .e03_scalar_validators import Severity
+from .e03_scalar_validators import Severity, INPUT_SPECS
 
 
 # Imagine that this class ThirdPartyParams is imported from a
@@ -152,19 +152,12 @@ def e04_third_party_class_print(config_file: PathOrStr) -> None:
 # -----------------------------------------------------------------------------
 # The rest of this file is the command line handling code.
 # This is to be able to run the example from the command line,
-# but it could be done in any other way, and is not part of the
-# what this example is trying to teach.
+# but it could be done in any other way, and is not part of what this example
+# is trying to teach.
 # -----------------------------------------------------------------------------
 
 # pylint: disable=duplicate-code
-INPUT_SPECS = [
-    InputSpec(name='issue_type', single=True, value_type=str),
-    InputSpec(name='num_iter', single=True, value_type=int),
-    InputSpec(name='estimate', single=True, value_type=int),
-    InputSpec(name='severity', single=True, value_type=Severity),
-    InputSpec(name='confidence', single=True, value_type=float)
-]
-"""Command line values that the example exposes for ``set``."""
+
 
 
 def main(args: Optional[list[str]] = None) -> None:
