@@ -21,7 +21,7 @@ from config_as_json.commontypes import PathOrStr
 from config_as_json.validator import ValidationList, Validation,  \
     IntFloatValidator, StrValidator, InvalidConfiguration, \
     InvalidConfigurationValue
-from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
+from .cmd_line_handling import SetValues, cmd_line_handling
 from .e03_scalar_validators import Severity, INPUT_SPECS
 
 
@@ -157,9 +157,6 @@ def e04_third_party_class_print(config_file: PathOrStr) -> None:
 # -----------------------------------------------------------------------------
 
 # pylint: disable=duplicate-code
-
-
-
 def main(args: Optional[list[str]] = None) -> None:
     """Run the example command line interface.
 
