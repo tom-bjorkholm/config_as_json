@@ -13,7 +13,7 @@ import sys
 import pytest
 from config_as_json.config import Config, BackwardCompatible
 from config_as_json.commontypes import JsonType
-from config_as_json.validator import ValidationList
+from config_as_json.validator import ValidationPlan
 
 
 @pytest.mark.parametrize('enc, is_ok',
@@ -79,8 +79,8 @@ class AbcConfig(Config):
         """Return default values for optional parameters."""
         return {'cd': 'cd99', 'ef': 'ef99'}
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return []
 
 
@@ -231,8 +231,8 @@ class DummyCfg(Config):
             BackwardCompatible(old='c', new='z')
         ]
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return []
 
 

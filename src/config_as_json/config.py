@@ -27,7 +27,7 @@ from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
 from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.validator import ValidationList
+from config_as_json.validator import ValidationPlan
 
 
 Keya = TypeVar('Keya', str, Enum)
@@ -132,7 +132,7 @@ class Config():
             ConfigBadJson: The supplied JSON could not be decoded or converted
                 into the expected configuration structure.
             NotImplementedError: The derived class did not implement
-                ``get_validation_list``.
+                ``get_validation_plan``.
         """
         if auto_ch_hook is None:
             auto_ch_hook = ConfigAutoChangeHook()
@@ -853,15 +853,15 @@ class Config():
         print(msg, file=stderr_file)
         sys.exit(1)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Return the validation list for the Config object.
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the validation plan for the Config object.
 
-        The validation list is used to validate the Config object after it has
+        The validation plan is used to validate the Config object after it has
         been parsed from JSON, and it is also used to validate the Config
         object after it has been default constructed.
 
         The derived class shall override this method to return a list of
-        Validation objects describing the validations for the Config object.
+        validation steps describing the validations for the Config object.
         This is mandatory even for derived classes that do not currently use
         validation and only want to return an empty list.
 
@@ -869,12 +869,12 @@ class Config():
             stderr_file: Stream used for user-facing diagnostics.
 
         Returns:
-            A list of Validation objects describing the validations for
-            the Config object. The order of the Validation objects in the list
-            is significant as a previous validation may normalize or change a
+            An ordered list of validation steps describing the validations for
+            the Config object. The order of the steps in the list is
+            significant as a previous validation may normalize or change a
             configuration value that is used in a later validation.
         """
-        msg = 'Config.get_validation_list() must be implemented in a ' + \
+        msg = 'Config.get_validation_plan() must be implemented in a ' + \
             'derived class.'
         print(msg, file=stderr_file)
         raise NotImplementedError(msg)
@@ -883,9 +883,9 @@ class Config():
     def validate(self, stderr_file: TextIO) -> None:
         """Validate the Config object.
 
-        The validation is performed by the validation list returned by
-        ``get_validation_list``. The validation list is applied in the order
-        of the Validation objects in the list. A previous validation may
+        The validation is performed by the validation plan returned by
+        ``get_validation_plan``. The validation plan is applied in the order
+        of the validation steps in the list. A previous validation may
         normalize or change a configuration value that is used in a later
         validation.
         A member validator returns the value that shall be stored back into the
@@ -898,31 +898,14 @@ class Config():
             InvalidConfigurationValue: The value of a member of the Config
                                        object is not valid.
             NotImplementedError: The derived class did not override
-                                 ``get_validation_list`` or a validation
-                                 method of the Validator class.
-            AttributeError: A member name in the validation list is not a
+                                 ``get_validation_plan`` or one of the
+                                 required validation methods.
+            AttributeError: A member name in the validation plan is not a
                             valid member name of the Config object.
 
         Args:
             stderr_file: Stream used for user-facing diagnostics.
         """
-        validation_list = self.get_validation_list(stderr_file=stderr_file)
-        for valdtn in validation_list:
-            if valdtn.member_names is None:
-                valdtn.validator.validate(self, stderr_file)
-            else:
-                for member_name in valdtn.member_names:
-                    if not hasattr(self, member_name):
-                        msg = f'Member {member_name} '
-                        msg += 'not found in Config object '
-                        msg += 'in validation of '
-                        msg += f'{valdtn.validator.__class__.__name__} '
-                        msg += 'in Config.validate().'
-                        print(msg, file=stderr_file)
-                        raise AttributeError(msg)
-                    member_value = getattr(self, member_name)
-                    ret = valdtn.validator.validate_member(self,
-                                                           member_name,
-                                                           member_value,
-                                                           stderr_file)
-                    setattr(self, member_name, ret)
+        validation_plan = self.get_validation_plan(stderr_file=stderr_file)
+        for validation_step in validation_plan:
+            validation_step.apply(self, stderr_file)

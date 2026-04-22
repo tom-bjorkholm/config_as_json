@@ -115,19 +115,6 @@ def test_list_value_validator_requires_allowed_value_to_be_in_range(capsys):
     assert 'Value 6 for value at index 0 is greater than maximum 5' in err
 
 
-def test_list_value_validator_cannot_validate_whole_config(capsys):
-    """Test that ListValueValidator is only for member validation."""
-    validator = ListValueValidator(1, 5, None)
-    cfg = EmptyValidationConfig()
-    with pytest.raises(RuntimeError) as exc:
-        validator.validate(cfg, sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'ListValueValidator cannot be used to validate the entire' in \
-        str(exc.value)
-    assert out == ''
-    assert 'ListValueValidator cannot be used to validate the entire' in err
-
-
 def test_list_value_validator_integration_uses_parsed_json(capsys):
     """Test ListValueValidator integration through Config.validate()."""
     cfg = SingleMemberValidationConfig(
@@ -174,19 +161,6 @@ def test_list_size_validator_rejects_invalid_member_values(
     """Test ListSizeValidator failures."""
     assert_validate_member_failure(
         capsys, validator, member_value, InvalidConfiguration, message)
-
-
-def test_list_size_validator_cannot_validate_whole_config(capsys):
-    """Test that ListSizeValidator is only for member validation."""
-    validator = ListSizeValidator(0, 2)
-    cfg = EmptyValidationConfig()
-    with pytest.raises(RuntimeError) as exc:
-        validator.validate(cfg, sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'ListSizeValidator cannot be used to validate the entire' in \
-        str(exc.value)
-    assert out == ''
-    assert 'ListSizeValidator cannot be used to validate the entire' in err
 
 
 def test_list_size_validator_integration_uses_parsed_json(capsys):
@@ -253,20 +227,6 @@ def test_list_is_ordered_validator_rejects_invalid_member_values(
         capsys, validator, member_value, InvalidConfiguration, message)
 
 
-def test_list_is_ordered_validator_cannot_validate_whole_config(capsys):
-    """Test that ListIsOrderedValidator is only for member validation."""
-    validator = ListIsOrderedValidator(int)
-    cfg = EmptyValidationConfig()
-    with pytest.raises(RuntimeError) as exc:
-        validator.validate(cfg, sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'ListIsOrderedValidator cannot be used to validate the entire' \
-        in str(exc.value)
-    assert out == ''
-    assert 'ListIsOrderedValidator cannot be used to validate the entire' \
-        in err
-
-
 def test_list_is_ordered_validator_integration_uses_parsed_json(capsys):
     """Test ListIsOrderedValidator integration through Config.validate()."""
     cfg = SingleMemberValidationConfig(
@@ -321,20 +281,6 @@ def test_list_ordering_validator_rejects_invalid_member_values(
     """Test ListOrderingValidator failures."""
     assert_validate_member_failure(
         capsys, validator, member_value, InvalidConfiguration, message)
-
-
-def test_list_ordering_validator_cannot_validate_whole_config(capsys):
-    """Test that ListOrderingValidator is only for member validation."""
-    validator = ListOrderingValidator(int)
-    cfg = EmptyValidationConfig()
-    with pytest.raises(RuntimeError) as exc:
-        validator.validate(cfg, sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'ListOrderingValidator cannot be used to validate the entire' in \
-        str(exc.value)
-    assert out == ''
-    assert 'ListOrderingValidator cannot be used to validate the entire' \
-        in err
 
 
 def test_list_ordering_validator_integration_uses_parsed_json(capsys):

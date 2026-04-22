@@ -105,6 +105,11 @@ The `issue_type` validator also ignores case and normalizes the stored value
 to the exact spelling from the allowed-values list. This shows that a
 validator can both reject invalid input and normalize valid input.
 
+The example introduces the validation-plan API used by `Config`.
+`get_validation_plan()` returns an ordered `ValidationPlan`.
+Each item in that plan is a step object. In this example all steps are
+`MemberValidationStep` because each rule validates one named member.
+
 The example also demonstrates that validation happens both when the
 configuration is written and when it is read back. If an invalid value is
 encountered, the `Config` base class prints a helpful error message and the
@@ -134,7 +139,7 @@ third-party base class instead of being created directly in the
 [Source code for e05_custom_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e05_custom_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e05_custom_validator.py)
 
 This example shows how to derive your own validator class from
-`Validator`, and when that is useful.
+`WholeConfigValidator`, and when that is useful.
 
 The configuration has 2 string values:
 
@@ -149,8 +154,12 @@ The important rule is that they depend on each other:
 
 The example first uses ordinary `StrValidator` objects to normalize the
 spelling of both strings. After that it runs a custom validator on the
-whole configuration object by returning
-`Validation(member_names=None, validator=...)`.
+whole configuration object.
+
+That lets the example teach both concrete step types in a `ValidationPlan`:
+
+- `MemberValidationStep` for rules that validate one named member
+- `WholeConfigValidationStep` for rules that need the whole configuration
 
 This is often the cleanest design when one configuration value is only
 valid in combination with another value. The example also includes a

@@ -16,7 +16,7 @@ ideas are easy to see:
 from enum import Enum, auto
 from typing import Optional, TextIO
 import sys
-from config_as_json import Config, PathOrStr, ValidationList, \
+from config_as_json import Config, PathOrStr, ValidationPlan, \
     ParseConverter
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
@@ -79,11 +79,11 @@ class SimpleConfig(Config):
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Return extra validators for this example configuration."""
-        # In this example we do not need any additional validation.
-        # Thus we return an empty list.
-        # Later examples will teach how to add validation.
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return extra validation steps for this example configuration."""
+        # In this example we do not need any additional validation steps.
+        # Thus we return an empty validation plan.
+        # Later examples will teach how to add validation steps.
         _ = stderr_file
         return []
 

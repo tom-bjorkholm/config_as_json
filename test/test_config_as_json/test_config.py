@@ -18,7 +18,7 @@ import pytest
 from config_as_json.config import _ConfigEncoder, \
     ConfigBadJson, over_ride_needed, Config
 from config_as_json.assert_dict_equal import assert_dict_equal
-from config_as_json.validator import ValidationList
+from config_as_json.validator import ValidationPlan
 
 
 class EnumInTesting(Enum):
@@ -140,8 +140,8 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
                 'ijk': self.get_converter_dict(EnumInTesting),
                 'gh': self.get_converter_dict(EnumInTesting)}
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return []
 
 
@@ -672,8 +672,8 @@ class ConfigSomething2(Config):
         super().__init__(from_json_text, from_json_filename,
                          stderr_file=stderr_file)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return []
 
 
@@ -703,8 +703,8 @@ class ConfigSomething3(Config):
         """Use no parse converters."""
         return None
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return []
 
 
@@ -734,8 +734,8 @@ class ConfigSomething4(Config):
         """Use no parse converters."""
         return {'in_type': self.get_converter_dict(EnumInTesting)}
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return []
 
 
@@ -766,8 +766,8 @@ class ConfigSomething5(Config):
         """Use no parse converters."""
         return {'in_type': self.get_converter_dict(EnumInTesting)}
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return []
 
 
@@ -795,8 +795,8 @@ class ConfigEmpty(Config):
         """Use no parse converters."""
         return None
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return []
 
 

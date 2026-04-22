@@ -8,7 +8,7 @@ import sys
 from typing import Optional, TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
-from config_as_json.validator import Validation, ValidationList
+from config_as_json.validator import ValidationPlan, MemberValidationStep
 from .config_excel_list_transform import ColInfo, RulePlace, RuleRemove
 from .config_xls_list_transf_num import get_column, get_merge_first_column
 from .config_excel_list_transform_validated import \
@@ -71,14 +71,16 @@ class ConfigXlsListTransfNumValidated(  # pylint: disable=too-many-instance-attr
         """Return the optional insert-column key name for this config."""
         return 'name'
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
-        ret = super().get_validation_list(stderr_file=stderr_file)
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        ret = super().get_validation_plan(stderr_file=stderr_file)
         ret.extend([
-            Validation(member_names=['s04_remove_columns',
-                                     's06_place_columns_first'],
-                       validator=NoDuplicateItemsValidator()),
-            Validation(member_names=['s05_merge_columns'],
-                       validator=IncreasingMultiColumnsValidator(
-                           self._columntype))])
+            MemberValidationStep(
+                member_names=['s04_remove_columns',
+                              's06_place_columns_first'],
+                validator=NoDuplicateItemsValidator()),
+            MemberValidationStep(
+                member_names=['s05_merge_columns'],
+                validator=IncreasingMultiColumnsValidator(
+                    self._columntype))])
         return ret

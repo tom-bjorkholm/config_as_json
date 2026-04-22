@@ -8,7 +8,8 @@ import sys
 from typing import Optional, TextIO
 import pytest
 from config_as_json.config import Config
-from config_as_json.validator import Validation, ValidationList, Validator
+from config_as_json.validator import ValidationPlan, MemberValidationStep, \
+    MemberValidator
 
 
 class EmptyValidationConfig(Config):
@@ -21,8 +22,8 @@ class EmptyValidationConfig(Config):
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=None, stderr_file=stderr_file)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         _ = stderr_file
         return []
 
@@ -31,7 +32,7 @@ class SingleMemberValidationConfig(Config):
     """Config class used to test one member validator in integration."""
 
     def __init__(self, member_name: str, member_value: object,
-                 validator: Validator,
+                 validator: MemberValidator,
                  from_json_data_text: Optional[str] = None) -> None:
         """Construct one-member config object with injected validation."""
         self._member_name = member_name
@@ -40,15 +41,15 @@ class SingleMemberValidationConfig(Config):
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=None, stderr_file=sys.stderr)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         _ = stderr_file
-        return [Validation(member_names=[self._member_name],
-                           validator=self._validator)]
+        return [MemberValidationStep(member_names=[self._member_name],
+                                     validator=self._validator)]
 
 
 def assert_validate_member_ok(capsys: pytest.CaptureFixture[str],
-                              validator: Validator, member_value: object,
+                              validator: MemberValidator, member_value: object,
                               expected: object) -> None:
     """Assert that one member validation succeeds without stderr output."""
     cfg = EmptyValidationConfig()
@@ -60,7 +61,7 @@ def assert_validate_member_ok(capsys: pytest.CaptureFixture[str],
 
 
 def assert_validate_member_failure(
-        capsys: pytest.CaptureFixture[str], validator: Validator,
+        capsys: pytest.CaptureFixture[str], validator: MemberValidator,
         member_value: object, exc_type: type[Exception],
         message: str) -> None:
     """Assert that one member validation fails with one error message."""

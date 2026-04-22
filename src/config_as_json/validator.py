@@ -4,9 +4,11 @@
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 import sys
-from typing import Callable, NamedTuple, Optional, Sequence, TextIO, \
-    TYPE_CHECKING, TypeVar, Generic, cast
+from typing import Callable, Optional, Sequence, TextIO, TYPE_CHECKING, \
+    TypeVar, Generic, cast
 if TYPE_CHECKING:
     from config_as_json.config import Config
 
@@ -87,27 +89,28 @@ class InvalidConfigurationValue(InvalidConfiguration):
                                                    allowed_values, None))
 
 
-class Validator:
-    """Base class for validating an aspect of a Config object."""
+class WholeConfigValidator(ABC):  # pylint: disable=too-few-public-methods
+    """Base class for validators that validate a complete Config object."""
 
     def __init__(self) -> None:
         """Initialize the validator."""
 
+    @abstractmethod
     def validate(self, config: 'Config',
                  stderr_file: TextIO = sys.stderr) -> None:
-        """Validate the aspect of the entire Config object.
+        """Validate an aspect of the entire Config object.
 
-        The validate method must be implemented in a derived class, if used
-        for validating the entire Config object.
-
-        The validator shall validate the entire Config object.
-        If the validation check fails, the error message shall be written to
+        The validate method must be implemented in a derived class.
+        The validator shall validate the entire Config object. If the
+        validation check fails, the error message shall be written to
         ``stderr_file`` before the exception is raised.
+        This method may mutate the Config object directly if needed
+        to normalize the configuration.
 
         Raises:
             InvalidConfiguration: The configuration is invalid.
             InvalidConfigurationValue: The value of a configuration member is
-                                        not one of the allowed values.
+                not one of the allowed values.
 
         Args:
             config: The Config object to validate.
@@ -118,33 +121,39 @@ class Validator:
             is raised.
         """
         assert config is not None  # pylint: disable=unused-variable
-        msg = 'Validator.validate() must be implemented in a derived class.'
+        msg = 'WholeConfigValidator.validate() must be implemented in a '
+        msg += 'derived class.'
         print(msg, file=stderr_file)
         raise NotImplementedError(msg)
 
-    def validate_member(self, config: 'Config',
-                        member_name: str,
+
+class MemberValidator(ABC):  # pylint: disable=too-few-public-methods
+    """Base class for validators that validate one Config member."""
+
+    def __init__(self) -> None:
+        """Initialize the validator."""
+
+    @abstractmethod
+    def validate_member(self, config: 'Config', member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
-        """Validate the aspect of the Config object for a specific member.
+        """Validate an aspect of the Config object for one member.
 
-        The validate_member method must be implemented in a derived class, if
-        used for validating a specific member of the Config object.
-
+        The validate_member method must be implemented in a derived class.
         It shall validate a specific member of the Config object, and
-        ``member_value`` is the value of that member.
-        If the validation check fails, the error message shall be written to
-        ``stderr_file`` before the exception is raised.
+        ``member_value`` is the value of that member. If the validation check
+        fails, the error message shall be written to ``stderr_file`` before
+        the exception is raised.
 
         Raises:
             InvalidConfiguration: The configuration is invalid.
             InvalidConfigurationValue: The value of a configuration member is
-                                      not one of the allowed values.
+                not one of the allowed values.
 
         Args:
             config: The complete Config object (might be needed if the
-                    validator needs to access other members of the Config
-                    object).
+                validator needs to access other members of the Config
+                object).
             member_name: The name of the member to validate.
             member_value: The value of the member to validate.
             stderr_file: The file to write error messages to.
@@ -158,13 +167,65 @@ class Validator:
             Notice: The returned value is used as the new member value, even if
             it is ``None``.
         """
-        msg = 'Validator.validate_member() must be implemented in a ' + \
-            'derived class.'
+        msg = 'MemberValidator.validate_member() must be implemented in a '
+        msg += 'derived class.'
         print(msg, file=stderr_file)
         _ = member_value  # pylint: disable=unused-variable
         assert isinstance(member_name, str)  # pylint: disable=unused-variable
         assert config is not None  # pylint: disable=unused-variable
         raise NotImplementedError(msg)
+
+
+class ValidationStep(ABC):  # pylint: disable=too-few-public-methods
+    """Base class for one ordered validation step."""
+
+    @abstractmethod
+    def apply(self, config: 'Config',
+              stderr_file: TextIO = sys.stderr) -> None:
+        """Apply the validation step to one Config object."""
+        assert config is not None  # pylint: disable=unused-variable
+        msg = 'ValidationStep.apply() must be implemented in a derived '
+        msg += 'class.'
+        print(msg, file=stderr_file)
+        raise NotImplementedError(msg)
+
+
+@dataclass
+class WholeConfigValidationStep(ValidationStep):
+    """Validation step that applies one whole-config validator."""
+
+    validator: WholeConfigValidator
+
+    def apply(self, config: 'Config',
+              stderr_file: TextIO = sys.stderr) -> None:
+        """Apply the whole-config validator to the Config object."""
+        self.validator.validate(config=config, stderr_file=stderr_file)
+
+
+@dataclass
+class MemberValidationStep(ValidationStep):
+    """Validation step that applies one member validator."""
+
+    member_names: list[str]
+    validator: MemberValidator
+
+    def apply(self, config: 'Config',
+              stderr_file: TextIO = sys.stderr) -> None:
+        """Apply the member validator to each named member."""
+        for member_name in self.member_names:
+            if not hasattr(config, member_name):
+                msg = f'Member {member_name} '
+                msg += 'not found in Config object '
+                msg += 'in validation of '
+                msg += f'{self.validator.__class__.__name__} '
+                msg += 'in Config.validate().'
+                print(msg, file=stderr_file)
+                raise AttributeError(msg)
+            member_value = getattr(config, member_name)
+            ret = self.validator.validate_member(
+                config=config, member_name=member_name,
+                member_value=member_value, stderr_file=stderr_file)
+            setattr(config, member_name, ret)
 
 
 def string_best_match(value: str, allowed_values: Sequence[str],
@@ -213,8 +274,9 @@ def string_best_match(value: str, allowed_values: Sequence[str],
     raise InvalidConfigurationValue(member_name, value, allowed_values)
 
 
-class StrValidator(Validator):
-    """Validator for simple case of string value member of a Config object."""
+class StrValidator(  # pylint: disable=too-few-public-methods
+        MemberValidator):
+    """Validate one string member against allowed string values."""
 
     def __init__(self,
                  allowed_values: Sequence[str] | Callable[[], Sequence[str]],
@@ -292,14 +354,6 @@ class StrValidator(Validator):
                                         allowed_values, stderr_file)
         raise InvalidConfigurationValue(member_name, member_value,
                                         allowed_values)
-
-    def validate(self, config: 'Config',
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Cannot validate complete Config object with this validator."""
-        msg = 'Cannot validate complete Config object with a StrValidator.'
-        assert config is not None
-        print(msg, file=stderr_file)
-        raise InvalidConfiguration(msg)
 
 
 IntFloat = TypeVar('IntFloat', int, float)
@@ -380,7 +434,8 @@ def _ensure_int_float_type(value_type: type[object]) -> None:
         raise TypeError(msg)
 
 
-class IntFloatValidator(Validator, Generic[IntFloat]):
+class IntFloatValidator(  # pylint: disable=too-few-public-methods
+        MemberValidator, Generic[IntFloat]):
     """Validate one int or float member against numeric constraints."""
 
     def __init__(self, min_value: Optional[IntFloat],
@@ -465,42 +520,6 @@ class IntFloatValidator(Validator, Generic[IntFloat]):
                                             self.allowed_values)
         return value
 
-    def validate(self, config: 'Config',
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Cannot validate complete Config object with this validator."""
-        msg = 'Cannot validate complete Config object with an '
-        msg += 'IntFloatValidator.'
-        print(msg, file=stderr_file)
-        raise InvalidConfiguration(msg)
 
-
-class Validation(NamedTuple):
-    """Instruction for validation.
-
-    One Validation object describes one aspect of validation of the
-    Config object. This may be applied to either the entire Config object
-    or to one or several members of the Config object.
-    """
-
-    member_names: Optional[list[str]]
-    """The names of the members to validate with this validator.
-
-    If ``None``, the validator shall validate the entire Config object.
-    Otherwise, it shall validate the members with the given names.
-    When validating a specific member, the validator is passed the
-    member name and value, in addition to the complete Config object.
-    """
-
-    validator: Validator
-    """The validator to use for the validation.
-
-    The ``validate_member`` method of the validator is called once for each
-    member name to validate (with the member name and value, in addition to
-    the complete Config object).
-    If ``member_names`` is ``None``, the ``validate`` method is called once
-    for the entire Config object.
-    """
-
-
-type ValidationList = list[Validation]
-"""List of validation instructions."""
+type ValidationPlan = list[ValidationStep]
+"""Ordered list of validation steps."""

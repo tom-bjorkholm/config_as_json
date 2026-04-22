@@ -3,7 +3,7 @@
 
 This example combines two common needs:
 
-- deriving your own class from ``Validator``
+- deriving your own class from ``WholeConfigValidator``
 - validating 2 configuration values that depend on each other
 
 The example pretends that an output library can write either CSV or
@@ -18,8 +18,9 @@ is clearer than trying to encode all rules as separate scalar validators.
 # pylint: disable=duplicate-code
 from typing import Optional, TextIO
 import sys
-from config_as_json import Config, PathOrStr, ValidationList, Validation, \
-    StrValidator, Validator, InvalidConfiguration, InvalidConfigurationValue
+from config_as_json import Config, PathOrStr, ValidationPlan, \
+    MemberValidationStep, WholeConfigValidationStep, StrValidator, \
+    WholeConfigValidator, InvalidConfiguration, InvalidConfigurationValue
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
 
@@ -60,7 +61,7 @@ class OutputLibraryStub:  # pylint: disable=too-few-public-methods
             f'{self.output_subtype} backend.'
 
 
-class OutputFormatSubtypeValidator(Validator):
+class OutputFormatSubtypeValidator(WholeConfigValidator):  # pylint: disable=too-few-public-methods # noqa: E501
     """Validate that ``output_format`` and ``output_subtype`` match."""
 
     def validate(self, config: Config,
@@ -86,9 +87,10 @@ class OutputFormatSubtypeValidator(Validator):
             msg = 'Invalid configuration: output_subtype must be a string.'
             print(msg, file=stderr_file)
             raise InvalidConfiguration(msg)
-        # The earlier StrValidator objects in get_validation_list() have
-        # already normalized the 2 strings to the exact spellings we want.
-        # That means we can now do a simple lookup and membership test.
+        # The earlier MemberValidationStep objects in get_validation_plan()
+        # have used StrValidator to already normalize the 2 strings to the
+        # exact spellings we want.
+        # qThat means we can now do a simple lookup and membership test.
         allowed_subtypes = OUTPUT_SUBTYPES_BY_FORMAT.get(output_format)
         if allowed_subtypes is None:
             msg = 'Invalid configuration: '
@@ -103,27 +105,6 @@ class OutputFormatSubtypeValidator(Validator):
         msg += 'Allowed values: ' + ', '.join(allowed_subtypes)
         print(msg, file=stderr_file)
         raise InvalidConfiguration(msg)
-
-    def validate_member(self, config: Config, member_name: str,
-                        member_value: object,
-                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
-        """Reject use of this validator as a member validator."""
-        # We deliberately reject validate_member() here to make the example
-        # clearer for the reader. A member validator is called for one member
-        # at a time, but this rule is about the relationship between 2
-        # members. In this teaching example we therefore want the reader to
-        # use Validation(member_names=None, ...) instead.
-        _ = config
-        _ = member_name
-        _ = member_value
-        msg = 'Do not use OutputFormatSubtypeValidator as a member '
-        msg += 'validator. Use Validation(member_names=None, '
-        msg += 'validator=...) instead.'
-        print(msg, file=stderr_file)
-        # We raise a RuntimeError here instead of InvalidConfiguration to
-        # indicate that this is a programming error, not an error in the
-        # configuration file.
-        raise RuntimeError(msg)
 
 
 class ExampleConfig5(Config):
@@ -147,8 +128,8 @@ class ExampleConfig5(Config):
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Return the validators for this example configuration."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the validation plan for this example configuration."""
         _ = stderr_file
         format_validator = StrValidator(allowed_values=allowed_output_formats,
                                         ignore_case=True, normalize=True)
@@ -158,14 +139,21 @@ class ExampleConfig5(Config):
             normalize=True
         )
         # The order matters. First we normalize the 2 strings to the exact
-        # spellings we want to keep in the config file. Then our custom
-        # validator checks that the normalized values form an allowed pair.
-        return [Validation(member_names=['output_format'],
-                           validator=format_validator),
-                Validation(member_names=['output_subtype'],
-                           validator=subtype_validator),
-                Validation(member_names=None,
-                           validator=OutputFormatSubtypeValidator())]
+        # spellings we want to keep in the config file. Those first 2 steps
+        # are MemberValidationStep objects because they validate one named
+        # member at a time.
+        #
+        # After that we use WholeConfigValidationStep for the rule that
+        # depends on the combination of both members. That step receives the
+        # whole Config object, so it can look at both values together.
+        return [MemberValidationStep(
+                    member_names=['output_format'],
+                    validator=format_validator),
+                MemberValidationStep(
+                    member_names=['output_subtype'],
+                    validator=subtype_validator),
+                WholeConfigValidationStep(
+                    validator=OutputFormatSubtypeValidator())]
 
 
 def e05_custom_validator_set(set_values: SetValues,

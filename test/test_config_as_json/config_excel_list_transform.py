@@ -17,7 +17,7 @@ from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.commontypes import JsonType
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
-from config_as_json.validator import ValidationList
+from config_as_json.validator import ValidationPlan
 from .config_enums import FileType, SplitWhere, \
     ExcelLib, RewriteKind, CaseSensitivity, ColumnRef
 
@@ -495,6 +495,6 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                               mandatory_keys=keys, allowed_keys=None,
                               stderr_file=stderr_file)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return []

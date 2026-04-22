@@ -4,14 +4,12 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-import sys
 from io import StringIO
 from tempfile import TemporaryDirectory
 import pytest
 import example.e05_custom_validator as e05_module
 from example.cmd_line_handling import SetValues
 from example.e05_custom_validator import ExampleConfig5
-from example.e05_custom_validator import OutputFormatSubtypeValidator
 from example.e05_custom_validator import e05_custom_validator_print
 from example.e05_custom_validator import e05_custom_validator_set
 from example.e05_custom_validator import main
@@ -118,18 +116,3 @@ def test_custom_validator_main_round_trip_prints_values(
          'Output subtype: XlsxWriter',
          'Would write Excel output with the XlsxWriter backend.']
     )
-
-
-def test_custom_validator_rejects_member_validation_entry_point(
-        capsys: pytest.CaptureFixture[str]) -> None:
-    """Reject using the whole-config validator as a member validator."""
-    validator = OutputFormatSubtypeValidator()
-    config = ExampleConfig5()
-    with pytest.raises(RuntimeError) as exc:
-        validator.validate_member(config, 'output_subtype',
-                                  config.output_subtype, sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'Do not use OutputFormatSubtypeValidator' in str(exc.value)
-    assert 'member_names=None' in str(exc.value)
-    assert out == ''
-    assert 'Do not use OutputFormatSubtypeValidator' in err

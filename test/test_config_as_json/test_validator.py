@@ -5,6 +5,7 @@
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
+from abc import ABCMeta
 import sys
 from io import StringIO
 from typing import Any, Optional, Sequence, TextIO, cast
@@ -12,15 +13,16 @@ import pytest
 from config_as_json.config import Config
 from config_as_json.validator import IntFloatValidator, \
     InvalidConfiguration, InvalidConfigurationValue, StrValidator, \
-    Validation, ValidationList, Validator, not_one_of_allowed_values, \
-    string_best_match
+    ValidationPlan, ValidationStep, MemberValidationStep, \
+    WholeConfigValidationStep, MemberValidator, WholeConfigValidator, \
+    not_one_of_allowed_values, string_best_match
 from .validator_test_helpers import \
     EmptyValidationConfig, SingleMemberValidationConfig, \
     assert_validate_member_failure, assert_validate_member_ok
 
 
-class ConfigMissingValidationList(Config):
-    """Config class used to test missing get_validation_list()."""
+class ConfigMissingValidationPlan(Config):
+    """Config class used to test missing get_validation_plan()."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
@@ -30,7 +32,8 @@ class ConfigMissingValidationList(Config):
                          from_json_filename=None, stderr_file=stderr_file)
 
 
-class UppercaseValidator(Validator):
+class UppercaseValidator(  # pylint: disable=too-few-public-methods
+        MemberValidator):
     """Normalize one string member to upper case."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -44,7 +47,8 @@ class UppercaseValidator(Validator):
         return member_value.upper()
 
 
-class PrefixFromNameValidator(Validator):
+class PrefixFromNameValidator(  # pylint: disable=too-few-public-methods
+        MemberValidator):
     """Prefix one member with the normalized name from the config."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -58,7 +62,8 @@ class PrefixFromNameValidator(Validator):
         return f'{config.name}:{member_value}'
 
 
-class WholeConfigSuffixValidator(Validator):
+class WholeConfigSuffixValidator(  # pylint: disable=too-few-public-methods
+        WholeConfigValidator):
     """Append one suffix to the alias field during whole-config validation."""
 
     def __init__(self, suffix: str) -> None:
@@ -72,7 +77,8 @@ class WholeConfigSuffixValidator(Validator):
         config.alias = config.alias + self._suffix
 
 
-class IdentityValidator(Validator):
+class IdentityValidator(  # pylint: disable=too-few-public-methods
+        MemberValidator):
     """Return the validated member unchanged."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -85,7 +91,8 @@ class IdentityValidator(Validator):
         return member_value
 
 
-class ReplaceWithNoneValidator(Validator):
+class ReplaceWithNoneValidator(  # pylint: disable=too-few-public-methods
+        MemberValidator):
     """Replace the validated member with None."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -111,15 +118,15 @@ class ValidationOrderConfig(Config):
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=None, stderr_file=stderr_file)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return [
-            Validation(member_names=['name'],
-                       validator=UppercaseValidator()),
-            Validation(member_names=['alias'],
-                       validator=PrefixFromNameValidator()),
-            Validation(member_names=None,
-                       validator=WholeConfigSuffixValidator('!'))]
+            MemberValidationStep(member_names=['name'],
+                                 validator=UppercaseValidator()),
+            MemberValidationStep(member_names=['alias'],
+                                 validator=PrefixFromNameValidator()),
+            WholeConfigValidationStep(
+                validator=WholeConfigSuffixValidator('!'))]
 
 
 class MissingMemberConfig(Config):
@@ -131,10 +138,10 @@ class MissingMemberConfig(Config):
         super().__init__(from_json_data_text=None, from_json_filename=None,
                          stderr_file=stderr_file)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
-        return [Validation(member_names=['missing'],
-                           validator=IdentityValidator())]
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        return [MemberValidationStep(member_names=['missing'],
+                                     validator=IdentityValidator())]
 
 
 class NoneWriteBackConfig(Config):
@@ -146,10 +153,10 @@ class NoneWriteBackConfig(Config):
         super().__init__(from_json_data_text=None, from_json_filename=None,
                          stderr_file=stderr_file)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
-        return [Validation(member_names=['value'],
-                           validator=ReplaceWithNoneValidator())]
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        return [MemberValidationStep(member_names=['value'],
+                                     validator=ReplaceWithNoneValidator())]
 
 
 class PaletteConfig(Config):
@@ -167,17 +174,19 @@ class PaletteConfig(Config):
         """Return the allowed accent names."""
         return ['blue', 'black']
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return [
-            Validation(member_names=['shade'],
-                       validator=StrValidator(
-                           ['red', 'green'], ignore_case=True,
-                           normalize=True)),
-            Validation(member_names=['accent'],
-                       validator=StrValidator(
-                           self.accent_names, ignore_case=False,
-                           best_match=True))]
+            MemberValidationStep(
+                member_names=['shade'],
+                validator=StrValidator(
+                    ['red', 'green'], ignore_case=True,
+                    normalize=True)),
+            MemberValidationStep(
+                member_names=['accent'],
+                validator=StrValidator(
+                    self.accent_names, ignore_case=False,
+                    best_match=True))]
 
 
 @pytest.mark.parametrize('validator, member_value, expected',
@@ -204,14 +213,15 @@ def test_str_validator_ok(capsys, validator, member_value, expected):
     assert_validate_member_ok(capsys, validator, member_value, expected)
 
 
-def test_missing_get_validation_list_raises(capsys):
-    """Test that direct Config subclasses must implement validation list."""
+def test_missing_get_validation_plan_raises(capsys):
+    """Test that direct Config subclasses must implement a plan."""
     with pytest.raises(NotImplementedError) as exc:
-        _ = ConfigMissingValidationList(stderr_file=sys.stderr)
+        _ = ConfigMissingValidationPlan(stderr_file=sys.stderr)
     out, err = capsys.readouterr()
-    assert 'Config.get_validation_list() must be implemented' in str(exc.value)
+    assert 'Config.get_validation_plan() must be implemented' in \
+        str(exc.value)
     assert out == ''
-    assert 'Config.get_validation_list() must be implemented' in err
+    assert 'Config.get_validation_plan() must be implemented' in err
 
 
 def test_validate_applies_member_and_whole_config_in_order(capsys):
@@ -278,23 +288,17 @@ def test_string_best_match_rejects_invalid_value_type(capsys):
     assert 'Value for value is not a string.' in err
 
 
-def test_base_validator_methods_raise_not_implemented(capsys):
-    """Test the default Validator methods used without overriding."""
-    cfg = EmptyValidationConfig(stderr_file=sys.stderr)
-    validator = Validator()
-    with pytest.raises(NotImplementedError) as exc:
-        validator.validate(cfg, sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'Validator.validate() must be implemented' in str(exc.value)
-    assert out == ''
-    assert 'Validator.validate() must be implemented' in err
-    with pytest.raises(NotImplementedError) as exc:
-        validator.validate_member(cfg, 'value', cfg.value, sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'Validator.validate_member() must be implemented' in \
-        str(exc.value)
-    assert out == ''
-    assert 'Validator.validate_member() must be implemented' in err
+def test_validation_roles_and_step_base_class_are_abstract():
+    """Test that validation role base classes cannot be instantiated."""
+    whole_config_validator_class = cast(Any, WholeConfigValidator)
+    member_validator_class = cast(Any, MemberValidator)
+    validation_step_class = cast(Any, ValidationStep)
+    with pytest.raises(TypeError):
+        ABCMeta.__call__(whole_config_validator_class)
+    with pytest.raises(TypeError):
+        ABCMeta.__call__(member_validator_class)
+    with pytest.raises(TypeError):
+        ABCMeta.__call__(validation_step_class)
 
 
 def test_str_validator_rejects_invalid_member_type(capsys):
@@ -321,18 +325,6 @@ def test_str_validator_rejects_ambiguous_best_match(capsys):
     assert_validate_member_failure(
         capsys, validator, 'bl', InvalidConfigurationValue,
         'Value bl for value')
-
-
-def test_str_validator_cannot_validate_whole_config(capsys):
-    """Test that StrValidator is only for member validation."""
-    validator = StrValidator(['red'], ignore_case=False)
-    cfg = EmptyValidationConfig()
-    with pytest.raises(InvalidConfiguration) as exc:
-        validator.validate(cfg, sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'Cannot validate complete Config object' in str(exc.value)
-    assert out == ''
-    assert 'Cannot validate complete Config object' in err
 
 
 def test_palette_config_uses_str_validator_on_default_values(capsys):
@@ -405,18 +397,6 @@ def test_int_float_validator_rejects_invalid_member_values(
     """Test IntFloatValidator failures for value type and constraints."""
     assert_validate_member_failure(
         capsys, validator, member_value, exc_type, message)
-
-
-def test_int_float_validator_cannot_validate_whole_config(capsys):
-    """Test that IntFloatValidator is only for member validation."""
-    validator = IntFloatValidator(1, 5, None)
-    cfg = EmptyValidationConfig()
-    with pytest.raises(InvalidConfiguration) as exc:
-        validator.validate(cfg, sys.stderr)
-    out, err = capsys.readouterr()
-    assert 'Cannot validate complete Config object' in str(exc.value)
-    assert out == ''
-    assert 'Cannot validate complete Config object' in err
 
 
 def test_int_float_validator_requires_allowed_value_to_be_in_range(capsys):

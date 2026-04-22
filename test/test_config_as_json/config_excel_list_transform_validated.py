@@ -11,14 +11,17 @@ from config_as_json.config import BackwardCompatible, Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import JsonType
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
-from config_as_json.validator import Validation, ValidationList, Validator
+from config_as_json.validator import ValidationPlan, \
+    WholeConfigValidationStep, MemberValidationStep, \
+    WholeConfigValidator, MemberValidator
 from .config_excel_list_transform import ColInfo, Column, Rule, RuleMerge, \
     RuleSplit, \
     ConfigExcelListTransform as LegacyConfigExcelListTransform
 from .config_enums import ColumnRef
 
 
-class ConfigMethodValidator(Validator):
+class ConfigMethodValidator(  # pylint: disable=too-few-public-methods
+        WholeConfigValidator):
     """Call one validation method on the Config object."""
 
     def __init__(self, method_name: str) -> None:
@@ -38,7 +41,8 @@ class ConfigMethodValidator(Validator):
         method(stderr_file=stderr_file)
 
 
-class CharEncodingValidator(Validator):
+class CharEncodingValidator(  # pylint: disable=too-few-public-methods
+        MemberValidator):
     """Validate that one string member names a recognized encoding."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -52,7 +56,8 @@ class CharEncodingValidator(Validator):
         return member_value
 
 
-class NoDuplicateItemsValidator(Validator):
+class NoDuplicateItemsValidator(  # pylint: disable=too-few-public-methods
+        MemberValidator):
     """Validate that one list member contains no duplicates."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -66,7 +71,8 @@ class NoDuplicateItemsValidator(Validator):
         return member_value
 
 
-class NoDuplicateSingleColumnsValidator(Validator, Generic[Column]):
+# pylint: disable=too-few-public-methods
+class NoDuplicateSingleColumnsValidator(MemberValidator, Generic[Column]):
     """Validate that one single-column rule list uses each column once."""
 
     def __init__(self, column_type: type[Column]) -> None:
@@ -87,7 +93,7 @@ class NoDuplicateSingleColumnsValidator(Validator, Generic[Column]):
         return member_value
 
 
-class IncreasingMultiColumnsValidator(Validator, Generic[Column]):
+class IncreasingMultiColumnsValidator(MemberValidator, Generic[Column]):
     """Validate that one merge-column rule list stays in increasing order."""
 
     def __init__(self, column_type: type[Column]) -> None:
@@ -112,6 +118,7 @@ class IncreasingMultiColumnsValidator(Validator, Generic[Column]):
                 raise KeyError(msg)
             seen = col
         return member_value
+# pylint: enable=too-few-public-methods
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -211,30 +218,29 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
         LegacyConfigExcelListTransform.check_merge_row_cfg(
             legacy_self, stderr_file=stderr_file)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
         return [
-            Validation(member_names=None,
-                       validator=ConfigMethodValidator('sort_sx_hook')),
-            Validation(member_names=None,
-                       validator=ConfigMethodValidator(
-                           '_validate_array_configs')),
-            Validation(member_names=['in_csv_encoding', 'out_csv_encoding'],
-                       validator=CharEncodingValidator()),
-            Validation(member_names=['s03_split_columns',
-                                     's07_rename_columns',
-                                     's08_insert_columns'],
-                       validator=NoDuplicateSingleColumnsValidator(
-                           self._columntype)),
-            Validation(member_names=None,
-                       validator=ConfigMethodValidator(
-                           '_validate_rewrite_configs')),
-            Validation(member_names=None,
-                       validator=ConfigMethodValidator(
-                           '_validate_split_row_cfg')),
-            Validation(member_names=None,
-                       validator=ConfigMethodValidator(
-                           '_validate_merge_row_cfg'))]
+            WholeConfigValidationStep(
+                validator=ConfigMethodValidator('sort_sx_hook')),
+            WholeConfigValidationStep(
+                validator=ConfigMethodValidator('_validate_array_configs')),
+            MemberValidationStep(
+                member_names=['in_csv_encoding', 'out_csv_encoding'],
+                validator=CharEncodingValidator()),
+            MemberValidationStep(
+                member_names=['s03_split_columns',
+                              's07_rename_columns',
+                              's08_insert_columns'],
+                validator=NoDuplicateSingleColumnsValidator(
+                    self._columntype)),
+            WholeConfigValidationStep(
+                validator=ConfigMethodValidator(
+                    '_validate_rewrite_configs')),
+            WholeConfigValidationStep(
+                validator=ConfigMethodValidator('_validate_split_row_cfg')),
+            WholeConfigValidationStep(
+                validator=ConfigMethodValidator('_validate_merge_row_cfg'))]
 
     get_out_csv_dialect = LegacyConfigExcelListTransform.get_out_csv_dialect
     get_in_csv_dialect = LegacyConfigExcelListTransform.get_in_csv_dialect

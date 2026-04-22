@@ -19,8 +19,9 @@ from config_as_json.config_factory import config_factory_from_json, \
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.migrate_cfg import migrate_cfg
-from config_as_json.validator import Validation, ValidationList, \
-    Validator, StrValidator, IntFloatValidator, string_best_match, \
+from config_as_json.validator import ValidationPlan, ValidationStep, \
+    WholeConfigValidationStep, MemberValidationStep, WholeConfigValidator, \
+    MemberValidator, StrValidator, IntFloatValidator, string_best_match, \
     InvalidConfiguration, InvalidConfigurationValue
 from config_as_json.list_validators import ListValueValidator, \
     ListSizeValidator, ListIsOrderedValidator, ListOrderingValidator
@@ -41,9 +42,12 @@ __all__ = ['Config',
            'MatchConfig',
            'MatchConfigSeq',
            'JsonValueMatcher',
-           'Validation',
-           'ValidationList',
-           'Validator',
+           'ValidationPlan',
+           'ValidationStep',
+           'WholeConfigValidationStep',
+           'MemberValidationStep',
+           'WholeConfigValidator',
+           'MemberValidator',
            'StrValidator',
            'IntFloatValidator',
            'string_best_match',

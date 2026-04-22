@@ -4,7 +4,7 @@
 This example is similar to e01_simple_config.py, but it also uses the
 predefined validators from the config_as_json package.
 The validators are added to the configuration class by overriding the
-get_validation_list method.
+get_validation_plan method.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -15,8 +15,9 @@ from enum import Enum, auto
 from typing import Optional, TextIO
 import sys
 from config_as_json import Config, ParseConverter, \
-    PathOrStr, ValidationList, Validation, IntFloatValidator, \
-    StrValidator, InvalidConfiguration, InvalidConfigurationValue
+    PathOrStr, ValidationPlan, MemberValidationStep, \
+    IntFloatValidator, StrValidator, InvalidConfiguration, \
+    InvalidConfigurationValue
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
 
@@ -69,8 +70,8 @@ class ExampleConfig(Config):
                          stderr_file=stderr_file)
 
     # pylint: disable=duplicate-code
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Return extra validators for this example configuration."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return extra validation steps for this example configuration."""
         # The method receives stderr_file because custom validators may need
         # it, but the predefined validators used in this example do not.
         _ = stderr_file
@@ -98,19 +99,27 @@ class ExampleConfig(Config):
         issue_type_validator = StrValidator(allowed_values=['Story', 'Task',
                                                             'Bug', 'Epic'],
                                             ignore_case=True, normalize=True)
-        # Then we use Validation objects to wrap the validators and specify
-        # the name of the configuration value to validate.
-        # The benefit of this is that it is easy to use the same validator for
-        # multiple configuration attributes.
-        # We return the list of Validation objects.
-        return [Validation(member_names=['number_of_iterations'],
-                           validator=num_iter_validator),
-                Validation(member_names=['estimate'],
-                           validator=estimate_validator),
-                Validation(member_names=['confidence'],
-                           validator=confidence_validator),
-                Validation(member_names=['issue_type'],
-                           validator=issue_type_validator)]
+        # Now we build the ValidationPlan for the Config object.
+        # A ValidationPlan is an ordered list of step objects.
+        #
+        # In this example every predefined validator works on named members,
+        # so each step is a MemberValidationStep. The step stores both
+        # the validator and the list of member names that it should validate.
+        #
+        # Using MemberValidationStep makes it easy to apply one validator
+        # class to one or several configuration attributes.
+        return [MemberValidationStep(
+                    member_names=['number_of_iterations'],
+                    validator=num_iter_validator),
+                MemberValidationStep(
+                    member_names=['estimate'],
+                    validator=estimate_validator),
+                MemberValidationStep(
+                    member_names=['confidence'],
+                    validator=confidence_validator),
+                MemberValidationStep(
+                    member_names=['issue_type'],
+                    validator=issue_type_validator)]
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading JSON.

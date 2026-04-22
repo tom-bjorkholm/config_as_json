@@ -17,9 +17,9 @@ parameters to be passed using a class that the library provides.
 # pylint: disable=duplicate-code
 from typing import Optional, TextIO
 import sys
-from config_as_json import Config, ParseConverter, PathOrStr, ValidationList, \
-    Validation, IntFloatValidator, StrValidator, InvalidConfiguration, \
-    InvalidConfigurationValue
+from config_as_json import Config, ParseConverter, PathOrStr, \
+    ValidationPlan, MemberValidationStep, IntFloatValidator, StrValidator, \
+    InvalidConfiguration, InvalidConfigurationValue
 from .cmd_line_handling import SetValues, cmd_line_handling
 from .e03_scalar_validators import Severity, INPUT_SPECS
 
@@ -70,8 +70,8 @@ class ExampleConfig4(ThirdPartyParams, Config):
                         from_json_filename=from_json_filename,
                         stderr_file=stderr_file)
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Return extra validators for this example configuration."""
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return extra validation steps for this example configuration."""
         # The method receives stderr_file because custom validators may need
         # it, but the predefined validators used in this example do not.
         _ = stderr_file
@@ -89,14 +89,18 @@ class ExampleConfig4(ThirdPartyParams, Config):
         issue_type_validator = StrValidator(allowed_values=['Story', 'Task',
                                                             'Bug', 'Epic'],
                                             ignore_case=True, normalize=True)
-        return [Validation(member_names=['number_of_iterations'],
-                           validator=num_iter_validator),
-                Validation(member_names=['estimate'],
-                           validator=estimate_validator),
-                Validation(member_names=['confidence'],
-                           validator=confidence_validator),
-                Validation(member_names=['issue_type'],
-                           validator=issue_type_validator)]
+        return [MemberValidationStep(
+                    member_names=['number_of_iterations'],
+                    validator=num_iter_validator),
+                MemberValidationStep(
+                    member_names=['estimate'],
+                    validator=estimate_validator),
+                MemberValidationStep(
+                    member_names=['confidence'],
+                    validator=confidence_validator),
+                MemberValidationStep(
+                    member_names=['issue_type'],
+                    validator=issue_type_validator)]
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading JSON.

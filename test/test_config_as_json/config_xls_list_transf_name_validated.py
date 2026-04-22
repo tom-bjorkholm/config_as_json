@@ -8,7 +8,7 @@ import sys
 from typing import Optional, TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
-from config_as_json.validator import Validation, ValidationList
+from config_as_json.validator import ValidationPlan, MemberValidationStep
 from .config_excel_list_transform import ColInfo
 from .config_excel_list_transform_validated import \
     ConfigExcelListTransformValidated, NoDuplicateItemsValidator
@@ -60,9 +60,10 @@ class ConfigXlsListTransfNameValidated(  # pylint: disable=too-many-instance-att
         """Return the optional insert-column key name for this config."""
         return None
 
-    def get_validation_list(self, stderr_file: TextIO) -> ValidationList:
-        """Get validation list for use when validating the Config object."""
-        ret = super().get_validation_list(stderr_file=stderr_file)
-        ret.append(Validation(member_names=['s10_column_order'],
-                              validator=NoDuplicateItemsValidator()))
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        ret = super().get_validation_plan(stderr_file=stderr_file)
+        ret.append(MemberValidationStep(
+            member_names=['s10_column_order'],
+            validator=NoDuplicateItemsValidator()))
         return ret

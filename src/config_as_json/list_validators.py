@@ -9,7 +9,7 @@ from functools import cmp_to_key
 from typing import Callable, Generic, Optional, Sequence, TextIO, TypeVar
 from config_as_json.config import Config
 from config_as_json.validator import InvalidConfiguration, \
-    InvalidConfigurationValue, Validator, \
+    InvalidConfigurationValue, MemberValidator, \
     _not_one_of_allowed_values_message, \
     _validate_and_get_constraint_value_type
 
@@ -254,7 +254,8 @@ class _IndexedInvalidConfigurationValue(InvalidConfigurationValue):
         self.args = (self.message,)
 
 
-class ListValueValidator(Validator, Generic[Basictype]):
+class ListValueValidator(  # pylint: disable=too-few-public-methods
+        MemberValidator, Generic[Basictype]):
     """Validate values in a list of basic scalar values."""
 
     def __init__(self, min_value: Optional[Basictype],
@@ -366,22 +367,8 @@ class ListValueValidator(Validator, Generic[Basictype]):
                     member_name, value, member_index, self.allowed_values)
         return member_value
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Raise an exception of incorrect usage.
 
-        Raises:
-            RuntimeError: If the validator is used to validate the entire
-                          Config object.
-        """
-        _ = config
-        msg = 'ListValueValidator cannot be used to validate the '
-        msg += 'entire Config object.'
-        print(msg, file=stderr_file)
-        raise RuntimeError(msg)
-
-
-class ListSizeValidator(Validator):
+class ListSizeValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
     """Validate that a list length stays within mandatory size bounds."""
 
     def __init__(self, min_size: int, max_size: int) -> None:
@@ -442,22 +429,9 @@ class ListSizeValidator(Validator):
             raise InvalidConfiguration(msg)
         return member_value
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Raise an exception of incorrect usage.
 
-        Raises:
-            RuntimeError: If the validator is used to validate the entire
-                          Config object.
-        """
-        _ = config
-        msg = 'ListSizeValidator cannot be used to validate the '
-        msg += 'entire Config object.'
-        print(msg, file=stderr_file)
-        raise RuntimeError(msg)
-
-
-class ListIsOrderedValidator(Validator, Generic[Basictype]):
+class ListIsOrderedValidator(MemberValidator,  # pylint: disable=too-few-public-methods # noqa: E501
+                             Generic[Basictype]):
     """Validate list element types, optional ordering, and uniqueness."""
 
     def __init__(self,  # pylint: disable=too-many-arguments, too-many-positional-arguments # noqa: E501
@@ -541,22 +515,9 @@ class ListIsOrderedValidator(Validator, Generic[Basictype]):
                 stderr_file=stderr_file)
         return member_value
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Raise an exception of incorrect usage.
 
-        Raises:
-            RuntimeError: If the validator is used to validate the entire
-                          Config object.
-        """
-        _ = config
-        msg = 'ListIsOrderedValidator cannot be used to validate the '
-        msg += 'entire Config object.'
-        print(msg, file=stderr_file)
-        raise RuntimeError(msg)
-
-
-class ListOrderingValidator(Validator, Generic[Basictype]):
+class ListOrderingValidator(MemberValidator,  # pylint: disable=too-few-public-methods # noqa: E501
+                            Generic[Basictype]):
     """Normalize one list by ordering, reversing, and deduplicating it."""
 
     def __init__(self,  # pylint: disable=too-many-arguments, too-many-positional-arguments # noqa: E501
@@ -644,17 +605,3 @@ class ListOrderingValidator(Validator, Generic[Basictype]):
         if self.keep_only_unique:
             result = _unique_list_values(result)
         return result
-
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Raise an exception of incorrect usage.
-
-        Raises:
-            RuntimeError: If the validator is used to validate the entire
-                          Config object.
-        """
-        _ = config
-        msg = 'ListOrderingValidator cannot be used to validate the '
-        msg += 'entire Config object.'
-        print(msg, file=stderr_file)
-        raise RuntimeError(msg)
