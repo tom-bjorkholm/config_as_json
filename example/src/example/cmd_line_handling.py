@@ -16,8 +16,7 @@ example:
 import argparse
 from enum import Enum
 from typing import Callable, NamedTuple, Optional, cast
-from config_as_json.commontypes import PathOrStr
-from config_as_json.str_to_enum import string_to_enum_best_match
+from config_as_json import PathOrStr, string_to_enum_best_match
 
 type SingleValue = int | float | str | bool | Enum
 type CfgValue = SingleValue | list[SingleValue]

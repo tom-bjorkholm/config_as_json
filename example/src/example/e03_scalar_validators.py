@@ -14,11 +14,9 @@ get_validation_list method.
 from enum import Enum, auto
 from typing import Optional, TextIO
 import sys
-from config_as_json.config import Config, ParseConverter
-from config_as_json.commontypes import PathOrStr
-from config_as_json.validator import ValidationList, Validation,  \
-    IntFloatValidator, StrValidator, InvalidConfiguration, \
-    InvalidConfigurationValue
+from config_as_json import Config, ParseConverter, \
+    PathOrStr, ValidationList, Validation, IntFloatValidator, \
+    StrValidator, InvalidConfiguration, InvalidConfigurationValue
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
 

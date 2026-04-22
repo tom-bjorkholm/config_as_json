@@ -17,10 +17,8 @@ parameters to be passed using a class that the library provides.
 # pylint: disable=duplicate-code
 from typing import Optional, TextIO
 import sys
-from config_as_json.config import Config, ParseConverter
-from config_as_json.commontypes import PathOrStr
-from config_as_json.validator import ValidationList, Validation,  \
-    IntFloatValidator, StrValidator, InvalidConfiguration, \
+from config_as_json import Config, ParseConverter, PathOrStr, ValidationList, \
+    Validation, IntFloatValidator, StrValidator, InvalidConfiguration, \
     InvalidConfigurationValue
 from .cmd_line_handling import SetValues, cmd_line_handling
 from .e03_scalar_validators import Severity, INPUT_SPECS

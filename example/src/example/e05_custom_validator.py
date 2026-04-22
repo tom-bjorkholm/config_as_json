@@ -18,11 +18,8 @@ is clearer than trying to encode all rules as separate scalar validators.
 # pylint: disable=duplicate-code
 from typing import Optional, TextIO
 import sys
-from config_as_json.config import Config
-from config_as_json.commontypes import PathOrStr
-from config_as_json.validator import ValidationList, Validation, \
-    StrValidator, Validator, InvalidConfiguration, \
-    InvalidConfigurationValue
+from config_as_json import Config, PathOrStr, ValidationList, Validation, \
+    StrValidator, Validator, InvalidConfiguration, InvalidConfigurationValue
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
 

@@ -16,9 +16,8 @@ ideas are easy to see:
 from enum import Enum, auto
 from typing import Optional, TextIO
 import sys
-from config_as_json.config import Config, ParseConverter
-from config_as_json.commontypes import PathOrStr
-from config_as_json.validator import ValidationList
+from config_as_json import Config, PathOrStr, ValidationList, \
+    ParseConverter
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
 
