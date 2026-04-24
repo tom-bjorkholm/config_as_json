@@ -8,7 +8,8 @@ import json
 from io import StringIO
 from types import ModuleType
 from tempfile import TemporaryDirectory
-from typing import Callable, NamedTuple, Optional, Protocol, TextIO, TypeVar
+from typing import Callable, Generic, NamedTuple, Optional, Protocol, TextIO
+from typing import TypeVar
 import pytest
 from config_as_json.commontypes import PathOrStr
 from example.cmd_line_handling import SetValues
@@ -143,6 +144,24 @@ class ValidatedExampleSpec(NamedTuple):
     set_command: Callable[[SetValues, PathOrStr], None]
     print_command: Callable[[PathOrStr], None]
     main_func: Callable[[Optional[list[str]]], None]
+    config_basename: str
+
+
+ExampleProgramInstance_co = TypeVar(
+    'ExampleProgramInstance_co',
+    bound=SupportsWrite,
+    covariant=True
+)
+
+
+class ExampleProgramSpec(NamedTuple, Generic[ExampleProgramInstance_co]):
+    """Describe one example program for shared set/print helper tests."""
+
+    module: ModuleType
+    factory_name: str
+    config_factory: WriteConfigFactory[ExampleProgramInstance_co]
+    set_command: Callable[[SetValues, PathOrStr], None]
+    print_command: Callable[[PathOrStr], None]
     config_basename: str
 
 
@@ -341,3 +360,42 @@ def assert_validator_error_output(
     assert out == ''
     for expected_fragment in expected_fragments:
         assert expected_fragment in err
+
+
+def assert_set_command_reports_validator_error(
+        capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch,
+        example_spec: ExampleProgramSpec[ExampleProgramInstance_co],
+        set_values: SetValues,
+        expected_fragments: list[str]) -> None:
+    """Assert that one example reports a write-time validation error."""
+    stderr_buffer = StringIO()
+    patch_config_factory_stderr(monkeypatch,
+                                example_spec.module,
+                                example_spec.factory_name,
+                                example_spec.config_factory,
+                                stderr_buffer)
+    with TemporaryDirectory() as dirname:
+        config_file = dirname + '/' + example_spec.config_basename
+        example_spec.set_command(set_values, config_file)
+    assert_validator_error_output(capsys, stderr_buffer, expected_fragments)
+
+
+def assert_print_command_reports_validator_error(
+        capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch,
+        example_spec: ExampleProgramSpec[ExampleProgramInstance_co],
+        json_data: dict[str, object],
+        expected_fragments: list[str]) -> None:
+    """Assert that one example reports a read-time validation error."""
+    stderr_buffer = StringIO()
+    patch_config_factory_stderr(monkeypatch,
+                                example_spec.module,
+                                example_spec.factory_name,
+                                example_spec.config_factory,
+                                stderr_buffer)
+    with TemporaryDirectory() as dirname:
+        config_file = dirname + '/' + example_spec.config_basename
+        write_json_file(config_file, json_data)
+        example_spec.print_command(config_file)
+    assert_validator_error_output(capsys, stderr_buffer, expected_fragments)

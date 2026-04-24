@@ -169,3 +169,76 @@ use the validated configuration after reading it.
 In this example we also show that it is a good idea to have separate
 exception types for mistakes by the end user, compared to programming
 errors by the application programmer.
+
+## e06_list_basic_validators.py
+
+[Source code for e06_list_basic_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e06_list_basic_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e06_list_basic_validators.py)
+
+This is the first teaching example that uses list-valued configuration
+members. It is meant for readers who already understand the basic
+``Config`` pattern from the earlier examples and now want to validate
+lists.
+
+The example introduces 2 list validators that solve different problems:
+
+- `ListValueValidator` checks each element in a list separately
+- `ListSizeValidator` checks the size of the list as a whole
+
+The example keeps the lists independent from each other so that the
+reader can see the 2 ideas clearly:
+
+- `retry_delays_seconds` shows per-element integer range validation
+- `report_formats` shows per-element allowed-values validation
+- `backup_servers` shows list-size validation
+
+The important design lesson is that list validation can happen at
+different levels. Sometimes the rule is about each element, and sometimes
+the rule is about the list as a collection.
+
+## e07_list_order_vs_normalize.py
+
+[Source code for e07_list_order_vs_normalize.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e07_list_order_vs_normalize.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e07_list_order_vs_normalize.py)
+
+This example teaches 2 closely related validators that make different
+design choices:
+
+- `ListIsOrderedValidator` rejects a list if it is not already in the
+  required order
+- `ListOrderingValidator` reorders the list and stores the normalized
+  result
+
+The example uses:
+
+- `alert_thresholds` to show the "reject invalid order" design
+- `report_names` to show the "normalize the order for the user" design
+
+It also shows a small custom less-than comparator for case-insensitive
+string sorting. That keeps the example concrete and easy to understand,
+while also showing how the ordering rules can be customized.
+
+This is a useful example when you need to decide whether a list should be
+treated as user-authored data that must already be correct, or as input
+that your application should normalize automatically.
+
+## e08_combined_list_validators.py
+
+[Source code for e08_combined_list_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e08_combined_list_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e08_combined_list_validators.py)
+
+This example is the first one where the order of the validation steps is
+itself an important teaching point.
+
+The configuration has one list member, `run_hours_utc`, and the example
+applies 3 validators to that same member in sequence:
+
+1. `ListValueValidator` checks that every hour is between 0 and 23
+2. `ListOrderingValidator` sorts the list and removes duplicates
+3. `ListSizeValidator` checks the size of the normalized list
+
+This shows that each validation step receives the value returned by the
+previous step. That is why the order in `ValidationPlan` is important.
+If the steps were rearranged, the configuration would mean something
+different.
+
+This example is useful when one validator prepares data for the next
+validator, or when a later rule should explicitly apply to the normalized
+form rather than to the raw user input.
