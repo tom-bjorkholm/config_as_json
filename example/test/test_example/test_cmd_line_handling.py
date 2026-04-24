@@ -11,6 +11,7 @@ from config_as_json.commontypes import PathOrStr
 from example.cmd_line_handling import InputSpec, SetValues
 from example.cmd_line_handling import _add_set_arguments, _bool_from_text
 from example.cmd_line_handling import _create_argument_parser, _enum_from_text
+from example.cmd_line_handling import _nested_value_parser, _token_parser
 from example.cmd_line_handling import _set_values_from_args, _value_parser
 from example.cmd_line_handling import cmd_line_handling
 
@@ -29,7 +30,8 @@ TEST_INPUT_SPECS = [
     InputSpec(name='ratio', single=True, value_type=float),
     InputSpec(name='enabled', single=True, value_type=bool),
     InputSpec(name='mode', single=True, value_type=SampleMode),
-    InputSpec(name='step_values', single=False, value_type=int)
+    InputSpec(name='step_values', single=False, value_type=int),
+    InputSpec(name='matrix', single=False, value_type=int, nested=True)
 ]
 """Input specifications used by the shared helper tests."""
 
@@ -91,7 +93,32 @@ def test_value_parser_converts_builtin_types_and_enums() -> None:
     assert _value_parser(SampleMode)('gamma') is SampleMode.GAMMA
 
 
-def test_add_set_arguments_adds_single_and_list_options() -> None:
+def test_nested_value_parser_splits_and_converts_tokens() -> None:
+    """Split one CLI token into a list of scalar values."""
+    parse_ints = _nested_value_parser(int)
+    assert parse_ints('1,2,3') == [1, 2, 3]
+    assert parse_ints('42') == [42]
+    parse_floats = _nested_value_parser(float)
+    assert parse_floats('1.5,2.5') == [pytest.approx(1.5), pytest.approx(2.5)]
+
+
+def test_nested_value_parser_reports_invalid_scalar_values() -> None:
+    """Propagate the inner converter error for bad nested tokens."""
+    parse_ints = _nested_value_parser(int)
+    with pytest.raises(ValueError):
+        _ = parse_ints('1,abc')
+
+
+def test_token_parser_rejects_nested_single_combination() -> None:
+    """Reject the unsupported combination of nested and single."""
+    with pytest.raises(ValueError) as exc:
+        _ = _token_parser(InputSpec(name='bad', single=True,
+                                    value_type=int, nested=True))
+    assert 'nested' in str(exc.value)
+    assert 'single' in str(exc.value)
+
+
+def test_add_set_arguments_adds_single_list_and_nested_options() -> None:
     """Add command line options that parse single values and lists."""
     parser = argparse.ArgumentParser(prog='demo')
     _add_set_arguments(parser, TEST_INPUT_SPECS)
@@ -101,7 +128,8 @@ def test_add_set_arguments_adds_single_and_list_options() -> None:
         '--ratio', '2.5',
         '--enabled', 'false',
         '--mode', 'beta',
-        '--step-values', '1', '2', '3'
+        '--step-values', '1', '2', '3',
+        '--matrix', '1,2', '3,4', '5,6'
     ])
     assert parsed_args.file_name == 'Ada'
     assert parsed_args.count == 7
@@ -109,6 +137,7 @@ def test_add_set_arguments_adds_single_and_list_options() -> None:
     assert parsed_args.enabled is False
     assert parsed_args.mode is SampleMode.BETA
     assert parsed_args.step_values == [1, 2, 3]
+    assert parsed_args.matrix == [[1, 2], [3, 4], [5, 6]]
 
 
 def test_set_values_from_args_collects_only_explicit_values() -> None:
@@ -119,14 +148,16 @@ def test_set_values_from_args_collects_only_explicit_values() -> None:
         ratio=2.5,
         enabled=None,
         mode=SampleMode.ALPHA,
-        step_values=[1, 2]
+        step_values=[1, 2],
+        matrix=[[7, 8], [9, 10]]
     )
     set_values = _set_values_from_args(parsed_args, TEST_INPUT_SPECS)
     assert set_values == {
         'file_name': 'Ada',
         'ratio': 2.5,
         'mode': SampleMode.ALPHA,
-        'step_values': [1, 2]
+        'step_values': [1, 2],
+        'matrix': [[7, 8], [9, 10]]
     }
 
 
@@ -214,7 +245,8 @@ def test_cmd_line_handling_routes_set_command_with_converted_values() -> None:
             '--ratio', '2.5',
             '--enabled', 'true',
             '--mode', 'beta',
-            '--step-values', '1', '2', '3'
+            '--step-values', '1', '2', '3',
+            '--matrix', '1,2', '3,4'
         ]
     )
     assert not recorder.print_calls
@@ -224,7 +256,8 @@ def test_cmd_line_handling_routes_set_command_with_converted_values() -> None:
         'ratio': 2.5,
         'enabled': True,
         'mode': SampleMode.BETA,
-        'step_values': [1, 2, 3]
+        'step_values': [1, 2, 3],
+        'matrix': [[1, 2], [3, 4]]
     }, 'output.cfg')]
 
 

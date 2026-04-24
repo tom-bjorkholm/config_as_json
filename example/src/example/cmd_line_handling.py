@@ -14,19 +14,34 @@ example:
 # MIT License
 
 import argparse
+from collections.abc import Sequence
 from enum import Enum
 from typing import Callable, NamedTuple, Optional, cast
 from config_as_json import PathOrStr, string_to_enum_best_match
 
 type SingleValue = int | float | str | bool | Enum
-type CfgValue = SingleValue | list[SingleValue]
+type CfgValue = SingleValue | Sequence[SingleValue] | \
+    Sequence[Sequence[SingleValue]]
+""" One value that a command line option can produce.
+
+    A value is either one scalar, a sequence of scalars, or a sequence of
+    sequences of scalars. The list arms use ``Sequence`` (rather than
+    ``list``) so that dict literals such as ``{'k': [1, 2, 3]}`` can be
+    assigned to ``SetValues`` without triggering invariant-generic
+    errors.
+"""
 
 type SetValues = dict[str, CfgValue]
 """ Values to set in the configuration file.
 
     These are values for named members to change
-    compared to the default configuration values
+    compared to the default configuration values.
+    A value may be a single scalar, a sequence of scalars, or a sequence
+    of sequences of scalars for nested command line inputs.
 """
+
+NESTED_LIST_SEPARATOR = ','
+"""Separator used between scalar values inside one nested CLI token."""
 
 type SetCommand = Callable[[SetValues, PathOrStr], None]
 """Command that writes configuration with selected values to a file.
@@ -62,6 +77,15 @@ class InputSpec(NamedTuple):
 
     value_type: SingleValueTypes
     """Python type that the command line text should be converted to."""
+
+    nested: bool = False
+    """True if each list element is itself a list of ``value_type`` values.
+
+    When ``nested`` is True the ``single`` field must be False. Each
+    command line token is then parsed as a list of values separated by
+    ``NESTED_LIST_SEPARATOR``, so the whole option produces a list of
+    lists of ``value_type`` values.
+    """
 
 
 def _bool_from_text(text: str) -> bool:
@@ -125,6 +149,56 @@ def _value_parser(
     return lambda text: _enum_from_text(text, cast(type[Enum], value_type))
 
 
+def _nested_value_parser(
+        value_type: SingleValueTypes,
+        separator: str = NESTED_LIST_SEPARATOR
+        ) -> Callable[[str], list[SingleValue]]:
+    """Return a converter that turns one CLI token into a list of values.
+
+    The returned converter splits the token on ``separator`` and converts
+    each part using the scalar converter for ``value_type``. It is used
+    when ``InputSpec.nested`` is True to let one command line option
+    accept a list of lists: every CLI token becomes one inner list.
+
+    Args:
+        value_type: Declared value type for the inner list elements.
+        separator: Character used to split one CLI token into elements.
+
+    Returns:
+        Function that converts one command line token to a list of values.
+    """
+    inner = _value_parser(value_type)
+
+    def parse_nested_token(text: str) -> list[SingleValue]:
+        """Split one CLI token and convert each part to ``value_type``."""
+        return [inner(part) for part in text.split(separator)]
+
+    return parse_nested_token
+
+
+def _token_parser(input_spec: InputSpec) -> Callable[[str], CfgValue]:
+    """Return the argparse ``type`` callable for one input specification.
+
+    Args:
+        input_spec: Specification of one command line value.
+
+    Returns:
+        Function that converts one command line token to the configured
+        Python value. For a nested list spec the callable returns one
+        inner list; otherwise it returns one scalar value.
+
+    Raises:
+        ValueError: If the specification has ``nested`` True and
+            ``single`` True, which is not a supported combination.
+    """
+    if input_spec.nested and input_spec.single:
+        msg = 'InputSpec.nested requires InputSpec.single to be False.'
+        raise ValueError(msg)
+    if input_spec.nested:
+        return _nested_value_parser(input_spec.value_type)
+    return _value_parser(input_spec.value_type)
+
+
 def _add_set_arguments(
         parser: argparse.ArgumentParser,
         input_specs: list[InputSpec]) -> None:
@@ -136,11 +210,12 @@ def _add_set_arguments(
     """
     for input_spec in input_specs:
         argument_name = f'--{input_spec.name.replace("_", "-")}'
+        token_parser = _token_parser(input_spec)
         if not input_spec.single:
             parser.add_argument(
                 argument_name,
                 dest=input_spec.name,
-                type=_value_parser(input_spec.value_type),
+                type=token_parser,
                 default=None,
                 nargs='+',
                 help=f'Set configuration value {input_spec.name}.'
@@ -149,7 +224,7 @@ def _add_set_arguments(
         parser.add_argument(
             argument_name,
             dest=input_spec.name,
-            type=_value_parser(input_spec.value_type),
+            type=token_parser,
             default=None,
             help=f'Set configuration value {input_spec.name}.'
         )

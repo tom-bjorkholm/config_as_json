@@ -242,3 +242,59 @@ different.
 This example is useful when one validator prepares data for the next
 validator, or when a later rule should explicitly apply to the normalized
 form rather than to the raw user input.
+
+## e09_list_for_each.py
+
+[Source code for e09_list_for_each.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e09_list_for_each.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e09_list_for_each.py)
+
+This example introduces the general composition tool for per-element
+validation, `ListForEachValidator`. It iterates the outer list and
+applies a sequence of inner validators to every element, in order. It
+does not try to implement any list-level rule on its own, so every
+other list validator stays single-purpose.
+
+`ListForEachValidator` is not restricted to a particular element shape.
+Typical use cases include:
+
+- **lists of lists**, where each inner list is checked with other list
+  validators such as `ListSizeValidator` or `ListValueValidator`
+- **lists of dicts**, where each element is checked with a user-defined
+  validator that looks at the dict keys
+- **lists of scalar values**, where each element is checked or
+  normalised by a user-defined validator, for instance a custom
+  `MemberValidator` that spell-checks each string or converts each
+  string to upper case
+
+Because `ListForEachValidator` is itself a `MemberValidator`, one
+instance can be an element validator of another, so nesting is not
+limited to a single inner layer.
+
+The concrete example below demonstrates the list-of-lists case because
+it is the one that cannot be expressed with the earlier list
+validators alone. The configuration has one list-of-lists member,
+`daily_hour_ranges`. Each inner list is a `[start_hour, end_hour]`
+pair. The example uses 3 validators in sequence:
+
+1. `ListSizeValidator` checks that the outer list has between 1 and 7
+   entries.
+2. `ListForEachValidator` applies the inner validators to every inner
+   list:
+   - `ListSizeValidator` rejects inner lists whose size is not exactly 2
+   - `ListValueValidator` rejects hour values outside `0..23`
+3. Because `ListForEachValidator` only delegates, the error messages
+   come from the inner validators and include the outer member name
+   with the element index appended in square brackets, for example
+   `daily_hour_ranges[2]`.
+
+The command line for this example accepts the matrix member via
+`--daily-hour-ranges`, where each token is a comma-separated list of
+ints describing one inner list. For instance
+`--daily-hour-ranges 6,10 13,17 20,22` sets a three-day schedule. This
+is enabled by the `nested=True` flag on the `InputSpec` and by the
+nested-token parser inside the shared command line helper.
+
+The important teaching point is that nested or per-element validation
+is just composition. Each inner validator is either one of the
+validators introduced by the earlier examples or a user-defined
+`MemberValidator`, and `ListForEachValidator` is the small mechanism
+that lets those validators reach inside one level of nesting.

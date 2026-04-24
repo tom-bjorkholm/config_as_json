@@ -7,8 +7,9 @@
 
 import sys
 import pytest
-from config_as_json.list_validators import ListIsOrderedValidator, \
-    ListOrderingValidator, ListSizeValidator, ListValueValidator
+from config_as_json.list_validators import ListForEachValidator, \
+    ListIsOrderedValidator, ListOrderingValidator, ListSizeValidator, \
+    ListValueValidator
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue
 from .validator_test_helpers import EmptyValidationConfig, \
@@ -290,5 +291,148 @@ def test_list_ordering_validator_integration_uses_parsed_json(capsys):
         from_json_data_text='{"value": [3, 1, 3, 2]}')
     out, err = capsys.readouterr()
     assert getattr(cfg, 'value') == [1, 2, 3]
+    assert out == ''
+    assert err == ''
+
+
+def test_list_for_each_validator_init_rejects_empty_element_validators():
+    """Empty element_validators must be rejected."""
+    with pytest.raises(ValueError) as exc:
+        ListForEachValidator(element_validators=[])
+    assert 'element_validators must be non-empty' in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    'bad_entry',
+    [object(), 'not-a-validator', 42])
+def test_list_for_each_validator_init_rejects_non_validator_entry(bad_entry):
+    """Entries in element_validators must be MemberValidator instances."""
+    good = ListSizeValidator(0, 10)
+    with pytest.raises(TypeError) as exc:
+        ListForEachValidator(element_validators=[good, bad_entry])
+    assert 'element_validators[1] must be a MemberValidator' in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    'bad_element_type',
+    ['int', 0, [list]])
+def test_list_for_each_validator_init_rejects_non_type_element_type(
+        bad_element_type):
+    """element_type must be a type when it is not None."""
+    with pytest.raises(TypeError) as exc:
+        ListForEachValidator(
+            element_validators=[ListSizeValidator(0, 10)],
+            element_type=bad_element_type)
+    assert 'element_type must be a type or None' in str(exc.value)
+
+
+def test_list_for_each_validator_rejects_non_list_member_value(capsys):
+    """The outer member value must be a list."""
+    validator = ListForEachValidator(
+        element_validators=[ListSizeValidator(0, 10)],
+        element_type=list)
+    assert_validate_member_failure(
+        capsys, validator, (1, 2), InvalidConfiguration,
+        'Value for value is not a list')
+
+
+def test_list_for_each_validator_rejects_element_with_wrong_type(capsys):
+    """Elements must match element_type when it is configured."""
+    validator = ListForEachValidator(
+        element_validators=[ListSizeValidator(0, 10)],
+        element_type=list)
+    assert_validate_member_failure(
+        capsys, validator, [[1, 2], 3], InvalidConfiguration,
+        'Value at value[1] has type int; expected list')
+
+
+def test_list_for_each_validator_skips_type_check_when_element_type_none(
+        capsys):
+    """Passing element_type=None leaves type checks to inner validators."""
+    validator = ListForEachValidator(
+        element_validators=[ListSizeValidator(min_size=2, max_size=2)])
+    member_value = [[1, 2], [3, 4]]
+    cfg = EmptyValidationConfig()
+    result = validator.validate_member(cfg, 'value', member_value, sys.stderr)
+    out, err = capsys.readouterr()
+    assert result == [[1, 2], [3, 4]]
+    assert out == ''
+    assert err == ''
+
+
+def test_list_for_each_validator_accepts_empty_outer_list(capsys):
+    """An empty outer list is accepted because there are no elements."""
+    validator = ListForEachValidator(
+        element_validators=[ListSizeValidator(2, 2)],
+        element_type=list)
+    assert_validate_member_ok(capsys, validator, [], [])
+
+
+def test_list_for_each_validator_chains_normalized_value(capsys):
+    """Each inner validator sees the value returned by the previous one."""
+    sort_inner = ListOrderingValidator(int)
+    check_sorted = ListIsOrderedValidator(int)
+    validator = ListForEachValidator(
+        element_validators=[sort_inner, check_sorted],
+        element_type=list)
+    member_value = [[3, 1, 2], [5, 4]]
+    cfg = EmptyValidationConfig()
+    result = validator.validate_member(cfg, 'value', member_value, sys.stderr)
+    out, err = capsys.readouterr()
+    assert result == [[1, 2, 3], [4, 5]]
+    assert out == ''
+    assert err == ''
+
+
+def test_list_for_each_validator_returns_new_list_without_mutating_input(
+        capsys):
+    """The caller's list must not be mutated in place."""
+    validator = ListForEachValidator(
+        element_validators=[ListOrderingValidator(int)],
+        element_type=list)
+    inner_original = [2, 1]
+    member_value = [inner_original]
+    cfg = EmptyValidationConfig()
+    result = validator.validate_member(cfg, 'value', member_value, sys.stderr)
+    out, err = capsys.readouterr()
+    assert result == [[1, 2]]
+    assert result is not member_value
+    assert member_value == [[2, 1]]
+    assert inner_original == [2, 1]
+    assert out == ''
+    assert err == ''
+
+
+def test_list_for_each_validator_propagates_inner_failure(capsys):
+    """An inner validator's exception must propagate to the caller."""
+    validator = ListForEachValidator(
+        element_validators=[ListValueValidator(0, 10, None)],
+        element_type=list)
+    assert_validate_member_failure(
+        capsys, validator, [[0, 1], [9, 11]], InvalidConfiguration,
+        'Value 11 for value[1] at index 1 is greater than maximum 10')
+
+
+def test_list_for_each_validator_propagates_inner_allowed_values_failure(
+        capsys):
+    """Inner validators can raise InvalidConfigurationValue."""
+    validator = ListForEachValidator(
+        element_validators=[ListValueValidator(None, None, [1, 2, 3])],
+        element_type=list)
+    assert_validate_member_failure(
+        capsys, validator, [[1, 2], [3, 4]], InvalidConfigurationValue,
+        'Value 4 for value[1] at index 1 is not one of the allowed values')
+
+
+def test_list_for_each_validator_integration_uses_parsed_json(capsys):
+    """Test ListForEachValidator integration through Config.validate()."""
+    per_row = ListForEachValidator(
+        element_validators=[ListValueValidator(0, 9, None)],
+        element_type=list)
+    cfg = SingleMemberValidationConfig(
+        'value', [[0]], per_row,
+        from_json_data_text='{"value": [[1, 2], [3, 4]]}')
+    out, err = capsys.readouterr()
+    assert getattr(cfg, 'value') == [[1, 2], [3, 4]]
     assert out == ''
     assert err == ''

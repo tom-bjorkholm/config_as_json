@@ -605,3 +605,176 @@ class ListOrderingValidator(MemberValidator,  # pylint: disable=too-few-public-m
         if self.keep_only_unique:
             result = _unique_list_values(result)
         return result
+
+
+def _validate_for_each_element_validators(
+        element_validators: Sequence[MemberValidator]) -> None:
+    """Validate the ``element_validators`` argument of ListForEachValidator.
+
+    Args:
+        element_validators: Validators to apply to each list element.
+
+    Raises:
+        ValueError: If ``element_validators`` is empty.
+        TypeError: If any entry is not a ``MemberValidator``.
+    """
+    if len(element_validators) == 0:
+        raise ValueError('element_validators must be non-empty.')
+    for index, validator in enumerate(element_validators):
+        if not isinstance(validator, MemberValidator):
+            msg = f'element_validators[{index}] must be a MemberValidator.'
+            raise TypeError(msg)
+
+
+def _validate_for_each_element_type(
+        element_type: Optional[type[object]]) -> None:
+    """Validate the ``element_type`` argument of ListForEachValidator.
+
+    Args:
+        element_type: Optional required runtime type of each list element.
+
+    Raises:
+        TypeError: If ``element_type`` is not ``None`` and not a ``type``.
+    """
+    if element_type is None:
+        return
+    if not isinstance(element_type, type):
+        raise TypeError('element_type must be a type or None.')
+
+
+class ListForEachValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+    """Apply a sequence of inner validators to each element of a list.
+
+    This validator is the general composition mechanism for list members.
+    It iterates the outer list and delegates all per-element work to the
+    ``element_validators`` sequence. It has no opinion about what an
+    element is: every inner validator is a ``MemberValidator`` and can
+    therefore be any of the built-in validators or a user-defined one.
+
+    Typical use cases include, but are not restricted to:
+
+    - Lists of lists (a matrix) where each inner list is checked with
+      other list validators such as ``ListSizeValidator`` or
+      ``ListValueValidator``.
+    - Lists of dicts where each element is checked with a user-defined
+      validator that inspects the dict keys and values.
+    - Lists of scalar values where each element is checked or normalised
+      by a user-defined validator. For example a custom ``MemberValidator``
+      may spell-check each string, convert each string to upper case, or
+      apply any other per-element rule that the built-in scalar list
+      validators do not cover.
+
+    Because ``ListForEachValidator`` is itself a ``MemberValidator``, one
+    instance can be an element validator of another, so nesting is not
+    limited to a single inner layer.
+
+    The member value must be a list. For each element, in order:
+
+    1. If ``element_type`` was provided, the element must be an instance of
+       that type.
+    2. Every validator in ``element_validators`` is invoked on the element,
+       in order. Each validator receives the value returned by the previous
+       validator, so normalisation performed by one inner validator is
+       visible to the next one.
+    3. The final value returned for that element is collected into a new
+       list that is returned from ``validate_member``.
+
+    When an inner validator is invoked, ``member_name`` is the outer member
+    name with the element index appended in square brackets, for example
+    ``'matrix[3]'``. The validator's error messages therefore stay precise
+    about which element failed.
+
+    List-level size or ordering checks are intentionally not part of this
+    class. Use a separate ``ListSizeValidator`` (or any other list
+    validator) as an earlier or later step in the ``ValidationPlan``.
+    """
+
+    def __init__(self, element_validators: Sequence[MemberValidator],
+                 element_type: Optional[type[object]] = None) -> None:
+        """Initialize the validator.
+
+        Args:
+            element_validators: Non-empty sequence of validators to apply
+                to each list element, in order. Each entry must be a
+                ``MemberValidator``.
+            element_type: Optional required runtime type of each list
+                element. If ``None``, the type check is skipped and the
+                inner validators are solely responsible for type checks.
+
+        Raises:
+            ValueError: If ``element_validators`` is empty.
+            TypeError: If any entry of ``element_validators`` is not a
+                ``MemberValidator``, or if ``element_type`` is not ``None``
+                and not a ``type``.
+        """
+        _validate_for_each_element_validators(element_validators)
+        _validate_for_each_element_type(element_type)
+        self.element_validators: list[MemberValidator] = \
+            list(element_validators)
+        self.element_type: Optional[type[object]] = element_type
+
+    def _validate_element_type(self, member_name: str, index: int,
+                               element: object,
+                               stderr_file: TextIO) -> None:
+        """Check one element's type when ``element_type`` is configured.
+
+        Args:
+            member_name: The outer member name used in error messages.
+            index: The index of the element in the outer list.
+            element: The element to type-check.
+            stderr_file: The file to write error messages to.
+
+        Raises:
+            InvalidConfiguration: If ``element`` is not an instance of
+                ``self.element_type``.
+        """
+        if self.element_type is None:
+            return
+        if isinstance(element, self.element_type):
+            return
+        msg = 'Invalid configuration: '
+        msg += f'Value at {member_name}[{index}] has type '
+        msg += f'{type(element).__name__}; expected '
+        msg += f'{self.element_type.__name__}.'
+        print(msg, file=stderr_file)
+        raise InvalidConfiguration(msg)
+
+    def validate_member(self, config: Config, member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Validate one list member by delegating to the inner validators.
+
+        Args:
+            config: The Config object that owns the member.
+            member_name: The name of the outer list member to validate.
+            member_value: The list value to validate.
+            stderr_file: The file to write error messages to.
+
+        Returns:
+            A new list whose elements are the values returned by the last
+            inner validator for each element. The caller's list is never
+            modified in place.
+
+        Raises:
+            InvalidConfiguration: If the member is not a list, an element
+                has the wrong runtime type, or a supplied validator raised
+                ``InvalidConfiguration``.
+            InvalidConfigurationValue: If a supplied validator raised
+                ``InvalidConfigurationValue``.
+        """
+        raw_list = _validate_list_member_value(
+            member_name=member_name, member_value=member_value,
+            stderr_file=stderr_file)
+        result: list[object] = []
+        for index, element in enumerate(raw_list):
+            self._validate_element_type(
+                member_name=member_name, index=index, element=element,
+                stderr_file=stderr_file)
+            element_name = f'{member_name}[{index}]'
+            current: object = element
+            for validator in self.element_validators:
+                current = validator.validate_member(
+                    config=config, member_name=element_name,
+                    member_value=current, stderr_file=stderr_file)
+            result.append(current)
+        return result

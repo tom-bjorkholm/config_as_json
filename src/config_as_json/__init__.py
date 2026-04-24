@@ -24,7 +24,8 @@ from config_as_json.validator import ValidationPlan, ValidationStep, \
     MemberValidator, StrValidator, IntFloatValidator, string_best_match, \
     InvalidConfiguration, InvalidConfigurationValue
 from config_as_json.list_validators import ListValueValidator, \
-    ListSizeValidator, ListIsOrderedValidator, ListOrderingValidator
+    ListSizeValidator, ListIsOrderedValidator, ListOrderingValidator, \
+    ListForEachValidator
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.assert_dict_equal import assert_dict_equal
 
@@ -58,4 +59,5 @@ __all__ = ['Config',
            'ListSizeValidator',
            'ListIsOrderedValidator',
            'ListOrderingValidator',
+           'ListForEachValidator',
            'assert_dict_equal']
