@@ -62,7 +62,7 @@ class ConfigBadJson(json.JSONDecodeError):
     """Report JSON input that could not be interpreted as configuration."""
 
 
-def over_ride_needed(stri: str) -> Any:
+def _over_ride_needed(stri: str) -> Any:
     """Act as a placeholder conversion function for incomplete subclasses.
 
     The base :meth:`Config.parse_converters` implementation uses this helper
@@ -190,7 +190,7 @@ class Config():
             keyword arguments passed to that callable.
         """
         return {'in_type': ParseConverter(result_type=int,
-                                          func=over_ride_needed,
+                                          func=_over_ride_needed,
                                           args={})}
 
     @staticmethod
@@ -467,6 +467,10 @@ class Config():
     def as_json_string(self, stderr_file: TextIO) -> str:
         """Serialize the current configuration object to formatted JSON.
 
+        Args:
+            stderr_file: Stream used for user-facing diagnostics during
+                validation.
+
         Returns:
             A JSON document containing every public, non-callable instance
             attribute on the configuration object.
@@ -508,6 +512,8 @@ class Config():
         Args:
             to_json_filename: Destination file that should receive the
                 formatted JSON document.
+            stderr_file: Stream used for user-facing diagnostics during
+                validation.
         """
         text = self.as_json_string(stderr_file=stderr_file)
         with open(file=to_json_filename, mode='w', encoding='UTF-8') as file:
@@ -602,6 +608,10 @@ class Config():
                 the mandatory keys.
             stderr_file: Stream used for user-facing diagnostics. Defaults to
                 ``sys.stderr``.
+
+        Raises:
+            SystemExit: One mapping is missing a mandatory key or contains an
+                unexpected key.
         """
         to_allow = deepcopy(mandatory_keys)
         in_cfg = f' in config of {name_of_cfg}'
@@ -636,6 +646,11 @@ class Config():
             min_size_list: Minimum allowed number of dictionaries in ``inp``.
             stderr_file: Stream used for user-facing diagnostics. Defaults to
                 ``sys.stderr``.
+
+        Raises:
+            SystemExit: ``inp`` is not a list, contains non-dict items, is too
+                short, is missing ``key`` when required, or has a value at
+                ``key`` with the wrong runtime type.
         """
         errtxt = f'Error in parameter {paramname}. '
         if not isinstance(inp, list):
@@ -689,6 +704,11 @@ class Config():
                 list.
             stderr_file: Stream used for user-facing diagnostics. Defaults to
                 ``sys.stderr``.
+
+        Raises:
+            SystemExit: The outer value does not satisfy
+                :meth:`check_lst_dict`, one checked inner list is too short,
+                or one inner list item has the wrong runtime type.
         """
         Config.check_lst_dict(paramname=paramname, inp=inp,
                               key=key, key_optional=key_optional,
@@ -757,6 +777,13 @@ class Config():
                 expected keys and value types.
             stderr_file: Stream used for user-facing diagnostics. Defaults to
                 ``sys.stderr``.
+
+        Raises:
+            KeyError: ``dict_of_templates`` is not a dictionary of
+                dictionaries.
+            SystemExit: ``array`` is not a list of dictionaries, one row is
+                missing a required key, or one row value has the wrong runtime
+                type.
         """
         Msgs = NamedTuple('Msgs', [('in_cfg', str), ('bad_arg', str),
                                    ('bad_templ', str)])
@@ -843,6 +870,9 @@ class Config():
             enc: Encoding name to validate.
             stderr_file: Stream used for user-facing diagnostics. Defaults to
                 ``sys.stderr``.
+
+        Raises:
+            SystemExit: ``enc`` is not a recognized text encoding.
         """
         if not Config.valid_char_encoding(enc=enc):
             print(f'{enc} is not a recognized encoding', file=stderr_file)
@@ -859,6 +889,9 @@ class Config():
             param_name: Configuration parameter name used in diagnostics.
             stderr_file: Stream used for user-facing diagnostics. Defaults to
                 ``sys.stderr``.
+
+        Raises:
+            SystemExit: ``expanded_data`` contains duplicate values.
         """
         dup = [str(k) for k, v in Counter(expanded_data).items() if v > 1]
         if len(dup) == 0:
