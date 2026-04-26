@@ -452,3 +452,36 @@ variant.
 This is the same composition idea as e11 through e13, but packaged for the
 common "one discriminator key chooses one dict shape" pattern. The command
 line uses `json_value=True` because the value is a mixed-type dict.
+
+## e15_projected_member_validator.py
+
+[Source code for e15_projected_member_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e15_projected_member_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e15_projected_member_validator.py)
+
+This example teaches `ProjectedMemberValidator`. It is useful when a
+configuration member should be stored in one shape, but one validation rule
+is easier to express against a projected view of that member.
+
+The configuration has one member `release_steps`. It is a list of dicts, and
+each dict contains a step `name`, an `order`, and `duration_minutes`.
+Per-step validation is still done the same way as in `e13`: a
+`ListForEachValidator` applies `DictKeysValidator` and `DictForEachValidator`
+to every step dict.
+
+The extra rule is about all steps together: the `order` values must be
+unique and increasing. Instead of writing a custom validator class,
+`ProjectedMemberValidator` first uses a `ListSizeValidator` as a
+`source_validator` for the stored list. It then uses a small projector
+function to compute this temporary list:
+
+`[10, 20, 30]`
+
+Then a normal `ListIsOrderedValidator` validates that projected list. The
+stored configuration value remains the original list of dicts. A normalized
+replacement returned from `source_validator` would only feed the projector,
+and normalized values returned from validators on the projected list are
+only passed to the next projected validator. They do not replace
+`release_steps`.
+
+This is the general escape hatch for "validate what can be calculated from
+this member, but keep this member as it is". The command line uses
+`json_value=True` because the value is a list of mixed-type dicts.

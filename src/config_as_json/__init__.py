@@ -30,6 +30,7 @@ from config_as_json.dict_validators import DictKeysValidator, DictRule, \
     DictForEachValidator
 from config_as_json.discriminated_dict_validators import DictVariant, \
     DiscriminatedDictValidator
+from config_as_json.projected_validators import ProjectedMemberValidator
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.assert_dict_equal import assert_dict_equal
 
@@ -69,4 +70,5 @@ __all__ = ['Config',
            'DictForEachValidator',
            'DictVariant',
            'DiscriminatedDictValidator',
+           'ProjectedMemberValidator',
            'assert_dict_equal']
