@@ -1,5 +1,11 @@
 #! /usr/local/bin/python3
-"""Implement dictionary validators for config-as-json."""
+"""Implement dictionary validators for config-as-json.
+
+The ``Config`` base class already checks each dict member's keys against the
+default; list a member in ``_unchecked_dicts`` when validators here (for
+example ``DictKeysValidator``) should own that member's key or value policy
+completely instead. See :class:`DictKeysValidator` for the full picture.
+"""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
@@ -88,6 +94,16 @@ class DictKeysValidator(MemberValidator):  # pylint: disable=too-few-public-meth
     The validator never modifies the dict and never inspects its values,
     so it is the natural first step in a ``ValidationPlan`` that is later
     followed by per-key value validators such as ``DictForEachValidator``.
+
+    Interaction with :class:`Config` dict checking. The base class
+    already enforces a key-set policy for each dict member by matching parsed
+    JSON to the default value (unknown keys in the file are not allowed;
+    which default keys may be omitted depends on the load path). For a
+    fixed closed key set, that is often enough and you do not need this
+    validator. Use ``DictKeysValidator`` and list the member in
+    ``_unchecked_dicts`` on the :class:`Config` when you need optional keys, a
+    different key policy, or when ``DictForEachValidator`` will validate
+    values and you must not let the base class reject valid key sets first.
     """
 
     def __init__(self, mandatory_keys: Sequence[str],

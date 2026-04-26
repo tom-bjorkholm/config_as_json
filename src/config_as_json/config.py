@@ -101,6 +101,17 @@ class Config():
     attribute values form the default configuration. The base class can then
     read JSON into the object, write the current values back to JSON, fill in
     optional keys, and apply controlled backward-compatible key renames.
+
+    For each configuration attribute that holds a ``dict``, the base class
+    recursively checks parsed JSON against the default: unknown keys in the
+    file are rejected, and (depending on the load path) required keys from the
+    default may need to be present. That built-in check covers many fixed dict
+    shapes and avoids extra application code. List a dict member's name in
+    ``_unchecked_dicts`` to skip that check for that member and let validators
+    such as ``DictKeysValidator`` and ``DictForEachValidator`` define more
+    flexible or more complex key and value policy instead. See
+    ``DictKeysValidator`` in ``dict_validators`` for how that interacts with
+    this check.
     """
 
     def __init__(self, from_json_data_text: Optional[str],
@@ -121,6 +132,10 @@ class Config():
             auto_ch_hook: Hook that is notified about automatic changes such
                 as filled default values or renamed backward-compatible keys.
             stderr_file: Stream used for user-facing diagnostics.
+
+        Dict-valued members are checked against the default key set by the
+        base class unless listed in ``_unchecked_dicts``; see the class
+        docstring.
 
         Raises:
             AttributeError: The derived class did not declare any public

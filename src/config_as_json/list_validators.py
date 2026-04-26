@@ -656,8 +656,10 @@ class ListForEachValidator(MemberValidator):  # pylint: disable=too-few-public-m
     - Lists of lists (a matrix) where each inner list is checked with
       other list validators such as ``ListSizeValidator`` or
       ``ListValueValidator``.
-    - Lists of dicts where each element is checked with a user-defined
-      validator that inspects the dict keys and values.
+    - Lists of dicts where each element is checked with the built-in
+      ``DictKeysValidator`` and ``DictForEachValidator`` (or any
+      user-defined ``MemberValidator``) used as inner element
+      validators.
     - Lists of scalar values where each element is checked or normalised
       by a user-defined validator. For example a custom ``MemberValidator``
       may spell-check each string, convert each string to upper case, or

@@ -258,8 +258,8 @@ Typical use cases include:
 
 - **lists of lists**, where each inner list is checked with other list
   validators such as `ListSizeValidator` or `ListValueValidator`
-- **lists of dicts**, where each element is checked with a user-defined
-  validator that looks at the dict keys
+- **lists of dicts**, where each element is checked with the built-in
+  `DictKeysValidator` and `DictForEachValidator`, see `e13` below
 - **lists of scalar values**, where each element is checked or
   normalised by a user-defined validator, for instance a custom
   `MemberValidator` that spell-checks each string or converts each
@@ -298,3 +298,131 @@ is just composition. Each inner validator is either one of the
 validators introduced by the earlier examples or a user-defined
 `MemberValidator`, and `ListForEachValidator` is the small mechanism
 that lets those validators reach inside one level of nesting.
+
+## e10_dict_basic_validators.py
+
+[Source code for e10_dict_basic_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e10_dict_basic_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e10_dict_basic_validators.py)
+
+This is the first teaching example that uses dict-valued configuration
+members. It introduces the smallest dict validator,
+`DictKeysValidator`, and shows it in 2 modes side by side:
+
+- `feature_flags` shows the *mandatory + optional* shape: some keys
+  must be present and a few additional keys are accepted
+- `port_assignments` shows the *exact-shape* form: only the listed
+  keys are accepted, and they are all mandatory
+
+Values are not validated in this example. The lesson is that the
+*key set* is the schema and that `DictKeysValidator` never inspects
+values.
+
+For dict-valued members, the `Config` base class already checks the
+parsed JSON key set against the default (unknown keys are rejected). That
+built-in check is enough for many fixed dict shapes and does not require
+`DictKeysValidator`. This example opts out of that check with
+`_unchecked_dicts` so `DictKeysValidator` can own the key policy, which is
+required here for the optional `feature_flags` keys and is how e11 and e12
+teach more flexible dict validation.
+
+The command line for this example uses the `dict_kv=True` flag on
+`InputSpec`. Each CLI token is parsed as `key=value`, e.g.
+`--feature-flags logging=true metrics=false debug=true`.
+
+## e11_dict_for_each.py
+
+[Source code for e11_dict_for_each.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e11_dict_for_each.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e11_dict_for_each.py)
+
+This example builds on `e10_dict_basic_validators.py` and adds
+per-key value validation. It introduces `DictForEachValidator` and
+the `DictRule` data shape that `DictForEachValidator` consumes.
+
+The example uses one dict member `cache_settings` with mandatory
+keys `ttl_seconds`, `refresh_seconds`, `max_entries`, and
+`eviction_policy`. The validation plan has 2 steps on the same
+member:
+
+1. `DictKeysValidator` rejects unknown keys and missing keys
+2. `DictForEachValidator` runs 3 `DictRule` entries that apply
+   `IntFloatValidator` and `StrValidator` to the corresponding
+   values
+
+The first rule covers two keys at once (`ttl_seconds` and
+`refresh_seconds`). That shows why `DictRule` exists: it groups keys
+that share the same validator chain so the same chain is not
+repeated.
+
+The example also shows that `DictForEachValidator` silently skips a
+rule key that is missing from the dict; enforcing key presence is
+`DictKeysValidator`'s job.
+
+The command line uses `json_value=True` because the dict has mixed
+value types and `key=value` tokens cannot express that without
+guessing per-key types. A full override looks like
+`--cache-settings '{"ttl_seconds": 60, ...}'`.
+
+## e12_dict_for_each_ordering.py
+
+[Source code for e12_dict_for_each_ordering.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e12_dict_for_each_ordering.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e12_dict_for_each_ordering.py)
+
+This example is the dict counterpart of `e08_combined_list_validators`.
+The teaching point is that `DictForEachValidator` runs its rules in
+order, and that each validator sees the value returned by the
+previous validator.
+
+The configuration has one dict member `team_tags` with three
+mandatory keys (`region`, `environment`, `team`). Three `DictRule`
+entries with deliberately overlapping `keys` lists make the
+rule-major iteration shape visible:
+
+1. Rule A on all three keys uses `StrValidator` with
+   `ignore_case=True` and `normalize=True` to rewrite user input to
+   the canonical spelling
+2. Rule B on `region` and `environment` uses a stricter
+   `StrValidator` with a smaller `allowed_values` list, applied to
+   the value already normalized by Rule A
+3. Rule C on `team` does the same with a different narrower list
+
+If the rules were rearranged, the configuration would mean something
+different. For example, running Rule B before Rule A would reject
+the input `'eu'` because Rule B alone is case-sensitive.
+
+The command line uses `dict_kv=True` because every value is a
+string. A typical override is
+`--team-tags region=eu environment=production team=engineering`,
+and the canonical spelling (`Eu`, `Production`, `Engineering`) is
+what ends up in the configuration file.
+
+## e13_list_of_dicts.py
+
+[Source code for e13_list_of_dicts.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e13_list_of_dicts.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e13_list_of_dicts.py)
+
+This example is the final example in the validator series. It is for
+readers who already understood the earlier list and dict examples
+and now want to see how the building blocks compose when the
+configuration shape mixes lists and dicts.
+
+The configuration has one member `maintenance_windows` that is a
+list of dicts. Each dict describes one maintenance window with
+`name`, `hours_utc`, and an optional `priority`.
+
+Two composition directions are visible in this single example:
+
+- **dict in list** is taught by using `DictKeysValidator` and
+  `DictForEachValidator` as `element_validators` of a
+  `ListForEachValidator`. The earlier `e09_list_for_each` example
+  used list validators in that role; this example uses the built-in
+  dict validators in exactly the same slot.
+- **list in dict** is taught by using `ListSizeValidator` and
+  `ListValueValidator` inside a `DictRule`. The same dict rule
+  could equally well include another `DictForEachValidator` for a
+  nested dict shape; nesting is unbounded.
+
+The lesson is that `MemberValidator` is the lingua franca of
+composition. Any built-in or user-defined `MemberValidator` can be
+plugged into any of the composition slots without special handling.
+
+At this nesting depth (a list of mixed-type dicts that themselves
+contain lists), reinventing more separators on the command line
+stops teaching anything. The example therefore uses
+`json_value=True`, and the command line accepts a single JSON
+document for the whole `--maintenance-windows` value.

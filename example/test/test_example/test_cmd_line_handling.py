@@ -11,6 +11,8 @@ from config_as_json.commontypes import PathOrStr
 from example.cmd_line_handling import InputSpec, SetValues
 from example.cmd_line_handling import _add_set_arguments, _bool_from_text
 from example.cmd_line_handling import _create_argument_parser, _enum_from_text
+from example.cmd_line_handling import _dict_kv_token_parser
+from example.cmd_line_handling import _json_token_parser
 from example.cmd_line_handling import _nested_value_parser, _token_parser
 from example.cmd_line_handling import _set_values_from_args, _value_parser
 from example.cmd_line_handling import cmd_line_handling
@@ -31,7 +33,9 @@ TEST_INPUT_SPECS = [
     InputSpec(name='enabled', single=True, value_type=bool),
     InputSpec(name='mode', single=True, value_type=SampleMode),
     InputSpec(name='step_values', single=False, value_type=int),
-    InputSpec(name='matrix', single=False, value_type=int, nested=True)
+    InputSpec(name='matrix', single=False, value_type=int, nested=True),
+    InputSpec(name='flags', single=False, value_type=bool, dict_kv=True),
+    InputSpec(name='payload', single=True, value_type=str, json_value=True)
 ]
 """Input specifications used by the shared helper tests."""
 
@@ -118,6 +122,66 @@ def test_token_parser_rejects_nested_single_combination() -> None:
     assert 'single' in str(exc.value)
 
 
+def test_dict_kv_token_parser_splits_key_and_value() -> None:
+    """Split one key=value token into the typed pair."""
+    parse_ints = _dict_kv_token_parser(int)
+    assert parse_ints('count=7') == ('count', 7)
+    assert parse_ints('label=42') == ('label', 42)
+    parse_bools = _dict_kv_token_parser(bool)
+    assert parse_bools('enabled=true') == ('enabled', True)
+    assert parse_bools('enabled=FALSE') == ('enabled', False)
+
+
+def test_dict_kv_token_parser_uses_first_separator_only() -> None:
+    """Split on the first ``=`` so values may themselves contain ``=``."""
+    parse = _dict_kv_token_parser(str)
+    assert parse('query=name=ada') == ('query', 'name=ada')
+
+
+def test_dict_kv_token_parser_rejects_token_without_separator() -> None:
+    """Reject a dict_kv token that does not contain ``=``."""
+    parse = _dict_kv_token_parser(int)
+    with pytest.raises(argparse.ArgumentTypeError) as exc:
+        _ = parse('count7')
+    assert '=' in str(exc.value)
+
+
+def test_json_token_parser_returns_python_values() -> None:
+    """Parse a JSON-encoded token into the matching Python value."""
+    parse = _json_token_parser()
+    assert parse('42') == 42
+    assert parse('"hello"') == 'hello'
+    assert parse('[1,2,3]') == [1, 2, 3]
+    assert parse('{"a": 1}') == {'a': 1}
+
+
+def test_json_token_parser_reports_invalid_json() -> None:
+    """Reject a token that is not valid JSON."""
+    parse = _json_token_parser()
+    with pytest.raises(argparse.ArgumentTypeError):
+        _ = parse('not json')
+
+
+@pytest.mark.parametrize('input_spec, expected_fragment', [
+    (InputSpec(name='bad', single=True, value_type=int, dict_kv=True),
+     'dict_kv'),
+    (InputSpec(name='bad', single=False, value_type=int, json_value=True),
+     'json_value'),
+    (InputSpec(name='bad', single=False, value_type=int,
+               nested=True, dict_kv=True),
+     'mutually exclusive'),
+    (InputSpec(name='bad', single=True, value_type=int,
+               nested=False, json_value=True, dict_kv=True),
+     'mutually exclusive'),
+])
+def test_token_parser_rejects_unsupported_flag_combinations(
+        input_spec: InputSpec, expected_fragment: str) -> None:
+    """Reject every unsupported combination of input spec flags."""
+    with pytest.raises(ValueError) as exc:
+        _ = _token_parser(input_spec)
+    assert expected_fragment in str(exc.value)
+
+
 def test_add_set_arguments_adds_single_list_and_nested_options() -> None:
     """Add command line options that parse single values and lists."""
     parser = argparse.ArgumentParser(prog='demo')
@@ -129,7 +193,9 @@ def test_add_set_arguments_adds_single_list_and_nested_options() -> None:
         '--enabled', 'false',
         '--mode', 'beta',
         '--step-values', '1', '2', '3',
-        '--matrix', '1,2', '3,4', '5,6'
+        '--matrix', '1,2', '3,4', '5,6',
+        '--flags', 'logging=true', 'debug=false',
+        '--payload', '{"k": [1, 2]}'
     ])
     assert parsed_args.file_name == 'Ada'
     assert parsed_args.count == 7
@@ -138,6 +204,8 @@ def test_add_set_arguments_adds_single_list_and_nested_options() -> None:
     assert parsed_args.mode is SampleMode.BETA
     assert parsed_args.step_values == [1, 2, 3]
     assert parsed_args.matrix == [[1, 2], [3, 4], [5, 6]]
+    assert parsed_args.flags == [('logging', True), ('debug', False)]
+    assert parsed_args.payload == {'k': [1, 2]}
 
 
 def test_set_values_from_args_collects_only_explicit_values() -> None:
@@ -149,7 +217,9 @@ def test_set_values_from_args_collects_only_explicit_values() -> None:
         enabled=None,
         mode=SampleMode.ALPHA,
         step_values=[1, 2],
-        matrix=[[7, 8], [9, 10]]
+        matrix=[[7, 8], [9, 10]],
+        flags=[('logging', True), ('debug', False)],
+        payload={'k': [1, 2]}
     )
     set_values = _set_values_from_args(parsed_args, TEST_INPUT_SPECS)
     assert set_values == {
@@ -157,7 +227,9 @@ def test_set_values_from_args_collects_only_explicit_values() -> None:
         'ratio': 2.5,
         'mode': SampleMode.ALPHA,
         'step_values': [1, 2],
-        'matrix': [[7, 8], [9, 10]]
+        'matrix': [[7, 8], [9, 10]],
+        'flags': {'logging': True, 'debug': False},
+        'payload': {'k': [1, 2]}
     }
 
 
@@ -246,7 +318,9 @@ def test_cmd_line_handling_routes_set_command_with_converted_values() -> None:
             '--enabled', 'true',
             '--mode', 'beta',
             '--step-values', '1', '2', '3',
-            '--matrix', '1,2', '3,4'
+            '--matrix', '1,2', '3,4',
+            '--flags', 'logging=true', 'debug=false',
+            '--payload', '[{"a": 1}]'
         ]
     )
     assert not recorder.print_calls
@@ -257,7 +331,9 @@ def test_cmd_line_handling_routes_set_command_with_converted_values() -> None:
         'enabled': True,
         'mode': SampleMode.BETA,
         'step_values': [1, 2, 3],
-        'matrix': [[1, 2], [3, 4]]
+        'matrix': [[1, 2], [3, 4]],
+        'flags': {'logging': True, 'debug': False},
+        'payload': [{'a': 1}]
     }, 'output.cfg')]
 
 

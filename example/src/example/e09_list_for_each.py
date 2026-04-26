@@ -14,8 +14,9 @@ different shapes of configuration data:
 
 - lists of lists, where each inner list is checked with other list
   validators (the concrete example below)
-- lists of dicts, where each element is checked with a user-defined
-  validator that looks at the dict keys
+- lists of dicts, where each element is checked with the built-in
+  ``DictKeysValidator`` and ``DictForEachValidator`` (see
+  ``e13_list_of_dicts``)
 - lists of scalar values, where each element is checked or normalised
   by a user-defined validator; for instance a custom
   ``MemberValidator`` might spell-check each string or convert each
@@ -25,8 +26,8 @@ Because ``ListForEachValidator`` is itself a ``MemberValidator``, one
 instance can be an element validator of another, so nesting is not
 limited to a single inner layer.
 
-The concrete example below demonstrates the list-of-lists case because
-it is the one that the built-in validators alone cannot handle. The
+The concrete example below demonstrates the list-of-lists case
+because the inner element shape is itself a list. The
 configuration member is a list of daily work-hour ranges. Each day is
 represented as a ``[start_hour, end_hour]`` pair. The validation rules
 are:
