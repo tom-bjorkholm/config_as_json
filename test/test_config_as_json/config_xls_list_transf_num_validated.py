@@ -13,7 +13,7 @@ from config_as_json.validator import ValidationPlan, MemberValidationStep
 from .config_excel_list_transform import ColInfo, RulePlace, RuleRemove
 from .config_xls_list_transf_num import get_column, get_merge_first_column
 from .config_excel_list_transform_validated import \
-    ConfigExcelListTransformValidated, IncreasingMultiColumnsValidator
+    ConfigExcelListTransformValidated, increasing_merge_columns_validator
 from .config_enums import ColumnRef, SplitWhere
 
 
@@ -82,6 +82,6 @@ class ConfigXlsListTransfNumValidated(  # pylint: disable=too-many-instance-attr
                     int, is_ordered=False, unique_values=True)),
             MemberValidationStep(
                 member_names=['s05_merge_columns'],
-                validator=IncreasingMultiColumnsValidator(
+                validator=increasing_merge_columns_validator(
                     self._columntype))])
         return ret

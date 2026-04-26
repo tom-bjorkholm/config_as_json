@@ -6,6 +6,7 @@
 # MIT License
 
 import sys
+import json
 from io import StringIO
 import pytest
 from config_as_json.assert_dict_equal import assert_dict_equal
@@ -103,3 +104,37 @@ def test_validated_name_cfg_uses_supplied_stderr_file(capsys):
     assert err == ''
     assert "Unknown key 'extra' in s07_rename_columns[0]" in \
         stderr_file.getvalue()
+
+
+def test_validated_name_cfg_reports_duplicate_single_columns(capsys):
+    """Test validated helper catches duplicate single-column rules."""
+    template = ConfigXlsListTransfNameValidated()
+    stderr_file = StringIO()
+    json_data = json.loads(template.as_json_string(stderr_file=stderr_file))
+    json_data['s07_rename_columns'][0]['column'] = 'last name'
+    with pytest.raises(InvalidConfiguration):
+        _ = ConfigXlsListTransfNameValidated(
+            from_json_data_text=json.dumps(json_data),
+            stderr_file=stderr_file)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert 's07_rename_columns' in stderr_file.getvalue()
+    assert 'duplicates the value at index 0' in stderr_file.getvalue()
+
+
+def test_validated_num_cfg_reports_decreasing_merge_columns(capsys):
+    """Test validated helper catches decreasing merge-column rules."""
+    template = ConfigXlsListTransfNumValidated()
+    stderr_file = StringIO()
+    json_data = json.loads(template.as_json_string(stderr_file=stderr_file))
+    json_data['s05_merge_columns'][0]['columns'] = [2, 1]
+    with pytest.raises(InvalidConfiguration):
+        _ = ConfigXlsListTransfNumValidated(
+            from_json_data_text=json.dumps(json_data),
+            stderr_file=stderr_file)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert 's05_merge_columns' in stderr_file.getvalue()
+    assert 'less than previous value 2' in stderr_file.getvalue()

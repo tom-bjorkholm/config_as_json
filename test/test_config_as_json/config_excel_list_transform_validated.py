@@ -5,6 +5,7 @@
 # MIT License
 
 import sys
+from collections.abc import Callable
 from copy import deepcopy
 from typing import Generic, Optional, TextIO, cast
 from config_as_json.config import BackwardCompatible, Config
@@ -14,6 +15,7 @@ from config_as_json.dict_validators import DictKeysValidator
 from config_as_json.list_validators import ListForEachValidator, \
     ListIsOrderedValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
+from config_as_json.projected_validators import ProjectedMemberValidator
 from config_as_json.validator import ValidationPlan, \
     WholeConfigValidationStep, MemberValidationStep, \
     WholeConfigValidator, MemberValidator
@@ -69,55 +71,59 @@ def list_of_dicts_keys_validator(
         element_type=dict)
 
 
-# pylint: disable=too-few-public-methods
-class NoDuplicateSingleColumnsValidator(MemberValidator, Generic[Column]):
-    """Validate that one single-column rule list uses each column once."""
+def single_rule_columns_projector(
+        column_type: type[Column]
+        ) -> Callable[[Config, str, object, TextIO], object]:
+    """Build a projector from single-column rules to column values."""
 
-    def __init__(self, column_type: type[Column]) -> None:
-        """Store the column type used by the rule list."""
-        self._column_type: type[Column] = column_type
-        self._columns_validator: ListIsOrderedValidator[Column] = \
-            ListIsOrderedValidator(
-                element_type=column_type, is_ordered=False,
-                unique_values=True)
-
-    def validate_member(self, config: Config, member_name: str,
-                        member_value: object,
-                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
-        """Validate one single-column rule list and return it unchanged."""
-        sample = self._column_type()
+    def project_single_rule_columns(
+            config: Config, member_name: str, member_value: object,
+            stderr_file: TextIO) -> object:
+        """Project one single-column rule list to its column values."""
+        _ = config, member_name, stderr_file
+        sample = column_type()
         checked_value = cast(Rule[Column] | RuleSplit[Column], member_value)
-        cols = LegacyConfigExcelListTransform.get_cols_single(
+        return LegacyConfigExcelListTransform.get_cols_single(
             checked_value, sample)
-        self._columns_validator.validate_member(
-            config=config, member_name=member_name, member_value=cols,
-            stderr_file=stderr_file)
-        return member_value
+
+    return project_single_rule_columns
 
 
-class IncreasingMultiColumnsValidator(MemberValidator, Generic[Column]):
-    """Validate that one merge-column rule list stays in increasing order."""
+def merge_rule_columns_projector(
+        column_type: type[Column]
+        ) -> Callable[[Config, str, object, TextIO], object]:
+    """Build a projector from merge rules to flattened column values."""
 
-    def __init__(self, column_type: type[Column]) -> None:
-        """Store the column type used by the merge rules."""
-        self._column_type: type[Column] = column_type
-        self._columns_validator: ListIsOrderedValidator[Column] = \
-            ListIsOrderedValidator(
-                element_type=column_type, unique_values=True)
-
-    def validate_member(self, config: Config, member_name: str,
-                        member_value: object,
-                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
-        """Validate one merge-column rule list and return it unchanged."""
-        sample = self._column_type()
+    def project_merge_rule_columns(
+            config: Config, member_name: str, member_value: object,
+            stderr_file: TextIO) -> object:
+        """Project one merge rule list to its flattened column values."""
+        _ = config, member_name, stderr_file
+        sample = column_type()
         checked_value = cast(RuleMerge[Column], member_value)
-        cols = LegacyConfigExcelListTransform.get_cols_multi(
+        return LegacyConfigExcelListTransform.get_cols_multi(
             checked_value, sample)
-        self._columns_validator.validate_member(
-            config=config, member_name=member_name, member_value=cols,
-            stderr_file=stderr_file)
-        return member_value
-# pylint: enable=too-few-public-methods
+
+    return project_merge_rule_columns
+
+
+def unique_single_columns_validator(
+        column_type: type[Column]) -> ProjectedMemberValidator:
+    """Build a validator for unique columns in single-column rules."""
+    return ProjectedMemberValidator(
+        projector=single_rule_columns_projector(column_type),
+        validators=[ListIsOrderedValidator(
+            element_type=column_type, is_ordered=False,
+            unique_values=True)])
+
+
+def increasing_merge_columns_validator(
+        column_type: type[Column]) -> ProjectedMemberValidator:
+    """Build a validator for increasing columns in merge-column rules."""
+    return ProjectedMemberValidator(
+        projector=merge_rule_columns_projector(column_type),
+        validators=[ListIsOrderedValidator(
+            element_type=column_type, unique_values=True)])
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -235,7 +241,7 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
                 member_names=['s03_split_columns',
                               's07_rename_columns',
                               's08_insert_columns'],
-                validator=NoDuplicateSingleColumnsValidator(
+                validator=unique_single_columns_validator(
                     self._columntype)),
             WholeConfigValidationStep(
                 validator=ConfigMethodValidator(
