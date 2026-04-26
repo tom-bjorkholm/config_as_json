@@ -5,7 +5,7 @@ Python class while storing actual configuration data in JSON files.
 
 The intended usage model is:
 
-- Derive an application-specific class from `config_as_json.config.Config`.
+- Derive an application-specific class from `config_as_json.Config`.
 - Add one instance attribute per supported configuration parameter. An
   instance attribute can also be a dict or list, optionally with nested
   dicts and lists.
@@ -33,17 +33,20 @@ pip install --upgrade config-as-json
 
 ## Main entry points
 
-- `config_as_json.config.Config`
+- `config_as_json.Config`
   Base class for JSON-backed configuration objects.
-- `config_as_json.config_factory.config_factory_from_json`
+- `config_as_json.config_factory_from_json`
   Select the correct configuration class by inspecting JSON input.
-- `config_as_json.config_auto_change_hook.ConfigAutoChangeHook`
+- `config_as_json.ConfigAutoChangeHook`
   Receive notifications about automatic changes during parsing.
-- `config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook`
+- `config_as_json.MigrateCfgWarnHook`
   Warn when backward compatibility was used.
-- `config_as_json.migrate_cfg.migrate_cfg`
+- `config_as_json.migrate_cfg`
   Read an older configuration file and write it back in the newest supported
   format.
+
+The generated API reference also shows the implementation modules where these
+public objects are defined.
 
 ## Documentation and examples
 
@@ -52,15 +55,14 @@ pip install --upgrade config-as-json
 - Protected/internal API notes: [doc/protected_api.md](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/doc/protected_api.md)
 - Source repository: [config_as_json](https://bitbucket.org/tom-bjorkholm/config_as_json/)
 
-The example directory is linked already because it is the planned place for
-worked examples, even though its current content is still only a placeholder.
+The example directory contains worked examples for new users. It is not
+included in the package installed from PyPI.
 
 ## Project status
 
-This package is currently being extracted from a larger application into a
-standalone reusable library. The package documentation describes the intended
-contract of that library while the implementation and tests are being aligned
-with it.
+This package originated as configuration code from a larger application and
+has been refactored into a stand-alone reusable library. The public API
+reference and worked examples are maintained in the source repository.
 
 ## License
 

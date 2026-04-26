@@ -1,7 +1,7 @@
 #! /usr/local/bin/python3
 """Migrate an older configuration file to the newest supported format."""
 
-# Copyright (c) 2024-2025 Tom Björkholm
+# Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
 from typing import TextIO

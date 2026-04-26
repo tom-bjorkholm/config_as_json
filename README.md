@@ -6,13 +6,13 @@
 
 ## Repository purpose
 
-`config-as-json` is being extracted from an application into a reusable
-library.
+`config-as-json` is a reusable library that grew out of configuration code
+from an application.
 
 The intended library model is:
 
 - An application derives its own configuration class from
-  `config_as_json.config.Config`.
+  `config_as_json.Config`.
 - The derived class creates one instance attribute per supported
   configuration parameter. Supported configuration parameters can also
   be dicts and lists.
@@ -22,9 +22,11 @@ The intended library model is:
   and helps users with clear diagnostics when configuration data is missing,
   misspelled, outdated, or of the wrong type.
 
-At the current extraction stage, the documentation in `src/config_as_json`
-and the README files describe the intended contract even where the copied code
-still needs cleanup to match it fully.
+The source docstrings are used to generate the API reference in `doc/`, and
+the examples in `example/src/example/` are the main worked documentation for
+new users. User-facing documentation names public classes and functions as
+exports from `config_as_json`; the generated API reference may also show the
+implementation modules where those objects are defined.
 
 ## Product vision and boundaries
 
@@ -43,30 +45,23 @@ The library is intended to:
 The library is not intended to invent configuration structure dynamically or
 to hide the application's schema behind a large generic framework.
 
-The current public surface still includes some helpers and enums copied from
-the source application. They remain public during this extraction so existing
-code can keep working. For now, maintainers should treat all current top-level
-modules in `src/config_as_json/` as public API.
 
 ## Main building blocks
 
-- `config_as_json.config.Config`
+- `config_as_json.Config`
   The base class for derived configuration classes.
-- `config_as_json.config_factory`
-  Helpers for selecting among several configuration classes by inspecting JSON
-  input.
-- `config_as_json.config_auto_change_hook`
+- `config_as_json.config_factory_from_json`
+  Select among several configuration classes by inspecting JSON input.
+- `config_as_json.ConfigAutoChangeHook`
   Hook interface for reporting automatic changes applied during parsing.
 - `config_as_json.migrate_cfg`
   Helper for reading an older configuration file and writing it back in the
   newest supported format.
-- `config_as_json.migrate_cfg_warn_hook`
+- `config_as_json.MigrateCfgWarnHook`
   Standard hook that warns users when backward compatibility was needed.
 - Utility modules such as `str_to_enum`, `file_extension`,
-  `file_must_exist`, `commontypes`, `config_enums`, and
-  `assert_dict_equal`
-  These are part of the current public surface and are documented as such in
-  this phase.
+  `file_must_exist`, `commontypes`, and `assert_dict_equal`
+  These are part of the current public surface and are documented as such.
 
 ## Related documentation
 
@@ -76,9 +71,8 @@ modules in `src/config_as_json/` as public API.
 - Protected/internal API notes: [doc/protected_api.md](doc/protected_api.md)
 - Build system design: [common_build_tools/README.md](common_build_tools/README.md)
 
-The example directory is linked here already because it is the planned home
-for worked examples, even though its current content is still only a
-placeholder.
+The example directory contains worked examples for new users and is also
+useful for maintainers who want to see intended API usage in context.
 
 ## Cloning
 

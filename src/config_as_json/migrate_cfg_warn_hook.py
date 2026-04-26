@@ -20,11 +20,13 @@ class MigrateCfgWarnHook(ConfigAutoChangeHook):
             Warning text encouraging the user to migrate the configuration to
             the newest supported format.
         """
-        txt = '\nBackward compatibility was used to read configuration file.'
-        txt += '\nThis version of the program understood the configuration,\n'
-        txt += 'but newer versions of the program may not understand it.\n\n'
-        txt += 'Use "migrate-cfg" sub-command to migrate configuration '
-        txt += 'to new format.\n\n'
+        txt = '\nBackward compatibility was used to read a configuration '
+        txt += 'file.'
+        txt += '\nThe file was accepted, but a future version may remove '
+        txt += 'this compatibility path.\n\n'
+        txt += 'Use config_as_json.migrate_cfg, or the migration command '
+        txt += 'provided by your application,\n'
+        txt += 'to write the file in the current format.\n\n'
         return deepcopy(txt)  # copy to make sure original is not manipulated.
 
     def auto_changed(self, old_keys_handled: list[str],

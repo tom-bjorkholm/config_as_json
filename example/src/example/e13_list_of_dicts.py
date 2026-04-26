@@ -27,7 +27,7 @@ Two composition directions are visible in this single example:
   nested dict shape; nesting is unbounded.
 
 The lesson is that ``MemberValidator`` is the lingua franca of
-composition. Any builtin or user-defined ``MemberValidator`` can be
+composition. Any built-in or user-defined ``MemberValidator`` can be
 plugged into any of the composition slots without special handling.
 """
 

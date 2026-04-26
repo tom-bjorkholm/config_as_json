@@ -55,7 +55,6 @@ def not_one_of_allowed_values(member_name: str, member_value: object,
                               stderr_file: Optional[TextIO]) -> str:
     """Construct a message that a value is not one of the allowed values.
 
-    Construct a message that a value is not one of the allowed values.
     If ``stderr_file`` is not ``None``, the message is written to it.
 
     This helper is special: passing ``stderr_file`` as ``None`` explicitly
@@ -63,7 +62,7 @@ def not_one_of_allowed_values(member_name: str, member_value: object,
 
     Args:
         member_name: The name of the member that has the invalid value.
-        member_value: The invalid value of the member,
+        member_value: The invalid value of the member.
         allowed_values: The allowed values for the member.
         stderr_file: The file to optionally write error messages to.
             If set to ``None`` explicitly, printing is suppressed.
@@ -164,8 +163,8 @@ class MemberValidator(ABC):  # pylint: disable=too-few-public-methods
             used as the value of the member in the Config object.
             Return the original value if you only validate and do not want
             to change the value of the member in the Config object.
-            Notice: The returned value is used as the new member value, even if
-            it is ``None``.
+            The returned value is used as the new member value, even if it is
+            ``None``.
         """
         msg = 'MemberValidator.validate_member() must be implemented in a '
         msg += 'derived class.'
@@ -182,7 +181,16 @@ class ValidationStep(ABC):  # pylint: disable=too-few-public-methods
     @abstractmethod
     def apply(self, config: 'Config',
               stderr_file: TextIO = sys.stderr) -> None:
-        """Apply the validation step to one Config object."""
+        """Apply the validation step to one Config object.
+
+        Args:
+            config: The Config object to validate.
+            stderr_file: The file to write error messages to.
+
+        Raises:
+            NotImplementedError: A derived validation step did not implement
+                this method.
+        """
         assert config is not None  # pylint: disable=unused-variable
         msg = 'ValidationStep.apply() must be implemented in a derived '
         msg += 'class.'
@@ -192,26 +200,58 @@ class ValidationStep(ABC):  # pylint: disable=too-few-public-methods
 
 @dataclass
 class WholeConfigValidationStep(ValidationStep):
-    """Validation step that applies one whole-config validator."""
+    """Validation step that applies one whole-config validator.
+
+    Attributes:
+        validator: Validator that receives the whole Config object.
+    """
 
     validator: WholeConfigValidator
 
     def apply(self, config: 'Config',
               stderr_file: TextIO = sys.stderr) -> None:
-        """Apply the whole-config validator to the Config object."""
+        """Apply the whole-config validator to the Config object.
+
+        Args:
+            config: The Config object to validate.
+            stderr_file: The file to write error messages to.
+
+        Raises:
+            InvalidConfiguration: The supplied validator rejects the
+                configuration.
+            InvalidConfigurationValue: The supplied validator rejects one
+                configuration value.
+        """
         self.validator.validate(config=config, stderr_file=stderr_file)
 
 
 @dataclass
 class MemberValidationStep(ValidationStep):
-    """Validation step that applies one member validator."""
+    """Validation step that applies one member validator.
+
+    Attributes:
+        member_names: Config member names to validate in order.
+        validator: Validator that receives each named member value.
+    """
 
     member_names: list[str]
     validator: MemberValidator
 
     def apply(self, config: 'Config',
               stderr_file: TextIO = sys.stderr) -> None:
-        """Apply the member validator to each named member."""
+        """Apply the member validator to each named member.
+
+        Args:
+            config: The Config object to validate.
+            stderr_file: The file to write error messages to.
+
+        Raises:
+            AttributeError: One member name is not present on ``config``.
+            InvalidConfiguration: The supplied validator rejects the
+                configuration.
+            InvalidConfigurationValue: The supplied validator rejects one
+                configuration value.
+        """
         for member_name in self.member_names:
             if not hasattr(config, member_name):
                 msg = f'Member {member_name} '

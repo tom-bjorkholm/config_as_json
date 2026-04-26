@@ -78,5 +78,5 @@ def assert_dict_equal(lhs: Mapping[str, object], rhs: Mapping[str, object],
             _print_dict_differs(txt, lhs_val, rhs_val, stderr_file)
         assert value == rhs_val[key]
     if lhs_val != rhs_val:  # pragma: no cover
-        _print_dict_differs('Dicts differs', lhs_val, rhs_val, stderr_file)
+        _print_dict_differs('Dicts differ', lhs_val, rhs_val, stderr_file)
     assert lhs_val == rhs_val

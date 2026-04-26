@@ -266,9 +266,9 @@ class ListValueValidator(  # pylint: disable=too-few-public-methods
         """Initialize the validator.
 
         The validator checks that the member value is a list containing only
-        one of the Basictype runtime types. Each element value must
-        satisfy every configured constraint: lower bound, upper bound,
-        and allowed-values membership.
+        values of the inferred scalar runtime type. Each element value must
+        satisfy every configured constraint: lower bound, upper bound, and
+        allowed-values membership.
         At least one of min_value, max_value, or allowed_values must be
         provided.
 
@@ -280,7 +280,7 @@ class ListValueValidator(  # pylint: disable=too-few-public-methods
             allowed_values: The only allowed values for the elements of
                             the member.
                             If ``None``, no allowed-values check is done.
-            lt_comparator: Comparator function for the Basictype values.
+            lt_comparator: Comparator function for the element values.
                            Defaults to the < operator.
 
         Raises:
@@ -456,13 +456,13 @@ class ListIsOrderedValidator(MemberValidator,  # pylint: disable=too-few-public-
         equality semantics rather than the custom ordering comparator.
 
         Args:
-            element_type: The type of the elements in the list. Must be a
-                          one of the supported basic scalar types.
+            element_type: The type of the elements in the list. Must be one
+                          of the supported basic scalar types.
             is_ordered: Whether to validate element order.
             is_reversed: Whether ordered lists must be descending instead of
                          ascending.
             unique_values: Whether duplicate values are rejected.
-            lt_comparator: Comparator function for the Basictype values.
+            lt_comparator: Comparator function for the element values.
                            Defaults to the < operator.
 
         Raises:
@@ -547,14 +547,14 @@ class ListOrderingValidator(MemberValidator,  # pylint: disable=too-few-public-m
         equality semantics rather than the custom ordering comparator.
 
         Args:
-            element_type: The type of the elements in the list. Must be a
-                          one of the supported basic scalar types.
+            element_type: The type of the elements in the list. Must be one
+                          of the supported basic scalar types.
             order: Whether to sort the list.
             reverse: Whether to reverse the sort order, or to reverse the
                      original list when ``order`` is false.
             keep_only_unique: Whether to remove later duplicate values after
                               ordering or reversing.
-            lt_comparator: Comparator function for the Basictype values.
+            lt_comparator: Comparator function for the element values.
                            Defaults to the < operator.
 
         Raises:
@@ -660,7 +660,7 @@ class ListForEachValidator(MemberValidator):  # pylint: disable=too-few-public-m
       ``DictKeysValidator`` and ``DictForEachValidator`` (or any
       user-defined ``MemberValidator``) used as inner element
       validators.
-    - Lists of scalar values where each element is checked or normalised
+    - Lists of scalar values where each element is checked or normalized
       by a user-defined validator. For example a custom ``MemberValidator``
       may spell-check each string, convert each string to upper case, or
       apply any other per-element rule that the built-in scalar list
@@ -676,7 +676,7 @@ class ListForEachValidator(MemberValidator):  # pylint: disable=too-few-public-m
        that type.
     2. Every validator in ``element_validators`` is invoked on the element,
        in order. Each validator receives the value returned by the previous
-       validator, so normalisation performed by one inner validator is
+       validator, so normalization performed by one inner validator is
        visible to the next one.
     3. The final value returned for that element is collected into a new
        list that is returned from ``validate_member``.

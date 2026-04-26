@@ -90,7 +90,7 @@ class OutputFormatSubtypeValidator(WholeConfigValidator):  # pylint: disable=too
         # The earlier MemberValidationStep objects in get_validation_plan()
         # have used StrValidator to already normalize the 2 strings to the
         # exact spellings we want.
-        # qThat means we can now do a simple lookup and membership test.
+        # That means we can now do a simple lookup and membership test.
         allowed_subtypes = OUTPUT_SUBTYPES_BY_FORMAT.get(output_format)
         if allowed_subtypes is None:
             msg = 'Invalid configuration: '

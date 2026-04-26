@@ -1,7 +1,7 @@
 #! /usr/local/bin/python3
 """Check that a required input file exists before continuing."""
 
-# Copyright (c) 2024-2025 Tom Björkholm
+# Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
 

@@ -16,7 +16,7 @@ import sys
 from typing import Any, cast, TextIO
 import pytest
 from config_as_json.config import _ConfigEncoder, \
-    ConfigBadJson, over_ride_needed, Config
+    ConfigBadJson, _over_ride_needed, Config
 from config_as_json.assert_dict_equal import assert_dict_equal
 from config_as_json.validator import ValidationPlan
 
@@ -48,19 +48,19 @@ def test_config_encode_bad(obj):
         _ = enc.default(obj)
 
 
-def test_over_ride_needed_1(capsys):
-    """Test over_ride_needed with None."""
-    ret = over_ride_needed(cast(Any, None))
+def test__over_ride_needed_1(capsys):
+    """Test _over_ride_needed with None."""
+    ret = _over_ride_needed(cast(Any, None))
     out, err = capsys.readouterr()
     assert 42 == ret
     assert '' == err
     assert '' == out
 
 
-def test_over_ride_needed_2(capsys):
-    """Test over_ride_needed with non-None."""
+def test__over_ride_needed_2(capsys):
+    """Test _over_ride_needed with non-None."""
     with pytest.raises(NotImplementedError) as exc:
-        _ = over_ride_needed('42')
+        _ = _over_ride_needed('42')
     out, err = capsys.readouterr()
     assert 'Override' in str(exc)
     assert 'needed' in str(exc)

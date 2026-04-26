@@ -17,7 +17,7 @@ different shapes of configuration data:
 - lists of dicts, where each element is checked with the built-in
   ``DictKeysValidator`` and ``DictForEachValidator`` (see
   ``e13_list_of_dicts``)
-- lists of scalar values, where each element is checked or normalised
+- lists of scalar values, where each element is checked or normalized
   by a user-defined validator; for instance a custom
   ``MemberValidator`` might spell-check each string or convert each
   string to upper case

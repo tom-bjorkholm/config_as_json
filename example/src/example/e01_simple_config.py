@@ -24,7 +24,7 @@ from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 # We define an enum just to show how configuration classes can use enums.
 # When using enums, the base class Config will store the enum member as a
 # string in the JSON file, so that the configuration file is easy to read
-# and edit by a human. The case class Config will also convert the string
+# and edit by a human. The base class Config will also convert the string
 # back to the enum member when reading the configuration file back, and
 # will flag an error if the string is not a valid enum member.
 
@@ -169,8 +169,8 @@ def e01_simple_config_print(config_file: PathOrStr) -> None:
 # -----------------------------------------------------------------------------
 # The rest of this file is the command line handling code.
 # This is to be able to run the example from the command line,
-# but it could be done in any other way, and is not part of the
-# what this example is trying to teach.
+# but it could be done in any other way, and is not part of what this example
+# is trying to teach.
 # -----------------------------------------------------------------------------
 
 INPUT_SPECS = [

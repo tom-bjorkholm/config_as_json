@@ -12,11 +12,11 @@ All examples use the shared command-line helper in
 `cmd_line_handling.py`. That means they follow the same basic style:
 you choose an output file to write configuration to with `-o` and
 an input file to read configuration from with `-i`.
-The command lines have two sub-commands `set` and `print`.
-The sub-command `set` optionally changes some configuration
+The command lines have two subcommands `set` and `print`.
+The `set` subcommand optionally changes some configuration
 values from their defaults based on command-line arguments, and writes
 the configuration to a file.
-The sub-command `print` reads the configuration from a file,
+The `print` subcommand reads the configuration from a file,
 and prints the configuration to standard output.
 
 To be able to run the example programs the `config_as_json` package
@@ -261,7 +261,7 @@ Typical use cases include:
 - **lists of dicts**, where each element is checked with the built-in
   `DictKeysValidator` and `DictForEachValidator`, see `e13` below
 - **lists of scalar values**, where each element is checked or
-  normalised by a user-defined validator, for instance a custom
+  normalized by a user-defined validator, for instance a custom
   `MemberValidator` that spell-checks each string or converts each
   string to upper case
 
