@@ -396,7 +396,7 @@ what ends up in the configuration file.
 
 [Source code for e13_list_of_dicts.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e13_list_of_dicts.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e13_list_of_dicts.py)
 
-This example is the final example in the validator series. It is for
+This is one of the advanced examples in the validator series. It is for
 readers who already understood the earlier list and dict examples
 and now want to see how the building blocks compose when the
 configuration shape mixes lists and dicts.
@@ -426,3 +426,29 @@ contain lists), reinventing more separators on the command line
 stops teaching anything. The example therefore uses
 `json_value=True`, and the command line accepts a single JSON
 document for the whole `--maintenance-windows` value.
+
+## e14_discriminated_dict_validator.py
+
+[Source code for e14_discriminated_dict_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e14_discriminated_dict_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e14_discriminated_dict_validator.py)
+
+This example teaches `DiscriminatedDictValidator`. It is useful when one
+dict-valued configuration member has several allowed shapes, and one key in
+the dict decides which shape applies.
+
+The configuration has one member `export_target`. It is always a dict with
+a `kind` key:
+
+- if `kind` is `file`, the dict must contain `filename` and may contain
+  `format`
+- if `kind` is `queue`, the dict must contain `queue` and may contain
+  `batch_size`
+
+The example uses a normal `StrValidator` to validate and normalize `kind`.
+Then `DiscriminatedDictValidator` uses that normalized value to select a
+`DictVariant`. Each variant defines its own mandatory keys, optional keys,
+and `DictRule` entries for validating only the values that belong to that
+variant.
+
+This is the same composition idea as e11 through e13, but packaged for the
+common "one discriminator key chooses one dict shape" pattern. The command
+line uses `json_value=True` because the value is a mixed-type dict.

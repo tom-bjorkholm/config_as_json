@@ -1,9 +1,9 @@
 #! /usr/local/bin/python3
 """Show how list and dict validators compose into one another.
 
-This is the final example in the validator series. It is for readers
-who already understood the earlier list and dict examples (``e06`` to
-``e12``) and now want to see how the building blocks fit together when
+This is one of the advanced examples in the validator series. It is for
+readers who already understood the earlier list and dict examples (``e06``
+to ``e12``) and now want to see how the building blocks fit together when
 the configuration shape mixes lists and dicts.
 
 The configuration has one member ``maintenance_windows`` that is a
