@@ -26,6 +26,8 @@ from config_as_json.validator import ValidationPlan, ValidationStep, \
 from config_as_json.list_validators import ListValueValidator, \
     ListSizeValidator, ListIsOrderedValidator, ListOrderingValidator, \
     ListForEachValidator
+from config_as_json.dict_validators import DictKeysValidator, DictRule, \
+    DictForEachValidator
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.assert_dict_equal import assert_dict_equal
 
@@ -60,4 +62,7 @@ __all__ = ['Config',
            'ListIsOrderedValidator',
            'ListOrderingValidator',
            'ListForEachValidator',
+           'DictKeysValidator',
+           'DictRule',
+           'DictForEachValidator',
            'assert_dict_equal']
