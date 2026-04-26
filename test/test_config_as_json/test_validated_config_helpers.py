@@ -10,6 +10,7 @@ from io import StringIO
 import pytest
 from config_as_json.assert_dict_equal import assert_dict_equal
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.validator import InvalidConfiguration
 from .config_xls_list_transf_name import ConfigXlsListTransfName
 from .config_xls_list_transf_name_validated import \
     ConfigXlsListTransfNameValidated
@@ -92,7 +93,7 @@ def test_validated_name_cfg_uses_supplied_stderr_file(capsys):
     template = ConfigXlsListTransfNameValidated()
     template.s07_rename_columns[0]['extra'] = 'boom'
     stderr_file = StringIO()
-    with pytest.raises(SystemExit):
+    with pytest.raises(InvalidConfiguration):
         _ = ConfigXlsListTransfNameValidated(
             from_json_data_text=template.as_json_string(
                 stderr_file=stderr_file),
@@ -100,4 +101,5 @@ def test_validated_name_cfg_uses_supplied_stderr_file(capsys):
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
-    assert 'Found non-allowed key "extra"' in stderr_file.getvalue()
+    assert "Unknown key 'extra' in s07_rename_columns[0]" in \
+        stderr_file.getvalue()

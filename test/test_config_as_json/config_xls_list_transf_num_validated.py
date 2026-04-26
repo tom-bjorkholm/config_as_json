@@ -7,13 +7,13 @@
 import sys
 from typing import Optional, TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.list_validators import ListIsOrderedValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.validator import ValidationPlan, MemberValidationStep
 from .config_excel_list_transform import ColInfo, RulePlace, RuleRemove
 from .config_xls_list_transf_num import get_column, get_merge_first_column
 from .config_excel_list_transform_validated import \
-    ConfigExcelListTransformValidated, IncreasingMultiColumnsValidator, \
-    NoDuplicateItemsValidator
+    ConfigExcelListTransformValidated, IncreasingMultiColumnsValidator
 from .config_enums import ColumnRef, SplitWhere
 
 
@@ -78,7 +78,8 @@ class ConfigXlsListTransfNumValidated(  # pylint: disable=too-many-instance-attr
             MemberValidationStep(
                 member_names=['s04_remove_columns',
                               's06_place_columns_first'],
-                validator=NoDuplicateItemsValidator()),
+                validator=ListIsOrderedValidator(
+                    int, is_ordered=False, unique_values=True)),
             MemberValidationStep(
                 member_names=['s05_merge_columns'],
                 validator=IncreasingMultiColumnsValidator(

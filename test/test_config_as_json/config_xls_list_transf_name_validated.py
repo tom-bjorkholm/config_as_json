@@ -7,11 +7,12 @@
 import sys
 from typing import Optional, TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.list_validators import ListIsOrderedValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.validator import ValidationPlan, MemberValidationStep
 from .config_excel_list_transform import ColInfo
 from .config_excel_list_transform_validated import \
-    ConfigExcelListTransformValidated, NoDuplicateItemsValidator
+    ConfigExcelListTransformValidated
 from .config_enums import ColumnRef, SplitWhere
 
 
@@ -65,5 +66,6 @@ class ConfigXlsListTransfNameValidated(  # pylint: disable=too-many-instance-att
         ret = super().get_validation_plan(stderr_file=stderr_file)
         ret.append(MemberValidationStep(
             member_names=['s10_column_order'],
-            validator=NoDuplicateItemsValidator()))
+            validator=ListIsOrderedValidator(
+                str, is_ordered=False, unique_values=True)))
         return ret

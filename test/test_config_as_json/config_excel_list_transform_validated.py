@@ -10,6 +10,9 @@ from typing import Generic, Optional, TextIO, cast
 from config_as_json.config import BackwardCompatible, Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import JsonType
+from config_as_json.dict_validators import DictKeysValidator
+from config_as_json.list_validators import ListForEachValidator, \
+    ListIsOrderedValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.validator import ValidationPlan, \
     WholeConfigValidationStep, MemberValidationStep, \
@@ -56,19 +59,14 @@ class CharEncodingValidator(  # pylint: disable=too-few-public-methods
         return member_value
 
 
-class NoDuplicateItemsValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
-    """Validate that one list member contains no duplicates."""
-
-    def validate_member(self, config: Config, member_name: str,
-                        member_value: object,
-                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
-        """Validate one list member and return it unchanged."""
-        _ = config
-        assert isinstance(member_value, list)
-        checked_value = cast(list[str] | list[int], member_value)
-        Config.check_no_duplicates(checked_value, member_name, stderr_file)
-        return member_value
+def list_of_dicts_keys_validator(
+        mandatory_keys: list[str],
+        allowed_keys: Optional[list[str]] = None) -> ListForEachValidator:
+    """Build a validator for a list of dictionaries with fixed keys."""
+    return ListForEachValidator(
+        element_validators=[DictKeysValidator(
+            mandatory_keys=mandatory_keys, allowed_keys=allowed_keys)],
+        element_type=dict)
 
 
 # pylint: disable=too-few-public-methods
@@ -77,19 +75,23 @@ class NoDuplicateSingleColumnsValidator(MemberValidator, Generic[Column]):
 
     def __init__(self, column_type: type[Column]) -> None:
         """Store the column type used by the rule list."""
-        self._column_type: type[Column]
-        self._column_type = column_type
+        self._column_type: type[Column] = column_type
+        self._columns_validator: ListIsOrderedValidator[Column] = \
+            ListIsOrderedValidator(
+                element_type=column_type, is_ordered=False,
+                unique_values=True)
 
     def validate_member(self, config: Config, member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate one single-column rule list and return it unchanged."""
-        _ = config
         sample = self._column_type()
         checked_value = cast(Rule[Column] | RuleSplit[Column], member_value)
         cols = LegacyConfigExcelListTransform.get_cols_single(
             checked_value, sample)
-        Config.check_no_duplicates(cols, member_name, stderr_file)
+        self._columns_validator.validate_member(
+            config=config, member_name=member_name, member_value=cols,
+            stderr_file=stderr_file)
         return member_value
 
 
@@ -98,25 +100,22 @@ class IncreasingMultiColumnsValidator(MemberValidator, Generic[Column]):
 
     def __init__(self, column_type: type[Column]) -> None:
         """Store the column type used by the merge rules."""
-        self._column_type: type[Column]
-        self._column_type = column_type
+        self._column_type: type[Column] = column_type
+        self._columns_validator: ListIsOrderedValidator[Column] = \
+            ListIsOrderedValidator(
+                element_type=column_type, unique_values=True)
 
     def validate_member(self, config: Config, member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate one merge-column rule list and return it unchanged."""
-        _ = config
         sample = self._column_type()
         checked_value = cast(RuleMerge[Column], member_value)
         cols = LegacyConfigExcelListTransform.get_cols_multi(
             checked_value, sample)
-        seen: Optional[Column] = None
-        for col in cols:
-            if seen is not None and seen >= col:
-                msg = f'Increasing order needed in {member_name}'
-                print(msg, file=stderr_file)
-                raise KeyError(msg)
-            seen = col
+        self._columns_validator.validate_member(
+            config=config, member_name=member_name, member_value=cols,
+            stderr_file=stderr_file)
         return member_value
 # pylint: enable=too-few-public-methods
 
@@ -172,20 +171,8 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
 
     def _insert_last_key(self) -> Optional[str]:
         """Return the optional insert-column key name for this config."""
-        msg = '_insert_last_key() must be implemented in a derived class.'
-        raise NotImplementedError(msg)
-
-    def _validate_array_configs(self, stderr_file: TextIO) -> None:
-        """Validate the keyword sets used by the configuration arrays.
-
-        Args:
-            stderr_file: Stream used for user-facing diagnostics.
-        """
-        legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
-        LegacyConfigExcelListTransform.check_array_configs(
-            legacy_self, split_last=self._split_last_key(),
-            insert_last=self._insert_last_key(),
-            stderr_file=stderr_file)
+        insert_last_key: Optional[str] = None
+        return insert_last_key
 
     def _validate_rewrite_configs(self, stderr_file: TextIO) -> None:
         """Validate the rewrite-column configuration.
@@ -220,11 +207,27 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
+        insert_last = self._insert_last_key()
+        insert_allowed_keys = None if insert_last is None else [insert_last]
         return [
             WholeConfigValidationStep(
                 validator=ConfigMethodValidator('sort_sx_hook')),
-            WholeConfigValidationStep(
-                validator=ConfigMethodValidator('_validate_array_configs')),
+            MemberValidationStep(
+                member_names=['s03_split_columns'],
+                validator=list_of_dicts_keys_validator(
+                    ['column', 'separator', 'where',
+                     self._split_last_key()])),
+            MemberValidationStep(
+                member_names=['s05_merge_columns'],
+                validator=list_of_dicts_keys_validator(
+                    ['columns', 'separator'])),
+            MemberValidationStep(
+                member_names=['s07_rename_columns'],
+                validator=list_of_dicts_keys_validator(['column', 'name'])),
+            MemberValidationStep(
+                member_names=['s08_insert_columns'],
+                validator=list_of_dicts_keys_validator(
+                    ['column', 'value'], insert_allowed_keys)),
             MemberValidationStep(
                 member_names=['in_csv_encoding', 'out_csv_encoding'],
                 validator=CharEncodingValidator()),
