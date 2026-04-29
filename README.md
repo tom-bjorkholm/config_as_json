@@ -132,8 +132,8 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 3440 passed in 9s
+- Test result: 3440 passed in 10s
 - No flake8 warnings.
 - No mypy errors found.
-- Built version(s): 0.2
+- Built version(s): 0.2.1
 - Build and test using Python 3.14.3
