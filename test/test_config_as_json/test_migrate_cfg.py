@@ -6,10 +6,11 @@
 # MIT License
 
 from tempfile import TemporaryDirectory
-from typing import Any, TextIO, cast
+from typing import Any, Callable, TextIO, cast
 import sys
 import pytest
 from config_as_json.assert_dict_equal import assert_dict_equal
+from config_as_json.config import Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_factory import config_factory_from_json, \
     JsonValueMatcher, MatchConfig, MatchConfigSeq
@@ -41,6 +42,65 @@ def _config_from_file(filename: str,
                                    stderr_file=stderr_file)
     assert isinstance(cfg, (ConfigXlsListTransfName, ConfigXlsListTransfNum))
     return cfg
+
+
+def _expected_name_cfg() -> ConfigXlsListTransfName:
+    """Return the expected current name-based configuration."""
+    refcfg = ConfigXlsListTransfName()
+    refcfg.out_type = FileType.CSV
+    refcfg.in_csv_dialect['name'] = 'csv.unix_dialect'
+    refcfg.s01_split_rows = []
+    refcfg.s02_merge_rows = []
+    refcfg.s03_split_columns[0]['right_name'] = 'Family Name'
+    refcfg.s08_insert_columns[1]['column'] = 'Something Else'
+    return refcfg
+
+
+def _expected_number_cfg() -> ConfigXlsListTransfNum:
+    """Return the expected current number-based configuration."""
+    refcfg = ConfigXlsListTransfNum()
+    refcfg.out_type = FileType.CSV
+    refcfg.in_csv_dialect['name'] = 'csv.unix_dialect'
+    refcfg.s01_split_rows = []
+    refcfg.s02_merge_rows = []
+    refcfg.s07_rename_columns[1]['name'] = 'Family Name'
+    refcfg.s08_insert_columns[1]['name'] = 'Something else'
+    return refcfg
+
+
+def _assert_name_cfg(filename: str) -> None:
+    """Assert that a file contains the migrated name-based configuration."""
+    refcfg = _expected_name_cfg()
+    cfg = _config_from_file(filename, ConfigAutoChangeHook(),
+                            stderr_file=sys.stderr)
+    assert_dict_equal(refcfg.__dict__, cfg.__dict__, ['_hook_cfg_autochange'],
+                      stderr_file=sys.stderr)
+    assert cfg.s03_split_columns[0]['right_name'] == 'Family Name'
+    assert cfg.s08_insert_columns[1]['column'] == 'Something Else'
+
+
+def _assert_number_cfg(filename: str) -> None:
+    """Assert that a file contains the migrated number-based configuration."""
+    refcfg = _expected_number_cfg()
+    cfg = _config_from_file(filename, ConfigAutoChangeHook(),
+                            stderr_file=sys.stderr)
+    assert_dict_equal(refcfg.__dict__, cfg.__dict__, ['_hook_cfg_autochange'],
+                      stderr_file=sys.stderr)
+    assert cfg.s07_rename_columns[1]['name'] == 'Family Name'
+    assert cfg.s08_insert_columns[1]['name'] == 'Something else'
+
+
+def _migrate_and_assert(infilename: str,
+                        config_class: type[Config] | MatchConfigSeq,
+                        check_config_func: Callable[[str], None]) -> int:
+    """Migrate one file to a temporary path and check the result."""
+    with TemporaryDirectory() as dirname:
+        outfilename = dirname + '/a.cfg'
+        res = migrate_cfg(infile=infilename, outfile=outfilename,
+                          config_class=config_class,
+                          stderr_file=sys.stderr)
+        check_config_func(outfilename)
+    return res
 
 
 def test_config_factory_from_json_name_cfg(capsys):
@@ -155,58 +215,85 @@ def test_json_value_matcher_rejects_non_dict_top_level(capsys):
     assert 'Top level not dict' in err
 
 
-def test_migrate_cfg_name(capsys):
-    """Migrate the name-based legacy configuration file."""
-    refcfg = ConfigXlsListTransfName()
-    refcfg.out_type = FileType.CSV
-    refcfg.in_csv_dialect['name'] = 'csv.unix_dialect'
-    refcfg.s01_split_rows = []
-    refcfg.s02_merge_rows = []
-    refcfg.s03_split_columns[0]['right_name'] = 'Family Name'
-    refcfg.s08_insert_columns[1]['column'] = 'Something Else'
+def test_migrate_cfg_single_name(capsys):
+    """Migrate a name-based legacy file using one known config class."""
+    infilename = 'test/test_config_as_json/bak_compat_0_7_13_name.cfg'
+    res = _migrate_and_assert(infilename, ConfigXlsListTransfName,
+                              _assert_name_cfg)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert res == 0
+
+
+def test_migrate_cfg_single_number(capsys):
+    """Migrate a number-based legacy file using one known config class."""
+    infilename = 'test/test_config_as_json/bak_compat_0_7_13_number.cfg'
+    res = _migrate_and_assert(infilename, ConfigXlsListTransfNum,
+                              _assert_number_cfg)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert res == 0
+
+
+def test_migrate_cfg_multiple_name(capsys):
+    """Migrate a name-based legacy file chosen from several config classes."""
+    infilename = 'test/test_config_as_json/bak_compat_0_7_13_name.cfg'
+    res = _migrate_and_assert(infilename, _match_configs(),
+                              _assert_name_cfg)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert res == 0
+
+
+def test_migrate_cfg_multiple_number(capsys):
+    """Migrate a number-based legacy file using several config classes."""
+    infilename = 'test/test_config_as_json/bak_compat_0_7_13_number.cfg'
+    res = _migrate_and_assert(infilename, _match_configs(),
+                              _assert_number_cfg)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert res == 0
+
+
+def test_migrate_cfg_multiple_nok_no_match(capsys):
+    """Report a factory selection failure during migration."""
+    with TemporaryDirectory() as dirname:
+        infilename = dirname + '/a.cfg'
+        outfilename = dirname + '/b.cfg'
+        with open(infilename, mode='w', encoding='UTF-8') as file:
+            file.write('{"column_ref": "UNKNOWN"}')
+        with pytest.raises(SystemExit):
+            migrate_cfg(infile=infilename, outfile=outfilename,
+                        config_class=_match_configs(),
+                        stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'No matching config class found' in err
+
+
+@pytest.mark.parametrize(
+    ('config_class', 'msg'),
+    [(cast(Any, []), 'empty MatchConfig'),
+     (cast(Any, [('not a matcher', ConfigXlsListTransfName)]),
+      'non-MatchConfig'),
+     (cast(Any, 'not a matcher'), 'Config subclass'),
+     (cast(Any, ConfigAutoChangeHook), 'Config subclass')])
+def test_migrate_cfg_nok_invalid_config_class(config_class, msg, capsys):
+    """Reject invalid configuration selector arguments."""
     infilename = 'test/test_config_as_json/bak_compat_0_7_13_name.cfg'
     with TemporaryDirectory() as dirname:
-        outfilename = dirname + '/a.cfg'
-        res = migrate_cfg(infile=infilename, outfile=outfilename,
-                          match_configs=_match_configs(),
-                          stderr_file=sys.stderr)
-        cfg = _config_from_file(outfilename, ConfigAutoChangeHook(),
-                                stderr_file=sys.stderr)
+        outfilename = dirname + '/b.cfg'
+        with pytest.raises(TypeError, match=msg):
+            migrate_cfg(infile=infilename, outfile=outfilename,
+                        config_class=config_class,
+                        stderr_file=sys.stderr)
     out, err = capsys.readouterr()
-    assert_dict_equal(refcfg.__dict__, cfg.__dict__, ['_hook_cfg_autochange'],
-                      stderr_file=sys.stderr)
-    assert cfg.s03_split_columns[0]['right_name'] == 'Family Name'
-    assert cfg.s08_insert_columns[1]['column'] == 'Something Else'
     assert out == ''
     assert err == ''
-    assert res == 0
-
-
-def test_migrate_cfg_number(capsys):
-    """Migrate the number-based legacy configuration file."""
-    refcfg = ConfigXlsListTransfNum()
-    refcfg.out_type = FileType.CSV
-    refcfg.in_csv_dialect['name'] = 'csv.unix_dialect'
-    refcfg.s01_split_rows = []
-    refcfg.s02_merge_rows = []
-    refcfg.s07_rename_columns[1]['name'] = 'Family Name'
-    refcfg.s08_insert_columns[1]['name'] = 'Something else'
-    infilename = 'test/test_config_as_json/bak_compat_0_7_13_number.cfg'
-    with TemporaryDirectory() as dirname:
-        outfilename = dirname + '/a.cfg'
-        res = migrate_cfg(infile=infilename, outfile=outfilename,
-                          match_configs=_match_configs(),
-                          stderr_file=sys.stderr)
-        cfg = _config_from_file(outfilename, ConfigAutoChangeHook(),
-                                stderr_file=sys.stderr)
-    out, err = capsys.readouterr()
-    assert_dict_equal(refcfg.__dict__, cfg.__dict__, ['_hook_cfg_autochange'],
-                      stderr_file=sys.stderr)
-    assert cfg.s07_rename_columns[1]['name'] == 'Family Name'
-    assert cfg.s08_insert_columns[1]['name'] == 'Something else'
-    assert out == ''
-    assert err == ''
-    assert res == 0
 
 
 def test_migrate_cfg_nok_missing_input(capsys):
@@ -216,7 +303,7 @@ def test_migrate_cfg_nok_missing_input(capsys):
         outfilename = dirname + '/b.cfg'
         with pytest.raises(SystemExit):
             migrate_cfg(infile=infilename, outfile=outfilename,
-                        match_configs=_match_configs(),
+                        config_class=_match_configs(),
                         stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
@@ -233,7 +320,7 @@ def test_migrate_cfg_nok_existing_output(capsys):
         cfg.write(to_json_filename=outfilename)
         with pytest.raises(SystemExit):
             migrate_cfg(infile=infilename, outfile=outfilename,
-                        match_configs=_match_configs(),
+                        config_class=_match_configs(),
                         stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''

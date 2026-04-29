@@ -21,11 +21,10 @@ read either file shape and work with the current member names.
 import argparse
 import sys
 from enum import Enum, auto
-from os.path import exists
 from typing import Optional, TextIO, cast
 from config_as_json import Config, ConfigAutoChangeHook, JsonType, \
     MigrateCfgWarnHook, ParseConverter, PathOrStr, RocfKeyRename, \
-    ValidationPlan, string_to_enum_best_match
+    ValidationPlan, string_to_enum_best_match, migrate_cfg
 
 
 CURRENT_FORMAT_VERSION = 2
@@ -212,19 +211,8 @@ def e31_migrate_config(infile: PathOrStr, outfile: PathOrStr) -> None:
         infile: Existing configuration file to read.
         outfile: New file that should receive current-format JSON.
     """
-    if not exists(infile):
-        print(f'Cannot find input configuration file {infile}',
-              file=sys.stderr)
-        sys.exit(1)
-    if exists(outfile):
-        print(f'Output configuration file {outfile} already exists.\n' +
-              'Cowardly refusing to overwrite existing configuration file.',
-              file=sys.stderr)
-        sys.exit(1)
-    config = ExampleConfig31(from_json_filename=infile,
-                             auto_ch_hook=ConfigAutoChangeHook(),
-                             stderr_file=sys.stderr)
-    config.write(to_json_filename=outfile)
+    migrate_cfg(infile=infile, outfile=outfile, config_class=ExampleConfig31,
+                stderr_file=sys.stderr)
     print(f'Configuration migrated to {outfile}')
 
 

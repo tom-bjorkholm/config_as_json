@@ -77,6 +77,7 @@
 * [config\_as\_json.str\_to\_enum](#config_as_json.str_to_enum)
   * [string\_to\_enum\_best\_match](#config_as_json.str_to_enum.string_to_enum_best_match)
 * [config\_as\_json.migrate\_cfg](#config_as_json.migrate_cfg)
+  * [\_match\_config\_seq](#config_as_json.migrate_cfg._match_config_seq)
   * [migrate\_cfg](#config_as_json.migrate_cfg.migrate_cfg)
 * [config\_as\_json.file\_must\_exist](#config_as_json.file_must_exist)
   * [file\_must\_exist](#config_as_json.file_must_exist.file_must_exist)
@@ -1818,6 +1819,31 @@ case.
 
 Migrate an older configuration file to the newest supported format.
 
+<a id="config_as_json.migrate_cfg._match_config_seq"></a>
+
+#### \_match\_config\_seq
+
+```python
+def _match_config_seq(config_class: object) -> MatchConfigSeq
+```
+
+Validate and return matcher/class pairs for configuration selection.
+
+**Arguments**:
+
+- `config_class` - Object supplied as the ``config_class`` argument to
+  ``migrate_cfg``.
+
+
+**Returns**:
+
+  The validated matcher/class pair sequence.
+
+
+**Raises**:
+
+- `TypeError` - ``config_class`` is not a valid selector.
+
 <a id="config_as_json.migrate_cfg.migrate_cfg"></a>
 
 #### migrate\_cfg
@@ -1825,7 +1851,7 @@ Migrate an older configuration file to the newest supported format.
 ```python
 def migrate_cfg(infile: PathOrStr,
                 outfile: PathOrStr,
-                match_configs: MatchConfigSeq,
+                config_class: type[Config] | MatchConfigSeq,
                 stderr_file: TextIO = sys.stderr) -> int
 ```
 
@@ -1836,12 +1862,32 @@ The input file is parsed through the normal read old configuration file
 in-memory configuration is then written to ``outfile`` using the current
 schema and key names.
 
+The ``config_class`` argument can be either:
+- The configuration class to use (when reading ``infile`` and
+writing ``outfile``).
+- An ordered matcher/class pairs used to choose the correct configuration
+class to use (when reading ``infile`` and writing ``outfile``).
+
+The normal case is to use a single configuration class.
+
+When the application supports multiple configuration variants, the
+``config_class`` argument can be an ordered sequence of matcher/class
+pairs used to choose the correct configuration class for ``infile``.
+Multiple variants are for different configuration classes like for
+instance Config2D and Config3D for a CAD application.
+
+Multiple variants shall not be confused with multiple versions of the
+same variant. A migration is always done between two versions of the
+same variant.
+
 **Arguments**:
 
 - `infile` - Existing configuration file to migrate.
 - `outfile` - Destination path for the migrated configuration file.
-- `match_configs` - Ordered matcher/class pairs used to choose the correct
-  configuration class for ``infile``.
+- `config_class` - Either the configuration class to use,
+  or an ordered sequence of matcher/class pairs used to
+  choose the correct configuration class (for applications
+  with multiple configuration variants) to use.
 - `stderr_file` - Stream used for user-facing diagnostics. Defaults to
   ``sys.stderr``.
 
@@ -1853,7 +1899,10 @@ schema and key names.
 
 **Raises**:
 
-- `SystemExit` - ``infile`` does not exist or ``outfile`` already exists.
+- `SystemExit` - ``infile`` does not exist or ``outfile`` already exists,
+  or no matcher accepts ``infile``.
+- `TypeError` - ``config_class`` is neither a ``Config`` subclass nor a
+  non-empty sequence of ``MatchConfig`` items.
 
 <a id="config_as_json.file_must_exist"></a>
 
