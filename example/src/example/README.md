@@ -527,3 +527,62 @@ members are left out while they are still `None`.
 The example also shows the usual application-side pattern: keep the raw
 configuration member as `None`, and use a small method such as
 `selected_palette()` when the application needs the effective value.
+
+## e31_read_old_configuration_file.py
+
+[Source code for e31_read_old_configuration_file.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e31_read_old_configuration_file.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e31_read_old_configuration_file.py)
+
+This example is for applications that need to keep reading configuration
+files written by older releases. It teaches the "Read Old Configuration File"
+compatibility hooks, usually shortened to ROCF in the API names.
+
+The example uses a small report configuration. The old file format has these
+keys:
+
+- `title`
+- `output_format`
+- `refresh_interval`
+
+The current file format has these keys:
+
+- `format_version`
+- `report_name`
+- `output_format`
+- `refresh_seconds`
+- `max_items`
+
+Two kinds of compatibility are shown:
+
+- `title` is an old name for `report_name`
+- `refresh_interval` is an old name for `refresh_seconds`
+- old files do not contain `format_version`
+- old files do not contain `max_items`
+
+The current configuration class handles this by overriding two methods.
+`_rocf_get_json_key_renames()` describes old key names that should be mapped
+to current key names. `_rocf_values_for_missing_json_keys()` supplies values
+for mandatory current keys that old files did not have.
+
+The standard application pattern is important: application code constructs
+the current configuration class even when the file on disk was written by an
+old application version. The old configuration class in this example only
+exists so the example can write an old file for demonstration. Normal
+application code should not read through the old class.
+
+The example also derives an application-specific class from
+`MigrateCfgWarnHook`. The custom `migrate_instructions()` method tells users
+the exact command for migrating this example's configuration file. Reading an
+old file with the `print` command succeeds, but also prints that warning.
+
+The command line is deliberately different from the earlier examples because
+migration needs a few distinct workflows:
+
+- `write-old` writes an old-format file for demonstration
+- `write-new` writes a current-format file
+- `print` reads either old or current files and prints current member names
+- `migrate` reads either old or current files and writes current-format JSON
+
+The `migrate` command follows the same standard pattern as the `print`
+command: construct the current configuration class from the input file, then
+write it back to a new output file. It refuses to overwrite an existing output
+file, which is usually the right behavior for a migration command.

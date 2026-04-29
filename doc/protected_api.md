@@ -1831,8 +1831,8 @@ def migrate_cfg(infile: PathOrStr,
 
 Read an old configuration file and write it back in current format.
 
-The input file is parsed through the normal backward-compatibility
-mechanisms of the registered configuration classes. The normalized
+The input file is parsed through the normal read old configuration file
+(ROCF) mechanisms of the registered configuration classes. The normalized
 in-memory configuration is then written to ``outfile`` using the current
 schema and key names.
 
