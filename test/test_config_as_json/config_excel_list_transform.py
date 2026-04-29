@@ -12,7 +12,7 @@ from typing import Optional, Callable, TypeVar, NamedTuple, TextIO, \
     Generic, TypedDict, Mapping, cast
 from csv import Dialect
 from config_as_json.config import Config, ParseConverter, \
-    BackwardCompatible
+    RocfKeyRename
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.commontypes import JsonType
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
@@ -209,7 +209,7 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
     def sort_sx_hook(self) -> None:
         """Sort s[0-9]_ as needed (hook)."""
 
-    def _def_vals_for_optional(self) -> dict[str, JsonType]:
+    def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
         """Provide default values for optional encoding."""
         return {'in_csv_encoding': 'utf_8_sig',
                 'out_csv_encoding': 'utf-8',
@@ -218,24 +218,24 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                 's01_split_rows': [],
                 's02_merge_rows': []}
 
-    def _backward_compatible(self) -> list[BackwardCompatible]:
+    def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
         """Get names of backward compatible config parameters."""
         return [
-            BackwardCompatible(old='s1_split_columns',
-                               new='s03_split_columns'),
-            BackwardCompatible(old='s2_remove_columns',
-                               new='s04_remove_columns'),
-            BackwardCompatible(old='s3_merge_columns',
-                               new='s05_merge_columns'),
-            BackwardCompatible(old='s4_place_columns_first',
-                               new='s06_place_columns_first'),
-            BackwardCompatible(old='s5_rename_columns',
-                               new='s07_rename_columns'),
-            BackwardCompatible(old='s6_insert_columns',
-                               new='s08_insert_columns'),
-            BackwardCompatible(old='s7_rewrite_columns',
-                               new='s09_rewrite_columns'),
-            BackwardCompatible(old='s8_column_order', new='s10_column_order')
+            RocfKeyRename(old='s1_split_columns',
+                          new='s03_split_columns'),
+            RocfKeyRename(old='s2_remove_columns',
+                          new='s04_remove_columns'),
+            RocfKeyRename(old='s3_merge_columns',
+                          new='s05_merge_columns'),
+            RocfKeyRename(old='s4_place_columns_first',
+                          new='s06_place_columns_first'),
+            RocfKeyRename(old='s5_rename_columns',
+                          new='s07_rename_columns'),
+            RocfKeyRename(old='s6_insert_columns',
+                          new='s08_insert_columns'),
+            RocfKeyRename(old='s7_rewrite_columns',
+                          new='s09_rewrite_columns'),
+            RocfKeyRename(old='s8_column_order', new='s10_column_order')
         ]
 
     @staticmethod

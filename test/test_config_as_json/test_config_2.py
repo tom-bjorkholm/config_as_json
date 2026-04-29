@@ -11,7 +11,7 @@ from typing import Any, Optional, cast, TextIO  # pylint: disable=unused-import,
 from copy import deepcopy
 import sys
 import pytest
-from config_as_json.config import Config, BackwardCompatible
+from config_as_json.config import Config, RocfKeyRename
 from config_as_json.commontypes import JsonType
 from config_as_json.validator import ValidationPlan
 
@@ -75,7 +75,7 @@ class AbcConfig(Config):
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
-    def _def_vals_for_optional(self) -> dict[str, JsonType]:
+    def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
         """Return default values for optional parameters."""
         return {'cd': 'cd99', 'ef': 'ef99'}
 
@@ -108,7 +108,7 @@ def test_cfg_abc_dump_ok(capsys):
                            'donald', 'cd99', 'duck'),
                           ('{ "ab": "duck"}',
                            'duck', 'cd99', 'ef99')])
-def test_cfg_def_val_json_ok(capsys, jstext, aval, cval, fval):
+def test_cfg_rocf_val_json_ok(capsys, jstext, aval, cval, fval):
     """Test construction of cfg from json with default values."""
     abc = AbcConfig(from_json_data_text=jstext, from_json_filename=None)
     out, err = capsys.readouterr()
@@ -124,7 +124,7 @@ def test_cfg_def_val_json_ok(capsys, jstext, aval, cval, fval):
                           '{ "cd": "duck", "ef": "mouse" }',
                           '{ "cd": "mickey" }',
                           '{ "ef": "duck" }', '{}'])
-def test_cfg_def_val_json_nok(capsys, jstext):
+def test_cfg_rocf_val_json_nok(capsys, jstext):
     """Test construction of cfg from json with default values."""
     with pytest.raises(KeyError):
         _ = AbcConfig(from_json_data_text=jstext, from_json_filename=None,
@@ -137,36 +137,37 @@ def test_cfg_def_val_json_nok(capsys, jstext):
 @pytest.mark.parametrize('ind, outd, ren, errtxt',
                          [({'foo': 12, 'bar': 'data'},
                            {'foo': 12, 'bar': 'data'},
-                           BackwardCompatible(old='star', new='sun'), ''),
+                           RocfKeyRename(old='star', new='sun'), ''),
                           ({'foo': 12, 'bar': 'data'},
                            {'sun': 12, 'bar': 'data'},
-                           BackwardCompatible(old='foo', new='sun'), ''),
+                           RocfKeyRename(old='foo', new='sun'), ''),
                           ({'foo': 12, 'bar': 'data'},
                            {'foo': 12, 'sun': 'data'},
-                           BackwardCompatible(old='bar', new='sun'), ''),
+                           RocfKeyRename(old='bar', new='sun'), ''),
                           ({'foo': 12, 'bar': 'data'},
                            {'foo': 12},
-                           BackwardCompatible(old='bar', new='foo'),
+                           RocfKeyRename(old='bar', new='foo'),
                            'Inconsistent configuration:\n' +
                            'Both new config parameter foo and old bar ' +
                            'present.\nIgnoring old parameter bar\n'),
                           ({'foo': {'a': 'b', 'bar': 'c'}, 'bar': 'data'},
                            {'foo': {'a': 'b', 'sun': 'c'}, 'sun': 'data'},
-                           BackwardCompatible(old='bar', new='sun'), ''),
+                           RocfKeyRename(old='bar', new='sun'), ''),
                           ({'foo': {'a': 'b', 'foo': 'c'}, 'bar': 'data'},
                            {'sun': {'a': 'b', 'sun': 'c'}, 'bar': 'data'},
-                           BackwardCompatible(old='foo', new='sun'), ''),
+                           RocfKeyRename(old='foo', new='sun'), ''),
                           ({'foo': {'foo': 'b', 'bar': 'c'}, 'bar': 'data'},
                            {'sun': {'sun': 'b', 'bar': 'c'}, 'bar': 'data'},
-                           BackwardCompatible(old='foo', new='sun'), ''),
+                           RocfKeyRename(old='foo', new='sun'), ''),
                           ({'a': [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}], 'b': 5},
                            {'c': [{'c': 1, 'b': 2}, {'c': 3, 'b': 4}], 'b': 5},
-                           BackwardCompatible(old='a', new='c'), '')])
+                           RocfKeyRename(old='a', new='c'), '')])
 def test_bw_compat_single1(capsys, ind, outd, ren, errtxt):
     """Test Config._bwcompat_single for case 1."""
     data = deepcopy(ind)
-    Config._bwcompat_single(rename=ren,  # pylint: disable=protected-access # noqa: E501
-                            json_data=data, stderr_file=sys.stderr)
+    Config._rocf_rename_json_key_in_dict(rename=ren,  # pylint: disable=protected-access # noqa: E501
+                                         json_data=data,
+                                         stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert err == errtxt
@@ -174,15 +175,15 @@ def test_bw_compat_single1(capsys, ind, outd, ren, errtxt):
 
 
 @pytest.mark.parametrize('ren',
-                         [BackwardCompatible(old=cast(Any, None), new='sun'),
-                          BackwardCompatible(old='foo', new=cast(Any, None)),
-                          BackwardCompatible(old='foo', new='foo')])
+                         [RocfKeyRename(old=cast(Any, None), new='sun'),
+                          RocfKeyRename(old='foo', new=cast(Any, None)),
+                          RocfKeyRename(old='foo', new='foo')])
 def test_bw_compat_single2(capsys, ren):
     """Test Config._bwcompat_single for not OK case."""
     with pytest.raises(AssertionError):
-        Config._bwcompat_single(rename=ren,  # pylint: disable=protected-access # noqa: E501
-                                json_data={'a': 'b'},
-                                stderr_file=sys.stderr)
+        Config._rocf_rename_json_key_in_dict(rename=ren,  # pylint: disable=protected-access # noqa: E501
+                                             json_data={'a': 'b'},
+                                             stderr_file=sys.stderr)
     out, _ = capsys.readouterr()
     assert '' == out
 
@@ -192,22 +193,23 @@ def test_bw_compat_single2(capsys, ren):
                             {'a': 4, 'b': 'd'}],
                            [{'e': 2, 'b': 'c'},
                             {'e': 4, 'b': 'd'}],
-                           BackwardCompatible(old='a', new='e'), ''),
+                           RocfKeyRename(old='a', new='e'), ''),
                           ([{'foo': 12, 'bar': 'data'},
                             {'fff': 14, 'bar': 'other'}],
                            [{'foo': 12}, {'fff': 14, 'foo': 'other'}],
-                           BackwardCompatible(old='bar', new='foo'),
+                           RocfKeyRename(old='bar', new='foo'),
                            'Inconsistent configuration:\n' +
                            'Both new config parameter foo and old bar ' +
                            'present.\nIgnoring old parameter bar\n'),
                           ([[{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]],
                            [[{'a': 1, 'c': 2}, {'a': 3, 'c': 4}]],
-                           BackwardCompatible(old='b', new='c'), '')])
+                           RocfKeyRename(old='b', new='c'), '')])
 def test_bwcompat_single_lst1(capsys, ind, outd, ren, errtxt):
     """Test Config._bwcompat_single_lst for case 1."""
     data = deepcopy(ind)
-    Config._bwcompat_single_lst(rename=ren,  # pylint: disable=protected-access # noqa: E501
-                                json_data=data, stderr_file=sys.stderr)
+    Config._rocf_rename_json_key_in_list(rename=ren,  # pylint: disable=protected-access # noqa: E501
+                                         json_data=data,
+                                         stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert err == errtxt
@@ -224,11 +226,11 @@ class DummyCfg(Config):
                          from_json_filename=None,
                          stderr_file=stderr_file)
 
-    def _backward_compatible(self) -> list[BackwardCompatible]:
+    def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
         return [
-            BackwardCompatible(old='a', new='x'),
-            BackwardCompatible(old='b', new='y'),
-            BackwardCompatible(old='c', new='z')
+            RocfKeyRename(old='a', new='x'),
+            RocfKeyRename(old='b', new='y'),
+            RocfKeyRename(old='c', new='z')
         ]
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -244,7 +246,7 @@ def test_rename_backward_compatible(capsys, ind, outd, errtxt):
     """Test Config._rename_backward_compatible."""
     data = deepcopy(ind)
     cfg = DummyCfg(stderr_file=sys.stderr)
-    cfg._rename_backward_compatible(  # pylint: disable=protected-access # noqa: E501
+    cfg._rocf_rename_json_keys(  # pylint: disable=protected-access # noqa: E501
                                     json_data=data, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out

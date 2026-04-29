@@ -32,10 +32,10 @@
     * [\_\_init\_\_](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.__init__)
     * [auto\_changed](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.auto_changed)
     * [old\_key\_handled](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_key_handled)
-    * [default\_value\_provided](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.default_value_provided)
+    * [rocf\_missing\_value\_provided](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.rocf_missing_value_provided)
     * [all\_autochanges\_done](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.all_autochanges_done)
 * [config\_as\_json.config](#config_as_json.config)
-  * [BackwardCompatible](#config_as_json.config.BackwardCompatible)
+  * [RocfKeyRename](#config_as_json.config.RocfKeyRename)
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [ParseConverter](#config_as_json.config.ParseConverter)
   * [Config](#config_as_json.config.Config)
@@ -67,6 +67,7 @@
   * [file\_must\_exist](#config_as_json.file_must_exist.file_must_exist)
 * [config\_as\_json.migrate\_cfg\_warn\_hook](#config_as_json.migrate_cfg_warn_hook)
   * [MigrateCfgWarnHook](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook)
+    * [migrate\_instructions](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.migrate_instructions)
     * [migrate\_warn\_msg](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.migrate_warn_msg)
     * [auto\_changed](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.auto_changed)
 * [config\_as\_json.discriminated\_dict\_validators](#config_as_json.discriminated_dict_validators)
@@ -666,7 +667,7 @@ Initialize empty change tracking state.
 #### auto\_changed
 
 ```python
-def auto_changed(old_keys_handled: list[str], def_vals_handled: list[str],
+def auto_changed(old_keys_handled: list[str], rocf_vals_handled: list[str],
                  stderr_file: TextIO) -> None
 ```
 
@@ -677,10 +678,11 @@ when configuration input was normalized.
 
 **Arguments**:
 
-- `old_keys_handled` - Legacy key names that were accepted and mapped
-  onto their current names.
-- `def_vals_handled` - Keys that were filled with default values during
-  parsing.
+- `old_keys_handled` - Old key names that were accepted and mapped
+  onto their current names during Reading an Old Configuration
+  File (ROCF).
+- `rocf_vals_handled` - Keys that were filled with default values during
+  parsing during Reading an Old Configuration File (ROCF).
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_key_handled"></a>
@@ -697,20 +699,20 @@ Record that one legacy key name was accepted and remapped.
 
 - `old_key` - Legacy key name that was handled.
 
-<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.default_value_provided"></a>
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.rocf_missing_value_provided"></a>
 
-#### default\_value\_provided
+#### rocf\_missing\_value\_provided
 
 ```python
-def default_value_provided(def_val_key: str) -> None
+def rocf_missing_value_provided(rocf_val_key: str) -> None
 ```
 
 Record that parsing supplied a default value for one key.
 
 **Arguments**:
 
-- `def_val_key` - Key that was absent from input and received a default
-  value instead.
+- `rocf_val_key` - Key that was absent from input and received a default
+  value during Reading an Old Configuration File (ROCF).
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.all_autochanges_done"></a>
 
@@ -743,11 +745,16 @@ The base class then provides JSON serialization, parsing, schema-like key
 checks, optional-value filling, backward-compatible key renaming, and a
 collection of validation helpers for common patterns.
 
-<a id="config_as_json.config.BackwardCompatible"></a>
+<a id="config_as_json.config.RocfKeyRename"></a>
 
-#### BackwardCompatible
+#### RocfKeyRename
 
 Describe a configuration key rename from an old name to a new name.
+
+Renaming rule for Reading Old Configuration File (ROCF).
+Used by derived classes to describe key names in old configuration files
+that should be mapped onto their current names during parsing of an old
+configuration file.
 
 <a id="config_as_json.config.ConfigBadJson"></a>
 
@@ -1494,13 +1501,32 @@ class MigrateCfgWarnHook(ConfigAutoChangeHook)
 
 Emit a migration warning when automatic compatibility changes occur.
 
+<a id="config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.migrate_instructions"></a>
+
+#### migrate\_instructions
+
+```python
+@classmethod
+def migrate_instructions(cls) -> str
+```
+
+Return instructions for migrating the configuration file.
+
+A derived class in an application is expected to override this
+method to return instructions for migrating the configuration file
+in a way that is specific to the application.
+
+**Returns**:
+
+  Instructions for migrating the configuration file.
+
 <a id="config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.migrate_warn_msg"></a>
 
 #### migrate\_warn\_msg
 
 ```python
-@staticmethod
-def migrate_warn_msg() -> str
+@classmethod
+def migrate_warn_msg(cls) -> str
 ```
 
 Return the standard warning shown for old configuration files.
@@ -1515,7 +1541,7 @@ Return the standard warning shown for old configuration files.
 #### auto\_changed
 
 ```python
-def auto_changed(old_keys_handled: list[str], def_vals_handled: list[str],
+def auto_changed(old_keys_handled: list[str], rocf_vals_handled: list[str],
                  stderr_file: TextIO) -> None
 ```
 

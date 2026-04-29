@@ -11,7 +11,7 @@ write JSON configuration files.
 # MIT License
 
 
-from config_as_json.config import Config, BackwardCompatible, ConfigBadJson, \
+from config_as_json.config import Config, RocfKeyRename, ConfigBadJson, \
     ParseConverter
 from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_factory import config_factory_from_json, \
@@ -36,7 +36,7 @@ from config_as_json.assert_dict_equal import assert_dict_equal
 
 
 __all__ = ['Config',
-           'BackwardCompatible',
+           'RocfKeyRename',
            'ConfigBadJson',
            'JsonType',
            'PathOrStr',

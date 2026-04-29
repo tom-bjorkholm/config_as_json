@@ -32,9 +32,15 @@ from config_as_json.validator import ValidationPlan
 
 Keya = TypeVar('Keya', str, Enum)
 
-BackwardCompatible = NamedTuple('BackwardCompatible',
-                                [('old', str), ('new', str)])
-"""Describe a configuration key rename from an old name to a new name."""
+RocfKeyRename = NamedTuple('RocfKeyRename',
+                           [('old', str), ('new', str)])
+"""Describe a configuration key rename from an old name to a new name.
+
+    Renaming rule for Reading Old Configuration File (ROCF).
+    Used by derived classes to describe key names in old configuration files
+    that should be mapped onto their current names during parsing of an old
+    configuration file.
+    """
 
 
 class _ConfigEncoder(json.JSONEncoder):
@@ -287,53 +293,62 @@ class Config():
                     ret[key] = parse_c.func(value, **parse_c.args)
         return ret
 
-    def _def_vals_for_optional(self) -> dict[str, JsonType]:
-        """Return default values for optional configuration keys.
+    def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
+        """Return values for missing JSON keys.
 
-        Derived classes override this method when some configuration keys are
-        optional in input files but should still be present on the in-memory
-        object after parsing.
+        When Reading an Old Configuration File (ROCF), some now existing
+        and mandatory keys may be missing in the JSON input from the
+        old configuration file. This method returns the values that should
+        be supplied for these missing keys.
 
         Returns:
-            A mapping from optional key name to the default value that should
+            A mapping from missing key name to the value that should
             be supplied when the key is absent from JSON input.
         """
         return {}
 
-    def _add_optional_configs(self, json_data: dict[str, JsonType]) -> None:
-        """Insert missing optional keys into parsed JSON data.
+    def _rocf_apply_missing_values(self,
+                                   json_data: dict[str, JsonType]) -> None:
+        """Apply values for missing JSON keys to the configuration object.
+
+        When Reading an Old Configuration File (ROCF), some now existing
+        and mandatory keys may be missing in the JSON input from the
+        old configuration file. This method applies the values that should
+        be supplied for these missing keys to the configuration object.
 
         Args:
             json_data: Parsed JSON object that will be applied to the
                 configuration instance.
         """
-        defval = self._def_vals_for_optional()
-        for key, value in defval.items():
+        rocfval = self._rocf_values_for_missing_json_keys()
+        for key, value in rocfval.items():
             if key not in json_data:
                 json_data[key] = value
-                self._hook_cfg_autochange.default_value_provided(
-                    def_val_key=key)
+                self._hook_cfg_autochange.rocf_missing_value_provided(
+                    rocf_val_key=key)
 
-    def _backward_compatible(self) -> list[BackwardCompatible]:
-        """Return configuration key renames that remain accepted as input.
+    def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
+        """Return configuration key renames for Reading Old Configuration File.
 
-        Derived classes override this method to describe legacy key names that
-        should be mapped onto their current names during parsing.
+        Derived classes override this method to describe key names
+        in old configuration files that should be mapped onto their current
+        names during parsing of an old configuration file.
 
         Returns:
-            A list of ``BackwardCompatible`` entries describing accepted key
+            A list of ``RocfKeyRename`` entries describing accepted key
             renames.
         """
         return []
 
     @staticmethod
-    def _bwcompat_single(rename: BackwardCompatible,
-                         json_data: dict[str, JsonType],
-                         stderr_file: TextIO = sys.stderr) -> bool:
-        """Apply one backward-compatible key rename in a nested dictionary.
+    def _rocf_rename_json_key_in_dict(rename: RocfKeyRename,
+                                      json_data: dict[str, JsonType],
+                                      stderr_file: TextIO = sys.stderr) \
+            -> bool:
+        """Apply one ROCF key rename in a nested dictionary.
 
         Args:
-            rename: Legacy-to-current key mapping to apply.
+            rename: ROCT old to new key mapping to apply.
             json_data: Parsed JSON dictionary to update in place.
             stderr_file: Stream used for user-facing diagnostics.
 
@@ -360,23 +375,23 @@ class Config():
         for _, value in json_data.items():
             if isinstance(value, dict):
                 assert isinstance(value, dict)
-                ret |= Config._bwcompat_single(rename=rename, json_data=value,
-                                               stderr_file=stderr_file)
+                ret |= Config._rocf_rename_json_key_in_dict(
+                    rename=rename, json_data=value, stderr_file=stderr_file)
             if isinstance(value, list):
                 assert isinstance(value, list)
-                ret |= Config._bwcompat_single_lst(rename=rename,
-                                                   json_data=value,
-                                                   stderr_file=stderr_file)
+                ret |= Config._rocf_rename_json_key_in_list(
+                    rename=rename, json_data=value, stderr_file=stderr_file)
         return ret
 
     @staticmethod
-    def _bwcompat_single_lst(rename: BackwardCompatible,
-                             json_data: list[JsonType],
-                             stderr_file: TextIO = sys.stderr) -> bool:
-        """Apply one backward-compatible key rename inside nested lists.
+    def _rocf_rename_json_key_in_list(rename: RocfKeyRename,
+                                      json_data: list[JsonType],
+                                      stderr_file: TextIO = sys.stderr) \
+            -> bool:
+        """Apply one ROCF key rename inside nested lists.
 
         Args:
-            rename: Legacy-to-current key mapping to apply.
+            rename: ROCF old to new key mapping to apply.
             json_data: Parsed JSON list to walk recursively.
             stderr_file: Stream used for user-facing diagnostics.
 
@@ -388,29 +403,33 @@ class Config():
         for value in json_data:
             if isinstance(value, dict):
                 assert isinstance(value, dict)
-                ret |= Config._bwcompat_single(rename=rename,
-                                               json_data=value,
-                                               stderr_file=stderr_file)
+                ret |= Config._rocf_rename_json_key_in_dict(
+                    rename=rename, json_data=value, stderr_file=stderr_file)
             if isinstance(value, list):
                 assert isinstance(value, list)
-                ret |= Config._bwcompat_single_lst(rename=rename,
-                                                   json_data=value,
-                                                   stderr_file=stderr_file)
+                ret |= Config._rocf_rename_json_key_in_list(
+                    rename=rename, json_data=value, stderr_file=stderr_file)
         return ret
 
-    def _rename_backward_compatible(self,
-                                    json_data: dict[str, JsonType],
-                                    stderr_file: TextIO) -> None:
-        """Apply all declared backward-compatible key renames in place.
+    def _rocf_rename_json_keys(self,
+                               json_data: dict[str, JsonType],
+                               stderr_file: TextIO) -> None:
+        """Apply all declared ROCF key renames in place.
+
+        When Reading an Old Configuration File (ROCF), some key names in the
+        JSON input from the old configuration file may need to be mapped onto
+        their current names during parsing of an old configuration file.
+        This method applies all declared ROCF key renames in place.
 
         Args:
             json_data: Parsed JSON object to normalize before validation.
             stderr_file: Stream used for user-facing diagnostics.
         """
-        bwcompat = self._backward_compatible()
+        bwcompat = self._rocf_get_json_key_renames()
         for name in bwcompat:
-            if self._bwcompat_single(rename=name, json_data=json_data,
-                                     stderr_file=stderr_file):
+            if self._rocf_rename_json_key_in_dict(rename=name,
+                                                  json_data=json_data,
+                                                  stderr_file=stderr_file):
                 self._hook_cfg_autochange.old_key_handled(old_key=name.old)
 
     def parse_json(self, from_json_text: str,
@@ -449,8 +468,8 @@ class Config():
             if isinstance(exc, json.JSONDecodeError):
                 raise ConfigBadJson(msg=msg, doc=exc.doc, pos=exc.pos) from exc
             raise ConfigBadJson(msg=msg, doc='', pos=0) from exc
-        self._add_optional_configs(data)
-        self._rename_backward_compatible(data, stderr_file=stderr_file)
+        self._rocf_apply_missing_values(data)
+        self._rocf_rename_json_keys(data, stderr_file=stderr_file)
         self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]

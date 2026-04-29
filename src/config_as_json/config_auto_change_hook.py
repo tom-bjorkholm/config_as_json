@@ -23,10 +23,10 @@ class ConfigAutoChangeHook():
     def __init__(self) -> None:
         """Initialize empty change tracking state."""
         self.old_keys: list[str] = []
-        self.def_val_keys: list[str] = []
+        self.rocf_val_keys: list[str] = []
 
     def auto_changed(self, old_keys_handled: list[str],
-                     def_vals_handled: list[str],
+                     rocf_vals_handled: list[str],
                      stderr_file: TextIO) -> None:
         """React after parsing finished with one or more automatic changes.
 
@@ -34,10 +34,11 @@ class ConfigAutoChangeHook():
         when configuration input was normalized.
 
         Args:
-            old_keys_handled: Legacy key names that were accepted and mapped
-                onto their current names.
-            def_vals_handled: Keys that were filled with default values during
-                parsing.
+            old_keys_handled: Old key names that were accepted and mapped
+                onto their current names during Reading an Old Configuration
+                File (ROCF).
+            rocf_vals_handled: Keys that were filled with default values during
+                parsing during Reading an Old Configuration File (ROCF).
             stderr_file: Stream used for user-facing diagnostics.
         """
 
@@ -49,14 +50,14 @@ class ConfigAutoChangeHook():
         """
         self.old_keys.append(old_key)
 
-    def default_value_provided(self, def_val_key: str) -> None:
+    def rocf_missing_value_provided(self, rocf_val_key: str) -> None:
         """Record that parsing supplied a default value for one key.
 
         Args:
-            def_val_key: Key that was absent from input and received a default
-                value instead.
+            rocf_val_key: Key that was absent from input and received a default
+                value during Reading an Old Configuration File (ROCF).
         """
-        self.def_val_keys.append(def_val_key)
+        self.rocf_val_keys.append(rocf_val_key)
 
     def all_autochanges_done(self, stderr_file: TextIO) -> None:
         """Notify the hook once all automatic changes have been collected.
@@ -67,7 +68,7 @@ class ConfigAutoChangeHook():
         Args:
             stderr_file: Stream used for user-facing diagnostics.
         """
-        if self.old_keys or self.def_val_keys:
+        if self.old_keys or self.rocf_val_keys:
             self.auto_changed(old_keys_handled=deepcopy(self.old_keys),
-                              def_vals_handled=deepcopy(self.def_val_keys),
+                              rocf_vals_handled=deepcopy(self.rocf_val_keys),
                               stderr_file=stderr_file)

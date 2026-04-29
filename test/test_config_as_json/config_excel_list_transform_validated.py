@@ -8,7 +8,7 @@ import sys
 from collections.abc import Callable
 from copy import deepcopy
 from typing import Generic, Optional, TextIO, cast
-from config_as_json.config import BackwardCompatible, Config
+from config_as_json.config import RocfKeyRename, Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import JsonType
 from config_as_json.dict_validators import DictKeysValidator
@@ -259,16 +259,16 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
         LegacyConfigExcelListTransform.get_converter_dict)
     parse_converters = LegacyConfigExcelListTransform.parse_converters
 
-    def _def_vals_for_optional(self) -> dict[str, JsonType]:
+    def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
         """Provide default values for optional encoding."""
         legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
         # pylint: disable=protected-access
-        return LegacyConfigExcelListTransform._def_vals_for_optional(
+        return LegacyConfigExcelListTransform._rocf_values_for_missing_json_keys(  # noqa: E501
             legacy_self)
 
-    def _backward_compatible(self) -> list[BackwardCompatible]:
+    def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
         """Get names of backward compatible config parameters."""
         legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
         # pylint: disable=protected-access
-        return LegacyConfigExcelListTransform._backward_compatible(
+        return LegacyConfigExcelListTransform._rocf_get_json_key_renames(
             legacy_self)

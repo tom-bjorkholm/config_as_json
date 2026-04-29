@@ -35,10 +35,10 @@
     * [\_\_init\_\_](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.__init__)
     * [auto\_changed](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.auto_changed)
     * [old\_key\_handled](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_key_handled)
-    * [default\_value\_provided](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.default_value_provided)
+    * [rocf\_missing\_value\_provided](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.rocf_missing_value_provided)
     * [all\_autochanges\_done](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.all_autochanges_done)
 * [config\_as\_json.config](#config_as_json.config)
-  * [BackwardCompatible](#config_as_json.config.BackwardCompatible)
+  * [RocfKeyRename](#config_as_json.config.RocfKeyRename)
   * [\_ConfigEncoder](#config_as_json.config._ConfigEncoder)
     * [default](#config_as_json.config._ConfigEncoder.default)
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
@@ -50,12 +50,12 @@
     * [check\_key\_match](#config_as_json.config.Config.check_key_match)
     * [check\_dict\_parse](#config_as_json.config.Config.check_dict_parse)
     * [\_json\_parse\_obj\_hook](#config_as_json.config.Config._json_parse_obj_hook)
-    * [\_def\_vals\_for\_optional](#config_as_json.config.Config._def_vals_for_optional)
-    * [\_add\_optional\_configs](#config_as_json.config.Config._add_optional_configs)
-    * [\_backward\_compatible](#config_as_json.config.Config._backward_compatible)
-    * [\_bwcompat\_single](#config_as_json.config.Config._bwcompat_single)
-    * [\_bwcompat\_single\_lst](#config_as_json.config.Config._bwcompat_single_lst)
-    * [\_rename\_backward\_compatible](#config_as_json.config.Config._rename_backward_compatible)
+    * [\_rocf\_values\_for\_missing\_json\_keys](#config_as_json.config.Config._rocf_values_for_missing_json_keys)
+    * [\_rocf\_apply\_missing\_values](#config_as_json.config.Config._rocf_apply_missing_values)
+    * [\_rocf\_get\_json\_key\_renames](#config_as_json.config.Config._rocf_get_json_key_renames)
+    * [\_rocf\_rename\_json\_key\_in\_dict](#config_as_json.config.Config._rocf_rename_json_key_in_dict)
+    * [\_rocf\_rename\_json\_key\_in\_list](#config_as_json.config.Config._rocf_rename_json_key_in_list)
+    * [\_rocf\_rename\_json\_keys](#config_as_json.config.Config._rocf_rename_json_keys)
     * [parse\_json](#config_as_json.config.Config.parse_json)
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
     * [read](#config_as_json.config.Config.read)
@@ -80,6 +80,7 @@
   * [file\_must\_exist](#config_as_json.file_must_exist.file_must_exist)
 * [config\_as\_json.migrate\_cfg\_warn\_hook](#config_as_json.migrate_cfg_warn_hook)
   * [MigrateCfgWarnHook](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook)
+    * [migrate\_instructions](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.migrate_instructions)
     * [migrate\_warn\_msg](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.migrate_warn_msg)
     * [auto\_changed](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.auto_changed)
 * [config\_as\_json.discriminated\_dict\_validators](#config_as_json.discriminated_dict_validators)
@@ -794,7 +795,7 @@ Initialize empty change tracking state.
 #### auto\_changed
 
 ```python
-def auto_changed(old_keys_handled: list[str], def_vals_handled: list[str],
+def auto_changed(old_keys_handled: list[str], rocf_vals_handled: list[str],
                  stderr_file: TextIO) -> None
 ```
 
@@ -805,10 +806,11 @@ when configuration input was normalized.
 
 **Arguments**:
 
-- `old_keys_handled` - Legacy key names that were accepted and mapped
-  onto their current names.
-- `def_vals_handled` - Keys that were filled with default values during
-  parsing.
+- `old_keys_handled` - Old key names that were accepted and mapped
+  onto their current names during Reading an Old Configuration
+  File (ROCF).
+- `rocf_vals_handled` - Keys that were filled with default values during
+  parsing during Reading an Old Configuration File (ROCF).
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_key_handled"></a>
@@ -825,20 +827,20 @@ Record that one legacy key name was accepted and remapped.
 
 - `old_key` - Legacy key name that was handled.
 
-<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.default_value_provided"></a>
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.rocf_missing_value_provided"></a>
 
-#### default\_value\_provided
+#### rocf\_missing\_value\_provided
 
 ```python
-def default_value_provided(def_val_key: str) -> None
+def rocf_missing_value_provided(rocf_val_key: str) -> None
 ```
 
 Record that parsing supplied a default value for one key.
 
 **Arguments**:
 
-- `def_val_key` - Key that was absent from input and received a default
-  value instead.
+- `rocf_val_key` - Key that was absent from input and received a default
+  value during Reading an Old Configuration File (ROCF).
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.all_autochanges_done"></a>
 
@@ -871,11 +873,16 @@ The base class then provides JSON serialization, parsing, schema-like key
 checks, optional-value filling, backward-compatible key renaming, and a
 collection of validation helpers for common patterns.
 
-<a id="config_as_json.config.BackwardCompatible"></a>
+<a id="config_as_json.config.RocfKeyRename"></a>
 
-#### BackwardCompatible
+#### RocfKeyRename
 
 Describe a configuration key rename from an old name to a new name.
+
+Renaming rule for Reading Old Configuration File (ROCF).
+Used by derived classes to describe key names in old configuration files
+that should be mapped onto their current names during parsing of an old
+configuration file.
 
 <a id="config_as_json.config._ConfigEncoder"></a>
 
@@ -1127,74 +1134,81 @@ Apply configured post-load conversions to one decoded JSON object.
   A copy of ``indict`` where configured keys have been converted to
   their intended Python representation.
 
-<a id="config_as_json.config.Config._def_vals_for_optional"></a>
+<a id="config_as_json.config.Config._rocf_values_for_missing_json_keys"></a>
 
-#### \_def\_vals\_for\_optional
+#### \_rocf\_values\_for\_missing\_json\_keys
 
 ```python
-def _def_vals_for_optional() -> dict[str, JsonType]
+def _rocf_values_for_missing_json_keys() -> dict[str, JsonType]
 ```
 
-Return default values for optional configuration keys.
+Return values for missing JSON keys.
 
-Derived classes override this method when some configuration keys are
-optional in input files but should still be present on the in-memory
-object after parsing.
+When Reading an Old Configuration File (ROCF), some now existing
+and mandatory keys may be missing in the JSON input from the
+old configuration file. This method returns the values that should
+be supplied for these missing keys.
 
 **Returns**:
 
-  A mapping from optional key name to the default value that should
+  A mapping from missing key name to the value that should
   be supplied when the key is absent from JSON input.
 
-<a id="config_as_json.config.Config._add_optional_configs"></a>
+<a id="config_as_json.config.Config._rocf_apply_missing_values"></a>
 
-#### \_add\_optional\_configs
+#### \_rocf\_apply\_missing\_values
 
 ```python
-def _add_optional_configs(json_data: dict[str, JsonType]) -> None
+def _rocf_apply_missing_values(json_data: dict[str, JsonType]) -> None
 ```
 
-Insert missing optional keys into parsed JSON data.
+Apply values for missing JSON keys to the configuration object.
+
+When Reading an Old Configuration File (ROCF), some now existing
+and mandatory keys may be missing in the JSON input from the
+old configuration file. This method applies the values that should
+be supplied for these missing keys to the configuration object.
 
 **Arguments**:
 
 - `json_data` - Parsed JSON object that will be applied to the
   configuration instance.
 
-<a id="config_as_json.config.Config._backward_compatible"></a>
+<a id="config_as_json.config.Config._rocf_get_json_key_renames"></a>
 
-#### \_backward\_compatible
+#### \_rocf\_get\_json\_key\_renames
 
 ```python
-def _backward_compatible() -> list[BackwardCompatible]
+def _rocf_get_json_key_renames() -> list[RocfKeyRename]
 ```
 
-Return configuration key renames that remain accepted as input.
+Return configuration key renames for Reading Old Configuration File.
 
-Derived classes override this method to describe legacy key names that
-should be mapped onto their current names during parsing.
+Derived classes override this method to describe key names
+in old configuration files that should be mapped onto their current
+names during parsing of an old configuration file.
 
 **Returns**:
 
-  A list of ``BackwardCompatible`` entries describing accepted key
+  A list of ``RocfKeyRename`` entries describing accepted key
   renames.
 
-<a id="config_as_json.config.Config._bwcompat_single"></a>
+<a id="config_as_json.config.Config._rocf_rename_json_key_in_dict"></a>
 
-#### \_bwcompat\_single
+#### \_rocf\_rename\_json\_key\_in\_dict
 
 ```python
 @staticmethod
-def _bwcompat_single(rename: BackwardCompatible,
-                     json_data: dict[str, JsonType],
-                     stderr_file: TextIO = sys.stderr) -> bool
+def _rocf_rename_json_key_in_dict(rename: RocfKeyRename,
+                                  json_data: dict[str, JsonType],
+                                  stderr_file: TextIO = sys.stderr) -> bool
 ```
 
-Apply one backward-compatible key rename in a nested dictionary.
+Apply one ROCF key rename in a nested dictionary.
 
 **Arguments**:
 
-- `rename` - Legacy-to-current key mapping to apply.
+- `rename` - ROCT old to new key mapping to apply.
 - `json_data` - Parsed JSON dictionary to update in place.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
@@ -1204,22 +1218,22 @@ Apply one backward-compatible key rename in a nested dictionary.
   ``True`` if the old key name was found and replaced anywhere in
   ``json_data``, otherwise ``False``.
 
-<a id="config_as_json.config.Config._bwcompat_single_lst"></a>
+<a id="config_as_json.config.Config._rocf_rename_json_key_in_list"></a>
 
-#### \_bwcompat\_single\_lst
+#### \_rocf\_rename\_json\_key\_in\_list
 
 ```python
 @staticmethod
-def _bwcompat_single_lst(rename: BackwardCompatible,
-                         json_data: list[JsonType],
-                         stderr_file: TextIO = sys.stderr) -> bool
+def _rocf_rename_json_key_in_list(rename: RocfKeyRename,
+                                  json_data: list[JsonType],
+                                  stderr_file: TextIO = sys.stderr) -> bool
 ```
 
-Apply one backward-compatible key rename inside nested lists.
+Apply one ROCF key rename inside nested lists.
 
 **Arguments**:
 
-- `rename` - Legacy-to-current key mapping to apply.
+- `rename` - ROCF old to new key mapping to apply.
 - `json_data` - Parsed JSON list to walk recursively.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
@@ -1229,16 +1243,21 @@ Apply one backward-compatible key rename inside nested lists.
   ``True`` if the old key name was found and replaced anywhere in
   ``json_data``, otherwise ``False``.
 
-<a id="config_as_json.config.Config._rename_backward_compatible"></a>
+<a id="config_as_json.config.Config._rocf_rename_json_keys"></a>
 
-#### \_rename\_backward\_compatible
+#### \_rocf\_rename\_json\_keys
 
 ```python
-def _rename_backward_compatible(json_data: dict[str, JsonType],
-                                stderr_file: TextIO) -> None
+def _rocf_rename_json_keys(json_data: dict[str, JsonType],
+                           stderr_file: TextIO) -> None
 ```
 
-Apply all declared backward-compatible key renames in place.
+Apply all declared ROCF key renames in place.
+
+When Reading an Old Configuration File (ROCF), some key names in the
+JSON input from the old configuration file may need to be mapped onto
+their current names during parsing of an old configuration file.
+This method applies all declared ROCF key renames in place.
 
 **Arguments**:
 
@@ -1826,13 +1845,32 @@ class MigrateCfgWarnHook(ConfigAutoChangeHook)
 
 Emit a migration warning when automatic compatibility changes occur.
 
+<a id="config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.migrate_instructions"></a>
+
+#### migrate\_instructions
+
+```python
+@classmethod
+def migrate_instructions(cls) -> str
+```
+
+Return instructions for migrating the configuration file.
+
+A derived class in an application is expected to override this
+method to return instructions for migrating the configuration file
+in a way that is specific to the application.
+
+**Returns**:
+
+  Instructions for migrating the configuration file.
+
 <a id="config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.migrate_warn_msg"></a>
 
 #### migrate\_warn\_msg
 
 ```python
-@staticmethod
-def migrate_warn_msg() -> str
+@classmethod
+def migrate_warn_msg(cls) -> str
 ```
 
 Return the standard warning shown for old configuration files.
@@ -1847,7 +1885,7 @@ Return the standard warning shown for old configuration files.
 #### auto\_changed
 
 ```python
-def auto_changed(old_keys_handled: list[str], def_vals_handled: list[str],
+def auto_changed(old_keys_handled: list[str], rocf_vals_handled: list[str],
                  stderr_file: TextIO) -> None
 ```
 
