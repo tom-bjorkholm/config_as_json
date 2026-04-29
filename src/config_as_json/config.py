@@ -6,13 +6,14 @@ each supported configuration setting, and use those attribute values as the
 default configuration. Each such configuration setting can also have a value
 type of dict or list, or even a nested dict or list.
 The base class then provides JSON serialization, parsing, schema-like key
-checks, optional-value filling, backward-compatible key renaming, and a
-collection of validation helpers for common patterns.
+checks, omit-when-None handling, old-file migration helpers, and a collection
+of validation helpers for common patterns.
 """
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
+# pylint: disable=too-many-lines
 
 from copy import deepcopy
 import json
@@ -105,8 +106,8 @@ class Config():
     A derived class declares the supported configuration schema by assigning
     instance attributes before calling ``super().__init__``. Those initial
     attribute values form the default configuration. The base class can then
-    read JSON into the object, write the current values back to JSON, fill in
-    optional keys, and apply controlled backward-compatible key renames.
+    read JSON into the object, write the current values back to JSON, omit
+    selected ``None`` values, and apply controlled old-file migration helpers.
 
     For each configuration attribute that holds a ``dict``, the base class
     recursively checks parsed JSON against the default: unknown keys in the
@@ -136,7 +137,8 @@ class Config():
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             auto_ch_hook: Hook that is notified about automatic changes such
-                as filled default values or renamed backward-compatible keys.
+                as filled values or renamed keys when reading old
+                configuration files.
             stderr_file: Stream used for user-facing diagnostics.
 
         Dict-valued members are checked against the default key set by the
@@ -166,6 +168,8 @@ class Config():
             msg += 'Config. (Create object variables in __init__ before '
             msg += 'calling super().__init__().)'
             raise AttributeError(msg)
+        self._checked_omit_none_from_json(self_keys,
+                                          check_default_values=True)
         unchecked = getattr(self, '_unchecked_dicts', None)
         if unchecked is None:
             self._unchecked_dicts: list[str] = []
@@ -200,10 +204,12 @@ class Config():
                                           args={})}
 
     @staticmethod
-    def check_key_match(expected_keys: list[str],
-                        j_keys: list[str],
-                        ok_to_use_defaults: bool,
-                        stderr_file: TextIO) -> None:
+    def check_key_match(
+            expected_keys: list[str],
+            j_keys: list[str],
+            ok_to_use_defaults: bool,
+            stderr_file: TextIO,
+            allowed_missing_keys: Optional[list[str]] = None) -> None:
         """Validate that parsed keys match the declared configuration keys.
 
         Args:
@@ -212,14 +218,18 @@ class Config():
             ok_to_use_defaults: Whether missing declared keys may fall back to
                 defaults supplied by the configuration object.
             stderr_file: Stream used for user-facing diagnostics.
+            allowed_missing_keys: Keys that may be omitted even when
+                ``ok_to_use_defaults`` is false.
 
         Raises:
             KeyError: The JSON data is missing a required key or contains an
                 unexpected key.
         """
+        if allowed_missing_keys is None:
+            allowed_missing_keys = []
         if not ok_to_use_defaults:
             for i in expected_keys:
-                if i not in j_keys:
+                if i not in j_keys and i not in allowed_missing_keys:
                     errmsg = f'No value for {i} in JSON data'
                     print(errmsg, file=stderr_file)
                     raise KeyError(errmsg)
@@ -286,12 +296,63 @@ class Config():
         if hookd is None:
             return indict  # pragma: no cover
         ret = deepcopy(indict)
+        omit_none_keys = self._omit_none_from_json()
         for key, value in ret.items():
             if key in hookd:
                 parse_c = hookd[key]
+                if value is None and key in omit_none_keys:
+                    continue
                 if not isinstance(value, parse_c.result_type):
                     ret[key] = parse_c.func(value, **parse_c.args)
         return ret
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return keys omitted from JSON when their value is ``None``.
+
+        Derived classes override this method when a top-level public
+        configuration member is intentionally optional. Such members may be
+        absent from JSON input. They keep their constructor value of ``None``
+        when absent, explicit JSON ``null`` is read as ``None``, and writing
+        the configuration omits them while their value is still ``None``.
+
+        Returns:
+            A list of public member names that use omit-when-None behavior.
+        """
+        return []
+
+    def _checked_omit_none_from_json(
+            self, self_keys: list[str],
+            check_default_values: bool) -> list[str]:
+        """Return validated omit-when-None member names.
+
+        Args:
+            self_keys: Public configuration member names on this object.
+            check_default_values: Whether listed members must currently have
+                the value ``None``.
+
+        Returns:
+            The keys returned by :meth:`_omit_none_from_json`.
+
+        Raises:
+            TypeError: The hook returned a value with the wrong type.
+            KeyError: The hook listed an unknown public member.
+            ValueError: A listed member did not default to ``None``.
+        """
+        omit_none_keys = self._omit_none_from_json()
+        if not isinstance(omit_none_keys, list):
+            msg = '_omit_none_from_json() must return a list'
+            raise TypeError(msg)
+        for key in omit_none_keys:
+            if not isinstance(key, str):
+                msg = '_omit_none_from_json() must return a list of strings'
+                raise TypeError(msg)
+            if key not in self_keys:
+                msg = f'_omit_none_from_json() returned unknown key {key}'
+                raise KeyError(msg)
+            if check_default_values and getattr(self, key) is not None:
+                msg = f'_omit_none_from_json() key {key} must default to None'
+                raise ValueError(msg)
+        return omit_none_keys
 
     def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
         """Return values for missing JSON keys.
@@ -473,8 +534,10 @@ class Config():
         self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
+        omit_none_keys = self._checked_omit_none_from_json(
+            self_keys, check_default_values=False)
         self.check_key_match(self_keys, data.keys(), ok_to_use_defaults,
-                             stderr_file)
+                             stderr_file, omit_none_keys)
         for i in self_keys:
             if i in data.keys():
                 self.check_dict_parse(getattr(self, i), data[i], i,
@@ -500,7 +563,11 @@ class Config():
         data = {}
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
+        omit_none_keys = self._checked_omit_none_from_json(
+            self_keys, check_default_values=False)
         for i in self_keys:
+            if i in omit_none_keys and getattr(self, i) is None:
+                continue
             data[i] = getattr(self, i)
         return json.dumps(data, sort_keys=True, indent=4, cls=_ConfigEncoder)
 

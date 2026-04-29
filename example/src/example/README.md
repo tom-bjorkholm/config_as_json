@@ -485,3 +485,45 @@ only passed to the next projected validator. They do not replace
 This is the general escape hatch for "validate what can be calculated from
 this member, but keep this member as it is". The command line uses
 `json_value=True` because the value is a list of mixed-type dicts.
+
+## e30_optional_user_preference.py
+
+[Source code for e30_optional_user_preference.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py)
+
+This example is for configuration values where most users have no opinion,
+but expert users may want to pin a choice. When the value is not configured,
+the application keeps using its current runtime default. When the value is
+configured, the user's explicit preference is stored in JSON and used later.
+
+Most configuration members have a concrete default value and are always
+written to the configuration file. That is the right design when the file
+should fully describe the value the application will use. Sometimes a missing
+configuration value has a better meaning: "the user has no opinion; the
+application should choose".
+
+This is useful when your application calls another library that already has a
+good default, or when the best choice may change between releases. In that
+case, a migration step should not write today's default into every user's
+configuration file, because doing so would turn "no opinion" into "always use
+this old choice".
+
+The example uses a small report-export configuration. Two members are always
+written:
+
+- `report_name`
+- `delivery_format`
+
+Two members are intentionally optional:
+
+- `author_note` is an optional string
+- `palette` is an optional enum
+
+The configuration class lists those two optional members in
+`_omit_none_from_json()`. When a JSON file omits them, the Python object keeps
+the constructor value `None`. If the JSON file explicitly contains `null`,
+that is also read as `None`. When the configuration is written again, those
+members are left out while they are still `None`.
+
+The example also shows the usual application-side pattern: keep the raw
+configuration member as `None`, and use a small method such as
+`selected_palette()` when the application needs the effective value.

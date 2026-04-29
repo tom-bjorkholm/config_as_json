@@ -9,9 +9,11 @@
 
 from typing import Any, Optional, cast, TextIO  # pylint: disable=unused-import,ungrouped-imports # noqa: E501
 from copy import deepcopy
+from enum import Enum, auto
+import json
 import sys
 import pytest
-from config_as_json.config import Config, RocfKeyRename
+from config_as_json.config import Config, RocfKeyRename, ParseConverter
 from config_as_json.commontypes import JsonType
 from config_as_json.validator import ValidationPlan
 
@@ -84,6 +86,69 @@ class AbcConfig(Config):
         return []
 
 
+class OptionalOutputMode(Enum):
+    """Output modes used by omit-None tests."""
+
+    FAST = auto()
+    CAREFUL = auto()
+
+
+class OmitNoneConfig(Config):
+    """Class to test omit-when-None configuration values."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a config object with true optional members."""
+        self.required_name = 'default'
+        self.optional_text: Optional[str] = None
+        self.optional_mode: Optional[OptionalOutputMode] = None
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return the keys omitted while their value is None."""
+        return ['optional_text', 'optional_mode']
+
+    def parse_converters(self) -> dict[str, ParseConverter]:
+        """Return converters for enum-valued test members."""
+        return {'optional_mode': self.get_converter_dict(OptionalOutputMode)}
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        return []
+
+
+class OmitNoneUnknownMemberConfig(OmitNoneConfig):
+    """Class with an invalid omit-None member name."""
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return an invalid omit-None member name."""
+        return ['missing_member']
+
+
+class OmitNoneNonNoneDefaultConfig(Config):
+    """Class with an invalid omit-None default value."""
+
+    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+        """Construct an invalid config object for omit-None tests."""
+        self.required_name = 'default'
+        self.optional_text: Optional[str] = 'must fail'
+        super().__init__(from_json_data_text=None, from_json_filename=None,
+                         stderr_file=stderr_file)
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return a key whose constructor default is not None."""
+        return ['optional_text']
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        return []
+
+
 def test_cfg_abc_dump_ok(capsys):
     """Test dump of default constructed AbcConfig."""
     abc = AbcConfig(stderr_file=sys.stderr)
@@ -95,6 +160,96 @@ def test_cfg_abc_dump_ok(capsys):
     for _ in range(10):
         jstext = jstext.replace('  ', ' ')
     assert jstext == '{ "ab": "a1b2", "cd": "c3d4", "ef": "e5f6" }'
+
+
+def test_omit_none_config_omits_default_none_values(capsys):
+    """Test that default None members are omitted from JSON."""
+    cfg = OmitNoneConfig(stderr_file=sys.stderr)
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert json_data == {'required_name': 'default'}
+
+
+def test_omit_none_config_accepts_missing_values(capsys):
+    """Test that missing omit-None members remain None."""
+    cfg = OmitNoneConfig(from_json_data_text='{"required_name": "read"}',
+                         stderr_file=sys.stderr)
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert cfg.required_name == 'read'
+    assert cfg.optional_text is None
+    assert cfg.optional_mode is None
+    assert json_data == {'required_name': 'read'}
+
+
+def test_omit_none_config_accepts_explicit_null(capsys):
+    """Test that explicit JSON null is treated like a missing value."""
+    cfg = OmitNoneConfig(
+        from_json_data_text='{"required_name": "read", '
+                            '"optional_text": null, '
+                            '"optional_mode": null}',
+        stderr_file=sys.stderr)
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert cfg.optional_text is None
+    assert cfg.optional_mode is None
+    assert json_data == {'required_name': 'read'}
+
+
+def test_omit_none_config_keeps_explicit_values(capsys):
+    """Test that explicit optional values are read, converted, and written."""
+    cfg = OmitNoneConfig(
+        from_json_data_text='{"required_name": "read", '
+                            '"optional_text": "note", '
+                            '"optional_mode": "FAST"}',
+        stderr_file=sys.stderr)
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert cfg.optional_text == 'note'
+    assert cfg.optional_mode == OptionalOutputMode.FAST
+    assert json_data == {'optional_mode': 'FAST',
+                         'optional_text': 'note',
+                         'required_name': 'read'}
+
+
+def test_omit_none_config_still_requires_normal_members(capsys):
+    """Test that omit-None handling does not hide missing required keys."""
+    with pytest.raises(KeyError):
+        _ = OmitNoneConfig(from_json_data_text='{"optional_text": "note"}',
+                           stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert 'No value for required_name in JSON data' in err
+
+
+def test_omit_none_config_rejects_unknown_member(capsys):
+    """Test that omit-None member names must exist."""
+    with pytest.raises(KeyError) as exc:
+        _ = OmitNoneUnknownMemberConfig(stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert '_omit_none_from_json() returned unknown key missing_member' in \
+        str(exc.value)
+
+
+def test_omit_none_config_rejects_non_none_default(capsys):
+    """Test that omit-None members must default to None."""
+    with pytest.raises(ValueError) as exc:
+        _ = OmitNoneNonNoneDefaultConfig(stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert '_omit_none_from_json() key optional_text must default to None' in \
+        str(exc.value)
 
 
 @pytest.mark.parametrize('jstext, aval, cval, fval',
