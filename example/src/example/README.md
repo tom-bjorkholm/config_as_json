@@ -586,3 +586,33 @@ The `migrate` command follows the same standard pattern as the `print`
 command: construct the current configuration class from the input file, then
 write it back to a new output file. It refuses to overwrite an existing output
 file, which is usually the right behavior for a migration command.
+
+## e32_config_factory.py
+
+[Source code for e32_config_factory.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e32_config_factory.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e32_config_factory.py)
+
+This example is for applications that can run in more than one mode, where
+each mode has its own configuration class. A CAD program is used as the
+teaching story: one mode edits 2D drawings and another mode edits 3D models.
+
+The important code is the small `MATCH_CONFIGS` list. Each `MatchConfig`
+pairs a `JsonValueMatcher` with the configuration class to construct when
+that matcher accepts the JSON file:
+
+- `mode` equal to `2D` selects `Cad2DConfig`
+- `space` equal to `3D` selects `Cad3DConfig`
+
+The two selector keys are intentionally different. The selector value only
+needs to be something the matcher can find in the raw JSON text before the
+full configuration object is built. In a real application the selector could
+just as well be the same member in both classes, or it could be supplied by a
+common base class.
+
+The `print` command passes `MATCH_CONFIGS` to `config_factory_from_json()`.
+The user does not need to tell the command which mode the file contains; the
+file content selects the class.
+
+The `set` command is only there to write small files for the example. It uses
+the same command-line helper as most earlier examples and accepts `--mode`,
+`--project-name`, and `--grid-size-mm`. The mode argument is optional and
+defaults to `2D`.
