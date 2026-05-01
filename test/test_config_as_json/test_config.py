@@ -6,7 +6,6 @@
 # MIT License
 
 # pylint: disable=duplicate-code
-
 from tempfile import NamedTemporaryFile as ntf
 from os import remove as os_remove
 from io import StringIO
@@ -18,6 +17,7 @@ import pytest
 from config_as_json.config import _ConfigEncoder, \
     ConfigBadJson, _over_ride_needed, Config
 from config_as_json.assert_dict_equal import assert_dict_equal
+from config_as_json.csv_dialect import get_csv_dialect, CsvDialectConfig
 from config_as_json.validator import ValidationPlan
 
 
@@ -74,12 +74,18 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
     def __init__(self, from_json_text=None, from_json_filename=None,
                  stderr_file: TextIO = sys.stderr):
         """Construct configuration for test."""
-        self.csv_dialect1 = {'name': 'csv.excel', 'delimiter': ',',
-                             'quoting': None, 'quotechar': '"',
-                             'lineterminator': None, 'escapechar': None}
-        self.csv_dialect2 = {'name': 'csv.unix_dialect', 'delimiter': ',',
-                             'quoting': None, 'quotechar': '"',
-                             'lineterminator': None, 'escapechar': None}
+        self.csv_dialect1: CsvDialectConfig = {'name': 'csv.excel',
+                                               'delimiter': ',',
+                                               'quoting': None,
+                                               'quotechar': '"',
+                                               'lineterminator': None,
+                                               'escapechar': None}
+        self.csv_dialect2: CsvDialectConfig = {'name': 'csv.unix_dialect',
+                                               'delimiter': ',',
+                                               'quoting': None,
+                                               'quotechar': '"',
+                                               'lineterminator': None,
+                                               'escapechar': None}
         self.kind = EnumInTesting.FOOBAR
         self.aa1 = 'nice'
         self.abc = [{'def': 15, 'geh': ';', 'ijk': EnumInTesting.BARFOO},
@@ -96,7 +102,7 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
 
     def get_csv_dialect1(self, stderr_file: TextIO):
         """Get CSV dialect 1."""
-        return self.get_csv_dialect(
+        return get_csv_dialect(
             name=self.csv_dialect1['name'],
             delimiter=self.csv_dialect1['delimiter'],
             quoting=self.csv_dialect1['quoting'],
@@ -107,7 +113,7 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
 
     def get_csv_dialect2(self, stderr_file: TextIO):
         """Get CSV dialect 2."""
-        return self.get_csv_dialect(
+        return get_csv_dialect(
             name=self.csv_dialect2['name'],
             delimiter=self.csv_dialect2['delimiter'],
             quoting=self.csv_dialect2['quoting'],

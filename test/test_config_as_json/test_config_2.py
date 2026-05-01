@@ -18,51 +18,6 @@ from config_as_json.commontypes import JsonType
 from config_as_json.validator import ValidationPlan
 
 
-@pytest.mark.parametrize('enc, is_ok',
-                         [('utf-8', True),
-                          ('abc123', False)])
-def test_cfg_valid_chr_enc_ok(capsys, enc, is_ok):
-    """Test OK cases of valid_char_encoding."""
-    ret = Config.valid_char_encoding(enc)
-    out, err = capsys.readouterr()
-    assert ret == is_ok
-    assert '' == out
-    assert '' == err
-
-
-@pytest.mark.parametrize('enc',
-                         [8, True])
-def test_cfg_valid_chr_enc_nok(capsys, enc):
-    """Test not OK cases of valid_char_encoding."""
-    with pytest.raises(Exception) as exc:
-        _ = Config.valid_char_encoding(enc)
-    out, err = capsys.readouterr()
-    assert '' == out
-    assert '' == err
-    assert 'must be str' in str(exc)
-
-
-@pytest.mark.parametrize('enc',
-                         ['utf-8', 'iso8859-1'])
-def test_cfg_check_chr_enc_ok(capsys, enc):
-    """Test OK cases of check_char_encoding."""
-    Config.check_char_encoding(enc, stderr_file=sys.stderr)
-    out, err = capsys.readouterr()
-    assert '' == out
-    assert '' == err
-
-
-@pytest.mark.parametrize('enc',
-                         ['utf-88', 'abc123'])
-def test_cfg_check_chr_enc_nok(capsys, enc):
-    """Test not OK cases of check_char_encoding."""
-    with pytest.raises(SystemExit):
-        Config.check_char_encoding(enc, stderr_file=sys.stderr)
-    out, err = capsys.readouterr()
-    assert '' == out
-    assert f'{enc} is not a recognized encoding' in err
-
-
 class AbcConfig(Config):
     """Class to test defualt values."""
 

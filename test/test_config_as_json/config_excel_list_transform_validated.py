@@ -8,9 +8,11 @@ import sys
 from collections.abc import Callable
 from copy import deepcopy
 from typing import Generic, Optional, TextIO, cast
+from config_as_json.char_encoding import CharEncodingValidator
 from config_as_json.config import RocfKeyRename, Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import JsonType
+from config_as_json.csv_dialect import CsvDialectValidator
 from config_as_json.dict_validators import DictKeysValidator
 from config_as_json.list_validators import ListForEachValidator, \
     ListIsOrderedValidator
@@ -18,7 +20,7 @@ from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.projected_validators import ProjectedMemberValidator
 from config_as_json.validator import ValidationPlan, \
     WholeConfigValidationStep, MemberValidationStep, \
-    WholeConfigValidator, MemberValidator
+    WholeConfigValidator
 from .config_excel_list_transform import ColInfo, Column, Rule, RuleMerge, \
     RuleSplit, \
     ConfigExcelListTransform as LegacyConfigExcelListTransform
@@ -44,21 +46,6 @@ class ConfigMethodValidator(  # pylint: disable=too-few-public-methods
         method = getattr(config, self._method_name)
         assert callable(method)
         method(stderr_file=stderr_file)
-
-
-class CharEncodingValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
-    """Validate that one string member names a recognized encoding."""
-
-    def validate_member(self, config: Config, member_name: str,
-                        member_value: object,
-                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
-        """Validate one encoding member and return it unchanged."""
-        _ = member_name
-        assert isinstance(config, Config)
-        assert isinstance(member_value, str)
-        config.check_char_encoding(member_value, stderr_file=stderr_file)
-        return member_value
 
 
 def list_of_dicts_keys_validator(
@@ -237,6 +224,9 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
             MemberValidationStep(
                 member_names=['in_csv_encoding', 'out_csv_encoding'],
                 validator=CharEncodingValidator()),
+            MemberValidationStep(
+                member_names=['in_csv_dialect', 'out_csv_dialect'],
+                validator=CsvDialectValidator()),
             MemberValidationStep(
                 member_names=['s03_split_columns',
                               's07_rename_columns',

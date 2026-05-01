@@ -17,6 +17,10 @@ from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_factory import config_factory_from_json, \
     MatchConfig, MatchConfigSeq, JsonValueMatcher
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.csv_dialect import CsvDialectConfig, \
+    CsvDialectValidator, get_csv_dialect
+from config_as_json.char_encoding import check_char_encoding, \
+    CharEncodingValidator, valid_char_encoding
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.migrate_cfg import migrate_cfg
 from config_as_json.validator import ValidationPlan, ValidationStep, \
@@ -42,6 +46,12 @@ __all__ = ['Config',
            'PathOrStr',
            'ParseConverter',
            'ConfigAutoChangeHook',
+           'CsvDialectConfig',
+           'CsvDialectValidator',
+           'get_csv_dialect',
+           'check_char_encoding',
+           'CharEncodingValidator',
+           'valid_char_encoding',
            'MigrateCfgWarnHook',
            'migrate_cfg',
            'config_factory_from_json',

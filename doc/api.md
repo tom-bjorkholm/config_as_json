@@ -47,15 +47,12 @@
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
     * [read](#config_as_json.config.Config.read)
     * [write](#config_as_json.config.Config.write)
-    * [get\_csv\_dialect](#config_as_json.config.Config.get_csv_dialect)
     * [check\_array\_keys](#config_as_json.config.Config.check_array_keys)
     * [check\_lst\_dict](#config_as_json.config.Config.check_lst_dict)
     * [check\_lst\_dict\_lst](#config_as_json.config.Config.check_lst_dict_lst)
     * [value\_of\_type](#config_as_json.config.Config.value_of_type)
     * [check\_array\_dicts](#config_as_json.config.Config.check_array_dicts)
     * [get\_converter\_dict](#config_as_json.config.Config.get_converter_dict)
-    * [valid\_char\_encoding](#config_as_json.config.Config.valid_char_encoding)
-    * [check\_char\_encoding](#config_as_json.config.Config.check_char_encoding)
     * [check\_no\_duplicates](#config_as_json.config.Config.check_no_duplicates)
     * [get\_validation\_plan](#config_as_json.config.Config.get_validation_plan)
     * [validate](#config_as_json.config.Config.validate)
@@ -75,6 +72,11 @@
   * [DiscriminatedDictValidator](#config_as_json.discriminated_dict_validators.DiscriminatedDictValidator)
     * [\_\_init\_\_](#config_as_json.discriminated_dict_validators.DiscriminatedDictValidator.__init__)
     * [validate\_member](#config_as_json.discriminated_dict_validators.DiscriminatedDictValidator.validate_member)
+* [config\_as\_json.csv\_dialect](#config_as_json.csv_dialect)
+  * [CsvDialectConfig](#config_as_json.csv_dialect.CsvDialectConfig)
+  * [get\_csv\_dialect](#config_as_json.csv_dialect.get_csv_dialect)
+  * [CsvDialectValidator](#config_as_json.csv_dialect.CsvDialectValidator)
+    * [validate\_member](#config_as_json.csv_dialect.CsvDialectValidator.validate_member)
 * [config\_as\_json.projected\_validators](#config_as_json.projected_validators)
   * [ProjectedMemberValidator](#config_as_json.projected_validators.ProjectedMemberValidator)
     * [\_\_init\_\_](#config_as_json.projected_validators.ProjectedMemberValidator.__init__)
@@ -89,6 +91,11 @@
     * [validate\_member](#config_as_json.dict_validators.DictForEachValidator.validate_member)
 * [config\_as\_json.file\_extension](#config_as_json.file_extension)
   * [fix\_file\_extension](#config_as_json.file_extension.fix_file_extension)
+* [config\_as\_json.char\_encoding](#config_as_json.char_encoding)
+  * [valid\_char\_encoding](#config_as_json.char_encoding.valid_char_encoding)
+  * [check\_char\_encoding](#config_as_json.char_encoding.check_char_encoding)
+  * [CharEncodingValidator](#config_as_json.char_encoding.CharEncodingValidator)
+    * [validate\_member](#config_as_json.char_encoding.CharEncodingValidator.validate_member)
 * [config\_as\_json.config\_factory](#config_as_json.config_factory)
   * [MatchConfig](#config_as_json.config_factory.MatchConfig)
     * [match\_func](#config_as_json.config_factory.MatchConfig.match_func)
@@ -1014,47 +1021,6 @@ Write the current configuration to a JSON file.
 - `stderr_file` - Stream used for user-facing diagnostics during
   validation.
 
-<a id="config_as_json.config.Config.get_csv_dialect"></a>
-
-#### get\_csv\_dialect
-
-```python
-@staticmethod
-def get_csv_dialect(*,
-                    name: Optional[str],
-                    delimiter: Optional[str],
-                    quoting: Optional[str],
-                    quotechar: Optional[str],
-                    lineterminator: Optional[str],
-                    escapechar: Optional[str],
-                    stderr_file: TextIO = sys.stderr) -> csv.Dialect
-```
-
-Build a ``csv.Dialect`` from serialized configuration fields.
-
-**Arguments**:
-
-- `name` - Name of a standard-library dialect template to start from.
-- `delimiter` - Optional field delimiter override.
-- `quoting` - Optional quoting constant name such as
-  ``'csv.quote_all'``.
-- `quotechar` - Optional quoting character override.
-- `lineterminator` - Optional line terminator override.
-- `escapechar` - Optional escape character override.
-- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
-  ``sys.stderr``.
-
-
-**Returns**:
-
-  A configured ``csv.Dialect`` instance.
-
-
-**Raises**:
-
-- `KeyError` - ``name`` or ``quoting`` is not one of the supported
-  serialized values.
-
 <a id="config_as_json.config.Config.check_array_keys"></a>
 
 #### check\_array\_keys
@@ -1245,49 +1211,6 @@ Build a converter recipe for enum-valued configuration fields.
 
   A ``ParseConverter`` that parses strings with
   :func:`string_to_enum_best_match`.
-
-<a id="config_as_json.config.Config.valid_char_encoding"></a>
-
-#### valid\_char\_encoding
-
-```python
-@staticmethod
-def valid_char_encoding(enc: str) -> bool
-```
-
-Return whether ``enc`` names a valid text encoding.
-
-**Arguments**:
-
-- `enc` - Encoding name to test.
-
-
-**Returns**:
-
-  ``True`` when Python recognizes ``enc`` as a text encoding,
-  otherwise ``False``.
-
-<a id="config_as_json.config.Config.check_char_encoding"></a>
-
-#### check\_char\_encoding
-
-```python
-@staticmethod
-def check_char_encoding(enc: str, stderr_file: TextIO = sys.stderr) -> None
-```
-
-Fail fast when a named character encoding is not recognized.
-
-**Arguments**:
-
-- `enc` - Encoding name to validate.
-- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
-  ``sys.stderr``.
-
-
-**Raises**:
-
-- `SystemExit` - ``enc`` is not a recognized text encoding.
 
 <a id="config_as_json.config.Config.check_no_duplicates"></a>
 
@@ -1711,6 +1634,127 @@ Validate one dictionary member using the selected variant.
 - `InvalidConfigurationValue` - If an inner validator rejects a value
   because it is not one of its allowed values.
 
+<a id="config_as_json.csv_dialect"></a>
+
+# config\_as\_json.csv\_dialect
+
+Build CSV dialects from JSON-friendly configuration values.
+
+<a id="config_as_json.csv_dialect.CsvDialectConfig"></a>
+
+## CsvDialectConfig Objects
+
+```python
+class CsvDialectConfig(TypedDict)
+```
+
+Describe serialized ``csv.Dialect`` configuration values.
+
+The ``name`` key is required, and its value may not be ``None``.
+The remaining keys are optional when validated through
+:class:`CsvDialectValidator`; missing optional keys are
+treated as if they were present with value ``None``.
+
+Keys:
+    name: Dialect template name, such as ``'csv.excel'``.
+    delimiter: Optional field delimiter override.
+    quoting: Optional quoting constant name, such as
+        ``'csv.quote_minimal'``.
+    quotechar: Optional quoting character override.
+    lineterminator: Optional line terminator override.
+    escapechar: Optional escape character override.
+
+<a id="config_as_json.csv_dialect.get_csv_dialect"></a>
+
+#### get\_csv\_dialect
+
+```python
+def get_csv_dialect(*,
+                    name: str,
+                    delimiter: Optional[str],
+                    quoting: Optional[str],
+                    quotechar: Optional[str],
+                    lineterminator: Optional[str],
+                    escapechar: Optional[str],
+                    stderr_file: TextIO = sys.stderr) -> csv.Dialect
+```
+
+Build a ``csv.Dialect`` from serialized configuration fields.
+
+**Arguments**:
+
+- `name` - Name of a standard-library dialect template to start from.
+- `delimiter` - Optional field delimiter override.
+- `quoting` - Optional quoting constant name such as ``'csv.quote_all'``.
+- `quotechar` - Optional quoting character override.
+- `lineterminator` - Optional line terminator override.
+- `escapechar` - Optional escape character override.
+- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
+  ``sys.stderr``.
+
+
+**Returns**:
+
+  A configured ``csv.Dialect`` instance.
+
+
+**Raises**:
+
+- `KeyError` - ``name`` or ``quoting`` is not one of the supported
+  serialized values.
+
+<a id="config_as_json.csv_dialect.CsvDialectValidator"></a>
+
+## CsvDialectValidator Objects
+
+```python
+class CsvDialectValidator(MemberValidator)
+```
+
+Validate one CSV dialect configuration dictionary.
+
+The member value must be a ``dict[str, Optional[str]]``. No keys other
+than ``name``, ``delimiter``, ``quoting``, ``quotechar``,
+``lineterminator``, and ``escapechar`` are allowed. The ``name`` key is
+mandatory. Missing optional keys are normalized to ``None`` in the value
+returned by ``validate_member``.
+
+After the dictionary shape has been checked, the validator calls
+:func:`get_csv_dialect` to verify that the values can actually create a
+``csv.Dialect``. Any failure from that construction is reported as
+:class:`InvalidConfiguration`.
+
+<a id="config_as_json.csv_dialect.CsvDialectValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one CSV dialect member and return a normalized dict.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The member value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  A normalized ``CsvDialectConfig`` with all supported keys present.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a valid CSV dialect
+  configuration dictionary.
+
 <a id="config_as_json.projected_validators"></a>
 
 # config\_as\_json.projected\_validators
@@ -2083,6 +2127,94 @@ Return ``filename`` with the desired extension normalization applied.
 **Returns**:
 
   The normalized filename.
+
+<a id="config_as_json.char_encoding"></a>
+
+# config\_as\_json.char\_encoding
+
+Validate text encoding names used by configuration values.
+
+<a id="config_as_json.char_encoding.valid_char_encoding"></a>
+
+#### valid\_char\_encoding
+
+```python
+def valid_char_encoding(enc: str) -> bool
+```
+
+Return whether ``enc`` names a valid text encoding.
+
+**Arguments**:
+
+- `enc` - Encoding name to test.
+
+
+**Returns**:
+
+  ``True`` when Python recognizes ``enc`` as a text encoding, otherwise
+  ``False``.
+
+<a id="config_as_json.char_encoding.check_char_encoding"></a>
+
+#### check\_char\_encoding
+
+```python
+def check_char_encoding(enc: str, stderr_file: TextIO = sys.stderr) -> None
+```
+
+Fail fast when a named character encoding is not recognized.
+
+**Arguments**:
+
+- `enc` - Encoding name to validate.
+- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
+  ``sys.stderr``.
+
+
+**Raises**:
+
+- `SystemExit` - ``enc`` is not a recognized text encoding.
+
+<a id="config_as_json.char_encoding.CharEncodingValidator"></a>
+
+## CharEncodingValidator Objects
+
+```python
+class CharEncodingValidator(MemberValidator)
+```
+
+Validate that one string member names a recognized text encoding.
+
+<a id="config_as_json.char_encoding.CharEncodingValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one character encoding member.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The member value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The original encoding string.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member value is not a string or does
+  not name a recognized text encoding.
 
 <a id="config_as_json.config_factory"></a>
 

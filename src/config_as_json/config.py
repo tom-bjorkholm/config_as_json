@@ -13,17 +13,13 @@ of validation helpers for common patterns.
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
-# pylint: disable=too-many-lines
-
 from copy import deepcopy
 import json
 import sys
-import csv
 from collections import Counter
 from typing import Any, Optional, Type, TypeVar, Mapping, NamedTuple, \
     Callable, Sequence, TextIO
 from enum import Enum, IntEnum
-from tempfile import TemporaryFile
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
 from config_as_json.commontypes import JsonType, PathOrStr
@@ -606,76 +602,6 @@ class Config():
             file.write(text)
 
     @staticmethod
-    def get_csv_dialect(*, name: Optional[str],  # pylint: disable=too-many-arguments, line-too-long, too-many-branches # noqa: E501
-                        delimiter: Optional[str],
-                        quoting: Optional[str], quotechar: Optional[str],
-                        lineterminator: Optional[str],
-                        escapechar: Optional[str],
-                        stderr_file: TextIO = sys.stderr
-                        ) -> csv.Dialect:
-        """Build a ``csv.Dialect`` from serialized configuration fields.
-
-        Args:
-            name: Name of a standard-library dialect template to start from.
-            delimiter: Optional field delimiter override.
-            quoting: Optional quoting constant name such as
-                ``'csv.quote_all'``.
-            quotechar: Optional quoting character override.
-            lineterminator: Optional line terminator override.
-            escapechar: Optional escape character override.
-            stderr_file: Stream used for user-facing diagnostics. Defaults to
-                ``sys.stderr``.
-
-        Returns:
-            A configured ``csv.Dialect`` instance.
-
-        Raises:
-            KeyError: ``name`` or ``quoting`` is not one of the supported
-                serialized values.
-        """
-        ret: Optional[csv.Dialect] = None
-        if name is None or name.lower() == 'csv.excel':
-            ret = csv.excel()
-            ret.lineterminator = '\r\n'
-        elif name.lower() == 'csv.excel_tab':
-            ret = csv.excel_tab()
-            ret.lineterminator = '\r\n'
-        elif name.lower() == 'csv.unix_dialect':
-            ret = csv.unix_dialect()
-            ret.lineterminator = '\n'
-        else:
-            errmsg = f'Unknown csv dialect: {name}'
-            print(errmsg, file=stderr_file)
-            raise KeyError(errmsg)
-        if delimiter is not None:
-            ret.delimiter = delimiter
-        if quoting is None:
-            ret.quoting = csv.QUOTE_MINIMAL
-        elif quoting.lower() == 'csv.quote_all':
-            ret.quoting = csv.QUOTE_ALL
-        elif quoting.lower() == 'csv.quote_minimal':
-            ret.quoting = csv.QUOTE_MINIMAL
-        elif quoting.lower() == 'csv.quote_none':
-            ret.quoting = csv.QUOTE_NONE
-        elif quoting.lower() == 'csv.quote_nonnumeric':
-            ret.quoting = csv.QUOTE_NONNUMERIC
-        else:
-            errmsg = f'Unknown csv quoting: {quoting}'
-            print(errmsg, file=stderr_file)
-            raise KeyError(errmsg)
-        if quotechar is None:
-            ret.quotechar = '"'
-        else:
-            ret.quotechar = quotechar
-        if lineterminator is not None:
-            ret.lineterminator = lineterminator
-        if escapechar is None:
-            ret.escapechar = '\\'
-        else:
-            ret.escapechar = escapechar
-        return ret
-
-    @staticmethod
     def check_array_keys(name_of_cfg: str, array: Sequence[Mapping[str, Any]],
                          mandatory_keys: list[str],
                          allowed_keys: Optional[list[str]] = None,
@@ -926,43 +852,6 @@ class Config():
         return ParseConverter(result_type=enum_type,
                               func=string_to_enum_best_match,
                               args={'num_type': enum_type})
-
-    @staticmethod
-    def valid_char_encoding(enc: str) -> bool:
-        """Return whether ``enc`` names a valid text encoding.
-
-        Args:
-            enc: Encoding name to test.
-
-        Returns:
-            ``True`` when Python recognizes ``enc`` as a text encoding,
-            otherwise ``False``.
-        """
-        try:
-            with TemporaryFile(mode='w', encoding=enc) as _:
-                pass
-        except LookupError as exc:
-            if 'unknown encoding' in str(exc):
-                return False
-            raise exc  # pragma: no cover
-        return True
-
-    @staticmethod
-    def check_char_encoding(enc: str,
-                            stderr_file: TextIO = sys.stderr) -> None:
-        """Fail fast when a named character encoding is not recognized.
-
-        Args:
-            enc: Encoding name to validate.
-            stderr_file: Stream used for user-facing diagnostics. Defaults to
-                ``sys.stderr``.
-
-        Raises:
-            SystemExit: ``enc`` is not a recognized text encoding.
-        """
-        if not Config.valid_char_encoding(enc=enc):
-            print(f'{enc} is not a recognized encoding', file=stderr_file)
-            sys.exit(1)
 
     @staticmethod
     def check_no_duplicates(expanded_data: list[str] | list[int],

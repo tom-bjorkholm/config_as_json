@@ -13,6 +13,8 @@ from typing import Optional, Callable, TypeVar, NamedTuple, TextIO, \
 from csv import Dialect
 from config_as_json.config import Config, ParseConverter, \
     RocfKeyRename
+from config_as_json.char_encoding import check_char_encoding
+from config_as_json.csv_dialect import get_csv_dialect
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.commontypes import JsonType
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
@@ -167,10 +169,10 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                                         stderr_file=stderr_file)
         self.check_rewrite_configs(coltype=type(colinfo.tinfo),
                                    stderr_file=stderr_file)
-        self.check_char_encoding(self.in_csv_encoding,
-                                 stderr_file=stderr_file)
-        self.check_char_encoding(self.out_csv_encoding,
-                                 stderr_file=stderr_file)
+        check_char_encoding(self.in_csv_encoding,
+                            stderr_file=stderr_file)
+        check_char_encoding(self.out_csv_encoding,
+                            stderr_file=stderr_file)
         self.check_split_row_cfg(stderr_file=stderr_file)
         self.check_merge_row_cfg(stderr_file=stderr_file)
 
@@ -181,7 +183,7 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             stderr_file: Stream used for user-facing diagnostics.
         """
         assert self.out_csv_dialect['name'] is not None
-        return self.get_csv_dialect(
+        return get_csv_dialect(
             name=self.out_csv_dialect['name'],
             delimiter=self.out_csv_dialect['delimiter'],
             quoting=self.out_csv_dialect['quoting'],
@@ -197,7 +199,7 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             stderr_file: Stream used for user-facing diagnostics.
         """
         assert self.in_csv_dialect['name'] is not None
-        return self.get_csv_dialect(
+        return get_csv_dialect(
             name=self.in_csv_dialect['name'],
             delimiter=self.in_csv_dialect['delimiter'],
             quoting=self.in_csv_dialect['quoting'],
