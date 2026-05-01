@@ -6,6 +6,7 @@
 # MIT License
 
 import sys
+from typing import Any, cast
 import pytest
 from config_as_json.list_validators import ListForEachValidator, \
     ListIsOrderedValidator, ListOrderingValidator, ListSizeValidator, \
@@ -505,6 +506,15 @@ def test_list_of_dicts_keys_validator_init_rejects_invalid_keys(
     assert message in str(exc.value)
 
 
+def test_list_of_dicts_keys_validator_init_rejects_non_bool_extra_policy():
+    """allow_extra_dict_keys must be a bool."""
+    with pytest.raises(TypeError) as exc:
+        ListOfDictsKeysValidator(
+            mandatory_keys=['name'],
+            allow_extra_dict_keys=cast(Any, 'yes'))
+    assert 'allow_extra_dict_keys must be a bool' in str(exc.value)
+
+
 @pytest.mark.parametrize(
     'validator, member_value, expected',
     [(ListOfDictsKeysValidator(['name']), [], []),
@@ -519,6 +529,25 @@ def test_list_of_dicts_keys_validator_ok(
         capsys, validator, member_value, expected):
     """Test OK cases of ListOfDictsKeysValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
+
+
+def test_list_of_dicts_keys_validator_accepts_extra_keys_when_allowed(
+        capsys):
+    """Open per-dict policy allows extra keys in list elements."""
+    validator = ListOfDictsKeysValidator(
+        mandatory_keys=['name'], allow_extra_dict_keys=True)
+    member_value = [{'name': 'extract', 'runtime_seconds': 12}]
+    assert_validate_member_ok(capsys, validator, member_value, member_value)
+
+
+def test_list_of_dicts_keys_validator_open_policy_requires_mandatory(
+        capsys):
+    """Open per-dict policy still rejects missing mandatory keys."""
+    validator = ListOfDictsKeysValidator(
+        mandatory_keys=['name'], allow_extra_dict_keys=True)
+    assert_validate_member_failure(
+        capsys, validator, [{'runtime_seconds': 12}],
+        InvalidConfiguration, "Mandatory key 'name' is missing from value[0]")
 
 
 @pytest.mark.parametrize(

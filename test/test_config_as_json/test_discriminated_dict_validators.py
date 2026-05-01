@@ -136,12 +136,22 @@ def test_dict_variant_init_rejects_invalid_arguments(
     assert message in str(exc.value)
 
 
+def test_dict_variant_init_rejects_non_bool_extra_policy() -> None:
+    """allow_extra_dict_keys must be a bool."""
+    with pytest.raises(TypeError) as exc:
+        DictVariant(
+            mandatory_keys=[],
+            allow_extra_dict_keys=cast(Any, 'yes'))
+    assert 'allow_extra_dict_keys must be a bool' in str(exc.value)
+
+
 def test_dict_variant_init_accepts_empty_rules() -> None:
     """A variant may validate only the selected key set."""
     variant = DictVariant(mandatory_keys=[], allowed_keys=None)
     assert not list(variant.mandatory_keys)
     assert variant.allowed_keys is None
     assert not list(variant.rules)
+    assert variant.allow_extra_dict_keys is False
 
 
 @pytest.mark.parametrize(
@@ -252,6 +262,32 @@ def test_discriminated_dict_validator_accepts_discriminator_rule(
                 validators=[_ConstantValidator('stored-disk')])])})
     result = validate_member(validator, {'kind': 'disk'}, capsys)
     assert result == {'kind': 'stored-disk'}
+
+
+def test_discriminated_dict_validator_accepts_variant_extra_keys(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """Allow unknown keys when the selected variant opens its key policy."""
+    validator = DiscriminatedDictValidator(
+        discriminator_key='kind',
+        variants={'disk': DictVariant(
+            mandatory_keys=['path'], allow_extra_dict_keys=True)})
+    result = validate_member(
+        validator,
+        {'kind': 'disk', 'path': 'local.json', 'owner': 'ops'},
+        capsys)
+    assert result == {'kind': 'disk', 'path': 'local.json', 'owner': 'ops'}
+
+
+def test_discriminated_dict_validator_open_variant_still_requires_keys(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """Open variant policy must still reject a missing mandatory key."""
+    validator = DiscriminatedDictValidator(
+        discriminator_key='kind',
+        variants={'disk': DictVariant(
+            mandatory_keys=['path'], allow_extra_dict_keys=True)})
+    assert_validate_member_failure(
+        capsys, validator, {'kind': 'disk', 'owner': 'ops'},
+        InvalidConfiguration, "Mandatory key 'path' is missing from value")
 
 
 def test_discriminated_dict_validator_rejects_missing_discriminator(

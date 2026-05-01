@@ -6,8 +6,8 @@ each supported configuration setting, and use those attribute values as the
 default configuration. Each such configuration setting can also have a value
 type of dict or list, or even a nested dict or list.
 The base class then provides JSON serialization, parsing, schema-like key
-checks, omit-when-None handling, old-file migration helpers, and a collection
-of validation helpers for common patterns.
+checks, omit-when-None handling, old-file migration helpers, and validation
+plan integration.
 """
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -16,8 +16,7 @@ of validation helpers for common patterns.
 from copy import deepcopy
 import json
 import sys
-from typing import Any, Optional, Type, TypeVar, Mapping, NamedTuple, \
-    Callable, Sequence, TextIO
+from typing import Any, Optional, Type, NamedTuple, Callable, TextIO
 from enum import Enum, IntEnum
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
@@ -25,8 +24,6 @@ from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.validator import ValidationPlan
 
-
-Keya = TypeVar('Keya', str, Enum)
 
 RocfKeyRename = NamedTuple('RocfKeyRename',
                            [('old', str), ('new', str)])
@@ -601,114 +598,6 @@ class Config():
             file.write(text)
 
     @staticmethod
-    def check_lst_dict(paramname: str,  # pylint: disable=too-many-arguments,too-many-positional-arguments # noqa: E501
-                       inp: Sequence[Mapping[str, Any]],
-                       key: str, key_optional: bool, valtype: type,
-                       min_size_list: int,
-                       stderr_file: TextIO = sys.stderr) -> None:
-        """Validate a list of mappings that carry one typed value per row.
-
-        Args:
-            paramname: Configuration parameter name used in diagnostics.
-            inp: Sequence that should be a list of dictionaries.
-            key: Key whose value type should be checked in each dictionary.
-            key_optional: Whether dictionaries may omit ``key``.
-            valtype: Expected runtime type for the value stored at ``key``.
-            min_size_list: Minimum allowed number of dictionaries in ``inp``.
-            stderr_file: Stream used for user-facing diagnostics. Defaults to
-                ``sys.stderr``.
-
-        Raises:
-            SystemExit: ``inp`` is not a list, contains non-dict items, is too
-                short, is missing ``key`` when required, or has a value at
-                ``key`` with the wrong runtime type.
-        """
-        errtxt = f'Error in parameter {paramname}. '
-        if not isinstance(inp, list):
-            err_txt2 = f'Expected list but found {type(inp).__name__}\n'
-            print(errtxt + err_txt2 + str(inp), file=stderr_file)
-            sys.exit(1)
-        assert isinstance(inp, list)
-        if len(inp) < min_size_list:
-            sizeerr: str = f'\nMinimum {min_size_list} elements needed ' + \
-                           f'in list but only {len(inp)} found.'
-            print(errtxt + sizeerr, file=stderr_file)
-            sys.exit(1)
-        for elem in inp:
-            if not isinstance(elem, dict):
-                err_txt3 = 'Expected dict in list but found ' + \
-                           f'{type(elem).__name__}\n'
-                print(errtxt + err_txt3 + str(elem), file=stderr_file)
-                sys.exit(1)
-            assert isinstance(elem, dict)
-            if key not in elem:
-                if key_optional:
-                    return
-                err_txt4 = f'Expected key {key} not in dict in list\n'
-                print(errtxt + err_txt4 + str(elem), file=stderr_file)
-                sys.exit(1)
-            val = elem[key]
-            if not isinstance(val, valtype):
-                err_txt5 = f'Value for key {key} expected to be of type ' + \
-                           f'{valtype.__name__} but is of type ' + \
-                           f'{type(val).__name__}\n'
-                print(errtxt + err_txt5 + str(val), file=stderr_file)
-                sys.exit(1)
-
-    @staticmethod
-    def check_lst_dict_lst(paramname: str,  # pylint: disable=too-many-arguments,too-many-positional-arguments # noqa: E501
-                           inp: Sequence[Mapping[str, Any]],
-                           key: str, key_optional: bool,
-                           valtype: type, min_size_outer_list: int,
-                           min_size_inner_list: int,
-                           stderr_file: TextIO = sys.stderr) -> None:
-        """Validate a list of mappings whose checked value is itself a list.
-
-        Args:
-            paramname: Configuration parameter name used in diagnostics.
-            inp: Sequence that should be a list of dictionaries.
-            key: Key whose value should be a list of ``valtype`` items.
-            key_optional: Whether dictionaries may omit ``key``.
-            valtype: Expected runtime type for each item in the inner list.
-            min_size_outer_list: Minimum number of dictionaries in ``inp``.
-            min_size_inner_list: Minimum number of items in each checked inner
-                list.
-            stderr_file: Stream used for user-facing diagnostics. Defaults to
-                ``sys.stderr``.
-
-        Raises:
-            SystemExit: The outer value does not satisfy
-                :meth:`check_lst_dict`, one checked inner list is too short,
-                or one inner list item has the wrong runtime type.
-        """
-        Config.check_lst_dict(paramname=paramname, inp=inp,
-                              key=key, key_optional=key_optional,
-                              valtype=list, min_size_list=min_size_outer_list,
-                              stderr_file=stderr_file)
-        assert isinstance(inp, list)
-        errtxt = f'Error in parameter {paramname}.\n'
-        for elem in inp:
-            assert isinstance(elem, dict)
-            if key not in elem and key_optional:
-                continue
-            assert key in elem
-            val = elem[key]
-            assert isinstance(val, list)
-            if len(val) < min_size_inner_list:
-                errtxt2 = f'List for key {key} shall be minimum ' + \
-                          f'{min_size_inner_list} elements.\nBut it ' + \
-                          f'is {len(val)} elements only.\n'
-                print(errtxt + errtxt2 + str(val), file=stderr_file)
-                sys.exit(1)
-            for item in val:
-                if not isinstance(item, valtype):
-                    errtxt3 = f'Value for key {key} expected to be ' + \
-                              f'list of {valtype.__name__}\n' + \
-                              f'But element in list is {type(item).__name__}\n'
-                    print(errtxt + errtxt3 + str(val), file=stderr_file)
-                    sys.exit(1)
-
-    @staticmethod
     def value_of_type(input_value: Any, to_type: Any) -> Any:
         """Return ``input_value`` as an instance of ``to_type``.
 
@@ -723,79 +612,6 @@ class Config():
         if isinstance(input_value, to_type):
             return input_value
         return to_type(input_value)
-
-    @staticmethod
-    # pylint: disable=too-many-locals
-    # pylint: disable=too-many-arguments,too-many-positional-arguments
-    def check_array_dicts(name_of_cfg: str,
-                          array: list[dict[str, Any]],
-                          kind_key: str, kind_type: type,
-                          dict_of_templates: Mapping[Keya, Mapping[str, type]],
-                          stderr_file: TextIO = sys.stderr
-                          ) -> None:
-        """Validate a list of dictionaries against type templates.
-
-        Each row in ``array`` selects its expected template through
-        ``kind_key``. The selected template then defines which keys must
-        exist and which runtime types their values must have.
-
-        Args:
-            name_of_cfg: Name used in user-facing error messages.
-            array: List of dictionaries to validate.
-            kind_key: Key whose value selects the expected template.
-            kind_type: Type used to normalize the value at ``kind_key``.
-            dict_of_templates: Mapping from kind value to a dictionary of
-                expected keys and value types.
-            stderr_file: Stream used for user-facing diagnostics. Defaults to
-                ``sys.stderr``.
-
-        Raises:
-            KeyError: ``dict_of_templates`` is not a dictionary of
-                dictionaries.
-            SystemExit: ``array`` is not a list of dictionaries, one row is
-                missing a required key, or one row value has the wrong runtime
-                type.
-        """
-        Msgs = NamedTuple('Msgs', [('in_cfg', str), ('bad_arg', str),
-                                   ('bad_templ', str)])
-        msgs = Msgs(in_cfg=f' in config of {name_of_cfg} ',
-                    bad_arg='argument not list of dicts',
-                    bad_templ='Internal error: template not dict of dicts')
-        if not isinstance(array, list):
-            print(msgs.bad_arg + msgs.in_cfg + '(list_of_dicts)',
-                  file=stderr_file)
-            sys.exit(1)
-        if not isinstance(dict_of_templates, dict):
-            print(msgs.bad_templ + msgs.in_cfg + '(dict_of_templates)',
-                  file=stderr_file)
-            raise KeyError(msgs.bad_templ + msgs.in_cfg +
-                           '(dict_of_templates)')
-        for key1, template in dict_of_templates.items():
-            if not isinstance(template, dict):
-                msg = f' in template for {key1.name}'
-                print(msgs.bad_templ + msgs.in_cfg + msg, file=stderr_file)
-                raise KeyError(msgs.bad_templ + msgs.in_cfg + msg)
-        for i, row in enumerate(array):
-            litem = f'(list index {i})'
-            if not isinstance(row, dict):
-                print(msgs.bad_arg + msgs.in_cfg + litem, file=stderr_file)
-                sys.exit(1)
-            if kind_key not in row:
-                msg = f'Key {kind_key} not in dict'
-                print(msg + msgs.in_cfg + litem, file=stderr_file)
-                sys.exit(1)
-            kind = Config.value_of_type(row[kind_key], kind_type)
-            for key2, valtype in dict_of_templates[kind].items():
-                if key2 not in row:
-                    msg = f'Key {key2} not in dict'
-                    print(msg + msgs.in_cfg + litem, file=stderr_file)
-                    sys.exit(1)
-                if not isinstance(row[key2], valtype):
-                    msg = f'Value for key {key2} = {row[key2]} '
-                    msg += f'is not {valtype.__name__} '
-                    msg += f'it is {type(row[key2]).__name__} '
-                    print(msg + msgs.in_cfg + litem, file=stderr_file)
-                    sys.exit(1)
 
     @staticmethod
     def get_converter_dict(enum_type: Type[Enum]) -> ParseConverter:

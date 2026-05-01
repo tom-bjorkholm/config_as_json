@@ -842,16 +842,21 @@ class ListOfDictsKeysValidator(MemberValidator):  # pylint: disable=too-few-publ
     This is the dedicated predefined validator for the common "list of
     dictionaries with a fixed key policy" shape. It is equivalent to using a
     ``ListForEachValidator`` with ``element_type=dict`` and one inner
-    ``DictKeysValidator``.
+    ``DictKeysValidator``. Pass ``allow_extra_dict_keys=True`` for an open
+    dict shape where each element must contain selected mandatory keys but
+    may also carry application-specific extra keys.
     """
 
     def __init__(self, mandatory_keys: Sequence[str],
-                 allowed_keys: Optional[Sequence[str]] = None) -> None:
+                 allowed_keys: Optional[Sequence[str]] = None,
+                 allow_extra_dict_keys: bool = False) -> None:
         """Initialize the validator.
 
         Args:
             mandatory_keys: Keys that must be present in every dict element.
             allowed_keys: Additional keys that are permitted but not required.
+            allow_extra_dict_keys: Whether keys not listed in
+                ``mandatory_keys`` or ``allowed_keys`` should be accepted.
 
         Raises:
             TypeError: If any key entry is not a string.
@@ -859,7 +864,8 @@ class ListOfDictsKeysValidator(MemberValidator):  # pylint: disable=too-few-publ
         """
         self._validator = ListForEachValidator(
             element_validators=[DictKeysValidator(
-                mandatory_keys=mandatory_keys, allowed_keys=allowed_keys)],
+                mandatory_keys=mandatory_keys, allowed_keys=allowed_keys,
+                allow_extra_dict_keys=allow_extra_dict_keys)],
             element_type=dict)
 
     def validate_member(self, config: Config,
@@ -880,7 +886,7 @@ class ListOfDictsKeysValidator(MemberValidator):  # pylint: disable=too-few-publ
         Raises:
             InvalidConfiguration: If the member is not a list, one element is
                 not a dict, one dict misses a mandatory key, or one dict has
-                an unknown key.
+                an unknown key while ``allow_extra_dict_keys`` is ``False``.
         """
         return self._validator.validate_member(
             config=config, member_name=member_name,

@@ -65,6 +65,20 @@ def _validate_string_keys(keys: Sequence[str],
         seen.add(key)
 
 
+def _validate_bool_argument(value: bool, parameter_name: str) -> None:
+    """Validate that a constructor argument is a bool.
+
+    Args:
+        value: Value to validate.
+        parameter_name: Name used in the error message.
+
+    Raises:
+        TypeError: If ``value`` is not a bool.
+    """
+    if not isinstance(value, bool):
+        raise TypeError(f'{parameter_name} must be a bool.')
+
+
 def _inner_member_name(outer: str, key: str) -> str:
     """Return the inner member name used for a value at ``key`` of ``outer``.
 
@@ -86,10 +100,15 @@ class DictKeysValidator(MemberValidator):  # pylint: disable=too-few-public-meth
 
     The validator accepts only actual dict values. All keys listed in
     ``mandatory_keys`` must be present in the dict; a missing mandatory key
-    is reported as an error. Any key in the dict that is neither a
-    mandatory key nor an additional allowed key is rejected. The set of
+    is reported as an error. By default, any key in the dict that is neither
+    a mandatory key nor an additional allowed key is rejected. The set of
     permitted keys is the union of ``mandatory_keys`` and ``allowed_keys``;
     a key listed in both sequences is harmless.
+
+    When ``allow_extra_dict_keys`` is ``True``, unknown keys are accepted
+    after all mandatory keys have been found. This is useful for open
+    dictionary shapes where validators should require or validate only a
+    selected subset of keys and pass application-specific extras through.
 
     The validator never modifies the dict and never inspects its values,
     so it is the natural first step in a ``ValidationPlan`` that is later
@@ -107,7 +126,8 @@ class DictKeysValidator(MemberValidator):  # pylint: disable=too-few-public-meth
     """
 
     def __init__(self, mandatory_keys: Sequence[str],
-                 allowed_keys: Optional[Sequence[str]] = None) -> None:
+                 allowed_keys: Optional[Sequence[str]] = None,
+                 allow_extra_dict_keys: bool = False) -> None:
         """Initialize the validator.
 
         Args:
@@ -116,22 +136,29 @@ class DictKeysValidator(MemberValidator):  # pylint: disable=too-few-public-meth
                 only optional keys).
             allowed_keys: Additional keys that are permitted but not
                 required. ``None`` means no optional keys are allowed; the
-                dict must contain exactly the mandatory keys.
+                dict must contain exactly the mandatory keys unless
+                ``allow_extra_dict_keys`` is ``True``.
+            allow_extra_dict_keys: Whether keys not listed in
+                ``mandatory_keys`` or ``allowed_keys`` should be accepted.
 
         Raises:
             TypeError: If any entry of ``mandatory_keys`` or
-                ``allowed_keys`` is not a ``str``.
+                ``allowed_keys`` is not a ``str``, or if
+                ``allow_extra_dict_keys`` is not a bool.
             ValueError: If ``mandatory_keys`` or ``allowed_keys`` contains
                 a duplicate entry.
         """
         _validate_string_keys(mandatory_keys, 'mandatory_keys')
         if allowed_keys is not None:
             _validate_string_keys(allowed_keys, 'allowed_keys')
+        _validate_bool_argument(allow_extra_dict_keys,
+                                'allow_extra_dict_keys')
         self.mandatory_keys: tuple[str, ...] = tuple(mandatory_keys)
         extra: tuple[str, ...] = tuple(allowed_keys) \
             if allowed_keys is not None else ()
         self.allowed_keys: frozenset[str] = \
             frozenset(self.mandatory_keys) | frozenset(extra)
+        self.allow_extra_dict_keys: bool = allow_extra_dict_keys
 
     def validate_member(self, config: Config, member_name: str,
                         member_value: object,
@@ -154,7 +181,8 @@ class DictKeysValidator(MemberValidator):  # pylint: disable=too-few-public-meth
 
         Raises:
             InvalidConfiguration: If the member is not a dict, a mandatory
-                key is missing, or an unknown key is present.
+                key is missing, or an unknown key is present while
+                ``allow_extra_dict_keys`` is ``False``.
         """
         _ = config
         validated_value = _validate_dict_member_value(
@@ -167,6 +195,8 @@ class DictKeysValidator(MemberValidator):  # pylint: disable=too-few-public-meth
                 msg += f'from {member_name}.'
                 print(msg, file=stderr_file)
                 raise InvalidConfiguration(msg)
+        if self.allow_extra_dict_keys:
+            return member_value
         for present_key in validated_value:
             if present_key not in self.allowed_keys:
                 msg = 'Invalid configuration: '

@@ -7,7 +7,7 @@
 
 import dataclasses
 import sys
-from typing import Callable, Optional, TextIO
+from typing import Any, Callable, Optional, TextIO, cast
 import pytest
 from config_as_json.config import Config
 from config_as_json.dict_validators import (DictForEachValidator,
@@ -239,6 +239,14 @@ def test_dict_keys_validator_init_treats_none_allowed_as_empty():
     assert validator.allowed_keys == frozenset({'a'})
 
 
+def test_dict_keys_validator_init_rejects_non_bool_extra_policy():
+    """allow_extra_dict_keys must be a bool."""
+    with pytest.raises(TypeError) as exc:
+        DictKeysValidator(mandatory_keys=['a'],
+                          allow_extra_dict_keys=cast(Any, 'yes'))
+    assert 'allow_extra_dict_keys must be a bool' in str(exc.value)
+
+
 # ---- DictKeysValidator: validate_member ------------------------------------
 
 
@@ -268,6 +276,30 @@ def test_dict_keys_validator_returns_same_dict_object(capsys):
     assert result is member_value
     assert out == ''
     assert err == ''
+
+
+def test_dict_keys_validator_accepts_unknown_keys_when_allowed(capsys):
+    """Open dict policy keeps mandatory keys and allows extra keys."""
+    validator = DictKeysValidator(
+        mandatory_keys=['a'], allow_extra_dict_keys=True)
+    member_value = {'a': 1, 'extra': 2}
+    cfg = EmptyValidationConfig()
+    result = validator.validate_member(cfg, 'value', member_value,
+                                       sys.stderr)
+    out, err = capsys.readouterr()
+    assert result is member_value
+    assert validator.allow_extra_dict_keys is True
+    assert out == ''
+    assert err == ''
+
+
+def test_dict_keys_validator_open_policy_still_requires_mandatory(capsys):
+    """Open dict policy must not weaken mandatory-key checks."""
+    validator = DictKeysValidator(
+        mandatory_keys=['a'], allow_extra_dict_keys=True)
+    assert_validate_member_failure(
+        capsys, validator, {'extra': 2}, InvalidConfiguration,
+        "Mandatory key 'a' is missing from value")
 
 
 @pytest.mark.parametrize(

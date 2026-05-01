@@ -9,19 +9,23 @@ import sys
 from copy import deepcopy
 from enum import Enum
 from typing import Optional, Callable, TypeVar, NamedTuple, TextIO, \
-    Generic, TypedDict, Mapping, cast
+    Generic, TypedDict
 from csv import Dialect
 from config_as_json.config import Config, ParseConverter, \
     RocfKeyRename
 from config_as_json.char_encoding import check_char_encoding
 from config_as_json.csv_dialect import get_csv_dialect
-from config_as_json.list_validators import ListIsOrderedValidator, \
-    ListOfDictsKeysValidator
+from config_as_json.dict_validators import DictForEachValidator, DictRule
+from config_as_json.discriminated_dict_validators import DictVariant, \
+    DiscriminatedDictValidator
+from config_as_json.list_validators import ListForEachValidator, \
+    ListIsOrderedValidator, ListOfDictsKeysValidator, ListSizeValidator, \
+    ListValueTypeValidator
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.commontypes import JsonType
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
-from config_as_json.validator import ValidationPlan
+from config_as_json.validator import ValidationPlan, ValueTypeValidator
 from .config_enums import FileType, SplitWhere, \
     ExcelLib, RewriteKind, CaseSensitivity, ColumnRef
 
@@ -401,35 +405,44 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             coltype: Expected runtime type for the configured columns.
             stderr_file: Stream used for user-facing diagnostics.
         """
-        rewrite_col_mand_keys: list[str] = ['column', 'kind', 'case']
-        rewrite_col_opt_keys: list[str] = ['chars', 'from', 'to']
-        _ = ListOfDictsKeysValidator(
-            mandatory_keys=rewrite_col_mand_keys,
-            allowed_keys=rewrite_col_opt_keys).validate_member(
-                self, 's09_rewrite_columns', self.s09_rewrite_columns,
-                stderr_file)
-        template = {RewriteKind.STRIP: {'column': coltype,
-                                        'kind': RewriteKind,
-                                        'chars': str,
-                                        'case': CaseSensitivity},
-                    RewriteKind.REMOVECHARS: {'column': coltype,
-                                              'kind': RewriteKind,
-                                              'chars': list,
-                                              'case': CaseSensitivity},
-                    RewriteKind.REGEX_SUBSTITUTE: {'column': coltype,
-                                                   'kind': RewriteKind,
-                                                   'from': str, 'to': str,
-                                                   'case': CaseSensitivity},
-                    RewriteKind.STR_SUBSTITUTE: {'column': coltype,
-                                                 'kind': RewriteKind,
-                                                 'from': str, 'to': str,
-                                                 'case': CaseSensitivity}}
-        mtemplate = cast(Mapping[Enum, Mapping[str, type]], template)
-        self.check_array_dicts(name_of_cfg='s09_rewrite_columns',
-                               array=self.s09_rewrite_columns,
-                               kind_key='kind', kind_type=RewriteKind,
-                               dict_of_templates=mtemplate,
-                               stderr_file=stderr_file)
+        column_rule = DictRule(
+            keys=['column'], validators=[ValueTypeValidator(coltype)])
+        chars_str_rule = DictRule(
+            keys=['chars'], validators=[ValueTypeValidator(str)])
+        chars_list_rule = DictRule(
+            keys=['chars'], validators=[ValueTypeValidator(list)])
+        case_rule = DictRule(
+            keys=['case'],
+            validators=[ValueTypeValidator(CaseSensitivity)])
+        from_to_rule = DictRule(
+            keys=['from', 'to'], validators=[ValueTypeValidator(str)])
+        variants: dict[object, DictVariant] = {
+            RewriteKind.STRIP: DictVariant(
+                mandatory_keys=['column', 'chars', 'case'],
+                allowed_keys=['from', 'to'],
+                rules=[column_rule, chars_str_rule, case_rule]),
+            RewriteKind.REMOVECHARS: DictVariant(
+                mandatory_keys=['column', 'chars', 'case'],
+                allowed_keys=['from', 'to'],
+                rules=[column_rule, chars_list_rule, case_rule]),
+            RewriteKind.REGEX_SUBSTITUTE: DictVariant(
+                mandatory_keys=['column', 'from', 'to', 'case'],
+                allowed_keys=['chars'],
+                rules=[column_rule, from_to_rule, case_rule]),
+            RewriteKind.STR_SUBSTITUTE: DictVariant(
+                mandatory_keys=['column', 'from', 'to', 'case'],
+                allowed_keys=['chars'],
+                rules=[column_rule, from_to_rule, case_rule])
+        }
+        rewrite_validator = ListForEachValidator(
+            element_validators=[DiscriminatedDictValidator(
+                discriminator_key='kind',
+                variants=variants,
+                discriminator_validator=ValueTypeValidator(RewriteKind))],
+            element_type=dict)
+        _ = rewrite_validator.validate_member(
+            self, 's09_rewrite_columns', self.s09_rewrite_columns,
+            stderr_file)
 
     @staticmethod
     def check_sep_not_sep(separators: list[str],
@@ -466,23 +479,25 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             stderr_file: Stream used for user-facing diagnostics.
         """
         keys = ['column', 'separators', 'not_separators']
-        self.check_lst_dict(paramname='s01_split_rows',
-                            inp=self.s01_split_rows, key='column',
-                            key_optional=False, valtype=self._columntype,
-                            min_size_list=0,
-                            stderr_file=stderr_file)
         _ = ListOfDictsKeysValidator(keys).validate_member(
             self, 's01_split_rows', self.s01_split_rows, stderr_file)
-        self.check_lst_dict_lst(paramname='s01_split_rows',
-                                inp=self.s01_split_rows, key='separators',
-                                key_optional=False, valtype=str,
-                                min_size_outer_list=0, min_size_inner_list=1,
-                                stderr_file=stderr_file)
-        self.check_lst_dict_lst(paramname='s01_split_rows',
-                                inp=self.s01_split_rows, key='not_separators',
-                                key_optional=False, valtype=str,
-                                min_size_outer_list=0, min_size_inner_list=0,
-                                stderr_file=stderr_file)
+        split_rows_validator = ListForEachValidator(
+            element_validators=[DictForEachValidator(rules=[
+                DictRule(
+                    keys=['column'],
+                    validators=[ValueTypeValidator(self._columntype)]),
+                DictRule(
+                    keys=['separators'],
+                    validators=[ListSizeValidator(1, sys.maxsize),
+                                ListValueTypeValidator(str)]),
+                DictRule(
+                    keys=['not_separators'],
+                    validators=[ListSizeValidator(0, sys.maxsize),
+                                ListValueTypeValidator(str)])
+            ])],
+            element_type=dict)
+        _ = split_rows_validator.validate_member(
+            self, 's01_split_rows', self.s01_split_rows, stderr_file)
         for elem in self.s01_split_rows:
             sep = elem['separators']
             assert isinstance(sep, list)
@@ -498,17 +513,20 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             stderr_file: Stream used for user-facing diagnostics.
         """
         keys = ['columns', 'separator']
-        self.check_lst_dict_lst(paramname='s02_merge_rows',
-                                inp=self.s02_merge_rows, key='columns',
-                                key_optional=False, valtype=self._columntype,
-                                min_size_outer_list=0, min_size_inner_list=1,
-                                stderr_file=stderr_file)
-        self.check_lst_dict(paramname='s02_merge_rows',
-                            inp=self.s02_merge_rows, key='separator',
-                            key_optional=False, valtype=str,
-                            min_size_list=0,
-                            stderr_file=stderr_file)
         _ = ListOfDictsKeysValidator(keys).validate_member(
+            self, 's02_merge_rows', self.s02_merge_rows, stderr_file)
+        merge_rows_validator = ListForEachValidator(
+            element_validators=[DictForEachValidator(rules=[
+                DictRule(
+                    keys=['columns'],
+                    validators=[ListSizeValidator(1, sys.maxsize),
+                                ListValueTypeValidator(self._columntype)]),
+                DictRule(
+                    keys=['separator'],
+                    validators=[ValueTypeValidator(str)])
+            ])],
+            element_type=dict)
+        _ = merge_rows_validator.validate_member(
             self, 's02_merge_rows', self.s02_merge_rows, stderr_file)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:

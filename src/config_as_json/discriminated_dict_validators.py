@@ -11,7 +11,8 @@ from typing import Optional, TextIO
 from config_as_json.config import Config
 from config_as_json.dict_validators import DictForEachValidator, \
     DictKeysValidator, DictRule, _inner_member_name, \
-    _validate_dict_member_value, _validate_string_keys
+    _validate_bool_argument, _validate_dict_member_value, \
+    _validate_string_keys
 from config_as_json.validator import InvalidConfiguration, MemberValidator
 
 
@@ -48,11 +49,14 @@ class DictVariant:
         rules: Per-key validators to apply after the key set has been
             checked. Rules may include the discriminator key if it should
             also be normalized or checked beyond variant selection.
+        allow_extra_dict_keys: Whether keys not listed for this variant
+            should be accepted.
     """
 
     mandatory_keys: Sequence[str]
     allowed_keys: Optional[Sequence[str]] = None
     rules: Sequence[DictRule] = ()
+    allow_extra_dict_keys: bool = False
 
     def __post_init__(self) -> None:
         """Validate that the variant description is well-formed."""
@@ -60,6 +64,8 @@ class DictVariant:
         if self.allowed_keys is not None:
             _validate_string_keys(self.allowed_keys, 'allowed_keys')
         _validate_variant_rules(self.rules)
+        _validate_bool_argument(self.allow_extra_dict_keys,
+                                'allow_extra_dict_keys')
 
 
 def _validate_discriminator_key(discriminator_key: str) -> None:
@@ -198,7 +204,9 @@ class DiscriminatedDictValidator(  # pylint: disable=too-few-public-methods
                 is always required and allowed independently of the selected
                 variant.
             variants: Mapping from normalized discriminator values to the
-                variant that applies to that discriminator value.
+                variant that applies to that discriminator value. Each variant
+                also decides whether extra keys are accepted for that selected
+                shape.
             discriminator_validator: Optional validator applied to the
                 discriminator value before variant lookup. It can normalize
                 values, for example from user-facing strings to canonical
@@ -281,7 +289,8 @@ class DiscriminatedDictValidator(  # pylint: disable=too-few-public-methods
         key_validator = DictKeysValidator(
             mandatory_keys=_variant_mandatory_keys(
                 self.discriminator_key, variant),
-            allowed_keys=variant.allowed_keys)
+            allowed_keys=variant.allowed_keys,
+            allow_extra_dict_keys=variant.allow_extra_dict_keys)
         key_validator.validate_member(
             config=config, member_name=member_name, member_value=result,
             stderr_file=stderr_file)

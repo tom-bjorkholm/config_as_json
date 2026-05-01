@@ -50,10 +50,7 @@
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
     * [read](#config_as_json.config.Config.read)
     * [write](#config_as_json.config.Config.write)
-    * [check\_lst\_dict](#config_as_json.config.Config.check_lst_dict)
-    * [check\_lst\_dict\_lst](#config_as_json.config.Config.check_lst_dict_lst)
     * [value\_of\_type](#config_as_json.config.Config.value_of_type)
-    * [check\_array\_dicts](#config_as_json.config.Config.check_array_dicts)
     * [get\_converter\_dict](#config_as_json.config.Config.get_converter_dict)
     * [get\_validation\_plan](#config_as_json.config.Config.get_validation_plan)
     * [validate](#config_as_json.config.Config.validate)
@@ -820,8 +817,8 @@ each supported configuration setting, and use those attribute values as the
 default configuration. Each such configuration setting can also have a value
 type of dict or list, or even a nested dict or list.
 The base class then provides JSON serialization, parsing, schema-like key
-checks, omit-when-None handling, old-file migration helpers, and a collection
-of validation helpers for common patterns.
+checks, omit-when-None handling, old-file migration helpers, and validation
+plan integration.
 
 <a id="config_as_json.config.RocfKeyRename"></a>
 
@@ -1092,79 +1089,6 @@ Write the current configuration to a JSON file.
 - `stderr_file` - Stream used for user-facing diagnostics during
   validation.
 
-<a id="config_as_json.config.Config.check_lst_dict"></a>
-
-#### check\_lst\_dict
-
-```python
-@staticmethod
-def check_lst_dict(paramname: str,
-                   inp: Sequence[Mapping[str, Any]],
-                   key: str,
-                   key_optional: bool,
-                   valtype: type,
-                   min_size_list: int,
-                   stderr_file: TextIO = sys.stderr) -> None
-```
-
-Validate a list of mappings that carry one typed value per row.
-
-**Arguments**:
-
-- `paramname` - Configuration parameter name used in diagnostics.
-- `inp` - Sequence that should be a list of dictionaries.
-- `key` - Key whose value type should be checked in each dictionary.
-- `key_optional` - Whether dictionaries may omit ``key``.
-- `valtype` - Expected runtime type for the value stored at ``key``.
-- `min_size_list` - Minimum allowed number of dictionaries in ``inp``.
-- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
-  ``sys.stderr``.
-
-
-**Raises**:
-
-- `SystemExit` - ``inp`` is not a list, contains non-dict items, is too
-  short, is missing ``key`` when required, or has a value at
-  ``key`` with the wrong runtime type.
-
-<a id="config_as_json.config.Config.check_lst_dict_lst"></a>
-
-#### check\_lst\_dict\_lst
-
-```python
-@staticmethod
-def check_lst_dict_lst(paramname: str,
-                       inp: Sequence[Mapping[str, Any]],
-                       key: str,
-                       key_optional: bool,
-                       valtype: type,
-                       min_size_outer_list: int,
-                       min_size_inner_list: int,
-                       stderr_file: TextIO = sys.stderr) -> None
-```
-
-Validate a list of mappings whose checked value is itself a list.
-
-**Arguments**:
-
-- `paramname` - Configuration parameter name used in diagnostics.
-- `inp` - Sequence that should be a list of dictionaries.
-- `key` - Key whose value should be a list of ``valtype`` items.
-- `key_optional` - Whether dictionaries may omit ``key``.
-- `valtype` - Expected runtime type for each item in the inner list.
-- `min_size_outer_list` - Minimum number of dictionaries in ``inp``.
-- `min_size_inner_list` - Minimum number of items in each checked inner
-  list.
-- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
-  ``sys.stderr``.
-
-
-**Raises**:
-
-- `SystemExit` - The outer value does not satisfy
-  :meth:`check_lst_dict`, one checked inner list is too short,
-  or one inner list item has the wrong runtime type.
-
 <a id="config_as_json.config.Config.value_of_type"></a>
 
 #### value\_of\_type
@@ -1186,46 +1110,6 @@ Return ``input_value`` as an instance of ``to_type``.
 
   ``input_value`` unchanged when it already has the expected type,
   otherwise the result of calling ``to_type(input_value)``.
-
-<a id="config_as_json.config.Config.check_array_dicts"></a>
-
-#### check\_array\_dicts
-
-```python
-@staticmethod
-def check_array_dicts(name_of_cfg: str,
-                      array: list[dict[str, Any]],
-                      kind_key: str,
-                      kind_type: type,
-                      dict_of_templates: Mapping[Keya, Mapping[str, type]],
-                      stderr_file: TextIO = sys.stderr) -> None
-```
-
-Validate a list of dictionaries against type templates.
-
-Each row in ``array`` selects its expected template through
-``kind_key``. The selected template then defines which keys must
-exist and which runtime types their values must have.
-
-**Arguments**:
-
-- `name_of_cfg` - Name used in user-facing error messages.
-- `array` - List of dictionaries to validate.
-- `kind_key` - Key whose value selects the expected template.
-- `kind_type` - Type used to normalize the value at ``kind_key``.
-- `dict_of_templates` - Mapping from kind value to a dictionary of
-  expected keys and value types.
-- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
-  ``sys.stderr``.
-
-
-**Raises**:
-
-- `KeyError` - ``dict_of_templates`` is not a dictionary of
-  dictionaries.
-- `SystemExit` - ``array`` is not a list of dictionaries, one row is
-  missing a required key, or one row value has the wrong runtime
-  type.
 
 <a id="config_as_json.config.Config.get_converter_dict"></a>
 
@@ -1546,6 +1430,8 @@ the variant-specific keys in addition to that discriminator key.
 - `rules` - Per-key validators to apply after the key set has been
   checked. Rules may include the discriminator key if it should
   also be normalized or checked beyond variant selection.
+- `allow_extra_dict_keys` - Whether keys not listed for this variant
+  should be accepted.
 
 <a id="config_as_json.discriminated_dict_validators.DiscriminatedDictValidator"></a>
 
@@ -1592,7 +1478,9 @@ Initialize the discriminated dictionary validator.
   is always required and allowed independently of the selected
   variant.
 - `variants` - Mapping from normalized discriminator values to the
-  variant that applies to that discriminator value.
+  variant that applies to that discriminator value. Each variant
+  also decides whether extra keys are accepted for that selected
+  shape.
 - `discriminator_validator` - Optional validator applied to the
   discriminator value before variant lookup. It can normalize
   values, for example from user-facing strings to canonical
@@ -1896,10 +1784,15 @@ Validate that a dict's key set conforms to a fixed policy.
 
 The validator accepts only actual dict values. All keys listed in
 ``mandatory_keys`` must be present in the dict; a missing mandatory key
-is reported as an error. Any key in the dict that is neither a
-mandatory key nor an additional allowed key is rejected. The set of
+is reported as an error. By default, any key in the dict that is neither
+a mandatory key nor an additional allowed key is rejected. The set of
 permitted keys is the union of ``mandatory_keys`` and ``allowed_keys``;
 a key listed in both sequences is harmless.
+
+When ``allow_extra_dict_keys`` is ``True``, unknown keys are accepted
+after all mandatory keys have been found. This is useful for open
+dictionary shapes where validators should require or validate only a
+selected subset of keys and pass application-specific extras through.
 
 The validator never modifies the dict and never inspects its values,
 so it is the natural first step in a ``ValidationPlan`` that is later
@@ -1921,7 +1814,8 @@ values and you must not let the base class reject valid key sets first.
 
 ```python
 def __init__(mandatory_keys: Sequence[str],
-             allowed_keys: Optional[Sequence[str]] = None) -> None
+             allowed_keys: Optional[Sequence[str]] = None,
+             allow_extra_dict_keys: bool = False) -> None
 ```
 
 Initialize the validator.
@@ -1933,13 +1827,17 @@ Initialize the validator.
   only optional keys).
 - `allowed_keys` - Additional keys that are permitted but not
   required. ``None`` means no optional keys are allowed; the
-  dict must contain exactly the mandatory keys.
+  dict must contain exactly the mandatory keys unless
+  ``allow_extra_dict_keys`` is ``True``.
+- `allow_extra_dict_keys` - Whether keys not listed in
+  ``mandatory_keys`` or ``allowed_keys`` should be accepted.
 
 
 **Raises**:
 
 - `TypeError` - If any entry of ``mandatory_keys`` or
-  ``allowed_keys`` is not a ``str``.
+  ``allowed_keys`` is not a ``str``, or if
+  ``allow_extra_dict_keys`` is not a bool.
 - `ValueError` - If ``mandatory_keys`` or ``allowed_keys`` contains
   a duplicate entry.
 
@@ -1977,7 +1875,8 @@ first unknown key triggers the error.
 **Raises**:
 
 - `InvalidConfiguration` - If the member is not a dict, a mandatory
-  key is missing, or an unknown key is present.
+  key is missing, or an unknown key is present while
+  ``allow_extra_dict_keys`` is ``False``.
 
 <a id="config_as_json.dict_validators.DictRule"></a>
 
@@ -2934,7 +2833,9 @@ Validate the keys of every dict element in a list member.
 This is the dedicated predefined validator for the common "list of
 dictionaries with a fixed key policy" shape. It is equivalent to using a
 ``ListForEachValidator`` with ``element_type=dict`` and one inner
-``DictKeysValidator``.
+``DictKeysValidator``. Pass ``allow_extra_dict_keys=True`` for an open
+dict shape where each element must contain selected mandatory keys but
+may also carry application-specific extra keys.
 
 <a id="config_as_json.list_validators.ListOfDictsKeysValidator.__init__"></a>
 
@@ -2942,7 +2843,8 @@ dictionaries with a fixed key policy" shape. It is equivalent to using a
 
 ```python
 def __init__(mandatory_keys: Sequence[str],
-             allowed_keys: Optional[Sequence[str]] = None) -> None
+             allowed_keys: Optional[Sequence[str]] = None,
+             allow_extra_dict_keys: bool = False) -> None
 ```
 
 Initialize the validator.
@@ -2951,6 +2853,8 @@ Initialize the validator.
 
 - `mandatory_keys` - Keys that must be present in every dict element.
 - `allowed_keys` - Additional keys that are permitted but not required.
+- `allow_extra_dict_keys` - Whether keys not listed in
+  ``mandatory_keys`` or ``allowed_keys`` should be accepted.
 
 
 **Raises**:
@@ -2988,7 +2892,7 @@ Validate one list-of-dicts member against the configured keys.
 
 - `InvalidConfiguration` - If the member is not a list, one element is
   not a dict, one dict misses a mandatory key, or one dict has
-  an unknown key.
+  an unknown key while ``allow_extra_dict_keys`` is ``False``.
 
 <a id="config_as_json.assert_dict_equal"></a>
 

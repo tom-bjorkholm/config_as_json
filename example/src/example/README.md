@@ -537,6 +537,32 @@ The command line accepts the dialect as one JSON value. For example:
 
 `--csv-dialect '{"name":"csv.excel_tab","delimiter":";"}'`
 
+## e18_replacing_config_check_helpers.py
+
+[Source code for e18_replacing_config_check_helpers.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e18_replacing_config_check_helpers.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e18_replacing_config_check_helpers.py)
+
+This example shows how to replace older direct `Config` check helper
+patterns with validators.
+
+The configuration has three list-of-dicts members:
+
+- `column_mappings` shows the old "list of dicts with one typed key"
+  pattern. `ListForEachValidator` applies `DictKeysValidator` and
+  `DictForEachValidator` to every row.
+- `merge_rules` shows the old "list of dicts where one key contains a list"
+  pattern. The per-key rule validates that `columns` is a non-empty list of
+  strings.
+- `rewrite_rules` shows the old "list of dicts selected by kind" pattern.
+  `ListForEachValidator` applies one `DiscriminatedDictValidator` to every
+  row, and each `DictVariant` defines the keys and value validators for its
+  selected shape.
+
+The example deliberately uses `allow_extra_dict_keys=True` in the key-policy
+validators. That models open row dictionaries: selected keys are required
+and validated, while unrelated application-specific keys are passed through.
+The command line accepts each member as a JSON value because all three
+members are nested list-of-dicts structures.
+
 ## e30_optional_user_preference.py
 
 [Source code for e30_optional_user_preference.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py)
