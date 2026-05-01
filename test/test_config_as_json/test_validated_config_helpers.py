@@ -77,7 +77,7 @@ def test_legacy_name_cfg_uses_supplied_stderr_file(capsys):
     template = ConfigXlsListTransfName()
     template.s07_rename_columns[0]['column'] = 'last name'
     stderr_file = StringIO()
-    with pytest.raises(SystemExit):
+    with pytest.raises(InvalidConfiguration):
         _ = ConfigXlsListTransfName(
             from_json_data_text=template.as_json_string(
                 stderr_file=stderr_file),
@@ -85,7 +85,9 @@ def test_legacy_name_cfg_uses_supplied_stderr_file(capsys):
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
-    assert 'Duplicates not allowed in s07_rename_columns.' in \
+    assert 'Value last name for s07_rename_columns at index 1 ' in \
+        stderr_file.getvalue()
+    assert 'duplicates the value at index 0' in \
         stderr_file.getvalue()
 
 

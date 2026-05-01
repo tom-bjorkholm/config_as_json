@@ -25,11 +25,11 @@ from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.migrate_cfg import migrate_cfg
 from config_as_json.validator import ValidationPlan, ValidationStep, \
     WholeConfigValidationStep, MemberValidationStep, WholeConfigValidator, \
-    MemberValidator, StrValidator, IntFloatValidator, string_best_match, \
-    InvalidConfiguration, InvalidConfigurationValue
+    MemberValidator, ValueTypeValidator, StrValidator, IntFloatValidator, \
+    string_best_match, InvalidConfiguration, InvalidConfigurationValue
 from config_as_json.list_validators import ListValueValidator, \
     ListSizeValidator, ListIsOrderedValidator, ListOrderingValidator, \
-    ListForEachValidator
+    ListValueTypeValidator, ListForEachValidator, ListOfDictsKeysValidator
 from config_as_json.dict_validators import DictKeysValidator, DictRule, \
     DictForEachValidator
 from config_as_json.discriminated_dict_validators import DictVariant, \
@@ -64,6 +64,7 @@ __all__ = ['Config',
            'MemberValidationStep',
            'WholeConfigValidator',
            'MemberValidator',
+           'ValueTypeValidator',
            'StrValidator',
            'IntFloatValidator',
            'string_best_match',
@@ -74,7 +75,9 @@ __all__ = ['Config',
            'ListSizeValidator',
            'ListIsOrderedValidator',
            'ListOrderingValidator',
+           'ListValueTypeValidator',
            'ListForEachValidator',
+           'ListOfDictsKeysValidator',
            'DictKeysValidator',
            'DictRule',
            'DictForEachValidator',

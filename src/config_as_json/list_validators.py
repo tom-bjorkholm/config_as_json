@@ -8,10 +8,11 @@ import sys
 from functools import cmp_to_key
 from typing import Callable, Generic, Optional, Sequence, TextIO, TypeVar
 from config_as_json.config import Config
+from config_as_json.dict_validators import DictKeysValidator
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue, MemberValidator, \
     _not_one_of_allowed_values_message, \
-    _validate_and_get_constraint_value_type
+    _validate_and_get_constraint_value_type, _validate_type_argument
 
 
 Basictype = TypeVar('Basictype', int, float, str, bool)
@@ -430,6 +431,59 @@ class ListSizeValidator(MemberValidator):  # pylint: disable=too-few-public-meth
         return member_value
 
 
+class ListValueTypeValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+    """Validate that a member is a list with one element runtime type."""
+
+    def __init__(self, element_type: type[object]) -> None:
+        """Initialize the validator.
+
+        Args:
+            element_type: Required runtime type for each list element.
+
+        Raises:
+            TypeError: If ``element_type`` is not a type.
+        """
+        self.element_type: type[object] = _validate_type_argument(
+            element_type, 'element_type')
+
+    def validate_member(self, config: Config,
+                        member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Validate one list member's element types.
+
+        The element checks use normal ``isinstance`` semantics. For example,
+        ``ListValueTypeValidator(int)`` accepts ``True`` because ``bool`` is
+        a subclass of ``int`` in Python.
+
+        Args:
+            config: The Config object that owns the member.
+            member_name: The name of the member to validate.
+            member_value: The list value to validate.
+            stderr_file: The file to write error messages to.
+
+        Returns:
+            The original list value if validation succeeds.
+
+        Raises:
+            InvalidConfiguration: If the member is not a list or one element
+                is not an instance of ``element_type``.
+        """
+        _ = config
+        raw_list = _validate_list_member_value(
+            member_name=member_name, member_value=member_value,
+            stderr_file=stderr_file)
+        for member_index, raw_value in enumerate(raw_list):
+            if not isinstance(raw_value, self.element_type):
+                msg = 'Invalid configuration: '
+                msg += f'Value {raw_value} for {member_name} '
+                msg += f'at index {member_index} '
+                msg += f'is not of type {self.element_type.__name__}.'
+                print(msg, file=stderr_file)
+                raise InvalidConfiguration(msg)
+        return member_value
+
+
 class ListIsOrderedValidator(MemberValidator,  # pylint: disable=too-few-public-methods # noqa: E501
                              Generic[Basictype]):
     """Validate list element types, optional ordering, and uniqueness."""
@@ -780,3 +834,54 @@ class ListForEachValidator(MemberValidator):  # pylint: disable=too-few-public-m
                     member_value=current, stderr_file=stderr_file)
             result.append(current)
         return result
+
+
+class ListOfDictsKeysValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+    """Validate the keys of every dict element in a list member.
+
+    This is the dedicated predefined validator for the common "list of
+    dictionaries with a fixed key policy" shape. It is equivalent to using a
+    ``ListForEachValidator`` with ``element_type=dict`` and one inner
+    ``DictKeysValidator``.
+    """
+
+    def __init__(self, mandatory_keys: Sequence[str],
+                 allowed_keys: Optional[Sequence[str]] = None) -> None:
+        """Initialize the validator.
+
+        Args:
+            mandatory_keys: Keys that must be present in every dict element.
+            allowed_keys: Additional keys that are permitted but not required.
+
+        Raises:
+            TypeError: If any key entry is not a string.
+            ValueError: If a key sequence contains duplicates.
+        """
+        self._validator = ListForEachValidator(
+            element_validators=[DictKeysValidator(
+                mandatory_keys=mandatory_keys, allowed_keys=allowed_keys)],
+            element_type=dict)
+
+    def validate_member(self, config: Config,
+                        member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Validate one list-of-dicts member against the configured keys.
+
+        Args:
+            config: The Config object that owns the member.
+            member_name: The name of the list member to validate.
+            member_value: The list value to validate.
+            stderr_file: The file to write error messages to.
+
+        Returns:
+            A new list containing the validated dict elements.
+
+        Raises:
+            InvalidConfiguration: If the member is not a list, one element is
+                not a dict, one dict misses a mandatory key, or one dict has
+                an unknown key.
+        """
+        return self._validator.validate_member(
+            config=config, member_name=member_name,
+            member_value=member_value, stderr_file=stderr_file)

@@ -15,7 +15,7 @@ from config_as_json.validator import IntFloatValidator, \
     InvalidConfiguration, InvalidConfigurationValue, StrValidator, \
     ValidationPlan, ValidationStep, MemberValidationStep, \
     WholeConfigValidationStep, MemberValidator, WholeConfigValidator, \
-    not_one_of_allowed_values, string_best_match
+    ValueTypeValidator, not_one_of_allowed_values, string_best_match
 from .validator_test_helpers import \
     EmptyValidationConfig, SingleMemberValidationConfig, \
     assert_validate_member_failure, assert_validate_member_ok
@@ -211,6 +211,51 @@ class PaletteConfig(Config):
 def test_str_validator_ok(capsys, validator, member_value, expected):
     """Test OK cases of StrValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
+
+
+@pytest.mark.parametrize(
+    'bad_value_type',
+    [None, 'str', [str]])
+def test_value_type_validator_init_rejects_non_type(bad_value_type):
+    """Test ValueTypeValidator constructor validation."""
+    with pytest.raises(TypeError) as exc:
+        ValueTypeValidator(bad_value_type)
+    assert 'value_type must be a type' in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    'validator, member_value, expected',
+    [(ValueTypeValidator(str), 'alpha', 'alpha'),
+     (ValueTypeValidator(int), 3, 3),
+     (ValueTypeValidator(int), True, True),
+     (ValueTypeValidator(list), [1, 2], [1, 2])])
+def test_value_type_validator_ok(capsys, validator, member_value, expected):
+    """Test OK cases of ValueTypeValidator."""
+    assert_validate_member_ok(capsys, validator, member_value, expected)
+
+
+@pytest.mark.parametrize(
+    'validator, member_value, message',
+    [(ValueTypeValidator(str), 42, 'Value for value is not of type str'),
+     (ValueTypeValidator(bool), 1, 'Value for value is not of type bool'),
+     (ValueTypeValidator(list), (1, 2),
+      'Value for value is not of type list')])
+def test_value_type_validator_rejects_invalid_member_values(
+        capsys, validator, member_value, message):
+    """Test ValueTypeValidator failures."""
+    assert_validate_member_failure(
+        capsys, validator, member_value, InvalidConfiguration, message)
+
+
+def test_value_type_validator_integration_uses_parsed_json(capsys):
+    """Test ValueTypeValidator integration through Config.validate()."""
+    cfg = SingleMemberValidationConfig(
+        'value', 'alpha', ValueTypeValidator(str),
+        from_json_data_text='{"value": "beta"}')
+    out, err = capsys.readouterr()
+    assert getattr(cfg, 'value') == 'beta'
+    assert out == ''
+    assert err == ''
 
 
 def test_missing_get_validation_plan_raises(capsys):

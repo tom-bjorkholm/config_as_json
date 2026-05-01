@@ -486,6 +486,57 @@ This is the general escape hatch for "validate what can be calculated from
 this member, but keep this member as it is". The command line uses
 `json_value=True` because the value is a list of mixed-type dicts.
 
+## e16_type_and_list_of_dicts_validators.py
+
+[Source code for e16_type_and_list_of_dicts_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e16_type_and_list_of_dicts_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e16_type_and_list_of_dicts_validators.py)
+
+This example teaches 3 small predefined validators that are about data
+shape rather than values:
+
+- `ValueTypeValidator` checks that one member value has a runtime type
+- `ListValueTypeValidator` checks that a member is a list whose elements
+  all have one runtime type
+- `ListOfDictsKeysValidator` checks that every dict in a list has the
+  required key set
+
+The configuration has a scalar `worker_count`, a list of strings
+`alert_recipients`, and a list of dicts `pipeline_steps`. The step dicts
+must contain `name` and `enabled`, and may also contain `owner`.
+
+The important teaching point is that these validators are deliberately
+small. They are a good fit when the configuration shape is the rule. If the
+member also needs ranges, allowed values, ordering, or per-key value checks,
+use the more specific validators shown in the earlier examples.
+
+The command line accepts `pipeline_steps` as JSON because it is a list of
+dicts. A small override looks like:
+
+`--pipeline-steps '[{"name":"extract","enabled":true}]'`
+
+## e17_csv_dialect_and_encoding.py
+
+[Source code for e17_csv_dialect_and_encoding.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e17_csv_dialect_and_encoding.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e17_csv_dialect_and_encoding.py)
+
+This example teaches 2 validators for common file-format settings:
+
+- `CharEncodingValidator` checks that an encoding string is recognized by
+  Python
+- `CsvDialectValidator` checks a JSON-friendly dictionary that describes a
+  `csv.Dialect`
+
+The configuration has `input_encoding`, `output_encoding`, and
+`csv_dialect`. The dialect member is stored as a dict so it can be written
+to JSON, but the example also has a `get_csv_dialect()` method that turns
+that dict into a standard-library `csv.Dialect` object for application code.
+
+`CsvDialectValidator` also normalizes missing optional dialect keys to
+`None`. That lets a configuration file say only `{"name": "csv.excel_tab"}`
+when the standard dialect defaults are good enough.
+
+The command line accepts the dialect as one JSON value. For example:
+
+`--csv-dialect '{"name":"csv.excel_tab","delimiter":";"}'`
+
 ## e30_optional_user_preference.py
 
 [Source code for e30_optional_user_preference.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py)

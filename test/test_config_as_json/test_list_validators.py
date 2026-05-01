@@ -9,7 +9,7 @@ import sys
 import pytest
 from config_as_json.list_validators import ListForEachValidator, \
     ListIsOrderedValidator, ListOrderingValidator, ListSizeValidator, \
-    ListValueValidator
+    ListOfDictsKeysValidator, ListValueTypeValidator, ListValueValidator
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue
 from .validator_test_helpers import EmptyValidationConfig, \
@@ -171,6 +171,54 @@ def test_list_size_validator_integration_uses_parsed_json(capsys):
         from_json_data_text='{"value": [1, 2]}')
     out, err = capsys.readouterr()
     assert getattr(cfg, 'value') == [1, 2]
+    assert out == ''
+    assert err == ''
+
+
+@pytest.mark.parametrize(
+    'bad_element_type',
+    [None, 'str', [str]])
+def test_list_value_type_validator_init_rejects_non_type(bad_element_type):
+    """Test ListValueTypeValidator constructor validation."""
+    with pytest.raises(TypeError) as exc:
+        ListValueTypeValidator(bad_element_type)
+    assert 'element_type must be a type' in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    'validator, member_value, expected',
+    [(ListValueTypeValidator(str), [], []),
+     (ListValueTypeValidator(str), ['alpha', 'beta'], ['alpha', 'beta']),
+     (ListValueTypeValidator(int), [True, 2], [True, 2]),
+     (ListValueTypeValidator(list), [[1], [2, 3]], [[1], [2, 3]])])
+def test_list_value_type_validator_ok(
+        capsys, validator, member_value, expected):
+    """Test OK cases of ListValueTypeValidator."""
+    assert_validate_member_ok(capsys, validator, member_value, expected)
+
+
+@pytest.mark.parametrize(
+    'validator, member_value, message',
+    [(ListValueTypeValidator(str), ('alpha',),
+      'Value for value is not a list'),
+     (ListValueTypeValidator(str), ['alpha', 2],
+      'Value 2 for value at index 1 is not of type str'),
+     (ListValueTypeValidator(bool), [False, 1],
+      'Value 1 for value at index 1 is not of type bool')])
+def test_list_value_type_validator_rejects_invalid_member_values(
+        capsys, validator, member_value, message):
+    """Test ListValueTypeValidator failures."""
+    assert_validate_member_failure(
+        capsys, validator, member_value, InvalidConfiguration, message)
+
+
+def test_list_value_type_validator_integration_uses_parsed_json(capsys):
+    """Test ListValueTypeValidator integration through Config.validate()."""
+    cfg = SingleMemberValidationConfig(
+        'value', ['alpha'], ListValueTypeValidator(str),
+        from_json_data_text='{"value": ["beta", "gamma"]}')
+    out, err = capsys.readouterr()
+    assert getattr(cfg, 'value') == ['beta', 'gamma']
     assert out == ''
     assert err == ''
 
@@ -434,5 +482,83 @@ def test_list_for_each_validator_integration_uses_parsed_json(capsys):
         from_json_data_text='{"value": [[1, 2], [3, 4]]}')
     out, err = capsys.readouterr()
     assert getattr(cfg, 'value') == [[1, 2], [3, 4]]
+    assert out == ''
+    assert err == ''
+
+
+@pytest.mark.parametrize(
+    'mandatory_keys, allowed_keys, exc_type, message',
+    [(['name', 3], None, TypeError,
+      'mandatory_keys[1] must be a str'),
+     (['name', 'name'], None, ValueError,
+      "mandatory_keys[1]='name' duplicates an earlier entry"),
+     (['name'], ['enabled', object()], TypeError,
+      'allowed_keys[1] must be a str'),
+     (['name'], ['enabled', 'enabled'], ValueError,
+      "allowed_keys[1]='enabled' duplicates an earlier entry")])
+def test_list_of_dicts_keys_validator_init_rejects_invalid_keys(
+        mandatory_keys, allowed_keys, exc_type, message):
+    """Test ListOfDictsKeysValidator constructor validation."""
+    with pytest.raises(exc_type) as exc:
+        ListOfDictsKeysValidator(mandatory_keys=mandatory_keys,
+                                 allowed_keys=allowed_keys)
+    assert message in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    'validator, member_value, expected',
+    [(ListOfDictsKeysValidator(['name']), [], []),
+     (ListOfDictsKeysValidator(['name']), [{'name': 'extract'}],
+      [{'name': 'extract'}]),
+     (ListOfDictsKeysValidator(['name'], ['enabled']),
+      [{'name': 'extract'}, {'name': 'load', 'enabled': True}],
+      [{'name': 'extract'}, {'name': 'load', 'enabled': True}]),
+     (ListOfDictsKeysValidator([], ['name']),
+      [{'name': 'optional'}, {}], [{'name': 'optional'}, {}])])
+def test_list_of_dicts_keys_validator_ok(
+        capsys, validator, member_value, expected):
+    """Test OK cases of ListOfDictsKeysValidator."""
+    assert_validate_member_ok(capsys, validator, member_value, expected)
+
+
+@pytest.mark.parametrize(
+    'member_value, message',
+    [({'name': 'extract'}, 'Value for value is not a list'),
+     ([{'name': 'extract'}, ['name', 'load']],
+      'Value at value[1] has type list; expected dict'),
+     ([{'name': 'extract'}, {'enabled': True}],
+      "Mandatory key 'name' is missing from value[1]"),
+     ([{'name': 'extract', 'extra': 'boom'}],
+      "Unknown key 'extra' in value[0]")])
+def test_list_of_dicts_keys_validator_rejects_invalid_member_values(
+        capsys, member_value, message):
+    """Test ListOfDictsKeysValidator failures."""
+    validator = ListOfDictsKeysValidator(['name'], ['enabled'])
+    assert_validate_member_failure(
+        capsys, validator, member_value, InvalidConfiguration, message)
+
+
+def test_list_of_dicts_keys_validator_returns_new_outer_list(capsys):
+    """Test ListOfDictsKeysValidator delegates through ListForEachValidator."""
+    member_value = [{'name': 'extract'}]
+    cfg = EmptyValidationConfig()
+    validator = ListOfDictsKeysValidator(['name'])
+    result = validator.validate_member(cfg, 'value', member_value,
+                                       sys.stderr)
+    out, err = capsys.readouterr()
+    assert result == member_value
+    assert result is not member_value
+    assert out == ''
+    assert err == ''
+
+
+def test_list_of_dicts_keys_validator_integration_uses_parsed_json(capsys):
+    """Test ListOfDictsKeysValidator integration through Config.validate()."""
+    validator = ListOfDictsKeysValidator(['name'], ['enabled'])
+    cfg = SingleMemberValidationConfig(
+        'value', [{'name': 'extract'}], validator,
+        from_json_data_text='{"value": [{"name": "load", "enabled": true}]}')
+    out, err = capsys.readouterr()
+    assert getattr(cfg, 'value') == [{'name': 'load', 'enabled': True}]
     assert out == ''
     assert err == ''

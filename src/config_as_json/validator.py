@@ -175,6 +175,73 @@ class MemberValidator(ABC):  # pylint: disable=too-few-public-methods
         raise NotImplementedError(msg)
 
 
+def _validate_type_argument(value_type: object,
+                            parameter_name: str) -> type[object]:
+    """Validate and return one runtime type argument.
+
+    Args:
+        value_type: Value supplied as a runtime type argument.
+        parameter_name: Name used in the error message.
+
+    Returns:
+        ``value_type`` after it has been proven to be a type.
+
+    Raises:
+        TypeError: ``value_type`` is not a type.
+    """
+    if not isinstance(value_type, type):
+        raise TypeError(f'{parameter_name} must be a type.')
+    return value_type
+
+
+class ValueTypeValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+    """Validate that one member value has the configured runtime type."""
+
+    def __init__(self, value_type: type[object]) -> None:
+        """Initialize the validator.
+
+        Args:
+            value_type: Required runtime type for the member value.
+
+        Raises:
+            TypeError: If ``value_type`` is not a type.
+        """
+        self.value_type: type[object] = _validate_type_argument(
+            value_type, 'value_type')
+
+    def validate_member(self, config: 'Config',
+                        member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Validate one member's runtime type.
+
+        The check uses normal ``isinstance`` semantics. For example,
+        ``ValueTypeValidator(int)`` accepts ``True`` because ``bool`` is a
+        subclass of ``int`` in Python.
+
+        Args:
+            config: The Config object that owns the member.
+            member_name: The name of the member to validate.
+            member_value: The member value to validate.
+            stderr_file: The file to write error messages to.
+
+        Returns:
+            The original member value if validation succeeds.
+
+        Raises:
+            InvalidConfiguration: If ``member_value`` is not an instance of
+                ``value_type``.
+        """
+        _ = config
+        if isinstance(member_value, self.value_type):
+            return member_value
+        msg = 'Invalid configuration: '
+        msg += f'Value for {member_name} is not of type '
+        msg += f'{self.value_type.__name__}.'
+        print(msg, file=stderr_file)
+        raise InvalidConfiguration(msg)
+
+
 class ValidationStep(ABC):  # pylint: disable=too-few-public-methods
     """Base class for one ordered validation step."""
 

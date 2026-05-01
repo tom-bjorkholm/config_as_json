@@ -13,6 +13,10 @@
   * [MemberValidator](#config_as_json.validator.MemberValidator)
     * [\_\_init\_\_](#config_as_json.validator.MemberValidator.__init__)
     * [validate\_member](#config_as_json.validator.MemberValidator.validate_member)
+  * [\_validate\_type\_argument](#config_as_json.validator._validate_type_argument)
+  * [ValueTypeValidator](#config_as_json.validator.ValueTypeValidator)
+    * [\_\_init\_\_](#config_as_json.validator.ValueTypeValidator.__init__)
+    * [validate\_member](#config_as_json.validator.ValueTypeValidator.validate_member)
   * [ValidationStep](#config_as_json.validator.ValidationStep)
     * [apply](#config_as_json.validator.ValidationStep.apply)
   * [WholeConfigValidationStep](#config_as_json.validator.WholeConfigValidationStep)
@@ -62,13 +66,11 @@
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
     * [read](#config_as_json.config.Config.read)
     * [write](#config_as_json.config.Config.write)
-    * [check\_array\_keys](#config_as_json.config.Config.check_array_keys)
     * [check\_lst\_dict](#config_as_json.config.Config.check_lst_dict)
     * [check\_lst\_dict\_lst](#config_as_json.config.Config.check_lst_dict_lst)
     * [value\_of\_type](#config_as_json.config.Config.value_of_type)
     * [check\_array\_dicts](#config_as_json.config.Config.check_array_dicts)
     * [get\_converter\_dict](#config_as_json.config.Config.get_converter_dict)
-    * [check\_no\_duplicates](#config_as_json.config.Config.check_no_duplicates)
     * [get\_validation\_plan](#config_as_json.config.Config.get_validation_plan)
     * [validate](#config_as_json.config.Config.validate)
 * [config\_as\_json.str\_to\_enum](#config_as_json.str_to_enum)
@@ -165,6 +167,9 @@
   * [ListSizeValidator](#config_as_json.list_validators.ListSizeValidator)
     * [\_\_init\_\_](#config_as_json.list_validators.ListSizeValidator.__init__)
     * [validate\_member](#config_as_json.list_validators.ListSizeValidator.validate_member)
+  * [ListValueTypeValidator](#config_as_json.list_validators.ListValueTypeValidator)
+    * [\_\_init\_\_](#config_as_json.list_validators.ListValueTypeValidator.__init__)
+    * [validate\_member](#config_as_json.list_validators.ListValueTypeValidator.validate_member)
   * [ListIsOrderedValidator](#config_as_json.list_validators.ListIsOrderedValidator)
     * [\_\_init\_\_](#config_as_json.list_validators.ListIsOrderedValidator.__init__)
     * [validate\_member](#config_as_json.list_validators.ListIsOrderedValidator.validate_member)
@@ -177,6 +182,9 @@
     * [\_\_init\_\_](#config_as_json.list_validators.ListForEachValidator.__init__)
     * [\_validate\_element\_type](#config_as_json.list_validators.ListForEachValidator._validate_element_type)
     * [validate\_member](#config_as_json.list_validators.ListForEachValidator.validate_member)
+  * [ListOfDictsKeysValidator](#config_as_json.list_validators.ListOfDictsKeysValidator)
+    * [\_\_init\_\_](#config_as_json.list_validators.ListOfDictsKeysValidator.__init__)
+    * [validate\_member](#config_as_json.list_validators.ListOfDictsKeysValidator.validate_member)
 * [config\_as\_json.assert\_dict\_equal](#config_as_json.assert_dict_equal)
   * [\_print\_dict\_differs](#config_as_json.assert_dict_equal._print_dict_differs)
   * [assert\_dict\_equal](#config_as_json.assert_dict_equal.assert_dict_equal)
@@ -409,6 +417,96 @@ the exception is raised.
   to change the value of the member in the Config object.
   The returned value is used as the new member value, even if it is
   ``None``.
+
+<a id="config_as_json.validator._validate_type_argument"></a>
+
+#### \_validate\_type\_argument
+
+```python
+def _validate_type_argument(value_type: object,
+                            parameter_name: str) -> type[object]
+```
+
+Validate and return one runtime type argument.
+
+**Arguments**:
+
+- `value_type` - Value supplied as a runtime type argument.
+- `parameter_name` - Name used in the error message.
+
+
+**Returns**:
+
+  ``value_type`` after it has been proven to be a type.
+
+
+**Raises**:
+
+- `TypeError` - ``value_type`` is not a type.
+
+<a id="config_as_json.validator.ValueTypeValidator"></a>
+
+## ValueTypeValidator Objects
+
+```python
+class ValueTypeValidator(MemberValidator)
+```
+
+Validate that one member value has the configured runtime type.
+
+<a id="config_as_json.validator.ValueTypeValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(value_type: type[object]) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `value_type` - Required runtime type for the member value.
+
+
+**Raises**:
+
+- `TypeError` - If ``value_type`` is not a type.
+
+<a id="config_as_json.validator.ValueTypeValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one member's runtime type.
+
+The check uses normal ``isinstance`` semantics. For example,
+``ValueTypeValidator(int)`` accepts ``True`` because ``bool`` is a
+subclass of ``int`` in Python.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The member value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The original member value if validation succeeds.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If ``member_value`` is not an instance of
+  ``value_type``.
 
 <a id="config_as_json.validator.ValidationStep"></a>
 
@@ -1423,41 +1521,6 @@ Write the current configuration to a JSON file.
 - `stderr_file` - Stream used for user-facing diagnostics during
   validation.
 
-<a id="config_as_json.config.Config.check_array_keys"></a>
-
-#### check\_array\_keys
-
-```python
-@staticmethod
-def check_array_keys(name_of_cfg: str,
-                     array: Sequence[Mapping[str, Any]],
-                     mandatory_keys: list[str],
-                     allowed_keys: Optional[list[str]] = None,
-                     stderr_file: TextIO = sys.stderr) -> None
-```
-
-Validate keys in a list of mapping objects.
-
-Every mapping in ``array`` must contain all keys in
-``mandatory_keys`` and may only contain those keys plus any keys in
-``allowed_keys``.
-
-**Arguments**:
-
-- `name_of_cfg` - Name used in user-facing error messages.
-- `array` - Sequence of mappings to validate.
-- `mandatory_keys` - Keys that must be present in every mapping.
-- `allowed_keys` - Extra optional keys that are accepted in addition to
-  the mandatory keys.
-- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
-  ``sys.stderr``.
-
-
-**Raises**:
-
-- `SystemExit` - One mapping is missing a mandatory key or contains an
-  unexpected key.
-
 <a id="config_as_json.config.Config.check_lst_dict"></a>
 
 #### check\_lst\_dict
@@ -1613,31 +1676,6 @@ Build a converter recipe for enum-valued configuration fields.
 
   A ``ParseConverter`` that parses strings with
   :func:`string_to_enum_best_match`.
-
-<a id="config_as_json.config.Config.check_no_duplicates"></a>
-
-#### check\_no\_duplicates
-
-```python
-@staticmethod
-def check_no_duplicates(expanded_data: list[str] | list[int],
-                        param_name: str,
-                        stderr_file: TextIO = sys.stderr) -> None
-```
-
-Fail if a sequence contains duplicate values.
-
-**Arguments**:
-
-- `expanded_data` - Sequence whose values must be unique.
-- `param_name` - Configuration parameter name used in diagnostics.
-- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
-  ``sys.stderr``.
-
-
-**Raises**:
-
-- `SystemExit` - ``expanded_data`` contains duplicate values.
 
 <a id="config_as_json.config.Config.get_validation_plan"></a>
 
@@ -3642,6 +3680,70 @@ Validate one list member against the configured size bounds.
 - `InvalidConfiguration` - If the member is not a list or its size is
   outside the allowed range.
 
+<a id="config_as_json.list_validators.ListValueTypeValidator"></a>
+
+## ListValueTypeValidator Objects
+
+```python
+class ListValueTypeValidator(MemberValidator)
+```
+
+Validate that a member is a list with one element runtime type.
+
+<a id="config_as_json.list_validators.ListValueTypeValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(element_type: type[object]) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `element_type` - Required runtime type for each list element.
+
+
+**Raises**:
+
+- `TypeError` - If ``element_type`` is not a type.
+
+<a id="config_as_json.list_validators.ListValueTypeValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one list member's element types.
+
+The element checks use normal ``isinstance`` semantics. For example,
+``ListValueTypeValidator(int)`` accepts ``True`` because ``bool`` is
+a subclass of ``int`` in Python.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The original list value if validation succeeds.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list or one element
+  is not an instance of ``element_type``.
+
 <a id="config_as_json.list_validators.ListIsOrderedValidator"></a>
 
 ## ListIsOrderedValidator Objects
@@ -4011,6 +4113,75 @@ Validate one list member by delegating to the inner validators.
   ``InvalidConfiguration``.
 - `InvalidConfigurationValue` - If a supplied validator raised
   ``InvalidConfigurationValue``.
+
+<a id="config_as_json.list_validators.ListOfDictsKeysValidator"></a>
+
+## ListOfDictsKeysValidator Objects
+
+```python
+class ListOfDictsKeysValidator(MemberValidator)
+```
+
+Validate the keys of every dict element in a list member.
+
+This is the dedicated predefined validator for the common "list of
+dictionaries with a fixed key policy" shape. It is equivalent to using a
+``ListForEachValidator`` with ``element_type=dict`` and one inner
+``DictKeysValidator``.
+
+<a id="config_as_json.list_validators.ListOfDictsKeysValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(mandatory_keys: Sequence[str],
+             allowed_keys: Optional[Sequence[str]] = None) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `mandatory_keys` - Keys that must be present in every dict element.
+- `allowed_keys` - Additional keys that are permitted but not required.
+
+
+**Raises**:
+
+- `TypeError` - If any key entry is not a string.
+- `ValueError` - If a key sequence contains duplicates.
+
+<a id="config_as_json.list_validators.ListOfDictsKeysValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one list-of-dicts member against the configured keys.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the list member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  A new list containing the validated dict elements.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list, one element is
+  not a dict, one dict misses a mandatory key, or one dict has
+  an unknown key.
 
 <a id="config_as_json.assert_dict_equal"></a>
 

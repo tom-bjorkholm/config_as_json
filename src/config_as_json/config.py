@@ -16,7 +16,6 @@ of validation helpers for common patterns.
 from copy import deepcopy
 import json
 import sys
-from collections import Counter
 from typing import Any, Optional, Type, TypeVar, Mapping, NamedTuple, \
     Callable, Sequence, TextIO
 from enum import Enum, IntEnum
@@ -602,46 +601,6 @@ class Config():
             file.write(text)
 
     @staticmethod
-    def check_array_keys(name_of_cfg: str, array: Sequence[Mapping[str, Any]],
-                         mandatory_keys: list[str],
-                         allowed_keys: Optional[list[str]] = None,
-                         stderr_file: TextIO = sys.stderr) -> None:
-        """Validate keys in a list of mapping objects.
-
-        Every mapping in ``array`` must contain all keys in
-        ``mandatory_keys`` and may only contain those keys plus any keys in
-        ``allowed_keys``.
-
-        Args:
-            name_of_cfg: Name used in user-facing error messages.
-            array: Sequence of mappings to validate.
-            mandatory_keys: Keys that must be present in every mapping.
-            allowed_keys: Extra optional keys that are accepted in addition to
-                the mandatory keys.
-            stderr_file: Stream used for user-facing diagnostics. Defaults to
-                ``sys.stderr``.
-
-        Raises:
-            SystemExit: One mapping is missing a mandatory key or contains an
-                unexpected key.
-        """
-        to_allow = deepcopy(mandatory_keys)
-        in_cfg = f' in config of {name_of_cfg}'
-        if allowed_keys is not None:
-            to_allow += deepcopy(allowed_keys)
-        for i in array:
-            for used_key in list(i.keys()):
-                if used_key not in to_allow:
-                    bad_k = f'Found non-allowed key "{used_key}"'
-                    print(bad_k + in_cfg, file=stderr_file)
-                    sys.exit(1)
-            for k in mandatory_keys:
-                if k not in list(i.keys()):
-                    miss = f'Missing key "{k}"'
-                    print(miss + in_cfg, file=stderr_file)
-                    sys.exit(1)
-
-    @staticmethod
     def check_lst_dict(paramname: str,  # pylint: disable=too-many-arguments,too-many-positional-arguments # noqa: E501
                        inp: Sequence[Mapping[str, Any]],
                        key: str, key_optional: bool, valtype: type,
@@ -852,29 +811,6 @@ class Config():
         return ParseConverter(result_type=enum_type,
                               func=string_to_enum_best_match,
                               args={'num_type': enum_type})
-
-    @staticmethod
-    def check_no_duplicates(expanded_data: list[str] | list[int],
-                            param_name: str,
-                            stderr_file: TextIO = sys.stderr) -> None:
-        """Fail if a sequence contains duplicate values.
-
-        Args:
-            expanded_data: Sequence whose values must be unique.
-            param_name: Configuration parameter name used in diagnostics.
-            stderr_file: Stream used for user-facing diagnostics. Defaults to
-                ``sys.stderr``.
-
-        Raises:
-            SystemExit: ``expanded_data`` contains duplicate values.
-        """
-        dup = [str(k) for k, v in Counter(expanded_data).items() if v > 1]
-        if len(dup) == 0:
-            return
-        msg = f'Duplicates not allowed in {param_name}. Duplicate values: '  # noqa: E713, E501
-        msg += ','.join(dup)
-        print(msg, file=stderr_file)
-        sys.exit(1)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the validation plan for the Config object.

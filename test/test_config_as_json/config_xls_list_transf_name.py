@@ -10,7 +10,7 @@ from typing import Optional, TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from .config_excel_list_transform import \
-    ConfigExcelListTransform, RuleOrder, ColInfo
+    ConfigExcelListTransform, RuleOrder, ColInfo, check_unique_values
 from .config_enums import SplitWhere, ColumnRef
 
 
@@ -48,5 +48,5 @@ class ConfigXlsListTransfName(ConfigExcelListTransform[str]):  # pylint: disable
                          from_json_filename=from_json_filename,
                          auto_ch_hook=auto_ch_hook,
                          stderr_file=stderr_file)
-        self.check_no_duplicates(self.s10_column_order, 's10_column_order',
-                                 stderr_file=stderr_file)
+        check_unique_values(self, self.s10_column_order,
+                            's10_column_order', 'a', stderr_file)

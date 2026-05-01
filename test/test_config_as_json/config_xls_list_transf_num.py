@@ -11,7 +11,8 @@ from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from .config_excel_list_transform import \
     ConfigExcelListTransform, RulePlace, RuleRemove, \
-    SingleRuleMerge, SingleRuleSplit, SingleRule, ColInfo
+    SingleRuleMerge, SingleRuleSplit, SingleRule, ColInfo, \
+    check_unique_values
 from .config_enums import SplitWhere, ColumnRef
 
 
@@ -62,15 +63,13 @@ class ConfigXlsListTransfNum(ConfigExcelListTransform[int]):  # pylint: disable=
                          from_json_filename=from_json_filename,
                          auto_ch_hook=auto_ch_hook,
                          stderr_file=stderr_file)
-        self.check_no_duplicates(self.s04_remove_columns,
-                                 's04_remove_columns',
-                                 stderr_file=stderr_file)
+        check_unique_values(self, self.s04_remove_columns,
+                            's04_remove_columns', 1, stderr_file)
         self._check_increasing_multi(self.s05_merge_columns,
                                      's05_merge_columns', 2,
                                      stderr_file=stderr_file)
-        self.check_no_duplicates(self.s06_place_columns_first,
-                                 's06_place_columns_first',
-                                 stderr_file=stderr_file)
+        check_unique_values(self, self.s06_place_columns_first,
+                            's06_place_columns_first', 1, stderr_file)
 
     def sort_sx_hook(self) -> None:
         """Sort s[0-9]_ as needed as needed (hook)."""

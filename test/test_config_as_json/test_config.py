@@ -18,7 +18,8 @@ from config_as_json.config import _ConfigEncoder, \
     ConfigBadJson, _over_ride_needed, Config
 from config_as_json.assert_dict_equal import assert_dict_equal
 from config_as_json.csv_dialect import get_csv_dialect, CsvDialectConfig
-from config_as_json.validator import ValidationPlan
+from config_as_json.list_validators import ListOfDictsKeysValidator
+from config_as_json.validator import InvalidConfiguration, ValidationPlan
 
 
 class EnumInTesting(Enum):
@@ -125,12 +126,12 @@ class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
     def check_array_configs(self, stderr_file: TextIO):
         """Check that keywords in configuration arrays are OK."""
         abc_keys = ['def', 'geh', 'ijk']
-        self.check_array_keys('abc', self.abc, abc_keys,
-                              stderr_file=stderr_file)
+        _ = ListOfDictsKeysValidator(abc_keys).validate_member(
+            self, 'abc', self.abc, stderr_file)
         pqr_keys = ['gh', 'ij', 'mn']
         for _, val in self.pqr.items():
-            self.check_array_keys('pqr', val, pqr_keys,
-                                  stderr_file=stderr_file)
+            _ = ListOfDictsKeysValidator(pqr_keys).validate_member(
+                self, 'pqr', val, stderr_file)
 
     def parse_converters(self):
         """Get converters for use when parsing JSON.
@@ -251,12 +252,12 @@ def test_config_something_changed2(capsys, mno_not_pqr, value):
                                    'ijk': EnumInTesting.BARFOO},
                                   {'def': 26, 'geh': 'x',
                                    'ij': EnumInTesting.FOOBAR}],
-                           'non-allowed key "x"'),
+                           "Unknown key 'x'"),
                           (True, [{'def': 15,
                                    'ijk': EnumInTesting.BARFOO},
                                   {'def': 26, 'geh': 'x',
                                    'ij': EnumInTesting.FOOBAR}],
-                           'Missing key "geh"'),
+                           "Mandatory key 'geh' is missing"),
                           (False,
                            {'reset': [{'gh': EnumInTesting.FOOBAR,
                                        'ij': 'aa', 'mn': 5},
@@ -266,7 +267,7 @@ def test_config_something_changed2(capsys, mno_not_pqr, value):
                                        'ij': 'bb', 'mn': 30, 'ext': 4},
                                       {'gh': EnumInTesting.BARFOO,
                                        'ij': 'yy', 'mn': 7}]},
-                           'non-allowed key "ext"'),
+                           "Unknown key 'ext'"),
                           (False,
                            {'reset': [{'gh': EnumInTesting.FOOBAR,
                                        'ij': 'aa', 'mn': 5},
@@ -276,7 +277,7 @@ def test_config_something_changed2(capsys, mno_not_pqr, value):
                                        'ij': 'bb'},
                                       {'gh': EnumInTesting.BARFOO,
                                        'ij': 'yy', 'mn': 7}]},
-                           'Missing key "mn"')])
+                           "Mandatory key 'mn' is missing")])
 def test_config_something_cha_bad(capsys, abc_not_pqr, value, exm):
     """Test ConfigSomething with bad changed values."""
     xst = ConfigSomething(stderr_file=sys.stderr)
@@ -285,7 +286,7 @@ def test_config_something_cha_bad(capsys, abc_not_pqr, value, exm):
     else:
         xst.pqr = value
     scfg = xst.as_json_string(stderr_file=sys.stderr)
-    with pytest.raises(SystemExit):
+    with pytest.raises(InvalidConfiguration):
         _ = ConfigSomething(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
@@ -831,58 +832,6 @@ def test_value_of_type(capsys, inp, totype, res):
     assert err == ''
 
 
-@pytest.mark.parametrize('arr, mand, allow',
-                         [([], ['foo', 'bar'], ['baz']),
-                          ([], ['foo', 'bar'], None),
-                          ([{'foo': 1, 'bar': 2},
-                            {'foo': 3, 'bar': 4, 'baz': 5}],
-                           ['foo', 'bar'], ['baz']),
-                          ([{'foo': 1, 'bar': 2},
-                            {'foo': 3, 'bar': 4, 'baz': 5}],
-                           [], ['foo', 'bar', 'baz']),
-                          ([{'foo': 1, 'bar': 2},
-                            {'foo': 3, 'bar': 4}],
-                           ['foo', 'bar'], []),
-                          ([{'foo': 1, 'bar': 2},
-                            {'foo': 3, 'bar': 4}],
-                           ['foo', 'bar'], None),
-                          ([{'foo': 1, 'bar': 2},
-                            {'foo': 3, 'bar': 4, 'baz': 5}],
-                           ['foo', 'bar'], ['baz', 'xyz'])])
-def test_check_array_keys_ok(capsys, arr, mand, allow):
-    """Test ok cases for check_array_keys."""
-    Config.check_array_keys(name_of_cfg='test_py', array=arr,
-                            mandatory_keys=mand, allowed_keys=allow,
-                            stderr_file=sys.stderr)
-    out, err = capsys.readouterr()
-    assert out == ''
-    assert err == ''
-
-
-@pytest.mark.parametrize('arr, mand, allow, msg',
-                         [([{'foo': 1, 'bar': 2},
-                            {'foo': 3, 'baz': 5}],
-                           ['foo'], ['baz'],
-                           'non-allowed key "bar"'),
-                          ([{'foo': 1, 'bar': 2},
-                            {'foo': 3, 'bar': 4, 'baz': 5}],
-                           [], ['bar', 'baz'],
-                           'non-allowed key "foo"'),
-                          ([{'foo': 1, 'bar': 2, 'baz': 7},
-                            {'bar': 4}],
-                           ['foo', 'bar'], ['baz'],
-                           'Missing key "foo"')])
-def test_check_array_keys_nok(capsys, arr, mand, allow, msg):
-    """Test not ok cases for check_array_keys."""
-    with pytest.raises(SystemExit):
-        Config.check_array_keys(name_of_cfg='test_py', array=arr,
-                                mandatory_keys=mand, allowed_keys=allow,
-                                stderr_file=sys.stderr)
-    out, err = capsys.readouterr()
-    assert out == ''
-    assert msg in err
-
-
 @pytest.mark.parametrize('arr, kkey, ktype, tmplts',
                          [([], 'foo', EnumInTesting,
                            {EnumInTesting.FOOBAR: {'foo': EnumInTesting,
@@ -981,26 +930,3 @@ def test_check_array_dicts_nok2(capsys,  # pylint: disable=too-many-arguments,to
     out, err = capsys.readouterr()
     assert out == ''
     assert msg in err
-
-
-@pytest.mark.parametrize('data,par',
-                         [([1, 2, 3], 'test'),
-                          ([1, 4, 3, 2], 'test')])
-def test_check_no_dupl_ok(capsys, data, par):
-    """Test check_no_duplicates for OK cases."""
-    Config.check_no_duplicates(data, par, stderr_file=sys.stderr)
-    out, err = capsys.readouterr()
-    assert out == ''
-    assert err == ''
-
-
-@pytest.mark.parametrize('data,par',
-                         [([1, 2, 3, 2], 'test'),
-                          ([1, 2, 3, 1], 'test')])
-def test_check_no_dupl_nok(capsys, data, par):
-    """Test check:_no_cuplicates for OK cases."""
-    with pytest.raises(SystemExit):
-        Config.check_no_duplicates(data, par, stderr_file=sys.stderr)
-    out, err = capsys.readouterr()
-    assert out == ''
-    assert 'Duplicates not allowed in' in err

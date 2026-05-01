@@ -13,9 +13,8 @@ from config_as_json.config import RocfKeyRename, Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import JsonType
 from config_as_json.csv_dialect import CsvDialectValidator
-from config_as_json.dict_validators import DictKeysValidator
-from config_as_json.list_validators import ListForEachValidator, \
-    ListIsOrderedValidator
+from config_as_json.list_validators import ListIsOrderedValidator, \
+    ListOfDictsKeysValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.projected_validators import ProjectedMemberValidator
 from config_as_json.validator import ValidationPlan, \
@@ -46,16 +45,6 @@ class ConfigMethodValidator(  # pylint: disable=too-few-public-methods
         method = getattr(config, self._method_name)
         assert callable(method)
         method(stderr_file=stderr_file)
-
-
-def list_of_dicts_keys_validator(
-        mandatory_keys: list[str],
-        allowed_keys: Optional[list[str]] = None) -> ListForEachValidator:
-    """Build a validator for a list of dictionaries with fixed keys."""
-    return ListForEachValidator(
-        element_validators=[DictKeysValidator(
-            mandatory_keys=mandatory_keys, allowed_keys=allowed_keys)],
-        element_type=dict)
 
 
 def single_rule_columns_projector(
@@ -207,19 +196,19 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
                 validator=ConfigMethodValidator('sort_sx_hook')),
             MemberValidationStep(
                 member_names=['s03_split_columns'],
-                validator=list_of_dicts_keys_validator(
+                validator=ListOfDictsKeysValidator(
                     ['column', 'separator', 'where',
                      self._split_last_key()])),
             MemberValidationStep(
                 member_names=['s05_merge_columns'],
-                validator=list_of_dicts_keys_validator(
+                validator=ListOfDictsKeysValidator(
                     ['columns', 'separator'])),
             MemberValidationStep(
                 member_names=['s07_rename_columns'],
-                validator=list_of_dicts_keys_validator(['column', 'name'])),
+                validator=ListOfDictsKeysValidator(['column', 'name'])),
             MemberValidationStep(
                 member_names=['s08_insert_columns'],
-                validator=list_of_dicts_keys_validator(
+                validator=ListOfDictsKeysValidator(
                     ['column', 'value'], insert_allowed_keys)),
             MemberValidationStep(
                 member_names=['in_csv_encoding', 'out_csv_encoding'],
