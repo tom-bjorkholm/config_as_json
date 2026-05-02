@@ -43,12 +43,14 @@ def test_e31_write_old_creates_old_shape(
             config_file=config_file,
             title='operations',
             output_format=OutputFormat.TEXT,
-            refresh_interval=120)
+            refresh_interval=120,
+            debug_trace=True)
         json_data = read_json_data(config_file)
     out, err = capsys.readouterr()
     assert out == f'Old configuration written to {config_file}\n'
     assert err == ''
-    assert json_data == {'output_format': 'TEXT',
+    assert json_data == {'debug_trace': True,
+                         'output_format': 'TEXT',
                          'refresh_interval': 120,
                          'title': 'operations'}
 
@@ -186,7 +188,8 @@ def test_e31_main_write_old_and_print(
         e31_main(['write-old', '--output', config_file,
                   '--title', 'operations',
                   '--output-format', 'text',
-                  '--refresh-interval', '120'])
+                  '--refresh-interval', '120',
+                  '--debug-trace'])
         _ = capsys.readouterr()
         e31_main(['print', '--input', config_file])
         out, err = capsys.readouterr()
@@ -211,4 +214,5 @@ def test_e31_main_migrate(
     assert err == ''
     assert 'title' not in json_data
     assert 'refresh_interval' not in json_data
+    assert 'debug_trace' not in json_data
     assert json_data['report_name'] == 'daily-summary'

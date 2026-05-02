@@ -346,6 +346,92 @@ class Config():
                 raise ValueError(msg)
         return omit_none_keys
 
+    def _rocf_get_keys_to_remove(self) -> list[str]:
+        """Return old JSON keys to remove while reading old files.
+
+        When Reading an Old Configuration File (ROCF), the old configuration
+        version in the file might have keys that no longer exist in the
+        current configuration. This method returns those old key names.
+        Derived classes should override this method as needed.
+
+        Returns:
+            A list of old keys that should be removed from the JSON input.
+        """
+        return []
+
+    @staticmethod
+    def _rocf_remove_json_key_in_dict(key: str,
+                                      json_data: dict[str, JsonType]) \
+            -> bool:
+        """Remove one ROCF key from a nested dictionary.
+
+        Args:
+            key: Old JSON key to remove.
+            json_data: Parsed JSON dictionary to update in place.
+
+        Returns:
+            ``True`` if the key was found and removed anywhere in
+            ``json_data``, otherwise ``False``.
+        """
+        assert key is not None
+        ret = key in json_data
+        if ret:
+            del json_data[key]
+        for value in json_data.values():
+            if isinstance(value, dict):
+                assert isinstance(value, dict)
+                ret |= Config._rocf_remove_json_key_in_dict(
+                    key=key, json_data=value)
+            if isinstance(value, list):
+                assert isinstance(value, list)
+                ret |= Config._rocf_remove_json_key_in_list(
+                    key=key, json_data=value)
+        return ret
+
+    @staticmethod
+    def _rocf_remove_json_key_in_list(key: str,
+                                      json_data: list[JsonType]) \
+            -> bool:
+        """Remove one ROCF key inside nested lists.
+
+        Args:
+            key: Old JSON key to remove.
+            json_data: Parsed JSON list to walk recursively.
+
+        Returns:
+            ``True`` if the key was found and removed anywhere in
+            ``json_data``, otherwise ``False``.
+        """
+        assert key is not None
+        ret = False
+        for value in json_data:
+            if isinstance(value, dict):
+                assert isinstance(value, dict)
+                ret |= Config._rocf_remove_json_key_in_dict(
+                    key=key, json_data=value)
+            if isinstance(value, list):
+                assert isinstance(value, list)
+                ret |= Config._rocf_remove_json_key_in_list(
+                    key=key, json_data=value)
+        return ret
+
+    def _rocf_remove_json_keys(self,
+                               json_data: dict[str, JsonType]) -> None:
+        """Apply all declared ROCF key removals in place.
+
+        When Reading an Old Configuration File (ROCF), some key names in the
+        JSON input from the old configuration file may no longer exist in the
+        current configuration. This method removes all declared old keys
+        before normal schema checks are applied.
+
+        Args:
+            json_data: Parsed JSON object to normalize before validation.
+        """
+        for key in self._rocf_get_keys_to_remove():
+            if self._rocf_remove_json_key_in_dict(key=key,
+                                                  json_data=json_data):
+                self._hook_cfg_autochange.old_key_handled(old_key=key)
+
     def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
         """Return values for missing JSON keys.
 
@@ -353,6 +439,7 @@ class Config():
         and mandatory keys may be missing in the JSON input from the
         old configuration file. This method returns the values that should
         be supplied for these missing keys.
+        Derived classes should override this method as needed.
 
         Returns:
             A mapping from missing key name to the value that should
@@ -521,6 +608,7 @@ class Config():
             if isinstance(exc, json.JSONDecodeError):
                 raise ConfigBadJson(msg=msg, doc=exc.doc, pos=exc.pos) from exc
             raise ConfigBadJson(msg=msg, doc='', pos=0) from exc
+        self._rocf_remove_json_keys(data)
         self._rocf_apply_missing_values(data)
         self._rocf_rename_json_keys(data, stderr_file=stderr_file)
         self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)

@@ -14,6 +14,7 @@ import json
 import sys
 import pytest
 from config_as_json.config import Config, RocfKeyRename, ParseConverter
+from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import JsonType
 from config_as_json.validator import ValidationPlan
 
@@ -97,6 +98,61 @@ class OmitNoneNonNoneDefaultConfig(Config):
     def _omit_none_from_json(self) -> list[str]:
         """Return a key whose constructor default is not None."""
         return ['optional_text']
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        return []
+
+
+class RocfRemoveAutoChangeHook(ConfigAutoChangeHook):
+    """Verify the automatic-change notification from ROCF removal tests."""
+
+    def __init__(self, old_keys_ver: list[str],
+                 rocf_val_keys_ver: list[str]) -> None:
+        """Construct a hook with expected automatic changes."""
+        self._old_keys_ver = old_keys_ver
+        self._rocf_val_keys_ver = rocf_val_keys_ver
+        super().__init__()
+
+    def auto_changed(self, old_keys_handled: list[str],
+                     rocf_vals_handled: list[str],
+                     stderr_file: TextIO) -> None:
+        """Verify that the parser reported the expected changes."""
+        _ = stderr_file
+        assert self._old_keys_ver == old_keys_handled
+        assert self._rocf_val_keys_ver == rocf_vals_handled
+
+
+class RocfRemoveConfig(Config):
+    """Class to test removed old JSON keys during ROCF parsing."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a config object with removed-key compatibility."""
+        self.version = 2
+        self.name = 'current'
+        self.count = 0
+        self.details: dict[str, JsonType] = {'mode': 'normal',
+                                             'limits': {'high': 10}}
+        self.entries: list[JsonType] = []
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=None,
+                         auto_ch_hook=auto_ch_hook,
+                         stderr_file=stderr_file)
+
+    def _rocf_get_keys_to_remove(self) -> list[str]:
+        """Return old keys that should be dropped from JSON input."""
+        return ['obsolete_top', 'obsolete_nested']
+
+    def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
+        """Return current values for keys missing from old files."""
+        return {'version': 2}
+
+    def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
+        """Return old key names that should be mapped to current names."""
+        return [RocfKeyRename(old='title', new='name')]
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
@@ -242,6 +298,125 @@ def test_cfg_rocf_val_json_nok(capsys, jstext):
     out, err = capsys.readouterr()
     assert '' == out
     assert 'No value for ab in' in err
+
+
+@pytest.mark.parametrize('ind,outd,key,changed',
+                         [({'keep': 1},
+                           {'keep': 1},
+                           'obsolete',
+                           False),
+                          ({'obsolete': 1, 'keep': 2},
+                           {'keep': 2},
+                           'obsolete',
+                           True),
+                          ({'outer': {'obsolete': 'old',
+                                      'keep': {'value': 3}}},
+                           {'outer': {'keep': {'value': 3}}},
+                           'obsolete',
+                           True),
+                          ({'items': [{'obsolete': 1, 'keep': 2},
+                                      [{'obsolete': 3}]],
+                            'obsolete': 4},
+                           {'items': [{'keep': 2}, [{}]]},
+                           'obsolete',
+                           True)])
+def test_rocf_remove_json_key_in_dict(capsys, ind, outd, key, changed):
+    """Test removing one ROCF key from nested dictionaries."""
+    data = deepcopy(ind)
+    assert Config._rocf_remove_json_key_in_dict(  # pylint: disable=protected-access # noqa: E501
+        key=key, json_data=data) == changed
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert data == outd
+
+
+@pytest.mark.parametrize('ind,outd,key,changed',
+                         [([],
+                           [],
+                           'obsolete',
+                           False),
+                          ([{'obsolete': 1, 'keep': 2},
+                            [{'obsolete': 3, 'keep': 4}]],
+                           [{'keep': 2}, [{'keep': 4}]],
+                           'obsolete',
+                           True)])
+def test_rocf_remove_json_key_in_list(capsys, ind, outd, key, changed):
+    """Test removing one ROCF key from nested lists."""
+    data = deepcopy(ind)
+    assert Config._rocf_remove_json_key_in_list(  # pylint: disable=protected-access # noqa: E501
+        key=key, json_data=data) == changed
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert data == outd
+
+
+@pytest.mark.parametrize('json_data',
+                         [{'a': 'b'}, [{'a': 'b'}]])
+def test_rocf_remove_json_key_rejects_none_key(capsys, json_data):
+    """Test that removing a None key fails like invalid ROCF rename rules."""
+    with pytest.raises(AssertionError):
+        if isinstance(json_data, dict):
+            Config._rocf_remove_json_key_in_dict(  # pylint: disable=protected-access # noqa: E501
+                key=cast(Any, None), json_data=json_data)
+        else:
+            Config._rocf_remove_json_key_in_list(  # pylint: disable=protected-access # noqa: E501
+                key=cast(Any, None), json_data=json_data)
+    out, _ = capsys.readouterr()
+    assert '' == out
+
+
+def test_rocf_removed_keys_are_accepted_and_reported(capsys):
+    """Test parsing old JSON with removed, renamed and missing keys."""
+    jstext = json.dumps({'title': 'legacy report',
+                         'count': 3,
+                         'details': {
+                             'mode': 'careful',
+                             'obsolete_nested': 'drop',
+                             'limits': {'high': 20,
+                                        'obsolete_nested': 'drop'}},
+                         'entries': [{'name': 'first',
+                                      'obsolete_nested': 'drop'},
+                                     [{'obsolete_nested': 'drop'}]],
+                         'obsolete_top': {'ignored': True}})
+    hook = RocfRemoveAutoChangeHook(
+        old_keys_ver=['obsolete_top', 'obsolete_nested', 'title'],
+        rocf_val_keys_ver=['version'])
+    cfg = RocfRemoveConfig(from_json_data_text=jstext,
+                           auto_ch_hook=hook,
+                           stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert cfg.version == 2
+    assert cfg.name == 'legacy report'
+    assert cfg.count == 3
+    assert cfg.details == {'mode': 'careful', 'limits': {'high': 20}}
+    assert cfg.entries == [{'name': 'first'}, [{}]]
+
+
+def test_rocf_removed_keys_absent_does_not_report_change(capsys):
+    """Test current JSON parsing when no removed old keys are present."""
+    jstext = json.dumps({'version': 2,
+                         'name': 'current report',
+                         'count': 4,
+                         'details': {'mode': 'normal',
+                                     'limits': {'high': 9}},
+                         'entries': []})
+    cfg = RocfRemoveConfig(from_json_data_text=jstext,
+                           auto_ch_hook=RocfRemoveAutoChangeHook(
+                               old_keys_ver=[],
+                               rocf_val_keys_ver=[]),
+                           stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert cfg.version == 2
+    assert cfg.name == 'current report'
+    assert cfg.count == 4
+    assert cfg.details == {'mode': 'normal', 'limits': {'high': 9}}
+    assert not cfg.entries
 
 
 @pytest.mark.parametrize('ind, outd, ren, errtxt',

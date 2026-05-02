@@ -34,19 +34,19 @@ class ConfigAutoChangeHook():
         when configuration input was normalized.
 
         Args:
-            old_keys_handled: Old key names that were accepted and mapped
-                onto their current names during Reading an Old Configuration
-                File (ROCF).
+            old_keys_handled: Old key names that were accepted during Reading
+                an Old Configuration File (ROCF), for example by mapping them
+                onto current names or by removing keys no longer used.
             rocf_vals_handled: Keys that were filled with default values during
                 parsing during Reading an Old Configuration File (ROCF).
             stderr_file: Stream used for user-facing diagnostics.
         """
 
     def old_key_handled(self, old_key: str) -> None:
-        """Record that one legacy key name was accepted and remapped.
+        """Record that one legacy key name was accepted and handled.
 
         Args:
-            old_key: Legacy key name that was handled.
+            old_key: Legacy key name that was handled by renaming or removal.
         """
         self.old_keys.append(old_key)
 

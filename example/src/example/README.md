@@ -619,6 +619,7 @@ keys:
 - `title`
 - `output_format`
 - `refresh_interval`
+- `debug_trace`
 
 The current file format has these keys:
 
@@ -628,17 +629,20 @@ The current file format has these keys:
 - `refresh_seconds`
 - `max_items`
 
-Two kinds of compatibility are shown:
+Three kinds of compatibility are shown:
 
 - `title` is an old name for `report_name`
 - `refresh_interval` is an old name for `refresh_seconds`
 - old files do not contain `format_version`
 - old files do not contain `max_items`
+- `debug_trace` only existed in the old format and is removed
 
-The current configuration class handles this by overriding two methods.
+The current configuration class handles this by overriding three methods.
 `_rocf_get_json_key_renames()` describes old key names that should be mapped
 to current key names. `_rocf_values_for_missing_json_keys()` supplies values
 for mandatory current keys that old files did not have.
+`_rocf_get_keys_to_remove()` lists old key names that should be accepted and
+dropped because the current configuration no longer has those settings.
 
 The standard application pattern is important: application code constructs
 the current configuration class even when the file on disk was written by an

@@ -56,6 +56,10 @@
     * [\_json\_parse\_obj\_hook](#config_as_json.config.Config._json_parse_obj_hook)
     * [\_omit\_none\_from\_json](#config_as_json.config.Config._omit_none_from_json)
     * [\_checked\_omit\_none\_from\_json](#config_as_json.config.Config._checked_omit_none_from_json)
+    * [\_rocf\_get\_keys\_to\_remove](#config_as_json.config.Config._rocf_get_keys_to_remove)
+    * [\_rocf\_remove\_json\_key\_in\_dict](#config_as_json.config.Config._rocf_remove_json_key_in_dict)
+    * [\_rocf\_remove\_json\_key\_in\_list](#config_as_json.config.Config._rocf_remove_json_key_in_list)
+    * [\_rocf\_remove\_json\_keys](#config_as_json.config.Config._rocf_remove_json_keys)
     * [\_rocf\_values\_for\_missing\_json\_keys](#config_as_json.config.Config._rocf_values_for_missing_json_keys)
     * [\_rocf\_apply\_missing\_values](#config_as_json.config.Config._rocf_apply_missing_values)
     * [\_rocf\_get\_json\_key\_renames](#config_as_json.config.Config._rocf_get_json_key_renames)
@@ -918,9 +922,9 @@ when configuration input was normalized.
 
 **Arguments**:
 
-- `old_keys_handled` - Old key names that were accepted and mapped
-  onto their current names during Reading an Old Configuration
-  File (ROCF).
+- `old_keys_handled` - Old key names that were accepted during Reading
+  an Old Configuration File (ROCF), for example by mapping them
+  onto current names or by removing keys no longer used.
 - `rocf_vals_handled` - Keys that were filled with default values during
   parsing during Reading an Old Configuration File (ROCF).
 - `stderr_file` - Stream used for user-facing diagnostics.
@@ -933,11 +937,11 @@ when configuration input was normalized.
 def old_key_handled(old_key: str) -> None
 ```
 
-Record that one legacy key name was accepted and remapped.
+Record that one legacy key name was accepted and handled.
 
 **Arguments**:
 
-- `old_key` - Legacy key name that was handled.
+- `old_key` - Legacy key name that was handled by renaming or removal.
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.rocf_missing_value_provided"></a>
 
@@ -1301,6 +1305,89 @@ Return validated omit-when-None member names.
 - `KeyError` - The hook listed an unknown public member.
 - `ValueError` - A listed member did not default to ``None``.
 
+<a id="config_as_json.config.Config._rocf_get_keys_to_remove"></a>
+
+#### \_rocf\_get\_keys\_to\_remove
+
+```python
+def _rocf_get_keys_to_remove() -> list[str]
+```
+
+Return old JSON keys to remove while reading old files.
+
+When Reading an Old Configuration File (ROCF), the old configuration
+version in the file might have keys that no longer exist in the
+current configuration. This method returns those old key names.
+Derived classes should override this method as needed.
+
+**Returns**:
+
+  A list of old keys that should be removed from the JSON input.
+
+<a id="config_as_json.config.Config._rocf_remove_json_key_in_dict"></a>
+
+#### \_rocf\_remove\_json\_key\_in\_dict
+
+```python
+@staticmethod
+def _rocf_remove_json_key_in_dict(key: str, json_data: dict[str,
+                                                            JsonType]) -> bool
+```
+
+Remove one ROCF key from a nested dictionary.
+
+**Arguments**:
+
+- `key` - Old JSON key to remove.
+- `json_data` - Parsed JSON dictionary to update in place.
+
+
+**Returns**:
+
+  ``True`` if the key was found and removed anywhere in
+  ``json_data``, otherwise ``False``.
+
+<a id="config_as_json.config.Config._rocf_remove_json_key_in_list"></a>
+
+#### \_rocf\_remove\_json\_key\_in\_list
+
+```python
+@staticmethod
+def _rocf_remove_json_key_in_list(key: str, json_data: list[JsonType]) -> bool
+```
+
+Remove one ROCF key inside nested lists.
+
+**Arguments**:
+
+- `key` - Old JSON key to remove.
+- `json_data` - Parsed JSON list to walk recursively.
+
+
+**Returns**:
+
+  ``True`` if the key was found and removed anywhere in
+  ``json_data``, otherwise ``False``.
+
+<a id="config_as_json.config.Config._rocf_remove_json_keys"></a>
+
+#### \_rocf\_remove\_json\_keys
+
+```python
+def _rocf_remove_json_keys(json_data: dict[str, JsonType]) -> None
+```
+
+Apply all declared ROCF key removals in place.
+
+When Reading an Old Configuration File (ROCF), some key names in the
+JSON input from the old configuration file may no longer exist in the
+current configuration. This method removes all declared old keys
+before normal schema checks are applied.
+
+**Arguments**:
+
+- `json_data` - Parsed JSON object to normalize before validation.
+
 <a id="config_as_json.config.Config._rocf_values_for_missing_json_keys"></a>
 
 #### \_rocf\_values\_for\_missing\_json\_keys
@@ -1315,6 +1402,7 @@ When Reading an Old Configuration File (ROCF), some now existing
 and mandatory keys may be missing in the JSON input from the
 old configuration file. This method returns the values that should
 be supplied for these missing keys.
+Derived classes should override this method as needed.
 
 **Returns**:
 

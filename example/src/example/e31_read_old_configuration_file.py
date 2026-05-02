@@ -2,17 +2,20 @@
 """Show how to read and migrate old configuration files.
 
 Applications often need to read configuration files written by older
-versions. This example shows two common compatibility cases:
+versions. This example shows three common compatibility cases:
 
 - an old key name is accepted and renamed to the current key name
 - a key that is mandatory today is missing in the old file and receives a
   value chosen by the current application
+- a key that existed only in the old file is accepted and removed
 
 The old file shape in this example uses ``title`` and ``refresh_interval``.
 The current file shape uses ``report_name`` and ``refresh_seconds`` instead,
-and also requires ``format_version`` and ``max_items``. The current
-configuration class declares the compatibility rules, so application code can
-read either file shape and work with the current member names.
+and also requires ``format_version`` and ``max_items``. The old file shape
+also has ``debug_trace``, which no longer exists in the current
+configuration. The current configuration class declares the compatibility
+rules, so application code can read either file shape and work with the
+current member names.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -54,6 +57,7 @@ class OldExampleConfig31(Config):
         self.title: str = 'daily-summary'
         self.output_format: OutputFormat = OutputFormat.HTML
         self.refresh_interval: int = 300
+        self.debug_trace: bool = False
         super().__init__(from_json_data_text=from_json_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
@@ -98,6 +102,10 @@ class ExampleConfig31(Config):
         return {'format_version': CURRENT_FORMAT_VERSION,
                 'max_items': 25}
 
+    def _rocf_get_keys_to_remove(self) -> list[str]:
+        """Return old key names that are no longer in current files."""
+        return ['debug_trace']
+
     def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
         """Return old key names that should be mapped to current names."""
         return [RocfKeyRename(old='title', new='report_name'),
@@ -139,7 +147,8 @@ def e31_write_old_config(
         config_file: PathOrStr,
         title: Optional[str] = None,
         output_format: Optional[OutputFormat] = None,
-        refresh_interval: Optional[int] = None) -> None:
+        refresh_interval: Optional[int] = None,
+        debug_trace: Optional[bool] = None) -> None:
     """Write an old-shape configuration file.
 
     Args:
@@ -147,6 +156,7 @@ def e31_write_old_config(
         title: Optional report title override.
         output_format: Optional output format override.
         refresh_interval: Optional refresh interval override.
+        debug_trace: Optional old debug trace override.
     """
     config = OldExampleConfig31()
     if title is not None:
@@ -155,6 +165,8 @@ def e31_write_old_config(
         config.output_format = output_format
     if refresh_interval is not None:
         config.refresh_interval = refresh_interval
+    if debug_trace is not None:
+        config.debug_trace = debug_trace
     config.write(to_json_filename=config_file)
     print(f'Old configuration written to {config_file}')
 
@@ -233,6 +245,7 @@ def _create_argument_parser() -> argparse.ArgumentParser:
     old_parser.add_argument('--title')
     old_parser.add_argument('--output-format', type=output_format_from_text)
     old_parser.add_argument('--refresh-interval', type=int)
+    old_parser.add_argument('--debug-trace', action='store_true')
     new_parser = subparsers.add_parser(
         'write-new', help='Write a current-format configuration file.')
     new_parser.add_argument('-o', '--output', required=True)
@@ -258,7 +271,8 @@ def _handle_write_old(parsed_args: argparse.Namespace) -> None:
         output_format=cast(Optional[OutputFormat],
                            parsed_args.output_format),
         refresh_interval=cast(Optional[int],
-                              parsed_args.refresh_interval))
+                              parsed_args.refresh_interval),
+        debug_trace=cast(bool, parsed_args.debug_trace))
 
 
 def _handle_write_new(parsed_args: argparse.Namespace) -> None:
