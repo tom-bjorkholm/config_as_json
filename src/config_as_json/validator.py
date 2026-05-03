@@ -5,6 +5,7 @@
 # MIT License
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping, Sequence as SequenceABC
 from dataclasses import dataclass
 import sys
 from typing import Callable, Optional, Sequence, TextIO, TYPE_CHECKING, \
@@ -194,6 +195,16 @@ def _validate_type_argument(value_type: object,
     return value_type
 
 
+def _validate_non_empty_str_argument(value: object,
+                                     parameter_name: str) -> str:
+    """Validate and return one non-empty string argument."""
+    if not isinstance(value, str):
+        raise TypeError(f'{parameter_name} must be a str.')
+    if value == '':
+        raise ValueError(f'{parameter_name} must be non-empty.')
+    return value
+
+
 class ValueTypeValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
     """Validate that one member value has the configured runtime type."""
 
@@ -333,6 +344,10 @@ class MemberValidationStep(ValidationStep):
                 config=config, member_name=member_name,
                 member_value=member_value, stderr_file=stderr_file)
             setattr(config, member_name, ret)
+
+
+type ValidationPlan = list[ValidationStep]
+"""Ordered list of validation steps."""
 
 
 def string_best_match(value: str, allowed_values: Sequence[str],
@@ -628,5 +643,284 @@ class IntFloatValidator(  # pylint: disable=too-few-public-methods
         return value
 
 
-type ValidationPlan = list[ValidationStep]
-"""Ordered list of validation steps."""
+def _copy_method_other_args(other_args: Optional[Mapping[str, object]]) \
+        -> dict[str, object]:
+    """Validate and copy additional keyword arguments for a method call."""
+    if other_args is None:
+        return {}
+    if not isinstance(other_args, Mapping):
+        raise TypeError('other_args must be a mapping.')
+    copied: dict[str, object] = {}
+    for key, value in other_args.items():
+        _ = _validate_non_empty_str_argument(key, 'other_args key')
+        copied[key] = value
+    return copied
+
+
+def _get_config_method(config: 'Config', method_name: str,
+                       stderr_file: TextIO) -> Callable[..., object]:
+    """Return one callable method from a Config object."""
+    if not hasattr(config, method_name):
+        msg = f'Method {method_name} not found in Config object.'
+        print(msg, file=stderr_file)
+        raise AttributeError(msg)
+    method = getattr(config, method_name)
+    if not callable(method):
+        msg = f'Method {method_name} in Config object is not callable.'
+        print(msg, file=stderr_file)
+        raise TypeError(msg)
+    return cast(Callable[..., object], method)
+
+
+def _check_validation_only_method_result(method_name: str, result: object,
+                                         stderr_file: TextIO) -> None:
+    """Validate the return value from a validation-only method call."""
+    if result is None or result is True:
+        return
+    if result is False:
+        msg = 'Invalid configuration: '
+        msg += f'Method {method_name} returned False.'
+        print(msg, file=stderr_file)
+        raise InvalidConfiguration(msg)
+    msg = f'Method {method_name} returned {type(result).__name__}; '
+    msg += 'expected None, True, or False.'
+    print(msg, file=stderr_file)
+    raise TypeError(msg)
+
+
+class CallingMemberValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+    """Validate one member by calling a method of the Config object.
+
+    The validator calls a method of the Config object with the given arguments.
+    The method must accept all arguments as keyword arguments. The method is
+    expected to validate the member value. This validator is most useful when
+    the configuration class is multiply derived from Config and from a class
+    in a third-party library, and the class in the third-party library has
+    validation logic.
+
+    The method may indicate that the member value is invalid by raising an
+    exception, or in validation-only mode by returning False. In
+    validation-only mode, a return value of None or True is considered valid
+    and the original member value is kept. In normalizing mode, the method is
+    expected to return the validated and normalized value.
+    """
+
+    def __init__(self,  # pylint: disable=too-many-arguments,too-many-positional-arguments # noqa: E501
+                 method_name: str, arg_name_value: str,
+                 arg_name_member_name: Optional[str] = None,
+                 other_args: Optional[Mapping[str, object]] = None,
+                 normalizing: bool = False) -> None:
+        """Initialize the validator.
+
+        The validator calls a method of the Config object with the given
+        arguments. The method must accept all arguments as keyword arguments.
+
+        The method may indicate that the member value is invalid by raising an
+        exception, or in validation-only mode by returning False. In
+        validation-only mode, a return value of None or True indicates a valid
+        member value and the original member value is kept. In normalizing
+        mode, the method is expected to return the validated and normalized
+        value.
+
+        Args:
+            method_name: The name of the method to call on the Config object.
+                         The method must accept all arguments as keyword
+                         arguments.
+            arg_name_value: The name of the argument to the method that
+                            contains the value passed in to be validated.
+            arg_name_member_name: The name of the argument to the method that
+                                  contains the name of the member that is
+                                  being validated. If ``None``, the member name
+                                  is not passed to the method.
+            other_args: Other arguments to the method. If ``None``, no other
+                        arguments are passed to the method.
+            normalizing: Whether the method returns a normalized member value.
+                         If ``False``, the method is expected to return None
+                         or True if valid, and to return False if invalid.
+                         If ``True``, the method is expected to return the
+                         validated and normalized value.
+
+        Raises:
+            TypeError: If one constructor argument has an invalid type.
+            ValueError: If one argument name is empty or would overwrite
+                another generated argument.
+        """
+        self.method_name: str = _validate_non_empty_str_argument(
+            method_name, 'method_name')
+        self.arg_name_value: str = _validate_non_empty_str_argument(
+            arg_name_value, 'arg_name_value')
+        if arg_name_member_name is None:
+            self.arg_name_member_name: Optional[str] = None
+        else:
+            self.arg_name_member_name = _validate_non_empty_str_argument(
+                arg_name_member_name, 'arg_name_member_name')
+        self.other_args: dict[str, object] = \
+            _copy_method_other_args(other_args)
+        generated_names = {self.arg_name_value}
+        if self.arg_name_member_name is not None:
+            if self.arg_name_member_name == self.arg_name_value:
+                msg = 'arg_name_member_name must differ from arg_name_value.'
+                raise ValueError(msg)
+            generated_names.add(self.arg_name_member_name)
+        for key in self.other_args:
+            if key in generated_names:
+                msg = 'other_args must not contain generated argument '
+                msg += f'{key!r}.'
+                raise ValueError(msg)
+        if not isinstance(normalizing, bool):
+            raise TypeError('normalizing must be a bool.')
+        self.normalizing: bool = normalizing
+
+    def validate_member(self, config: 'Config',
+                        member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Validate one member by calling a method of the Config object.
+
+        Args:
+            config: The Config object to validate.
+            member_name: The name of the member to validate.
+            member_value: The value of the member to validate.
+            stderr_file: The file to write error messages to.
+
+        Raises:
+            InvalidConfiguration: The configuration is invalid.
+            InvalidConfigurationValue: The value of a configuration member is
+                                       not one of the allowed values.
+            Any exception raised by the method in the Config object.
+
+        Returns:
+            The original member value in validation-only mode, or the
+            validated and normalized value in normalizing mode.
+        """
+        func = _get_config_method(config, self.method_name, stderr_file)
+        kwargs: dict[str, object] = dict(self.other_args)
+        kwargs[self.arg_name_value] = member_value
+        if self.arg_name_member_name is not None:
+            kwargs[self.arg_name_member_name] = member_name
+        ret = func(**kwargs)
+        if self.normalizing:
+            return ret
+        _check_validation_only_method_result(self.method_name, ret,
+                                             stderr_file)
+        return member_value
+
+
+class CallingWholeConfigValidator(WholeConfigValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+    """Validate complete Config by calling a method of the Config object.
+
+    The validator calls a method of the Config object with the given arguments.
+    The method must accept all arguments as keyword arguments. The method is
+    expected to validate the configuration. This validator is most useful when
+    the configuration class is multiply derived from Config and from a class
+    in a third-party library, and the class in the third-party library has
+    validation logic.
+
+    The method may indicate that the configuration is invalid by raising an
+    exception, or by returning False.
+    The method is expected to return None or True if the configuration is
+    valid.
+    """
+
+    def __init__(self, method_name: str,
+                 other_args: Optional[Mapping[str, object]] = None) -> None:
+        """Initialize the validator.
+
+        The validator calls a method of the Config object with the given
+        arguments. The method must accept all arguments as keyword arguments.
+
+        The method may indicate that the configuration is invalid by raising an
+        exception, or by returning False.
+        A return value of None or True is indicating a valid configuration.
+
+        The method may mutate the Config object directly if needed to
+        normalize the configuration.
+
+        Args:
+            method_name: The name of the method to call on the Config object.
+                         The method must accept all arguments as keyword
+                         arguments.
+            other_args: Other arguments to the method. If ``None``, no other
+                        arguments are passed to the method.
+
+        Raises:
+            TypeError: If one constructor argument has an invalid type.
+            ValueError: If one argument name is empty.
+        """
+        self.method_name: str = _validate_non_empty_str_argument(method_name,
+                                                                 'method_name')
+        self.other_args: dict[str, object] = \
+            _copy_method_other_args(other_args)
+
+    def validate(self, config: 'Config',
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Validate the entire Config object by calling a method in it.
+
+        Args:
+            config: The Config object to validate.
+            stderr_file: The file to write error messages to.
+
+        Raises:
+            InvalidConfiguration: The configuration is invalid.
+            Any exception raised by the method in the Config object.
+        """
+        func = _get_config_method(config, self.method_name, stderr_file)
+        ret: object = func(**self.other_args)
+        _check_validation_only_method_result(self.method_name, ret,
+                                             stderr_file)
+
+
+class MemberValidatorSequence(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+    """Validate one member by applying a sequence of validators.
+
+    The validator applies a sequence of validators to the member value.
+    The sequence is applied in order, and the output of each validator is
+    passed as the input to the next validator.
+
+    This is useful when several validators need to be applied to the
+    same member value, before moving on to the next member.
+    When validating several member values with ValidationPlan the natural
+    order is to apply the same validator to several member values before
+    moving on to the next ValidationStep that has another validator.
+    MemberValidatorSequence thus has a natural order that is different from
+    the order easily specified by ValidationPlan.
+    """
+
+    def __init__(self, validators: Sequence[MemberValidator]) -> None:
+        """Initialize the validator.
+
+        Args:
+            validators: The sequence of validators to apply.
+
+        Raises:
+            TypeError: If ``validators`` is not a sequence or one entry is not
+                a ``MemberValidator``.
+            ValueError: If ``validators`` is empty.
+        """
+        if not isinstance(validators, SequenceABC):
+            raise TypeError('validators must be a sequence.')
+        if len(validators) == 0:
+            raise ValueError('validators must be non-empty.')
+        self.validators: list[MemberValidator] = list(validators)
+        for index, validator in enumerate(self.validators):
+            if not isinstance(validator, MemberValidator):
+                msg = f'validators[{index}] must be a MemberValidator.'
+                raise TypeError(msg)
+
+    def validate_member(self, config: 'Config', member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Validate one member by applying a sequence of validators.
+
+        Args:
+            config: The Config object to validate.
+            member_name: The name of the member to validate.
+            member_value: The value of the member to validate.
+            stderr_file: The file to write error messages to.
+        """
+        current_value = member_value
+        for validator in self.validators:
+            current_value = validator.validate_member(
+                config=config, member_name=member_name,
+                member_value=current_value, stderr_file=stderr_file)
+        return current_value

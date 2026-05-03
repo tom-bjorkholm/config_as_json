@@ -563,6 +563,34 @@ and validated, while unrelated application-specific keys are passed through.
 The command line accepts each member as a JSON value because all three
 members are nested list-of-dicts structures.
 
+## e19_config_method_validators.py
+
+[Source code for e19_config_method_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e19_config_method_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e19_config_method_validators.py)
+
+This example shows how to reuse validation and normalization methods that
+already exist on the configuration object, often because they come from a
+third-party base class.
+
+The configuration derives from a pretend third-party class with methods that
+normalize a region string, check a retry-count range, and check that an
+endpoint belongs to the selected region. The validation plan uses:
+
+- `CallingMemberValidator` to call a method for one member
+- `CallingWholeConfigValidator` to call a method that checks the complete
+  configuration
+- `MemberValidatorSequence` to run several member validators immediately
+  after each other for the same member
+
+The important safety detail is that `CallingMemberValidator` is
+validation-only by default. In that mode a called method returns `None` or
+`True` to accept the value, and `False` to reject it. A method that should
+replace or normalize the stored value must be used with `normalizing=True`.
+
+The `region` member demonstrates this explicitly: first a method normalizes
+friendly input such as `US_EAST` to `us-east`, then a normal `StrValidator`
+checks the normalized value. The stored configuration keeps the normalized
+spelling.
+
 ## e30_optional_user_preference.py
 
 [Source code for e30_optional_user_preference.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py)

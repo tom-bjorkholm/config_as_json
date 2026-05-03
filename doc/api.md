@@ -30,6 +30,15 @@
   * [IntFloatValidator](#config_as_json.validator.IntFloatValidator)
     * [\_\_init\_\_](#config_as_json.validator.IntFloatValidator.__init__)
     * [validate\_member](#config_as_json.validator.IntFloatValidator.validate_member)
+  * [CallingMemberValidator](#config_as_json.validator.CallingMemberValidator)
+    * [\_\_init\_\_](#config_as_json.validator.CallingMemberValidator.__init__)
+    * [validate\_member](#config_as_json.validator.CallingMemberValidator.validate_member)
+  * [CallingWholeConfigValidator](#config_as_json.validator.CallingWholeConfigValidator)
+    * [\_\_init\_\_](#config_as_json.validator.CallingWholeConfigValidator.__init__)
+    * [validate](#config_as_json.validator.CallingWholeConfigValidator.validate)
+  * [MemberValidatorSequence](#config_as_json.validator.MemberValidatorSequence)
+    * [\_\_init\_\_](#config_as_json.validator.MemberValidatorSequence.__init__)
+    * [validate\_member](#config_as_json.validator.MemberValidatorSequence.validate_member)
 * [config\_as\_json.config\_auto\_change\_hook](#config_as_json.config_auto_change_hook)
   * [ConfigAutoChangeHook](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook)
     * [\_\_init\_\_](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.__init__)
@@ -703,6 +712,254 @@ Validate the aspect of the Config object for a specific member.
 
   The member value if the validation check passes, otherwise
   an exception is raised.
+
+<a id="config_as_json.validator.CallingMemberValidator"></a>
+
+## CallingMemberValidator Objects
+
+```python
+class CallingMemberValidator(MemberValidator)
+```
+
+Validate one member by calling a method of the Config object.
+
+The validator calls a method of the Config object with the given arguments.
+The method must accept all arguments as keyword arguments. The method is
+expected to validate the member value. This validator is most useful when
+the configuration class is multiply derived from Config and from a class
+in a third-party library, and the class in the third-party library has
+validation logic.
+
+The method may indicate that the member value is invalid by raising an
+exception, or in validation-only mode by returning False. In
+validation-only mode, a return value of None or True is considered valid
+and the original member value is kept. In normalizing mode, the method is
+expected to return the validated and normalized value.
+
+<a id="config_as_json.validator.CallingMemberValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(method_name: str,
+             arg_name_value: str,
+             arg_name_member_name: Optional[str] = None,
+             other_args: Optional[Mapping[str, object]] = None,
+             normalizing: bool = False) -> None
+```
+
+Initialize the validator.
+
+The validator calls a method of the Config object with the given
+arguments. The method must accept all arguments as keyword arguments.
+
+The method may indicate that the member value is invalid by raising an
+exception, or in validation-only mode by returning False. In
+validation-only mode, a return value of None or True indicates a valid
+member value and the original member value is kept. In normalizing
+mode, the method is expected to return the validated and normalized
+value.
+
+**Arguments**:
+
+- `method_name` - The name of the method to call on the Config object.
+  The method must accept all arguments as keyword
+  arguments.
+- `arg_name_value` - The name of the argument to the method that
+  contains the value passed in to be validated.
+- `arg_name_member_name` - The name of the argument to the method that
+  contains the name of the member that is
+  being validated. If ``None``, the member name
+  is not passed to the method.
+- `other_args` - Other arguments to the method. If ``None``, no other
+  arguments are passed to the method.
+- `normalizing` - Whether the method returns a normalized member value.
+  If ``False``, the method is expected to return None
+  or True if valid, and to return False if invalid.
+  If ``True``, the method is expected to return the
+  validated and normalized value.
+
+
+**Raises**:
+
+- `TypeError` - If one constructor argument has an invalid type.
+- `ValueError` - If one argument name is empty or would overwrite
+  another generated argument.
+
+<a id="config_as_json.validator.CallingMemberValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one member by calling a method of the Config object.
+
+**Arguments**:
+
+- `config` - The Config object to validate.
+- `member_name` - The name of the member to validate.
+- `member_value` - The value of the member to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - The configuration is invalid.
+- `InvalidConfigurationValue` - The value of a configuration member is
+  not one of the allowed values.
+  Any exception raised by the method in the Config object.
+
+
+**Returns**:
+
+  The original member value in validation-only mode, or the
+  validated and normalized value in normalizing mode.
+
+<a id="config_as_json.validator.CallingWholeConfigValidator"></a>
+
+## CallingWholeConfigValidator Objects
+
+```python
+class CallingWholeConfigValidator(WholeConfigValidator)
+```
+
+Validate complete Config by calling a method of the Config object.
+
+The validator calls a method of the Config object with the given arguments.
+The method must accept all arguments as keyword arguments. The method is
+expected to validate the configuration. This validator is most useful when
+the configuration class is multiply derived from Config and from a class
+in a third-party library, and the class in the third-party library has
+validation logic.
+
+The method may indicate that the configuration is invalid by raising an
+exception, or by returning False.
+The method is expected to return None or True if the configuration is
+valid.
+
+<a id="config_as_json.validator.CallingWholeConfigValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(method_name: str,
+             other_args: Optional[Mapping[str, object]] = None) -> None
+```
+
+Initialize the validator.
+
+The validator calls a method of the Config object with the given
+arguments. The method must accept all arguments as keyword arguments.
+
+The method may indicate that the configuration is invalid by raising an
+exception, or by returning False.
+A return value of None or True is indicating a valid configuration.
+
+The method may mutate the Config object directly if needed to
+normalize the configuration.
+
+**Arguments**:
+
+- `method_name` - The name of the method to call on the Config object.
+  The method must accept all arguments as keyword
+  arguments.
+- `other_args` - Other arguments to the method. If ``None``, no other
+  arguments are passed to the method.
+
+
+**Raises**:
+
+- `TypeError` - If one constructor argument has an invalid type.
+- `ValueError` - If one argument name is empty.
+
+<a id="config_as_json.validator.CallingWholeConfigValidator.validate"></a>
+
+#### validate
+
+```python
+def validate(config: 'Config', stderr_file: TextIO = sys.stderr) -> None
+```
+
+Validate the entire Config object by calling a method in it.
+
+**Arguments**:
+
+- `config` - The Config object to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - The configuration is invalid.
+  Any exception raised by the method in the Config object.
+
+<a id="config_as_json.validator.MemberValidatorSequence"></a>
+
+## MemberValidatorSequence Objects
+
+```python
+class MemberValidatorSequence(MemberValidator)
+```
+
+Validate one member by applying a sequence of validators.
+
+The validator applies a sequence of validators to the member value.
+The sequence is applied in order, and the output of each validator is
+passed as the input to the next validator.
+
+This is useful when several validators need to be applied to the
+same member value, before moving on to the next member.
+When validating several member values with ValidationPlan the natural
+order is to apply the same validator to several member values before
+moving on to the next ValidationStep that has another validator.
+MemberValidatorSequence thus has a natural order that is different from
+the order easily specified by ValidationPlan.
+
+<a id="config_as_json.validator.MemberValidatorSequence.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(validators: Sequence[MemberValidator]) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `validators` - The sequence of validators to apply.
+
+
+**Raises**:
+
+- `TypeError` - If ``validators`` is not a sequence or one entry is not
+  a ``MemberValidator``.
+- `ValueError` - If ``validators`` is empty.
+
+<a id="config_as_json.validator.MemberValidatorSequence.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one member by applying a sequence of validators.
+
+**Arguments**:
+
+- `config` - The Config object to validate.
+- `member_name` - The name of the member to validate.
+- `member_value` - The value of the member to validate.
+- `stderr_file` - The file to write error messages to.
 
 <a id="config_as_json.config_auto_change_hook"></a>
 
