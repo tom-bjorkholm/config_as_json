@@ -553,8 +553,7 @@ case.
 ## StrValidator Objects
 
 ```python
-class StrValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator)
+class StrValidator(MemberValidator)
 ```
 
 Validate one string member against allowed string values.
@@ -641,8 +640,7 @@ Value type used when validating shared constraint arguments.
 ## IntFloatValidator Objects
 
 ```python
-class IntFloatValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator, Generic[IntFloat])
+class IntFloatValidator(MemberValidator, Generic[IntFloat])
 ```
 
 Validate one int or float member against numeric constraints.

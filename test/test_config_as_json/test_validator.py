@@ -34,8 +34,8 @@ class ConfigMissingValidationPlan(Config):
                          from_json_filename=None, stderr_file=stderr_file)
 
 
-class UppercaseValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class UppercaseValidator(MemberValidator):
     """Normalize one string member to upper case."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -49,8 +49,8 @@ class UppercaseValidator(  # pylint: disable=too-few-public-methods
         return member_value.upper()
 
 
-class PrefixFromNameValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class PrefixFromNameValidator(MemberValidator):
     """Prefix one member with the normalized name from the config."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -64,8 +64,8 @@ class PrefixFromNameValidator(  # pylint: disable=too-few-public-methods
         return f'{config.name}:{member_value}'
 
 
-class WholeConfigSuffixValidator(  # pylint: disable=too-few-public-methods
-        WholeConfigValidator):
+# pylint: disable-next=too-few-public-methods
+class WholeConfigSuffixValidator(WholeConfigValidator):
     """Append one suffix to the alias field during whole-config validation."""
 
     def __init__(self, suffix: str) -> None:
@@ -79,8 +79,8 @@ class WholeConfigSuffixValidator(  # pylint: disable=too-few-public-methods
         config.alias = config.alias + self._suffix
 
 
-class IdentityValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class IdentityValidator(MemberValidator):
     """Return the validated member unchanged."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -93,8 +93,8 @@ class IdentityValidator(  # pylint: disable=too-few-public-methods
         return member_value
 
 
-class ReplaceWithNoneValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class ReplaceWithNoneValidator(MemberValidator):
     """Replace the validated member with None."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -281,8 +281,8 @@ class MethodCallValidationConfig(Config):
             WholeConfigValidationStep(validator=whole_config_validator)]
 
 
-class AppendTextValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class AppendTextValidator(MemberValidator):
     """Append text to a string member."""
 
     def __init__(self, text: str) -> None:
@@ -457,6 +457,30 @@ def test_validation_roles_and_step_base_class_are_abstract():
         ABCMeta.__call__(validation_step_class)
 
 
+@pytest.mark.parametrize(
+    'call, message',
+    [(lambda cfg: WholeConfigValidator.validate(
+        WholeConfigSuffixValidator('!'), cfg, sys.stderr),
+      'WholeConfigValidator.validate() must be implemented'),
+     (lambda cfg: MemberValidator.validate_member(
+         IdentityValidator(), cfg, 'value', 'raw', sys.stderr),
+      'MemberValidator.validate_member() must be implemented'),
+     (lambda cfg: ValidationStep.apply(
+         MemberValidationStep(['value'], IdentityValidator()),
+         cfg, sys.stderr),
+      'ValidationStep.apply() must be implemented')])
+def test_validation_base_methods_report_not_implemented(
+        capsys, call, message):
+    """Test base validation methods when called directly."""
+    cfg = EmptyValidationConfig()
+    with pytest.raises(NotImplementedError) as exc:
+        call(cfg)
+    out, err = capsys.readouterr()
+    assert message in str(exc.value)
+    assert out == ''
+    assert message in err
+
+
 def test_str_validator_rejects_invalid_member_type(capsys):
     """Test that StrValidator rejects non-string values."""
     validator = StrValidator(['red', 'green'], ignore_case=False)
@@ -583,6 +607,19 @@ def test_member_call_validation_only_keeps_value(capsys, method_result):
         'value_arg': 'raw',
         'member_arg': 'value'
     }]
+    assert out == ''
+    assert err == ''
+
+
+def test_member_call_validation_only_accepts_minimal_arguments(capsys):
+    """Test validation-only member methods with only the value argument."""
+    cfg = MethodCallConfig(member_result=True)
+    validator = CallingMemberValidator(method_name='check_member',
+                                       arg_name_value='value_arg')
+    result = validator.validate_member(cfg, 'value', 'raw', sys.stderr)
+    out, err = capsys.readouterr()
+    assert result == 'raw'
+    assert cfg.member_calls() == [{'value_arg': 'raw'}]
     assert out == ''
     assert err == ''
 
@@ -810,6 +847,7 @@ def test_int_float_validator_init_rejects_invalid_constraints(
 
 @pytest.mark.parametrize('validator, member_value, expected',
                          [(IntFloatValidator(1, 5, None), 1, 1),
+                          (IntFloatValidator(0, 1, None), True, True),
                           (IntFloatValidator(1, 5, [2, 3, 5]), 3, 3),
                           (IntFloatValidator(None, 1.5, [0.5, 1.5]),
                            0.5, 0.5),

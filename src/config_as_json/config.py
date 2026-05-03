@@ -232,8 +232,10 @@ class Config():
                 raise KeyError(errmsg)
 
     @staticmethod
-    def check_dict_parse(self_data: dict[str, Any], json_data: dict[str, Any],  # pylint: disable=too-many-arguments,too-many-positional-arguments # noqa: E501
-                         key: str, ok_to_use_defaults: bool,
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
+    def check_dict_parse(self_data: dict[str, Any],
+                         json_data: dict[str, Any], key: str,
+                         ok_to_use_defaults: bool,
                          unchecked_dicts: list[str],
                          stderr_file: TextIO) -> None:
         """Recursively validate nested dictionaries against default values.

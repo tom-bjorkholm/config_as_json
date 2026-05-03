@@ -205,7 +205,8 @@ def _validate_non_empty_str_argument(value: object,
     return value
 
 
-class ValueTypeValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class ValueTypeValidator(MemberValidator):
     """Validate that one member value has the configured runtime type."""
 
     def __init__(self, value_type: type[object]) -> None:
@@ -396,8 +397,8 @@ def string_best_match(value: str, allowed_values: Sequence[str],
     raise InvalidConfigurationValue(member_name, value, allowed_values)
 
 
-class StrValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class StrValidator(MemberValidator):
     """Validate one string member against allowed string values."""
 
     def __init__(self,
@@ -529,9 +530,6 @@ def _validate_and_get_constraint_value_type(
         assert allowed_values is not None
         value_type = type(allowed_values[0])
     assert value_type is not None  # logically impossible
-    if min_value is not None and not isinstance(min_value, value_type):
-        msg = 'min_value must be of type ' + value_type.__name__
-        raise TypeError(msg)
     if max_value is not None and not isinstance(max_value, value_type):
         msg = 'max_value must be of type ' + value_type.__name__
         raise TypeError(msg)
@@ -556,8 +554,8 @@ def _ensure_int_float_type(value_type: type[object]) -> None:
         raise TypeError(msg)
 
 
-class IntFloatValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator, Generic[IntFloat]):
+# pylint: disable-next=too-few-public-methods
+class IntFloatValidator(MemberValidator, Generic[IntFloat]):
     """Validate one int or float member against numeric constraints."""
 
     def __init__(self, min_value: Optional[IntFloat],
@@ -621,7 +619,7 @@ class IntFloatValidator(  # pylint: disable=too-few-public-methods
             msg += f'{self._value_type.__name__}.'
             print(msg, file=stderr_file)
             raise InvalidConfiguration(msg)
-        value: IntFloat = cast(IntFloat, member_value)  # type: ignore[redundant-cast] # noqa: E501
+        value = cast(IntFloat, member_value)  # type: ignore[redundant-cast]
         if self.min_value is not None and value < self.min_value:
             msg = 'Invalid configuration: '
             msg += f'Value {value} for {member_name} is less than minimum '
@@ -688,7 +686,8 @@ def _check_validation_only_method_result(method_name: str, result: object,
     raise TypeError(msg)
 
 
-class CallingMemberValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class CallingMemberValidator(MemberValidator):
     """Validate one member by calling a method of the Config object.
 
     The validator calls a method of the Config object with the given arguments.
@@ -705,8 +704,8 @@ class CallingMemberValidator(MemberValidator):  # pylint: disable=too-few-public
     expected to return the validated and normalized value.
     """
 
-    def __init__(self,  # pylint: disable=too-many-arguments,too-many-positional-arguments # noqa: E501
-                 method_name: str, arg_name_value: str,
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
+    def __init__(self, method_name: str, arg_name_value: str,
                  arg_name_member_name: Optional[str] = None,
                  other_args: Optional[Mapping[str, object]] = None,
                  normalizing: bool = False) -> None:
@@ -806,7 +805,8 @@ class CallingMemberValidator(MemberValidator):  # pylint: disable=too-few-public
         return member_value
 
 
-class CallingWholeConfigValidator(WholeConfigValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class CallingWholeConfigValidator(WholeConfigValidator):
     """Validate complete Config by calling a method of the Config object.
 
     The validator calls a method of the Config object with the given arguments.
@@ -870,7 +870,8 @@ class CallingWholeConfigValidator(WholeConfigValidator):  # pylint: disable=too-
                                              stderr_file)
 
 
-class MemberValidatorSequence(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class MemberValidatorSequence(MemberValidator):
     """Validate one member by applying a sequence of validators.
 
     The validator applies a sequence of validators to the member value.

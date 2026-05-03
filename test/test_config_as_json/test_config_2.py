@@ -5,13 +5,11 @@
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
-# pylint: disable=duplicate-code
-
-from typing import Any, Optional, cast, TextIO  # pylint: disable=unused-import,ungrouped-imports # noqa: E501
 from copy import deepcopy
 from enum import Enum, auto
 import json
 import sys
+from typing import Any, Optional, cast, TextIO
 import pytest
 from config_as_json.config import Config, RocfKeyRename, ParseConverter
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
@@ -103,6 +101,20 @@ class OmitNoneNonNoneDefaultConfig(Config):
         """Get validation plan for use when validating the Config object."""
         _ = stderr_file
         return []
+
+
+class OmitNoneBadReturnConfig(OmitNoneConfig):
+    """Class with an invalid omit-None hook return value."""
+
+    def __init__(self, omitted_keys: object,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct an invalid config object for omit-None hook tests."""
+        self._omitted_keys = omitted_keys
+        super().__init__(stderr_file=stderr_file)
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return the configured invalid omit-None hook value."""
+        return cast(list[str], self._omitted_keys)
 
 
 class RocfRemoveAutoChangeHook(ConfigAutoChangeHook):
@@ -263,6 +275,22 @@ def test_omit_none_config_rejects_non_none_default(capsys):
         str(exc.value)
 
 
+@pytest.mark.parametrize(
+    'omitted_keys, message',
+    [('optional_text', '_omit_none_from_json() must return a list'),
+     (['optional_text', 7],
+      '_omit_none_from_json() must return a list of strings')])
+def test_omit_none_config_rejects_invalid_hook_return(
+        capsys, omitted_keys, message):
+    """Test that omit-None hook return values are type checked."""
+    with pytest.raises(TypeError) as exc:
+        _ = OmitNoneBadReturnConfig(omitted_keys, stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert message in str(exc.value)
+
+
 @pytest.mark.parametrize('jstext, aval, cval, fval',
                          [('{ "ab": "a1b2", "cd": "c3d4", "ef": "e5f6" }',
                            'a1b2', 'c3d4', 'e5f6'),
@@ -300,6 +328,47 @@ def test_cfg_rocf_val_json_nok(capsys, jstext):
     assert 'No value for ab in' in err
 
 
+def remove_json_key_in_dict(key: str, json_data: dict[str, JsonType]) -> bool:
+    """Remove one ROCF key from a dictionary in tests."""
+    # pylint: disable-next=protected-access
+    return Config._rocf_remove_json_key_in_dict(key=key,
+                                                json_data=json_data)
+
+
+def remove_json_key_in_list(key: str, json_data: list[JsonType]) -> bool:
+    """Remove one ROCF key from a list in tests."""
+    # pylint: disable-next=protected-access
+    return Config._rocf_remove_json_key_in_list(key=key, json_data=json_data)
+
+
+def rename_json_key_in_dict(rename: RocfKeyRename,
+                            json_data: dict[str, JsonType],
+                            stderr_file: TextIO) -> bool:
+    """Rename one ROCF key in a dictionary in tests."""
+    # pylint: disable-next=protected-access
+    return Config._rocf_rename_json_key_in_dict(rename=rename,
+                                                json_data=json_data,
+                                                stderr_file=stderr_file)
+
+
+def rename_json_key_in_list(rename: RocfKeyRename,
+                            json_data: list[JsonType],
+                            stderr_file: TextIO) -> bool:
+    """Rename one ROCF key in a list in tests."""
+    # pylint: disable-next=protected-access
+    return Config._rocf_rename_json_key_in_list(rename=rename,
+                                                json_data=json_data,
+                                                stderr_file=stderr_file)
+
+
+def rename_json_keys(config: Config, json_data: dict[str, JsonType],
+                     stderr_file: TextIO) -> None:
+    """Rename all configured ROCF keys in tests."""
+    # pylint: disable-next=protected-access
+    config._rocf_rename_json_keys(json_data=json_data,
+                                  stderr_file=stderr_file)
+
+
 @pytest.mark.parametrize('ind,outd,key,changed',
                          [({'keep': 1},
                            {'keep': 1},
@@ -323,8 +392,7 @@ def test_cfg_rocf_val_json_nok(capsys, jstext):
 def test_rocf_remove_json_key_in_dict(capsys, ind, outd, key, changed):
     """Test removing one ROCF key from nested dictionaries."""
     data = deepcopy(ind)
-    assert Config._rocf_remove_json_key_in_dict(  # pylint: disable=protected-access # noqa: E501
-        key=key, json_data=data) == changed
+    assert remove_json_key_in_dict(key=key, json_data=data) == changed
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -344,8 +412,7 @@ def test_rocf_remove_json_key_in_dict(capsys, ind, outd, key, changed):
 def test_rocf_remove_json_key_in_list(capsys, ind, outd, key, changed):
     """Test removing one ROCF key from nested lists."""
     data = deepcopy(ind)
-    assert Config._rocf_remove_json_key_in_list(  # pylint: disable=protected-access # noqa: E501
-        key=key, json_data=data) == changed
+    assert remove_json_key_in_list(key=key, json_data=data) == changed
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -358,11 +425,11 @@ def test_rocf_remove_json_key_rejects_none_key(capsys, json_data):
     """Test that removing a None key fails like invalid ROCF rename rules."""
     with pytest.raises(AssertionError):
         if isinstance(json_data, dict):
-            Config._rocf_remove_json_key_in_dict(  # pylint: disable=protected-access # noqa: E501
-                key=cast(Any, None), json_data=json_data)
+            remove_json_key_in_dict(key=cast(Any, None),
+                                    json_data=json_data)
         else:
-            Config._rocf_remove_json_key_in_list(  # pylint: disable=protected-access # noqa: E501
-                key=cast(Any, None), json_data=json_data)
+            remove_json_key_in_list(key=cast(Any, None),
+                                    json_data=json_data)
     out, _ = capsys.readouterr()
     assert '' == out
 
@@ -450,9 +517,8 @@ def test_rocf_removed_keys_absent_does_not_report_change(capsys):
 def test_bw_compat_single1(capsys, ind, outd, ren, errtxt):
     """Test Config._bwcompat_single for case 1."""
     data = deepcopy(ind)
-    Config._rocf_rename_json_key_in_dict(rename=ren,  # pylint: disable=protected-access # noqa: E501
-                                         json_data=data,
-                                         stderr_file=sys.stderr)
+    rename_json_key_in_dict(rename=ren, json_data=data,
+                            stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert err == errtxt
@@ -466,9 +532,8 @@ def test_bw_compat_single1(capsys, ind, outd, ren, errtxt):
 def test_bw_compat_single2(capsys, ren):
     """Test Config._bwcompat_single for not OK case."""
     with pytest.raises(AssertionError):
-        Config._rocf_rename_json_key_in_dict(rename=ren,  # pylint: disable=protected-access # noqa: E501
-                                             json_data={'a': 'b'},
-                                             stderr_file=sys.stderr)
+        rename_json_key_in_dict(rename=ren, json_data={'a': 'b'},
+                                stderr_file=sys.stderr)
     out, _ = capsys.readouterr()
     assert '' == out
 
@@ -492,9 +557,8 @@ def test_bw_compat_single2(capsys, ren):
 def test_bwcompat_single_lst1(capsys, ind, outd, ren, errtxt):
     """Test Config._bwcompat_single_lst for case 1."""
     data = deepcopy(ind)
-    Config._rocf_rename_json_key_in_list(rename=ren,  # pylint: disable=protected-access # noqa: E501
-                                         json_data=data,
-                                         stderr_file=sys.stderr)
+    rename_json_key_in_list(rename=ren, json_data=data,
+                            stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert err == errtxt
@@ -531,8 +595,7 @@ def test_rename_backward_compatible(capsys, ind, outd, errtxt):
     """Test Config._rename_backward_compatible."""
     data = deepcopy(ind)
     cfg = DummyCfg(stderr_file=sys.stderr)
-    cfg._rocf_rename_json_keys(  # pylint: disable=protected-access # noqa: E501
-                                    json_data=data, stderr_file=sys.stderr)
+    rename_json_keys(config=cfg, json_data=data, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert err == errtxt

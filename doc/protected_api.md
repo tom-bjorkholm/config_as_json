@@ -685,8 +685,7 @@ case.
 ## StrValidator Objects
 
 ```python
-class StrValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator)
+class StrValidator(MemberValidator)
 ```
 
 Validate one string member against allowed string values.
@@ -825,8 +824,7 @@ Reject unsupported runtime types for IntFloatValidator.
 ## IntFloatValidator Objects
 
 ```python
-class IntFloatValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator, Generic[IntFloat])
+class IntFloatValidator(MemberValidator, Generic[IntFloat])
 ```
 
 Validate one int or float member against numeric constraints.
