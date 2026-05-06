@@ -5,7 +5,9 @@ Python class while storing actual configuration data in JSON files.
 
 The intended usage model is:
 
-- Derive an application-specific class from `config_as_json.Config`.
+- Derive an application-specific class from `config_as_json.Config` (or use
+  multiple inheritance to derive from both a class with your paramaters and
+  from `config_as_json.Config`).
 - Add one instance attribute per supported configuration parameter. An
   instance attribute can also be a dict or list, optionally with nested
   dicts and lists.
@@ -73,5 +75,5 @@ MIT
 - Test result: 3572 passed in 10s
 - No flake8 warnings.
 - No mypy errors found.
-- Built version(s): 0.3.1
+- Built version(s): 0.4
 - Build and test using Python 3.14.4
