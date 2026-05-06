@@ -23,6 +23,7 @@ from config_as_json.char_encoding import check_char_encoding, \
     CharEncodingValidator, valid_char_encoding
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.migrate_cfg import migrate_cfg
+from config_as_json.optional_validator import OptionalMemberValidator
 from config_as_json.validator import ValidationPlan, ValidationStep, \
     WholeConfigValidationStep, MemberValidationStep, WholeConfigValidator, \
     MemberValidator, ValueTypeValidator, StrValidator, IntFloatValidator, \
@@ -72,6 +73,7 @@ __all__ = ['Config',
            'CallingMemberValidator',
            'CallingWholeConfigValidator',
            'MemberValidatorSequence',
+           'OptionalMemberValidator',
            'string_best_match',
            'string_to_enum_best_match',
            'InvalidConfiguration',

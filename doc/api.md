@@ -39,6 +39,10 @@
   * [MemberValidatorSequence](#config_as_json.validator.MemberValidatorSequence)
     * [\_\_init\_\_](#config_as_json.validator.MemberValidatorSequence.__init__)
     * [validate\_member](#config_as_json.validator.MemberValidatorSequence.validate_member)
+* [config\_as\_json.optional\_validator](#config_as_json.optional_validator)
+  * [OptionalMemberValidator](#config_as_json.optional_validator.OptionalMemberValidator)
+    * [\_\_init\_\_](#config_as_json.optional_validator.OptionalMemberValidator.__init__)
+    * [validate\_member](#config_as_json.optional_validator.OptionalMemberValidator.validate_member)
 * [config\_as\_json.config\_auto\_change\_hook](#config_as_json.config_auto_change_hook)
   * [ConfigAutoChangeHook](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook)
     * [\_\_init\_\_](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.__init__)
@@ -958,6 +962,75 @@ Validate one member by applying a sequence of validators.
 - `member_name` - The name of the member to validate.
 - `member_value` - The value of the member to validate.
 - `stderr_file` - The file to write error messages to.
+
+<a id="config_as_json.optional_validator"></a>
+
+# config\_as\_json.optional\_validator
+
+Optional validator.
+
+<a id="config_as_json.optional_validator.OptionalMemberValidator"></a>
+
+## OptionalMemberValidator Objects
+
+```python
+class OptionalMemberValidator(MemberValidator)
+```
+
+Validate an optional member.
+
+<a id="config_as_json.optional_validator.OptionalMemberValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(validator: MemberValidator | list[MemberValidator]) -> None
+```
+
+Construct validator for an optional member.
+
+**Arguments**:
+
+- `validator` - Validator or list of validators to use for the
+  value if it is not None.
+
+**Raises**:
+
+- `TypeError` - If ``validator`` is not a MemberValidator or
+  list of MemberValidators.
+- `ValueError` - If ``validator`` is an empty list.
+
+<a id="config_as_json.optional_validator.OptionalMemberValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one member if it is not None.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The member value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  None if ``member_value`` is None. Otherwise, the result of
+  validating ``member_value`` using the supplied validator(s),
+  that may normalize the value.
+
+
+**Raises**:
+
+  The same exceptions as the supplied validator(s).
 
 <a id="config_as_json.config_auto_change_hook"></a>
 
