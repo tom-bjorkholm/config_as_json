@@ -60,20 +60,14 @@ public objects are defined.
 The example directory contains worked examples for new users. It is not
 included in the package installed from PyPI.
 
-## Project status
-
-This package originated as configuration code from a larger application and
-has been refactored into a stand-alone reusable library. The public API
-reference and worked examples are maintained in the source repository.
-
 ## License
 
 MIT
 
 ## Test summary
 
-- Test result: 3572 passed in 10s
+- Test result: 3572 passed in 9s
 - No flake8 warnings.
 - No mypy errors found.
-- Built version(s): 0.4
+- Built version(s): 0.4.1
 - Build and test using Python 3.14.4
