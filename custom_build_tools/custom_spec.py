@@ -6,8 +6,17 @@ from typing import Optional
 from build_spec import BuildInformation, BuildSpec
 
 
-def strip_generated_markdown_whitespace(
-        _build_spec: BuildSpec, build_information: BuildInformation) -> None:
+PYTHON_LAYOUT_INITIAL_EXCLUDES = [
+    Path('src'),
+    Path('test'),
+    Path('example'),
+    Path('common_build_tools')
+]
+
+
+def strip_generated_markdown_whitespace(_build_spec: BuildSpec,
+                                        build_information: BuildInformation) \
+        -> None:
     """Strip trailing whitespace from generated markdown files."""
     doc_folder = build_information['project_root'] / 'doc'
     for markdown_file in sorted(doc_folder.glob('*.md')):
@@ -26,6 +35,7 @@ def strip_trailing_whitespace(path: Path) -> None:
 
 def custom_spec() -> Optional[BuildSpec]:
     """Return custom build spec for this repository."""
-    return BuildSpec(
-        readme_summary_max_skipped=200,
-        custom_final=[strip_generated_markdown_whitespace])
+    excludes = PYTHON_LAYOUT_INITIAL_EXCLUDES
+    return BuildSpec(readme_summary_max_skipped=200,
+                     python_layout_exclude_folders=excludes,
+                     custom_final=[strip_generated_markdown_whitespace])
