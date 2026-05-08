@@ -2660,8 +2660,7 @@ Basic scalar type accepted by the list validators.
 ## ListValueValidator Objects
 
 ```python
-class ListValueValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator, Generic[Basictype])
+class ListValueValidator(MemberValidator, Generic[Basictype])
 ```
 
 Validate values in a list of basic scalar values.
@@ -2674,7 +2673,8 @@ Validate values in a list of basic scalar values.
 def __init__(
     min_value: Optional[Basictype],
     max_value: Optional[Basictype],
-    allowed_values: Optional[Sequence[Basictype]],
+    allowed_values: Optional[Sequence[Basictype]
+                             | Callable[[], Sequence[Basictype]]],
     lt_comparator: Callable[[Basictype, Basictype],
                             bool] = operator_lt) -> None
 ```
@@ -2697,6 +2697,8 @@ provided.
 - `allowed_values` - The only allowed values for the elements of
   the member.
   If ``None``, no allowed-values check is done.
+  If a callable, it is called at validation time
+  to get the allowed values.
 - `lt_comparator` - Comparator function for the element values.
   Defaults to the < operator.
 

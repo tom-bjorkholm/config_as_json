@@ -30,13 +30,14 @@
     * [validate\_member](#config_as_json.validator.StrValidator.validate_member)
   * [IntFloat](#config_as_json.validator.IntFloat)
   * [ConstraintValue](#config_as_json.validator.ConstraintValue)
-  * [\_validate\_and\_get\_constraint\_value\_type](#config_as_json.validator._validate_and_get_constraint_value_type)
+  * [\_validated\_constraint\_vtype](#config_as_json.validator._validated_constraint_vtype)
   * [\_get\_allowed\_values\_type](#config_as_json.validator._get_allowed_values_type)
   * [\_validate\_allowed\_values\_sequence](#config_as_json.validator._validate_allowed_values_sequence)
+  * [\_values\_for\_type](#config_as_json.validator._values_for_type)
+  * [\_get\_allowed\_values](#config_as_json.validator._get_allowed_values)
   * [\_ensure\_int\_float\_type](#config_as_json.validator._ensure_int_float_type)
   * [IntFloatValidator](#config_as_json.validator.IntFloatValidator)
     * [\_\_init\_\_](#config_as_json.validator.IntFloatValidator.__init__)
-    * [\_current\_allowed\_values](#config_as_json.validator.IntFloatValidator._current_allowed_values)
     * [validate\_member](#config_as_json.validator.IntFloatValidator.validate_member)
   * [\_copy\_method\_other\_args](#config_as_json.validator._copy_method_other_args)
   * [\_get\_config\_method](#config_as_json.validator._get_config_method)
@@ -778,12 +779,12 @@ Numeric type accepted by IntFloatValidator.
 
 Value type used when validating shared constraint arguments.
 
-<a id="config_as_json.validator._validate_and_get_constraint_value_type"></a>
+<a id="config_as_json.validator._validated_constraint_vtype"></a>
 
-#### \_validate\_and\_get\_constraint\_value\_type
+#### \_validated\_constraint\_vtype
 
 ```python
-def _validate_and_get_constraint_value_type(
+def _validated_constraint_vtype(
     min_value: Optional[ConstraintValue],
     max_value: Optional[ConstraintValue],
     allowed_values: Optional[Sequence[ConstraintValue]],
@@ -842,22 +843,33 @@ def _validate_allowed_values_sequence(
 
 Validate allowed-values sequence shape and element type.
 
-**Arguments**:
+<a id="config_as_json.validator._values_for_type"></a>
 
-- `allowed_values` - Sequence to validate.
-- `value_type` - Required runtime type for every value in the sequence.
+#### \_values\_for\_type
 
+```python
+def _values_for_type(
+    min_value: Optional[ConstraintValue], max_value: Optional[ConstraintValue],
+    allowed_values: Optional[Sequence[ConstraintValue]
+                             | Callable[[], Sequence[ConstraintValue]]]
+) -> Optional[Sequence[ConstraintValue]]
+```
 
-**Returns**:
+Return allowed values needed for constructor type inference.
 
-  ``allowed_values`` cast to the validated sequence type.
+<a id="config_as_json.validator._get_allowed_values"></a>
 
+#### \_get\_allowed\_values
 
-**Raises**:
+```python
+def _get_allowed_values(
+        allowed_values: Optional[Sequence[ConstraintValue]
+                                 | Callable[[], Sequence[ConstraintValue]]],
+        value_type: type[ConstraintValue]
+) -> Optional[Sequence[ConstraintValue]]
+```
 
-- `ValueError` - If ``allowed_values`` is empty.
-- `TypeError` - If ``allowed_values`` is not a sequence or contains a
-  value with a wrong runtime type.
+Return the allowed values to use for the current validation.
 
 <a id="config_as_json.validator._ensure_int_float_type"></a>
 
@@ -916,16 +928,6 @@ provided.
 - `ValueError` - If allowed_values is provided as an empty sequence.
 - `ValueError` - If min_value is greater than max_value.
 - `TypeError` - If unsupported or mixed runtime types are used.
-
-<a id="config_as_json.validator.IntFloatValidator._current_allowed_values"></a>
-
-#### \_current\_allowed\_values
-
-```python
-def _current_allowed_values() -> Optional[Sequence[IntFloat]]
-```
-
-Return the allowed values to use for the current validation.
 
 <a id="config_as_json.validator.IntFloatValidator.validate_member"></a>
 
@@ -4054,8 +4056,7 @@ Initialize the exception.
 ## ListValueValidator Objects
 
 ```python
-class ListValueValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator, Generic[Basictype])
+class ListValueValidator(MemberValidator, Generic[Basictype])
 ```
 
 Validate values in a list of basic scalar values.
@@ -4068,7 +4069,8 @@ Validate values in a list of basic scalar values.
 def __init__(
     min_value: Optional[Basictype],
     max_value: Optional[Basictype],
-    allowed_values: Optional[Sequence[Basictype]],
+    allowed_values: Optional[Sequence[Basictype]
+                             | Callable[[], Sequence[Basictype]]],
     lt_comparator: Callable[[Basictype, Basictype],
                             bool] = operator_lt) -> None
 ```
@@ -4091,6 +4093,8 @@ provided.
 - `allowed_values` - The only allowed values for the elements of
   the member.
   If ``None``, no allowed-values check is done.
+  If a callable, it is called at validation time
+  to get the allowed values.
 - `lt_comparator` - Comparator function for the element values.
   Defaults to the < operator.
 

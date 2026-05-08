@@ -488,12 +488,14 @@ ConstraintValue = TypeVar('ConstraintValue', int, float, str, bool)
 """Value type used when validating shared constraint arguments."""
 
 
-def _validate_and_get_constraint_value_type(
-        min_value: Optional[ConstraintValue],
-        max_value: Optional[ConstraintValue],
-        allowed_values: Optional[Sequence[ConstraintValue]],
-        lt_comparator: Callable[[ConstraintValue, ConstraintValue], bool] =
-        operator_lt) -> type[ConstraintValue]:
+def _validated_constraint_vtype(min_value: Optional[ConstraintValue],
+                                max_value: Optional[ConstraintValue],
+                                allowed_values: Optional[
+                                    Sequence[ConstraintValue]],
+                                lt_comparator:
+                                    Callable[[ConstraintValue,
+                                              ConstraintValue], bool] =
+                                operator_lt) -> type[ConstraintValue]:
     """Validate shared constructor constraints and return their type.
 
     The helper validates the common constructor arguments used by validators
@@ -555,23 +557,10 @@ def _get_allowed_values_type(
     return cast(type[ConstraintValue], type(allowed_values[0]))
 
 
-def _validate_allowed_values_sequence(
-        allowed_values: object,
-        value_type: type[ConstraintValue]) -> Sequence[ConstraintValue]:
-    """Validate allowed-values sequence shape and element type.
-
-    Args:
-        allowed_values: Sequence to validate.
-        value_type: Required runtime type for every value in the sequence.
-
-    Returns:
-        ``allowed_values`` cast to the validated sequence type.
-
-    Raises:
-        ValueError: If ``allowed_values`` is empty.
-        TypeError: If ``allowed_values`` is not a sequence or contains a
-            value with a wrong runtime type.
-    """
+def _validate_allowed_values_sequence(allowed_values: object,
+                                      value_type: type[ConstraintValue]) \
+        -> Sequence[ConstraintValue]:
+    """Validate allowed-values sequence shape and element type."""
     if not isinstance(allowed_values, SequenceABC):
         msg = 'allowed_values must be a sequence of '
         msg += value_type.__name__
@@ -584,6 +573,32 @@ def _validate_allowed_values_sequence(
         msg += value_type.__name__
         raise TypeError(msg)
     return cast(Sequence[ConstraintValue], allowed_values)
+
+
+def _values_for_type(min_value: Optional[ConstraintValue],
+                     max_value: Optional[ConstraintValue],
+                     allowed_values: Optional[
+                         Sequence[ConstraintValue] |
+                         Callable[[], Sequence[ConstraintValue]]]) \
+        -> Optional[Sequence[ConstraintValue]]:
+    """Return allowed values needed for constructor type inference."""
+    if not callable(allowed_values):
+        return allowed_values
+    if min_value is None and max_value is None:
+        return allowed_values()
+    return None
+
+
+def _get_allowed_values(allowed_values: Optional[
+        Sequence[ConstraintValue] | Callable[[], Sequence[ConstraintValue]]],
+                        value_type: type[ConstraintValue]) \
+        -> Optional[Sequence[ConstraintValue]]:
+    """Return the allowed values to use for the current validation."""
+    if allowed_values is None:
+        return None
+    if not callable(allowed_values):
+        return allowed_values
+    return _validate_allowed_values_sequence(allowed_values(), value_type)
 
 
 def _ensure_int_float_type(value_type: type[object]) -> None:
@@ -625,17 +640,9 @@ class IntFloatValidator(MemberValidator, Generic[IntFloat]):
             ValueError: If min_value is greater than max_value.
             TypeError: If unsupported or mixed runtime types are used.
         """
-        initial_allowed_values: Optional[Sequence[IntFloat]]
-        if callable(allowed_values):
-            if min_value is None and max_value is None:
-                initial_allowed_values = allowed_values()
-            else:
-                initial_allowed_values = None
-        else:
-            initial_allowed_values = allowed_values
-        value_type = _validate_and_get_constraint_value_type(
-            min_value=min_value, max_value=max_value,
-            allowed_values=initial_allowed_values)
+        type_values = _values_for_type(min_value, max_value, allowed_values)
+        get_value_type = _validated_constraint_vtype
+        value_type = get_value_type(min_value, max_value, type_values)
         _ensure_int_float_type(value_type)
         self._value_type: type[IntFloat] = value_type
         self.min_value: Optional[IntFloat] = min_value
@@ -643,16 +650,6 @@ class IntFloatValidator(MemberValidator, Generic[IntFloat]):
         self.allowed_values: Optional[
             Sequence[IntFloat] | Callable[[], Sequence[IntFloat]]] = \
             allowed_values
-
-    def _current_allowed_values(self) -> Optional[Sequence[IntFloat]]:
-        """Return the allowed values to use for the current validation."""
-        if self.allowed_values is None:
-            return None
-        if not callable(self.allowed_values):
-            return self.allowed_values
-        allowed_values = _validate_allowed_values_sequence(
-            self.allowed_values(), self._value_type)
-        return allowed_values
 
     def validate_member(self, config: 'Config',
                         member_name: str,
@@ -694,7 +691,8 @@ class IntFloatValidator(MemberValidator, Generic[IntFloat]):
             msg += f'{self.max_value}.'
             print(msg, file=stderr_file)
             raise InvalidConfiguration(msg)
-        allowed_values = self._current_allowed_values()
+        allowed_values = _get_allowed_values(self.allowed_values,
+                                             self._value_type)
         if allowed_values is not None:
             if value not in allowed_values:
                 _ = not_one_of_allowed_values(member_name, value,

@@ -6,7 +6,7 @@
 
 import json
 from tempfile import TemporaryDirectory
-from typing import cast
+from typing import Sequence, cast
 import pytest
 import example.e06_list_basic_validators as e06_module
 import example.e07_list_order_vs_normalize as e07_module
@@ -57,6 +57,12 @@ E08_SPEC = ExampleProgramSpec(module=e08_module,
                               config_basename='combined_list_validators.cfg')
 
 
+def _pdf_formats(config: ExampleConfig6) -> Sequence[str]:
+    """Return a patched report-format list for dynamic validation tests."""
+    _ = config
+    return ['json', 'html', 'pdf']
+
+
 def read_json_data(config_file: str) -> dict[str, object]:
     """Read one JSON config file using UTF-8."""
     with open(config_file, encoding='UTF-8') as file_obj:
@@ -105,6 +111,22 @@ def test_e06_set_stores_valid_list_overrides(
         'report_formats': ['csv', 'json'],
         'backup_servers': ['backup-west']
     }
+
+
+def test_e06_report_formats_are_dynamic(capsys: pytest.CaptureFixture[str],
+                                        monkeypatch: pytest.MonkeyPatch) \
+        -> None:
+    """Show that report-format choices are read from a method."""
+    monkeypatch.setattr(ExampleConfig6, 'allowed_report_formats', _pdf_formats)
+    set_values: SetValues = {
+        'report_formats': ['pdf']
+    }
+    with TemporaryDirectory() as dirname:
+        config_file = dirname + '/list_basic_validators.cfg'
+        e06_list_basic_validators_set(set_values, config_file)
+        config = ExampleConfig6(from_json_filename=config_file)
+    assert_write_command_output(capsys, config_file)
+    assert config.report_formats == ['pdf']
 
 
 def test_e06_set_reports_invalid_report_format(

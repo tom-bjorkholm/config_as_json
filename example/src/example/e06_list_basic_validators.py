@@ -8,6 +8,11 @@ configuration members. It keeps the lesson deliberately small by showing
 - ``ListValueValidator`` checks each element in a list separately
 - ``ListSizeValidator`` checks the size of the list as a whole
 
+The ``report_formats`` rule also shows that ``ListValueValidator`` can get
+its allowed values from a function. That is useful when the application
+calculates allowed values from installed plugins, enabled features, or other
+runtime state.
+
 Readers who want the general introduction to ``ValidationPlan`` should
 first read ``e03_scalar_validators.py``. This example only repeats the
 parts that are important for understanding list validators.
@@ -16,7 +21,7 @@ parts that are important for understanding list validators.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from typing import Optional, TextIO
+from typing import Optional, Sequence, TextIO
 import sys
 from config_as_json import Config, PathOrStr, ValidationPlan, \
     MemberValidationStep, ListValueValidator, ListSizeValidator, \
@@ -49,6 +54,10 @@ class ExampleConfig6(Config):
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
+    def allowed_report_formats(self) -> Sequence[str]:
+        """Return report formats currently enabled by the application."""
+        return ['json', 'html', 'csv']
+
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the validation steps for this list example."""
         _ = stderr_file
@@ -60,34 +69,19 @@ class ExampleConfig6(Config):
         # Here we use it twice:
         #
         # - the retry delays must each stay within an integer range
-        # - the report formats must each be one of a fixed set of strings
+        # - the report formats must each be one of the strings returned by
+        #   ``allowed_report_formats()``
         #
         # ``ListSizeValidator`` is different. It does not inspect the
         # element values at all. It only checks how many elements the list
         # contains.
-        retry_delay_validator = ListValueValidator(
-            min_value=1,
-            max_value=60,
-            allowed_values=None
-        )
-        report_format_validator = ListValueValidator(
-            min_value=None,
-            max_value=None,
-            allowed_values=['json', 'html', 'csv']
-        )
-        backup_server_count_validator = ListSizeValidator(
-            min_size=1,
-            max_size=3
-        )
-        return [MemberValidationStep(
-                    member_names=['retry_delays_seconds'],
-                    validator=retry_delay_validator),
-                MemberValidationStep(
-                    member_names=['report_formats'],
-                    validator=report_format_validator),
-                MemberValidationStep(
-                    member_names=['backup_servers'],
-                    validator=backup_server_count_validator)]
+        get_formats = self.allowed_report_formats
+        retry_values = ListValueValidator(1, 60, None)
+        report_values = ListValueValidator(None, None, get_formats)
+        server_count = ListSizeValidator(1, 3)
+        return [MemberValidationStep(['retry_delays_seconds'], retry_values),
+                MemberValidationStep(['report_formats'], report_values),
+                MemberValidationStep(['backup_servers'], server_count)]
 
 
 def e06_list_basic_validators_set(  # pylint: disable=duplicate-code

@@ -188,12 +188,17 @@ The example keeps the lists independent from each other so that the
 reader can see the 2 ideas clearly:
 
 - `retry_delays_seconds` shows per-element integer range validation
-- `report_formats` shows per-element allowed-values validation
+- `report_formats` shows per-element allowed-values validation where the
+  allowed values come from a method
 - `backup_servers` shows list-size validation
 
 The important design lesson is that list validation can happen at
 different levels. Sometimes the rule is about each element, and sometimes
 the rule is about the list as a collection.
+
+The `report_formats` validator receives `allowed_report_formats` instead of
+a fixed list. `ListValueValidator` calls that method when validation runs,
+so an application can calculate the allowed choices from runtime state.
 
 ## e07_list_order_vs_normalize.py
 

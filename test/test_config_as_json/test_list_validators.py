@@ -6,7 +6,7 @@
 # MIT License
 
 import sys
-from typing import Any, cast
+from typing import Any, Sequence, cast
 import pytest
 from config_as_json.list_validators import ListForEachValidator, \
     ListIsOrderedValidator, ListOrderingValidator, ListSizeValidator, \
@@ -23,6 +23,22 @@ def casefold_lt(left: str, right: str) -> bool:
     return left.casefold() < right.casefold()
 
 
+def _assert_allowed_values_fail(capsys, values, exc_type, message) -> None:
+    """Assert failure from one validation-time allowed-values result."""
+    def current_allowed_values():
+        """Return the parameterized allowed-values sequence."""
+        return values
+
+    validator = ListValueValidator(1, 5, cast(Any, current_allowed_values))
+    cfg = EmptyValidationConfig()
+    with pytest.raises(exc_type) as exc:
+        validator.validate_member(cfg, 'value', [2], sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert message in str(exc.value)
+
+
 @pytest.mark.parametrize(
     'min_value, max_value, allowed_values, exc_type, message',
     [(None, None, None, ValueError,
@@ -32,7 +48,11 @@ def casefold_lt(left: str, right: str) -> bool:
       'min_value must be less than or equal to max_value'),
      (1, 2.0, None, TypeError, 'max_value must be of type int'),
      (None, 2.0, [1.0, 2], TypeError,
-      'allowed_values must be a sequence of float')])
+      'allowed_values must be a sequence of float'),
+     (None, None, lambda: [], ValueError,
+      'allowed_values must be a non-empty'),
+     (None, None, lambda: [1, 2.0], TypeError,
+      'allowed_values must be a sequence of int')])
 def test_list_value_validator_init_rejects_invalid_constraints(
         min_value, max_value, allowed_values, exc_type, message):
     """Test ListValueValidator constructor validation."""
@@ -51,17 +71,18 @@ def test_list_value_validator_init_uses_custom_comparator():
         str(exc.value)
 
 
-@pytest.mark.parametrize(
-    'validator, member_value, expected',
-    [(ListValueValidator(1, 5, None), [1, 3, 5], [1, 3, 5]),
-     (ListValueValidator(1, 5, None), [], []),
-     (ListValueValidator(None, 1.5, [0.5, 1.5]), [0.5, 1.5], [0.5, 1.5]),
-     (ListValueValidator('alpha', 'gamma', None,
-                         lt_comparator=casefold_lt),
-      ['Alpha', 'beta'], ['Alpha', 'beta']),
-     (ListValueValidator(False, True, [False, True]),
-      [False, True], [False, True]),
-     (ListValueValidator(1, 5, None), [True, 2], [True, 2])])
+@pytest.mark.parametrize('validator, member_value, expected', [
+    (ListValueValidator(1, 5, None), [1, 3, 5], [1, 3, 5]),
+    (ListValueValidator(1, 5, None), [], []),
+    (ListValueValidator(None, 1.5, [0.5, 1.5]), [0.5, 1.5], [0.5, 1.5]),
+    (ListValueValidator(None, None, lambda: [2, 4]), [2, 4], [2, 4]),
+    (ListValueValidator(None, None, lambda: ['json', 'html']),
+     ['json'], ['json']),
+    (ListValueValidator('alpha', 'gamma', None, lt_comparator=casefold_lt),
+     ['Alpha', 'beta'], ['Alpha', 'beta']),
+    (ListValueValidator(False, True, [False, True]),
+     [False, True], [False, True]),
+    (ListValueValidator(1, 5, None), [True, 2], [True, 2])])
 def test_list_value_validator_ok(capsys, validator, member_value, expected):
     """Test OK cases of ListValueValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
@@ -115,6 +136,77 @@ def test_list_value_validator_requires_allowed_value_to_be_in_range(capsys):
         str(exc.value)
     assert out == ''
     assert 'Value 6 for value at index 0 is greater than maximum 5' in err
+
+
+def test_list_value_validator_callable_infers_type_when_needed(capsys):
+    """A callable supplies the element type when bounds do not."""
+    calls: list[int] = []
+
+    def current_allowed_values() -> Sequence[int]:
+        """Return allowed values and record the call."""
+        calls.append(len(calls))
+        return [2, 3]
+
+    validator = ListValueValidator(None, None, current_allowed_values)
+    assert calls == [0]
+    assert_validate_member_ok(capsys, validator, [2, 3], [2, 3])
+    assert calls == [0, 1]
+
+
+def test_list_value_validator_callable_uses_bounds_type_first(capsys):
+    """Bounds provide the element type without calling allowed_values."""
+    calls: list[str] = []
+
+    def current_allowed_values() -> Sequence[int]:
+        """Return allowed values and record the call."""
+        calls.append('validate')
+        return [2, 3]
+
+    validator = ListValueValidator(1, 5, current_allowed_values)
+    assert not calls
+    assert_validate_member_ok(capsys, validator, [2, 3], [2, 3])
+    assert calls == ['validate']
+
+
+def test_list_value_validator_callable_values_are_dynamic(capsys):
+    """Every validation uses the callable's current allowed values."""
+    allowed_values = [2, 3]
+
+    def current_allowed_values() -> Sequence[int]:
+        """Return the current allowed-values list."""
+        return allowed_values
+
+    validator = ListValueValidator(None, None, current_allowed_values)
+    assert_validate_member_ok(capsys, validator, [2, 3], [2, 3])
+    allowed_values = [4, 5]
+    message = 'Value 2 for value at index 0 is not one of the allowed values'
+    assert_validate_member_failure(capsys, validator, [2],
+                                   InvalidConfigurationValue, message)
+    assert_validate_member_ok(capsys, validator, [4, 5], [4, 5])
+
+
+def test_list_value_validator_callable_is_called_once_per_member(capsys):
+    """One validate_member call uses one allowed-values snapshot."""
+    calls: list[int] = []
+
+    def current_allowed_values() -> Sequence[int]:
+        """Return allowed values and record the call."""
+        calls.append(len(calls))
+        return [1, 2, 3]
+
+    validator = ListValueValidator(None, None, current_allowed_values)
+    assert calls == [0]
+    assert_validate_member_ok(capsys, validator, [1, 2, 3], [1, 2, 3])
+    assert calls == [0, 1]
+
+
+@pytest.mark.parametrize('values, exc_type, message', [
+    ([], ValueError, 'allowed_values must be a non-empty'),
+    ([1.0], TypeError, 'allowed_values must be a sequence of int')])
+def test_list_value_validator_rejects_dynamic_values(capsys, values,
+                                                     exc_type, message):
+    """Dynamic allowed values must stay non-empty and type-compatible."""
+    _assert_allowed_values_fail(capsys, values, exc_type, message)
 
 
 def test_list_value_validator_integration_uses_parsed_json(capsys):

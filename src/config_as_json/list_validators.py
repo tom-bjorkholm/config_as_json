@@ -13,7 +13,8 @@ from config_as_json.dict_validators import DictKeysValidator
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue, MemberValidator, \
     _not_one_of_allowed_values_message, \
-    _validate_and_get_constraint_value_type, _validate_type_argument
+    _get_allowed_values, _values_for_type, \
+    _validated_constraint_vtype, _validate_type_argument
 
 
 Basictype = TypeVar('Basictype', int, float, str, bool)
@@ -256,13 +257,14 @@ class _IndexedInvalidConfigurationValue(InvalidConfigurationValue):
         self.args = (self.message,)
 
 
-class ListValueValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator, Generic[Basictype]):
+# pylint: disable-next=too-few-public-methods
+class ListValueValidator(MemberValidator, Generic[Basictype]):
     """Validate values in a list of basic scalar values."""
 
     def __init__(self, min_value: Optional[Basictype],
                  max_value: Optional[Basictype],
-                 allowed_values: Optional[Sequence[Basictype]],
+                 allowed_values: Optional[Sequence[Basictype] |
+                                          Callable[[], Sequence[Basictype]]],
                  lt_comparator: Callable[[Basictype, Basictype], bool] =
                  operator_lt) -> None:
         """Initialize the validator.
@@ -282,6 +284,8 @@ class ListValueValidator(  # pylint: disable=too-few-public-methods
             allowed_values: The only allowed values for the elements of
                             the member.
                             If ``None``, no allowed-values check is done.
+                            If a callable, it is called at validation time
+                            to get the allowed values.
             lt_comparator: Comparator function for the element values.
                            Defaults to the < operator.
 
@@ -293,14 +297,15 @@ class ListValueValidator(  # pylint: disable=too-few-public-methods
         """
         self._lt_comparator: Callable[[Basictype, Basictype], bool] = \
             lt_comparator
+        type_values = _values_for_type(min_value, max_value, allowed_values)
         self._value_type: type[Basictype] = \
-            _validate_and_get_constraint_value_type(
-                min_value=min_value, max_value=max_value,
-                allowed_values=allowed_values,
-                lt_comparator=self._lt_comparator)
+            _validated_constraint_vtype(min_value, max_value, type_values,
+                                        self._lt_comparator)
         self.min_value: Optional[Basictype] = min_value
         self.max_value: Optional[Basictype] = max_value
-        self.allowed_values: Optional[Sequence[Basictype]] = allowed_values
+        self.allowed_values: Optional[
+            Sequence[Basictype] | Callable[[], Sequence[Basictype]]] = \
+            allowed_values
 
     def validate_member(self, config: Config,
                         member_name: str,
@@ -335,6 +340,7 @@ class ListValueValidator(  # pylint: disable=too-few-public-methods
             msg += f'Value for {member_name} is not a list.'
             print(msg, file=stderr_file)
             raise InvalidConfiguration(msg)
+        allowed = _get_allowed_values(self.allowed_values, self._value_type)
         for member_index, raw_value in enumerate(member_value):
             if not isinstance(raw_value, self._value_type):
                 msg = 'Invalid configuration: '
@@ -360,13 +366,12 @@ class ListValueValidator(  # pylint: disable=too-few-public-methods
                 msg += f'is greater than maximum {self.max_value}.'
                 print(msg, file=stderr_file)
                 raise InvalidConfiguration(msg)
-            if self.allowed_values is not None and \
-                    value not in self.allowed_values:
-                _ = _indexed_not_one_of_allowed_values(
-                    member_name, value, member_index, self.allowed_values,
-                    stderr_file)
-                raise _IndexedInvalidConfigurationValue(
-                    member_name, value, member_index, self.allowed_values)
+            if allowed is not None and value not in allowed:
+                _ = _indexed_not_one_of_allowed_values(member_name, value,
+                                                       member_index, allowed,
+                                                       stderr_file)
+                raise _IndexedInvalidConfigurationValue(member_name, value,
+                                                        member_index, allowed)
         return member_value
 
 
