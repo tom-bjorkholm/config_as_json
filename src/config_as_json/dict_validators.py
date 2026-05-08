@@ -11,15 +11,16 @@ completely instead. See :class:`DictKeysValidator` for the full picture.
 # MIT License
 
 import sys
+from collections.abc import Hashable, Sequence as SequenceABC
 from dataclasses import dataclass
-from typing import Optional, Sequence, TextIO
+from typing import Callable, Optional, Sequence, TextIO
 from config_as_json.config import Config
 from config_as_json.validator import InvalidConfiguration, MemberValidator
 
 
 def _validate_dict_member_value(
         member_name: str, member_value: object,
-        stderr_file: TextIO) -> dict[object, object]:
+        stderr_file: TextIO) -> dict[Hashable, object]:
     """Validate that one member value is a dict and return it.
 
     Args:
@@ -65,6 +66,30 @@ def _validate_string_keys(keys: Sequence[str],
         seen.add(key)
 
 
+def _validate_hashable_keys(keys: Sequence[Hashable],
+                            parameter_name: str) -> None:
+    """Validate that ``keys`` is a sequence of distinct hashable values.
+
+    Args:
+        keys: The sequence to validate.
+        parameter_name: Name used in error messages.
+
+    Raises:
+        TypeError: If any entry of ``keys`` is not hashable.
+        ValueError: If ``keys`` contains a duplicate entry.
+    """
+    seen: set[Hashable] = set()
+    for index, key in enumerate(keys):
+        if not isinstance(key, Hashable):
+            msg = f'{parameter_name}[{index}] must be hashable.'
+            raise TypeError(msg)
+        if key in seen:
+            msg = f'{parameter_name}[{index}]={key!r} duplicates an '
+            msg += 'earlier entry.'
+            raise ValueError(msg)
+        seen.add(key)
+
+
 def _validate_bool_argument(value: bool, parameter_name: str) -> None:
     """Validate that a constructor argument is a bool.
 
@@ -79,7 +104,7 @@ def _validate_bool_argument(value: bool, parameter_name: str) -> None:
         raise TypeError(f'{parameter_name} must be a bool.')
 
 
-def _inner_member_name(outer: str, key: str) -> str:
+def _inner_member_name(outer: str, key: Hashable) -> str:
     """Return the inner member name used for a value at ``key`` of ``outer``.
 
     The convention is ``outer[key]``, mirroring the ``outer[index]`` form
@@ -206,17 +231,39 @@ class DictKeysValidator(MemberValidator):  # pylint: disable=too-few-public-meth
         return member_value
 
 
+def accept_all_keys(key: Hashable) -> bool:
+    """Return ``True`` for all keys.
+
+    Args:
+        key: The key to check.
+
+    Returns:
+        ``True`` for all keys.
+    """
+    _ = key  # pylint: disable=unused-argument
+    return True
+
+
 @dataclass(frozen=True)
 class DictRule:
     """Bind a sequence of validators to a set of dict keys.
 
     A ``DictRule`` is the data shape that ``DictForEachValidator`` uses to
-    apply per-key validation. For every key listed in ``keys``, every
-    validator in ``validators`` is applied in order, threading the
+    apply per-key validation. The ``keys`` is either a sequence of hashable
+    key values or a callable that receives one key and returns a truthy value
+    when the rule should apply.
+
+    If ``keys`` is a sequence, for every key listed in ``keys``,
+    every validator in ``validators`` is applied in order, threading the
     normalized return value forward.
+    If ``keys`` is a callable, it is called for each key that is present in
+    the dict. If the callable returns a truthy value, the validators are
+    applied in order to the value at that key, threading the normalized
+    return value forward. If the callable returns a falsey value, the
+    validators are not applied to the value at that key.
     """
 
-    keys: Sequence[str]
+    keys: Sequence[Hashable] | Callable[[Hashable], object]
     validators: Sequence[MemberValidator]
 
     def __post_init__(self) -> None:
@@ -225,14 +272,24 @@ class DictRule:
         Raises:
             ValueError: If ``keys`` or ``validators`` is empty, or if
                 ``keys`` contains a duplicate entry.
-            TypeError: If any entry of ``keys`` is not a ``str`` or any
+            TypeError: If any entry of ``keys`` is not hashable or any
                 entry of ``validators`` is not a ``MemberValidator``.
         """
-        if len(self.keys) == 0:
-            raise ValueError('keys must be non-empty.')
+        if not callable(self.keys) and not isinstance(self.keys, SequenceABC):
+            msg = 'keys must be a sequence of hashable values or a callable.'
+            raise TypeError(msg)
         if len(self.validators) == 0:
             raise ValueError('validators must be non-empty.')
-        _validate_string_keys(self.keys, 'keys')
+        if callable(self.keys):
+            keys: Optional[Sequence[Hashable]] = None
+        else:
+            assert isinstance(self.keys, SequenceABC)
+            keys = self.keys
+        if keys is not None:
+            if len(keys) == 0:
+                msg2 = 'keys must be non-empty sequence when not a callable.'
+                raise ValueError(msg2)
+            _validate_hashable_keys(keys, 'keys')
         for index, validator in enumerate(self.validators):
             if not isinstance(validator, MemberValidator):
                 msg = f'validators[{index}] must be a MemberValidator.'
@@ -257,17 +314,20 @@ def _validate_for_each_rules(rules: Sequence[DictRule]) -> None:
             raise TypeError(msg)
 
 
-class DictForEachValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class DictForEachValidator(MemberValidator):
     """Apply per-key validators to specific keys of a dict.
 
     For each ``DictRule`` in ``rules`` (in declaration order), the
-    validator iterates the rule's ``keys`` (in declaration order) and
-    applies every validator in the rule's ``validators`` (in declaration
-    order) to the value at that key. Each validator receives the value
-    returned by the previous validator, so normalization performed by one
-    inner validator is visible to the next one. The dict member is never
-    modified in place; a new dict is returned that carries the per-key
-    updates.
+    validator finds that rule's matching keys and applies every validator
+    in the rule's ``validators`` (in declaration order) to the value at
+    each matching key. A fixed key sequence is iterated in declaration
+    order. A key predicate is called for each present dict key, in the
+    dict's insertion order, and truthy predicate results select the key.
+    Each validator receives the value returned by the previous validator,
+    so normalization performed by one inner validator is visible to the
+    next one. The dict member is never modified in place; a new dict is
+    returned that carries the per-key updates.
 
     A rule key that is not present in the dict is silently skipped. This
     keeps the validator strictly orthogonal to ``DictKeysValidator``,
@@ -318,6 +378,31 @@ class DictForEachValidator(MemberValidator):  # pylint: disable=too-few-public-m
         _validate_for_each_rules(rules)
         self.rules: list[DictRule] = list(rules)
 
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
+    def _run_rule_on_key(self, rule: DictRule, config: Config,
+                         member_name: str,
+                         member_value: dict[Hashable, object],
+                         key: Hashable, stderr_file: TextIO) \
+            -> Optional[object]:
+        """Run a single rule on a dict member.
+
+        Args:
+            rule: The rule to run.
+            config: The Config object that owns the member.
+            member_name: The name of the outer dict member to validate.
+            member_value: The dict value to validate.
+            key: The key to validate.
+            stderr_file: The file to write error messages to.
+        """
+        inner_name = _inner_member_name(member_name, key)
+        current: object = member_value[key]
+        for validator in rule.validators:
+            current = validator.validate_member(config=config,
+                                                member_name=inner_name,
+                                                member_value=current,
+                                                stderr_file=stderr_file)
+        return current
+
     def validate_member(self, config: Config, member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
@@ -345,16 +430,22 @@ class DictForEachValidator(MemberValidator):  # pylint: disable=too-few-public-m
         validated_dict = _validate_dict_member_value(
             member_name=member_name, member_value=member_value,
             stderr_file=stderr_file)
-        result: dict[object, object] = dict(validated_dict)
+        result: dict[Hashable, object] = dict(validated_dict)
         for rule in self.rules:
-            for key in rule.keys:
-                if key not in result:
-                    continue
-                inner_name = _inner_member_name(member_name, key)
-                current: object = result[key]
-                for validator in rule.validators:
-                    current = validator.validate_member(
-                        config=config, member_name=inner_name,
-                        member_value=current, stderr_file=stderr_file)
-                result[key] = current
+            if callable(rule.keys):
+                for key in result:
+                    if rule.keys(key):
+                        result[key] = self._run_rule_on_key(
+                            rule=rule, config=config,
+                            member_name=member_name, member_value=result,
+                            key=key, stderr_file=stderr_file)
+            else:
+                assert isinstance(rule.keys, SequenceABC)
+                for key in rule.keys:
+                    if key not in result:
+                        continue
+                    result[key] = self._run_rule_on_key(
+                        rule=rule, config=config, member_name=member_name,
+                        member_value=result, key=key,
+                        stderr_file=stderr_file)
         return result

@@ -7,6 +7,7 @@
 from abc import ABC, abstractmethod
 from collections.abc import Mapping, Sequence as SequenceABC
 from dataclasses import dataclass
+from operator import lt as operator_lt
 import sys
 from typing import Callable, Optional, Sequence, TextIO, TYPE_CHECKING, \
     TypeVar, Generic, cast
@@ -492,7 +493,7 @@ def _validate_and_get_constraint_value_type(
         max_value: Optional[ConstraintValue],
         allowed_values: Optional[Sequence[ConstraintValue]],
         lt_comparator: Callable[[ConstraintValue, ConstraintValue], bool] =
-        lambda x, y: x < y) -> type[ConstraintValue]:
+        operator_lt) -> type[ConstraintValue]:
     """Validate shared constructor constraints and return their type.
 
     The helper validates the common constructor arguments used by validators
@@ -505,7 +506,7 @@ def _validate_and_get_constraint_value_type(
         max_value: Optional maximum allowed value.
         allowed_values: Optional allowed values.
         lt_comparator: Comparator used when checking that ``min_value`` is
-            not greater than ``max_value``.
+                       not greater than ``max_value``.
 
     Returns:
         The inferred runtime type shared by all provided constraint values.
@@ -520,24 +521,20 @@ def _validate_and_get_constraint_value_type(
         msg: str = 'At least one of min_value, max_value, '
         msg += 'or allowed_values must be provided.'
         raise ValueError(msg)
-    if allowed_values is not None and not allowed_values:
-        msg = 'If provided, allowed_values must be a non-empty sequence.'
-        raise ValueError(msg)
     value_type: Optional[type[ConstraintValue]] = \
         type(min_value) if min_value is not None else \
         type(max_value) if max_value is not None else None
     if value_type is None and allowed_values is not None:
         assert allowed_values is not None
-        value_type = type(allowed_values[0])
+        value_type = _get_allowed_values_type(allowed_values)
+        _ = _validate_allowed_values_sequence(allowed_values,
+                                              value_type)
     assert value_type is not None  # logically impossible
     if max_value is not None and not isinstance(max_value, value_type):
         msg = 'max_value must be of type ' + value_type.__name__
         raise TypeError(msg)
-    if allowed_values is not None and not all(
-            isinstance(value, value_type) for value in allowed_values):
-        msg = 'allowed_values must be a sequence of '
-        msg += value_type.__name__
-        raise TypeError(msg)
+    if allowed_values is not None:
+        _ = _validate_allowed_values_sequence(allowed_values, value_type)
     if min_value is not None and max_value is not None:
         assert min_value is not None
         assert max_value is not None
@@ -545,6 +542,48 @@ def _validate_and_get_constraint_value_type(
             msg = 'min_value must be less than or equal to max_value.'
             raise ValueError(msg)
     return value_type
+
+
+def _get_allowed_values_type(
+        allowed_values: object) -> type[ConstraintValue]:
+    """Return the type of the first value in a non-empty sequence."""
+    if not isinstance(allowed_values, SequenceABC):
+        raise TypeError('allowed_values must be a sequence.')
+    if len(allowed_values) == 0:
+        msg = 'If provided, allowed_values must be a non-empty sequence.'
+        raise ValueError(msg)
+    return cast(type[ConstraintValue], type(allowed_values[0]))
+
+
+def _validate_allowed_values_sequence(
+        allowed_values: object,
+        value_type: type[ConstraintValue]) -> Sequence[ConstraintValue]:
+    """Validate allowed-values sequence shape and element type.
+
+    Args:
+        allowed_values: Sequence to validate.
+        value_type: Required runtime type for every value in the sequence.
+
+    Returns:
+        ``allowed_values`` cast to the validated sequence type.
+
+    Raises:
+        ValueError: If ``allowed_values`` is empty.
+        TypeError: If ``allowed_values`` is not a sequence or contains a
+            value with a wrong runtime type.
+    """
+    if not isinstance(allowed_values, SequenceABC):
+        msg = 'allowed_values must be a sequence of '
+        msg += value_type.__name__
+        raise TypeError(msg)
+    if len(allowed_values) == 0:
+        msg = 'If provided, allowed_values must be a non-empty sequence.'
+        raise ValueError(msg)
+    if not all(isinstance(value, value_type) for value in allowed_values):
+        msg = 'allowed_values must be a sequence of '
+        msg += value_type.__name__
+        raise TypeError(msg)
+    return cast(Sequence[ConstraintValue], allowed_values)
 
 
 def _ensure_int_float_type(value_type: type[object]) -> None:
@@ -560,7 +599,9 @@ class IntFloatValidator(MemberValidator, Generic[IntFloat]):
 
     def __init__(self, min_value: Optional[IntFloat],
                  max_value: Optional[IntFloat],
-                 allowed_values: Optional[Sequence[IntFloat]]) -> None:
+                 allowed_values: Optional[
+                     Sequence[IntFloat] |
+                     Callable[[], Sequence[IntFloat]]]) -> None:
         """Initialize the validator.
 
         The validator checks that the member value has one runtime type,
@@ -576,6 +617,7 @@ class IntFloatValidator(MemberValidator, Generic[IntFloat]):
                        If ``None``, no maximum value is checked.
             allowed_values: The only allowed values for the member.
                        If ``None``, no allowed-values check is done.
+                       If a callable, it is called to get the allowed values.
 
         Raises:
             ValueError: If no constraints are provided.
@@ -583,14 +625,34 @@ class IntFloatValidator(MemberValidator, Generic[IntFloat]):
             ValueError: If min_value is greater than max_value.
             TypeError: If unsupported or mixed runtime types are used.
         """
+        initial_allowed_values: Optional[Sequence[IntFloat]]
+        if callable(allowed_values):
+            if min_value is None and max_value is None:
+                initial_allowed_values = allowed_values()
+            else:
+                initial_allowed_values = None
+        else:
+            initial_allowed_values = allowed_values
         value_type = _validate_and_get_constraint_value_type(
             min_value=min_value, max_value=max_value,
-            allowed_values=allowed_values)
+            allowed_values=initial_allowed_values)
         _ensure_int_float_type(value_type)
         self._value_type: type[IntFloat] = value_type
         self.min_value: Optional[IntFloat] = min_value
         self.max_value: Optional[IntFloat] = max_value
-        self.allowed_values: Optional[Sequence[IntFloat]] = allowed_values
+        self.allowed_values: Optional[
+            Sequence[IntFloat] | Callable[[], Sequence[IntFloat]]] = \
+            allowed_values
+
+    def _current_allowed_values(self) -> Optional[Sequence[IntFloat]]:
+        """Return the allowed values to use for the current validation."""
+        if self.allowed_values is None:
+            return None
+        if not callable(self.allowed_values):
+            return self.allowed_values
+        allowed_values = _validate_allowed_values_sequence(
+            self.allowed_values(), self._value_type)
+        return allowed_values
 
     def validate_member(self, config: 'Config',
                         member_name: str,
@@ -632,12 +694,14 @@ class IntFloatValidator(MemberValidator, Generic[IntFloat]):
             msg += f'{self.max_value}.'
             print(msg, file=stderr_file)
             raise InvalidConfiguration(msg)
-        if self.allowed_values is not None and \
-                value not in self.allowed_values:
-            _ = not_one_of_allowed_values(member_name, value,
-                                          self.allowed_values, stderr_file)
-            raise InvalidConfigurationValue(member_name, value,
-                                            self.allowed_values)
+        allowed_values = self._current_allowed_values()
+        if allowed_values is not None:
+            if value not in allowed_values:
+                _ = not_one_of_allowed_values(member_name, value,
+                                              allowed_values,
+                                              stderr_file)
+                raise InvalidConfigurationValue(member_name, value,
+                                                allowed_values)
         return value
 
 

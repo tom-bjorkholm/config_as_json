@@ -6,6 +6,7 @@
 
 import sys
 from functools import cmp_to_key
+from operator import lt as operator_lt
 from typing import Callable, Generic, Optional, Sequence, TextIO, TypeVar
 from config_as_json.config import Config
 from config_as_json.dict_validators import DictKeysValidator
@@ -263,7 +264,7 @@ class ListValueValidator(  # pylint: disable=too-few-public-methods
                  max_value: Optional[Basictype],
                  allowed_values: Optional[Sequence[Basictype]],
                  lt_comparator: Callable[[Basictype, Basictype], bool] =
-                 lambda x, y: x < y) -> None:
+                 operator_lt) -> None:
         """Initialize the validator.
 
         The validator checks that the member value is a list containing only
@@ -493,7 +494,7 @@ class ListIsOrderedValidator(MemberValidator,  # pylint: disable=too-few-public-
                  is_ordered: bool = True, is_reversed: bool = False,
                  unique_values: bool = False,
                  lt_comparator: Callable[[Basictype, Basictype], bool] =
-                 lambda x, y: x < y) -> None:
+                 operator_lt) -> None:
         """Initialize the validator.
 
         The validator always checks that the member value is a list and that
@@ -579,7 +580,7 @@ class ListOrderingValidator(MemberValidator,  # pylint: disable=too-few-public-m
                  order: bool = True, reverse: bool = False,
                  keep_only_unique: bool = False,
                  lt_comparator: Callable[[Basictype, Basictype], bool] =
-                 lambda x, y: x < y) -> None:
+                 operator_lt) -> None:
         """Initialize the validator.
 
         The validator always checks that the member value is a list and that

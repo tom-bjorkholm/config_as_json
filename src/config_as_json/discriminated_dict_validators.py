@@ -172,8 +172,8 @@ def _variant_for_discriminator_value(
         raise InvalidConfiguration(msg) from exc
 
 
-class DiscriminatedDictValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class DiscriminatedDictValidator(MemberValidator):
     """Validate a dictionary using a variant selected by one key.
 
     This validator is intended for dictionaries whose required and allowed

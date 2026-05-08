@@ -34,7 +34,7 @@ from config_as_json.list_validators import ListValueValidator, \
     ListSizeValidator, ListIsOrderedValidator, ListOrderingValidator, \
     ListValueTypeValidator, ListForEachValidator, ListOfDictsKeysValidator
 from config_as_json.dict_validators import DictKeysValidator, DictRule, \
-    DictForEachValidator
+    DictForEachValidator, accept_all_keys
 from config_as_json.discriminated_dict_validators import DictVariant, \
     DiscriminatedDictValidator
 from config_as_json.projected_validators import ProjectedMemberValidator
@@ -88,6 +88,7 @@ __all__ = ['Config',
            'DictKeysValidator',
            'DictRule',
            'DictForEachValidator',
+           'accept_all_keys',
            'DictVariant',
            'DiscriminatedDictValidator',
            'ProjectedMemberValidator',

@@ -591,6 +591,38 @@ friendly input such as `US_EAST` to `us-east`, then a normal `StrValidator`
 checks the normalized value. The stored configuration keeps the normalized
 spelling.
 
+## e20_dynamic_dict_rules.py
+
+[Source code for e20_dynamic_dict_rules.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e20_dynamic_dict_rules.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e20_dynamic_dict_rules.py)
+
+This example returns to `DictForEachValidator` and teaches rules for open
+dictionaries where the exact keys are not known in advance.
+
+The configuration has 2 dict members:
+
+- `cache_tunables` accepts arbitrary keys. Keys ending in `_seconds` are
+  validated as integer seconds, and keys ending in `_slots` are validated
+  against a numeric allowed-values function. Other keys are metadata and
+  pass through unchanged.
+- `pool_sizes` also accepts arbitrary keys, but every value in the dict must
+  be one of the allowed pool sizes.
+
+The example introduces the newer `DictRule.keys` forms:
+
+- a key predicate function, called once for each present key, selects the
+  keys that a rule applies to
+- `accept_all_keys` is the convenience predicate for applying a rule to
+  every present key
+
+It also shows `IntFloatValidator` with a callable `allowed_values`
+argument. The callable returns the allowed numeric values when validation
+runs, so application code can calculate the choices from its own runtime
+state instead of freezing them into the validator call site.
+
+The command line accepts both dict members as JSON values. For example:
+
+`--cache-tunables '{"frontend_seconds":30,"image_slots":8}' --pool-sizes '{"default":4}'`
+
 ## e30_optional_user_preference.py
 
 [Source code for e30_optional_user_preference.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py)

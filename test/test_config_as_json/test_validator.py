@@ -835,7 +835,13 @@ def test_member_validator_sequence_integrates_with_config(capsys):
       'IntFloatValidator only supports exact int or float values'),
      (1, 2.0, None, TypeError, 'max_value must be of type int'),
      (None, 2.0, [1.0, 2], TypeError,
-      'allowed_values must be a sequence of float')])
+      'allowed_values must be a sequence of float'),
+     (None, None, lambda: [], ValueError,
+      'allowed_values must be a non-empty'),
+     (None, None, lambda: [1, 2.0], TypeError,
+      'allowed_values must be a sequence of int'),
+     (None, None, lambda: ['x'], TypeError,
+      'IntFloatValidator only supports exact int or float values')])
 def test_int_float_validator_init_rejects_invalid_constraints(
         min_value, max_value, allowed_values, exc_type, message):
     """Test IntFloatValidator constructor validation."""
@@ -851,7 +857,13 @@ def test_int_float_validator_init_rejects_invalid_constraints(
                           (IntFloatValidator(1, 5, [2, 3, 5]), 3, 3),
                           (IntFloatValidator(None, 1.5, [0.5, 1.5]),
                            0.5, 0.5),
-                          (IntFloatValidator(None, None, [2.0]), 2.0, 2.0)])
+                          (IntFloatValidator(None, None, [2.0]), 2.0,
+                           2.0),
+                          (IntFloatValidator(None, None, lambda: [2, 4]),
+                           4, 4),
+                          (IntFloatValidator(None, None,
+                                             lambda: [2.0, 4.0]),
+                           4.0, 4.0)])
 def test_int_float_validator_ok(capsys, validator, member_value, expected):
     """Test OK cases of IntFloatValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
@@ -886,6 +898,76 @@ def test_int_float_validator_requires_allowed_value_to_be_in_range(capsys):
     assert 'Value 6 for value is greater than maximum 5' in str(exc.value)
     assert out == ''
     assert 'Value 6 for value is greater than maximum 5' in err
+
+
+def test_int_float_validator_callable_infers_type_when_needed(capsys):
+    """A callable supplies the numeric type when bounds do not."""
+    calls: list[int] = []
+
+    def current_allowed_values() -> Sequence[int]:
+        """Return allowed values and record the call."""
+        calls.append(len(calls))
+        return [2, 3]
+
+    validator = IntFloatValidator(None, None, current_allowed_values)
+    assert calls == [0]
+    assert_validate_member_ok(capsys, validator, 2, 2)
+    assert calls == [0, 1]
+
+
+def test_int_float_validator_callable_uses_bounds_type_first(capsys):
+    """Bounds provide the numeric type without calling allowed_values."""
+    calls: list[str] = []
+
+    def current_allowed_values() -> Sequence[int]:
+        """Return allowed values and record the call."""
+        calls.append('validate')
+        return [2, 3]
+
+    validator = IntFloatValidator(1, 5, current_allowed_values)
+    assert not calls
+    assert_validate_member_ok(capsys, validator, 2, 2)
+    assert calls == ['validate']
+
+
+def test_int_float_validator_callable_values_are_dynamic(capsys):
+    """Every validation uses the callable's current allowed values."""
+    allowed_values = [2, 3]
+
+    def current_allowed_values() -> Sequence[int]:
+        """Return the current allowed-values list."""
+        return allowed_values
+
+    validator = IntFloatValidator(None, None, current_allowed_values)
+    assert_validate_member_ok(capsys, validator, 2, 2)
+    allowed_values = [4, 5]
+    assert_validate_member_failure(
+        capsys, validator, 2, InvalidConfigurationValue,
+        'Value 2 for value is not one of the allowed values')
+    assert_validate_member_ok(capsys, validator, 4, 4)
+
+
+@pytest.mark.parametrize(
+    'allowed_values, exc_type, message',
+    [([], ValueError, 'allowed_values must be a non-empty'),
+     ([1.0], TypeError, 'allowed_values must be a sequence of int')])
+def test_int_float_validator_callable_validates_each_later_result(
+        capsys, allowed_values, exc_type, message):
+    """Dynamic allowed values must stay non-empty and type-compatible."""
+
+    def current_allowed_values():
+        """Return the parameterized allowed-values sequence."""
+        return allowed_values
+
+    validator = IntFloatValidator(
+        1, 5, cast(Any, current_allowed_values))
+    cfg = EmptyValidationConfig()
+    with pytest.raises(exc_type) as exc:
+        validator.validate_member(cfg, 'value', 2, sys.stderr)
+    out, err = capsys.readouterr()
+    assert message in str(exc.value)
+    assert out == ''
+    assert err == ''
 
 
 def test_int_float_validator_integration_uses_parsed_json(capsys):

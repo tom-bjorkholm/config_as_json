@@ -7,11 +7,15 @@
 
 import dataclasses
 import sys
+from collections.abc import Hashable
+from enum import Enum
 from typing import Any, Callable, Optional, TextIO, cast
 import pytest
+from config_as_json import accept_all_keys as public_accept_all_keys
 from config_as_json.config import Config
 from config_as_json.dict_validators import (DictForEachValidator,
                                             DictKeysValidator, DictRule,
+                                            accept_all_keys,
                                             _inner_member_name,
                                             _validate_dict_member_value,
                                             _validate_for_each_rules,
@@ -32,6 +36,13 @@ from .validator_test_helpers import (EmptyValidationConfig,
 Recording = list[tuple[str, str, object]]
 
 
+class RuleKey(Enum):
+    """Non-string keys used by DictRule tests."""
+
+    ALPHA = 'alpha'
+    BETA = 'beta'
+
+
 def _replace_with_changed(value: object) -> object:
     """Transform any input into the constant string ``'changed'``."""
     _ = value
@@ -48,6 +59,18 @@ def _add_ten(value: object) -> object:
     """Transform an int input by adding ``10``."""
     assert isinstance(value, int)
     return value + 10
+
+
+def _is_positive_int_key(key: Hashable) -> bool:
+    """Return true for positive int keys."""
+    return isinstance(key, int) and key > 0
+
+
+def _truthy_for_alpha_key(key: Hashable) -> object:
+    """Return a truthy non-bool value for key ``'alpha'``."""
+    if key == 'alpha':
+        return 'selected'
+    return ''
 
 
 # pylint: disable-next=too-few-public-methods
@@ -156,6 +179,8 @@ def test_validate_string_keys_uses_provided_parameter_name():
 @pytest.mark.parametrize(
     'outer, key, expected',
     [('cfg', 'port', 'cfg[port]'),
+     ('cfg', 3, 'cfg[3]'),
+     ('cfg', RuleKey.ALPHA, 'cfg[RuleKey.ALPHA]'),
      ('cfg.server', 'port', 'cfg.server[port]'),
      ('value[0]', 'name', 'value[0][name]'),
      ('', 'a', '[a]'),
@@ -163,6 +188,17 @@ def test_validate_string_keys_uses_provided_parameter_name():
 def test_inner_member_name(outer, key, expected):
     """The combined inner name has the documented bracket form."""
     assert _inner_member_name(outer, key) == expected
+
+
+@pytest.mark.parametrize('key', ['alpha', 1, RuleKey.ALPHA])
+def test_accept_all_keys_accepts_every_key(key):
+    """The convenience predicate accepts any hashable key."""
+    assert accept_all_keys(key) is True
+
+
+def test_accept_all_keys_is_exported_from_package():
+    """The convenience predicate is available from the public package."""
+    assert public_accept_all_keys is accept_all_keys
 
 
 # ---- _validate_for_each_rules ----------------------------------------------
@@ -382,11 +418,15 @@ def test_dict_keys_validator_integration_uses_parsed_json(capsys):
     'keys, validators, exc_type, message',
     [([], [ListSizeValidator(0, 1)], ValueError, 'keys must be non-empty'),
      (['a'], [], ValueError, 'validators must be non-empty'),
-     (['a', 1], [ListSizeValidator(0, 1)], TypeError,
-      'keys[1] must be a str'),
+     (accept_all_keys, [], ValueError, 'validators must be non-empty'),
+     ([['a']], [ListSizeValidator(0, 1)], TypeError,
+      'keys[0] must be hashable'),
      (['a', 'a'], [ListSizeValidator(0, 1)], ValueError,
       "keys[1]='a' duplicates an earlier entry"),
      (['a'], [ListSizeValidator(0, 1), 'not-a-validator'], TypeError,
+      'validators[1] must be a MemberValidator'),
+     (accept_all_keys, [ListSizeValidator(0, 1), 'not-a-validator'],
+      TypeError,
       'validators[1] must be a MemberValidator')])
 def test_dict_rule_init_rejects_invalid_arguments(
         keys, validators, exc_type, message):
@@ -400,7 +440,26 @@ def test_dict_rule_init_accepts_valid_arguments():
     """A well-formed DictRule stores its keys and validators."""
     inner = ListSizeValidator(0, 1)
     rule = DictRule(keys=['a', 'b'], validators=[inner])
+    assert not callable(rule.keys)
     assert list(rule.keys) == ['a', 'b']
+    assert list(rule.validators) == [inner]
+
+
+def test_dict_rule_init_accepts_hashable_key_values():
+    """Rule keys can use any hashable dict-key type."""
+    inner = ListSizeValidator(0, 1)
+    keys = [1, RuleKey.ALPHA, ('compound', 2)]
+    rule = DictRule(keys=keys, validators=[inner])
+    assert not callable(rule.keys)
+    assert list(rule.keys) == keys
+    assert list(rule.validators) == [inner]
+
+
+def test_dict_rule_init_accepts_key_predicate():
+    """A callable key selector is accepted and stored unchanged."""
+    inner = ListSizeValidator(0, 1)
+    rule = DictRule(keys=_is_positive_int_key, validators=[inner])
+    assert rule.keys is _is_positive_int_key
     assert list(rule.validators) == [inner]
 
 
@@ -481,6 +540,80 @@ def test_dict_for_each_validator_passes_through_unmapped_keys(capsys):
     result = validator.validate_member(cfg, 'value', member_value, sys.stderr)
     out, err = capsys.readouterr()
     assert result == {'ruled': [1], 'extra': 99, 'other': 'x'}
+    assert out == ''
+    assert err == ''
+
+
+def test_dict_for_each_validator_static_rule_supports_non_string_key(capsys):
+    """A fixed-key rule can match non-string keys."""
+    recording: Recording = []
+    rule = DictRule(keys=[RuleKey.ALPHA],
+                    validators=[_RecordingValidator(
+                        'seen', recording, transform=_add_one)])
+    validator = DictForEachValidator(rules=[rule])
+    cfg = EmptyValidationConfig()
+    member_value = {RuleKey.ALPHA: 1, RuleKey.BETA: 10}
+    result = validator.validate_member(cfg, 'value', member_value,
+                                       sys.stderr)
+    out, err = capsys.readouterr()
+    assert recording == [('seen', 'value[RuleKey.ALPHA]', 1)]
+    assert result == {RuleKey.ALPHA: 2, RuleKey.BETA: 10}
+    assert out == ''
+    assert err == ''
+
+
+def test_dict_for_each_validator_predicate_rule_selects_keys(capsys):
+    """A callable rule validates only keys with truthy predicate results."""
+    recording: Recording = []
+    rule = DictRule(keys=_is_positive_int_key,
+                    validators=[_RecordingValidator(
+                        'seen', recording, transform=_add_one)])
+    validator = DictForEachValidator(rules=[rule])
+    cfg = EmptyValidationConfig()
+    member_value = {1: 10, 0: 20, '1': 30}
+    result = validator.validate_member(cfg, 'value', member_value,
+                                       sys.stderr)
+    out, err = capsys.readouterr()
+    assert recording == [('seen', 'value[1]', 10)]
+    assert result == {1: 11, 0: 20, '1': 30}
+    assert out == ''
+    assert err == ''
+
+
+def test_dict_for_each_validator_predicate_uses_python_truthiness(capsys):
+    """Predicate rules accept truthy and falsey values, not only bools."""
+    recording: Recording = []
+    rule = DictRule(keys=_truthy_for_alpha_key,
+                    validators=[_RecordingValidator(
+                        'seen', recording, transform=_add_one)])
+    validator = DictForEachValidator(rules=[rule])
+    cfg = EmptyValidationConfig()
+    member_value = {'alpha': 1, 'beta': 2}
+    result = validator.validate_member(cfg, 'value', member_value,
+                                       sys.stderr)
+    out, err = capsys.readouterr()
+    assert recording == [('seen', 'value[alpha]', 1)]
+    assert result == {'alpha': 2, 'beta': 2}
+    assert out == ''
+    assert err == ''
+
+
+def test_dict_for_each_validator_accept_all_keys_rule(capsys):
+    """The convenience predicate validates every present key."""
+    recording: Recording = []
+    rule = DictRule(keys=accept_all_keys,
+                    validators=[_RecordingValidator(
+                        'seen', recording, transform=_add_one)])
+    validator = DictForEachValidator(rules=[rule])
+    cfg = EmptyValidationConfig()
+    member_value = {'alpha': 1, RuleKey.BETA: 2}
+    result = validator.validate_member(cfg, 'value', member_value,
+                                       sys.stderr)
+    out, err = capsys.readouterr()
+    assert recording == [
+        ('seen', 'value[alpha]', 1),
+        ('seen', 'value[RuleKey.BETA]', 2)]
+    assert result == {'alpha': 2, RuleKey.BETA: 3}
     assert out == ''
     assert err == ''
 

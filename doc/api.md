@@ -96,6 +96,7 @@
   * [DictKeysValidator](#config_as_json.dict_validators.DictKeysValidator)
     * [\_\_init\_\_](#config_as_json.dict_validators.DictKeysValidator.__init__)
     * [validate\_member](#config_as_json.dict_validators.DictKeysValidator.validate_member)
+  * [accept\_all\_keys](#config_as_json.dict_validators.accept_all_keys)
   * [DictRule](#config_as_json.dict_validators.DictRule)
   * [DictForEachValidator](#config_as_json.dict_validators.DictForEachValidator)
     * [\_\_init\_\_](#config_as_json.dict_validators.DictForEachValidator.__init__)
@@ -654,8 +655,11 @@ Validate one int or float member against numeric constraints.
 #### \_\_init\_\_
 
 ```python
-def __init__(min_value: Optional[IntFloat], max_value: Optional[IntFloat],
-             allowed_values: Optional[Sequence[IntFloat]]) -> None
+def __init__(
+    min_value: Optional[IntFloat], max_value: Optional[IntFloat],
+    allowed_values: Optional[Sequence[IntFloat]
+                             | Callable[[], Sequence[IntFloat]]]
+) -> None
 ```
 
 Initialize the validator.
@@ -674,6 +678,7 @@ provided.
   If ``None``, no maximum value is checked.
 - `allowed_values` - The only allowed values for the member.
   If ``None``, no allowed-values check is done.
+  If a callable, it is called to get the allowed values.
 
 
 **Raises**:
@@ -1766,8 +1771,7 @@ the variant-specific keys in addition to that discriminator key.
 ## DiscriminatedDictValidator Objects
 
 ```python
-class DiscriminatedDictValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator)
+class DiscriminatedDictValidator(MemberValidator)
 ```
 
 Validate a dictionary using a variant selected by one key.
@@ -2206,6 +2210,25 @@ first unknown key triggers the error.
   key is missing, or an unknown key is present while
   ``allow_extra_dict_keys`` is ``False``.
 
+<a id="config_as_json.dict_validators.accept_all_keys"></a>
+
+#### accept\_all\_keys
+
+```python
+def accept_all_keys(key: Hashable) -> bool
+```
+
+Return ``True`` for all keys.
+
+**Arguments**:
+
+- `key` - The key to check.
+
+
+**Returns**:
+
+  ``True`` for all keys.
+
 <a id="config_as_json.dict_validators.DictRule"></a>
 
 ## DictRule Objects
@@ -2218,9 +2241,18 @@ class DictRule()
 Bind a sequence of validators to a set of dict keys.
 
 A ``DictRule`` is the data shape that ``DictForEachValidator`` uses to
-apply per-key validation. For every key listed in ``keys``, every
-validator in ``validators`` is applied in order, threading the
+apply per-key validation. The ``keys`` is either a sequence of hashable
+key values or a callable that receives one key and returns a truthy value
+when the rule should apply.
+
+If ``keys`` is a sequence, for every key listed in ``keys``,
+every validator in ``validators`` is applied in order, threading the
 normalized return value forward.
+If ``keys`` is a callable, it is called for each key that is present in
+the dict. If the callable returns a truthy value, the validators are
+applied in order to the value at that key, threading the normalized
+return value forward. If the callable returns a falsey value, the
+validators are not applied to the value at that key.
 
 <a id="config_as_json.dict_validators.DictForEachValidator"></a>
 
@@ -2233,13 +2265,15 @@ class DictForEachValidator(MemberValidator)
 Apply per-key validators to specific keys of a dict.
 
 For each ``DictRule`` in ``rules`` (in declaration order), the
-validator iterates the rule's ``keys`` (in declaration order) and
-applies every validator in the rule's ``validators`` (in declaration
-order) to the value at that key. Each validator receives the value
-returned by the previous validator, so normalization performed by one
-inner validator is visible to the next one. The dict member is never
-modified in place; a new dict is returned that carries the per-key
-updates.
+validator finds that rule's matching keys and applies every validator
+in the rule's ``validators`` (in declaration order) to the value at
+each matching key. A fixed key sequence is iterated in declaration
+order. A key predicate is called for each present dict key, in the
+dict's insertion order, and truthy predicate results select the key.
+Each validator receives the value returned by the previous validator,
+so normalization performed by one inner validator is visible to the
+next one. The dict member is never modified in place; a new dict is
+returned that carries the per-key updates.
 
 A rule key that is not present in the dict is silently skipped. This
 keeps the validator strictly orthogonal to ``DictKeysValidator``,
@@ -2641,8 +2675,8 @@ def __init__(
     min_value: Optional[Basictype],
     max_value: Optional[Basictype],
     allowed_values: Optional[Sequence[Basictype]],
-    lt_comparator: Callable[[Basictype, Basictype], bool] = lambda x, y: x < y
-) -> None
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
 ```
 
 Initialize the validator.
@@ -2865,8 +2899,8 @@ def __init__(
     is_ordered: bool = True,
     is_reversed: bool = False,
     unique_values: bool = False,
-    lt_comparator: Callable[[Basictype, Basictype], bool] = lambda x, y: x < y
-) -> None
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
 ```
 
 Initialize the validator.
@@ -2956,8 +2990,8 @@ def __init__(
     order: bool = True,
     reverse: bool = False,
     keep_only_unique: bool = False,
-    lt_comparator: Callable[[Basictype, Basictype], bool] = lambda x, y: x < y
-) -> None
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
 ```
 
 Initialize the validator.

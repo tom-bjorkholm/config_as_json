@@ -31,9 +31,12 @@
   * [IntFloat](#config_as_json.validator.IntFloat)
   * [ConstraintValue](#config_as_json.validator.ConstraintValue)
   * [\_validate\_and\_get\_constraint\_value\_type](#config_as_json.validator._validate_and_get_constraint_value_type)
+  * [\_get\_allowed\_values\_type](#config_as_json.validator._get_allowed_values_type)
+  * [\_validate\_allowed\_values\_sequence](#config_as_json.validator._validate_allowed_values_sequence)
   * [\_ensure\_int\_float\_type](#config_as_json.validator._ensure_int_float_type)
   * [IntFloatValidator](#config_as_json.validator.IntFloatValidator)
     * [\_\_init\_\_](#config_as_json.validator.IntFloatValidator.__init__)
+    * [\_current\_allowed\_values](#config_as_json.validator.IntFloatValidator._current_allowed_values)
     * [validate\_member](#config_as_json.validator.IntFloatValidator.validate_member)
   * [\_copy\_method\_other\_args](#config_as_json.validator._copy_method_other_args)
   * [\_get\_config\_method](#config_as_json.validator._get_config_method)
@@ -139,16 +142,19 @@
 * [config\_as\_json.dict\_validators](#config_as_json.dict_validators)
   * [\_validate\_dict\_member\_value](#config_as_json.dict_validators._validate_dict_member_value)
   * [\_validate\_string\_keys](#config_as_json.dict_validators._validate_string_keys)
+  * [\_validate\_hashable\_keys](#config_as_json.dict_validators._validate_hashable_keys)
   * [\_validate\_bool\_argument](#config_as_json.dict_validators._validate_bool_argument)
   * [\_inner\_member\_name](#config_as_json.dict_validators._inner_member_name)
   * [DictKeysValidator](#config_as_json.dict_validators.DictKeysValidator)
     * [\_\_init\_\_](#config_as_json.dict_validators.DictKeysValidator.__init__)
     * [validate\_member](#config_as_json.dict_validators.DictKeysValidator.validate_member)
+  * [accept\_all\_keys](#config_as_json.dict_validators.accept_all_keys)
   * [DictRule](#config_as_json.dict_validators.DictRule)
     * [\_\_post\_init\_\_](#config_as_json.dict_validators.DictRule.__post_init__)
   * [\_validate\_for\_each\_rules](#config_as_json.dict_validators._validate_for_each_rules)
   * [DictForEachValidator](#config_as_json.dict_validators.DictForEachValidator)
     * [\_\_init\_\_](#config_as_json.dict_validators.DictForEachValidator.__init__)
+    * [\_run\_rule\_on\_key](#config_as_json.dict_validators.DictForEachValidator._run_rule_on_key)
     * [validate\_member](#config_as_json.dict_validators.DictForEachValidator.validate_member)
 * [config\_as\_json.file\_extension](#config_as_json.file_extension)
   * [fix\_file\_extension](#config_as_json.file_extension.fix_file_extension)
@@ -782,7 +788,7 @@ def _validate_and_get_constraint_value_type(
     max_value: Optional[ConstraintValue],
     allowed_values: Optional[Sequence[ConstraintValue]],
     lt_comparator: Callable[[ConstraintValue, ConstraintValue],
-                            bool] = lambda x, y: x < y
+                            bool] = operator_lt
 ) -> type[ConstraintValue]
 ```
 
@@ -814,6 +820,45 @@ that all provided constraint values are instances of that type.
 - `ValueError` - If ``min_value`` is greater than ``max_value``.
 - `TypeError` - If provided constraints use incompatible runtime types.
 
+<a id="config_as_json.validator._get_allowed_values_type"></a>
+
+#### \_get\_allowed\_values\_type
+
+```python
+def _get_allowed_values_type(allowed_values: object) -> type[ConstraintValue]
+```
+
+Return the type of the first value in a non-empty sequence.
+
+<a id="config_as_json.validator._validate_allowed_values_sequence"></a>
+
+#### \_validate\_allowed\_values\_sequence
+
+```python
+def _validate_allowed_values_sequence(
+        allowed_values: object,
+        value_type: type[ConstraintValue]) -> Sequence[ConstraintValue]
+```
+
+Validate allowed-values sequence shape and element type.
+
+**Arguments**:
+
+- `allowed_values` - Sequence to validate.
+- `value_type` - Required runtime type for every value in the sequence.
+
+
+**Returns**:
+
+  ``allowed_values`` cast to the validated sequence type.
+
+
+**Raises**:
+
+- `ValueError` - If ``allowed_values`` is empty.
+- `TypeError` - If ``allowed_values`` is not a sequence or contains a
+  value with a wrong runtime type.
+
 <a id="config_as_json.validator._ensure_int_float_type"></a>
 
 #### \_ensure\_int\_float\_type
@@ -839,8 +884,11 @@ Validate one int or float member against numeric constraints.
 #### \_\_init\_\_
 
 ```python
-def __init__(min_value: Optional[IntFloat], max_value: Optional[IntFloat],
-             allowed_values: Optional[Sequence[IntFloat]]) -> None
+def __init__(
+    min_value: Optional[IntFloat], max_value: Optional[IntFloat],
+    allowed_values: Optional[Sequence[IntFloat]
+                             | Callable[[], Sequence[IntFloat]]]
+) -> None
 ```
 
 Initialize the validator.
@@ -859,6 +907,7 @@ provided.
   If ``None``, no maximum value is checked.
 - `allowed_values` - The only allowed values for the member.
   If ``None``, no allowed-values check is done.
+  If a callable, it is called to get the allowed values.
 
 
 **Raises**:
@@ -867,6 +916,16 @@ provided.
 - `ValueError` - If allowed_values is provided as an empty sequence.
 - `ValueError` - If min_value is greater than max_value.
 - `TypeError` - If unsupported or mixed runtime types are used.
+
+<a id="config_as_json.validator.IntFloatValidator._current_allowed_values"></a>
+
+#### \_current\_allowed\_values
+
+```python
+def _current_allowed_values() -> Optional[Sequence[IntFloat]]
+```
+
+Return the allowed values to use for the current validation.
 
 <a id="config_as_json.validator.IntFloatValidator.validate_member"></a>
 
@@ -2504,8 +2563,7 @@ Return the variant selected by one discriminator value.
 ## DiscriminatedDictValidator Objects
 
 ```python
-class DiscriminatedDictValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator)
+class DiscriminatedDictValidator(MemberValidator)
 ```
 
 Validate a dictionary using a variant selected by one key.
@@ -2984,7 +3042,7 @@ completely instead. See :class:`DictKeysValidator` for the full picture.
 
 ```python
 def _validate_dict_member_value(member_name: str, member_value: object,
-                                stderr_file: TextIO) -> dict[object, object]
+                                stderr_file: TextIO) -> dict[Hashable, object]
 ```
 
 Validate that one member value is a dict and return it.
@@ -3026,6 +3084,28 @@ Validate that ``keys`` is a sequence of distinct strings.
 - `TypeError` - If any entry of ``keys`` is not a ``str``.
 - `ValueError` - If ``keys`` contains a duplicate entry.
 
+<a id="config_as_json.dict_validators._validate_hashable_keys"></a>
+
+#### \_validate\_hashable\_keys
+
+```python
+def _validate_hashable_keys(keys: Sequence[Hashable],
+                            parameter_name: str) -> None
+```
+
+Validate that ``keys`` is a sequence of distinct hashable values.
+
+**Arguments**:
+
+- `keys` - The sequence to validate.
+- `parameter_name` - Name used in error messages.
+
+
+**Raises**:
+
+- `TypeError` - If any entry of ``keys`` is not hashable.
+- `ValueError` - If ``keys`` contains a duplicate entry.
+
 <a id="config_as_json.dict_validators._validate_bool_argument"></a>
 
 #### \_validate\_bool\_argument
@@ -3051,7 +3131,7 @@ Validate that a constructor argument is a bool.
 #### \_inner\_member\_name
 
 ```python
-def _inner_member_name(outer: str, key: str) -> str
+def _inner_member_name(outer: str, key: Hashable) -> str
 ```
 
 Return the inner member name used for a value at ``key`` of ``outer``.
@@ -3175,6 +3255,25 @@ first unknown key triggers the error.
   key is missing, or an unknown key is present while
   ``allow_extra_dict_keys`` is ``False``.
 
+<a id="config_as_json.dict_validators.accept_all_keys"></a>
+
+#### accept\_all\_keys
+
+```python
+def accept_all_keys(key: Hashable) -> bool
+```
+
+Return ``True`` for all keys.
+
+**Arguments**:
+
+- `key` - The key to check.
+
+
+**Returns**:
+
+  ``True`` for all keys.
+
 <a id="config_as_json.dict_validators.DictRule"></a>
 
 ## DictRule Objects
@@ -3187,9 +3286,18 @@ class DictRule()
 Bind a sequence of validators to a set of dict keys.
 
 A ``DictRule`` is the data shape that ``DictForEachValidator`` uses to
-apply per-key validation. For every key listed in ``keys``, every
-validator in ``validators`` is applied in order, threading the
+apply per-key validation. The ``keys`` is either a sequence of hashable
+key values or a callable that receives one key and returns a truthy value
+when the rule should apply.
+
+If ``keys`` is a sequence, for every key listed in ``keys``,
+every validator in ``validators`` is applied in order, threading the
 normalized return value forward.
+If ``keys`` is a callable, it is called for each key that is present in
+the dict. If the callable returns a truthy value, the validators are
+applied in order to the value at that key, threading the normalized
+return value forward. If the callable returns a falsey value, the
+validators are not applied to the value at that key.
 
 <a id="config_as_json.dict_validators.DictRule.__post_init__"></a>
 
@@ -3205,7 +3313,7 @@ Validate that ``keys`` and ``validators`` are well-formed.
 
 - `ValueError` - If ``keys`` or ``validators`` is empty, or if
   ``keys`` contains a duplicate entry.
-- `TypeError` - If any entry of ``keys`` is not a ``str`` or any
+- `TypeError` - If any entry of ``keys`` is not hashable or any
   entry of ``validators`` is not a ``MemberValidator``.
 
 <a id="config_as_json.dict_validators._validate_for_each_rules"></a>
@@ -3239,13 +3347,15 @@ class DictForEachValidator(MemberValidator)
 Apply per-key validators to specific keys of a dict.
 
 For each ``DictRule`` in ``rules`` (in declaration order), the
-validator iterates the rule's ``keys`` (in declaration order) and
-applies every validator in the rule's ``validators`` (in declaration
-order) to the value at that key. Each validator receives the value
-returned by the previous validator, so normalization performed by one
-inner validator is visible to the next one. The dict member is never
-modified in place; a new dict is returned that carries the per-key
-updates.
+validator finds that rule's matching keys and applies every validator
+in the rule's ``validators`` (in declaration order) to the value at
+each matching key. A fixed key sequence is iterated in declaration
+order. A key predicate is called for each present dict key, in the
+dict's insertion order, and truthy predicate results select the key.
+Each validator receives the value returned by the previous validator,
+so normalization performed by one inner validator is visible to the
+next one. The dict member is never modified in place; a new dict is
+returned that carries the per-key updates.
 
 A rule key that is not present in the dict is silently skipped. This
 keeps the validator strictly orthogonal to ``DictKeysValidator``,
@@ -3301,6 +3411,27 @@ Initialize the validator.
 
 - `ValueError` - If ``rules`` is empty.
 - `TypeError` - If any entry of ``rules`` is not a ``DictRule``.
+
+<a id="config_as_json.dict_validators.DictForEachValidator._run_rule_on_key"></a>
+
+#### \_run\_rule\_on\_key
+
+```python
+def _run_rule_on_key(rule: DictRule, config: Config, member_name: str,
+                     member_value: dict[Hashable, object], key: Hashable,
+                     stderr_file: TextIO) -> Optional[object]
+```
+
+Run a single rule on a dict member.
+
+**Arguments**:
+
+- `rule` - The rule to run.
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the outer dict member to validate.
+- `member_value` - The dict value to validate.
+- `key` - The key to validate.
+- `stderr_file` - The file to write error messages to.
 
 <a id="config_as_json.dict_validators.DictForEachValidator.validate_member"></a>
 
@@ -3938,8 +4069,8 @@ def __init__(
     min_value: Optional[Basictype],
     max_value: Optional[Basictype],
     allowed_values: Optional[Sequence[Basictype]],
-    lt_comparator: Callable[[Basictype, Basictype], bool] = lambda x, y: x < y
-) -> None
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
 ```
 
 Initialize the validator.
@@ -4162,8 +4293,8 @@ def __init__(
     is_ordered: bool = True,
     is_reversed: bool = False,
     unique_values: bool = False,
-    lt_comparator: Callable[[Basictype, Basictype], bool] = lambda x, y: x < y
-) -> None
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
 ```
 
 Initialize the validator.
@@ -4253,8 +4384,8 @@ def __init__(
     order: bool = True,
     reverse: bool = False,
     keep_only_unique: bool = False,
-    lt_comparator: Callable[[Basictype, Basictype], bool] = lambda x, y: x < y
-) -> None
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
 ```
 
 Initialize the validator.
