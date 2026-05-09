@@ -1,11 +1,8 @@
 #! /usr/local/bin/python3
-# mypy: disable-error-code=no-untyped-def
 """The test cases string_to_enum_best_match function."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
-
-# pylint: disable=duplicate-code
 
 from enum import Enum, auto
 from typing import Any, cast
@@ -35,7 +32,7 @@ class Tty(Enum):
 
 
 @pytest.mark.parametrize('x,y', [('telet', Tty.Teletype), ('VT52', Tty.VT52)])
-def test_string_to_enum_best_match_match(x, y):
+def test_enum_best_match_short(x: str, y: Tty) -> None:
     """Test string to best match function."""
     z = string_to_enum_best_match(x, Tty)
     assert z == y
@@ -56,20 +53,20 @@ def test_string_to_enum_best_match_match(x, y):
                           ('vt1', Tty.VT100),
                           ('X', Tty.X),
                           ('x', Tty.X)])
-def test_string_to_enum_best_match_match2(x, y):
+def test_enum_best_match_variants(x: str, y: Tty) -> None:
     """Test string to best match function."""
     z = string_to_enum_best_match(x, Tty)
     assert z == y
 
 
 @pytest.mark.parametrize('x', ['foobar', 'tele', 'vt', 'Tele', 'VT'])
-def test_string_to_enum_best_match_bad(x):
+def test_enum_best_match_bad(x: str) -> None:
     """Test string to best match function with bad input."""
     with pytest.raises(KeyError):
         _ = string_to_enum_best_match(x, Tty)
 
 
-def test_string_to_enum_bmatch_int():
+def test_string_to_enum_bmatch_int() -> None:
     """Test string_to_enum_best_match with int not str input."""
     with pytest.raises(AssertionError) as exc:
         _ = string_to_enum_best_match(cast(Any, 5), YesNoAsk)

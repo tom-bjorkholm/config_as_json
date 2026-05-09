@@ -1,5 +1,4 @@
 #! /usr/local/bin/python3
-# mypy: disable-error-code="no-untyped-def,no-untyped-call"
 """Test CSV dialect helpers and validators."""
 
 # Copyright (c) 2026 Tom Björkholm
@@ -9,6 +8,7 @@ import csv
 import sys
 from typing import Optional, cast
 import pytest
+from pytest import CaptureFixture
 from config_as_json.config import Config
 from config_as_json.csv_dialect import CsvDialectConfig, \
     CsvDialectValidator, get_csv_dialect
@@ -45,7 +45,7 @@ def _validate_csv_dialect(member_value: object) -> object:
                                                  stderr_file=sys.stderr)
 
 
-def test_get_csv_dialect_uses_defaults(capsys):
+def test_csv_dialect_defaults(capsys: CaptureFixture[str]) -> None:
     """Test get_csv_dialect with default values."""
     dialect = get_csv_dialect(name='csv.excel', delimiter=None, quoting=None,
                               quotechar=None, lineterminator=None,
@@ -65,8 +65,9 @@ def test_get_csv_dialect_uses_defaults(capsys):
                          [('csv.excel', csv.excel, '\r\n'),
                           ('CSV.EXCEL_TAB', csv.excel_tab, '\r\n'),
                           ('csv.unix_dialect', csv.unix_dialect, '\n')])
-def test_get_csv_dialect_standard(capsys, name, expected_type,
-                                  expected_lineterminator):
+def test_get_csv_dialect_standard(
+        capsys: CaptureFixture[str], name: str, expected_type: type[object],
+        expected_lineterminator: str) -> None:
     """Test all supported standard-library dialect names."""
     dialect = get_csv_dialect(name=name, delimiter=';', quoting=None,
                               quotechar='|', lineterminator=None,
@@ -86,7 +87,8 @@ def test_get_csv_dialect_standard(capsys, name, expected_type,
                           ('csv.quote_minimal', csv.QUOTE_MINIMAL),
                           ('csv.quote_none', csv.QUOTE_NONE),
                           ('csv.quote_nonnumeric', csv.QUOTE_NONNUMERIC)])
-def test_get_csv_dialect_selects_quoting(capsys, quoting, expected_quoting):
+def test_csv_dialect_quoting(capsys: CaptureFixture[str], quoting: str,
+                             expected_quoting: int) -> None:
     """Test all supported serialized quoting names."""
     dialect = get_csv_dialect(name='csv.excel', delimiter=None,
                               quoting=quoting, quotechar=None,
@@ -108,10 +110,12 @@ def test_get_csv_dialect_selects_quoting(capsys, quoting, expected_quoting):
                               'name': 'csv.excel',
                               'quoting': 'csv.quote_sometimes'
                           }, 'Unknown csv quoting: csv.quote_sometimes')])
-def test_get_csv_dialect_rejects_unknown_names(capsys, kwargs, error_text):
+def test_csv_dialect_bad_names(capsys: CaptureFixture[str],
+                               kwargs: dict[str, Optional[str]],
+                               error_text: str) -> None:
     """Test direct helper errors for unsupported serialized names."""
     with pytest.raises(KeyError) as exc_info:
-        _ = get_csv_dialect(name=kwargs['name'], delimiter=None,
+        _ = get_csv_dialect(name=cast(str, kwargs['name']), delimiter=None,
                             quoting=kwargs['quoting'], quotechar=None,
                             lineterminator=None, escapechar=None,
                             stderr_file=sys.stderr)
@@ -121,7 +125,7 @@ def test_get_csv_dialect_rejects_unknown_names(capsys, kwargs, error_text):
     assert error_text in err
 
 
-def test_csv_dialect_validator_accepts_full_configuration(capsys):
+def test_csv_validator_full(capsys: CaptureFixture[str]) -> None:
     """Test CsvDialectValidator with all keys present."""
     ret = _validate_csv_dialect(_csv_config(quoting='csv.quote_all'))
     assert ret == _csv_config(quoting='csv.quote_all')
@@ -130,7 +134,7 @@ def test_csv_dialect_validator_accepts_full_configuration(capsys):
     assert err == ''
 
 
-def test_csv_dialect_validator_normalizes_missing_optional_keys(capsys):
+def test_csv_validator_missing_keys(capsys: CaptureFixture[str]) -> None:
     """Test CsvDialectValidator fills missing optional keys with None."""
     ret = _validate_csv_dialect({'name': 'csv.excel_tab'})
     assert ret == _csv_config(name='csv.excel_tab', delimiter=None,
@@ -140,7 +144,7 @@ def test_csv_dialect_validator_normalizes_missing_optional_keys(capsys):
     assert err == ''
 
 
-def test_csv_dialect_validator_rejects_none_name_value(capsys):
+def test_csv_validator_none_name(capsys: CaptureFixture[str]) -> None:
     """Test CsvDialectValidator accepts None as the required name value."""
     with pytest.raises(InvalidConfiguration):
         _ = _validate_csv_dialect({'name': None})
@@ -161,8 +165,9 @@ def test_csv_dialect_validator_rejects_none_name_value(capsys):
      ({'name': 'csv.missing'}, 'Unknown csv dialect: csv.missing'),
      ({'name': 'csv.excel', 'quoting': 'csv.quote_sometimes'},
       'Unknown csv quoting: csv.quote_sometimes')])
-def test_csv_dialect_validator_rejects_invalid_configuration(
-        capsys, member_value, error_text):
+def test_csv_validator_bad_config(capsys: CaptureFixture[str],
+                                  member_value: object,
+                                  error_text: str) -> None:
     """Test CsvDialectValidator reports invalid members clearly."""
     with pytest.raises(InvalidConfiguration) as exc_info:
         _ = _validate_csv_dialect(member_value)

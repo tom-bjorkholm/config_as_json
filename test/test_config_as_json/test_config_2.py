@@ -1,5 +1,4 @@
 #! /usr/local/bin/python3
-# mypy: disable-error-code="no-untyped-def,no-untyped-call"
 """Test the Config class (part 2 of tests)."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -11,6 +10,7 @@ import json
 import sys
 from typing import Any, Optional, cast, TextIO
 import pytest
+from pytest import CaptureFixture
 from config_as_json.config import Config, RocfKeyRename, ParseConverter
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import JsonType
@@ -175,7 +175,7 @@ class RocfRemoveConfig(Config):
         return []
 
 
-def test_cfg_abc_dump_ok(capsys):
+def test_cfg_abc_dump_ok(capsys: CaptureFixture[str]) -> None:
     """Test dump of default constructed AbcConfig."""
     abc = AbcConfig(stderr_file=sys.stderr)
     jstext = abc.as_json_string(stderr_file=sys.stderr)
@@ -188,7 +188,7 @@ def test_cfg_abc_dump_ok(capsys):
     assert jstext == '{ "ab": "a1b2", "cd": "c3d4", "ef": "e5f6" }'
 
 
-def test_omit_none_config_omits_default_none_values(capsys):
+def test_omit_none_defaults(capsys: CaptureFixture[str]) -> None:
     """Test that default None members are omitted from JSON."""
     cfg = OmitNoneConfig(stderr_file=sys.stderr)
     json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
@@ -198,7 +198,7 @@ def test_omit_none_config_omits_default_none_values(capsys):
     assert json_data == {'required_name': 'default'}
 
 
-def test_omit_none_config_accepts_missing_values(capsys):
+def test_omit_none_missing(capsys: CaptureFixture[str]) -> None:
     """Test that missing omit-None members remain None."""
     cfg = OmitNoneConfig(from_json_data_text='{"required_name": "read"}',
                          stderr_file=sys.stderr)
@@ -212,7 +212,7 @@ def test_omit_none_config_accepts_missing_values(capsys):
     assert json_data == {'required_name': 'read'}
 
 
-def test_omit_none_config_accepts_explicit_null(capsys):
+def test_omit_none_explicit_null(capsys: CaptureFixture[str]) -> None:
     """Test that explicit JSON null is treated like a missing value."""
     cfg = OmitNoneConfig(from_json_data_text='{"required_name": "read", '
                          '"optional_text": null, '
@@ -226,7 +226,7 @@ def test_omit_none_config_accepts_explicit_null(capsys):
     assert json_data == {'required_name': 'read'}
 
 
-def test_omit_none_config_keeps_explicit_values(capsys):
+def test_omit_none_values(capsys: CaptureFixture[str]) -> None:
     """Test that explicit optional values are read, converted, and written."""
     cfg = OmitNoneConfig(from_json_data_text='{"required_name": "read", '
                          '"optional_text": "note", '
@@ -244,7 +244,7 @@ def test_omit_none_config_keeps_explicit_values(capsys):
     }
 
 
-def test_omit_none_config_still_requires_normal_members(capsys):
+def test_omit_none_requires_normal(capsys: CaptureFixture[str]) -> None:
     """Test that omit-None handling does not hide missing required keys."""
     with pytest.raises(KeyError):
         _ = OmitNoneConfig(from_json_data_text='{"optional_text": "note"}',
@@ -254,7 +254,7 @@ def test_omit_none_config_still_requires_normal_members(capsys):
     assert 'No value for required_name in JSON data' in err
 
 
-def test_omit_none_config_rejects_unknown_member(capsys):
+def test_omit_none_unknown_member(capsys: CaptureFixture[str]) -> None:
     """Test that omit-None member names must exist."""
     with pytest.raises(KeyError) as exc:
         _ = OmitNoneUnknownMemberConfig(stderr_file=sys.stderr)
@@ -265,7 +265,7 @@ def test_omit_none_config_rejects_unknown_member(capsys):
         str(exc.value)
 
 
-def test_omit_none_config_rejects_non_none_default(capsys):
+def test_omit_none_non_none_default(capsys: CaptureFixture[str]) -> None:
     """Test that omit-None members must default to None."""
     with pytest.raises(ValueError) as exc:
         _ = OmitNoneNonNoneDefaultConfig(stderr_file=sys.stderr)
@@ -281,7 +281,9 @@ def test_omit_none_config_rejects_non_none_default(capsys):
     [('optional_text', '_omit_none_from_json() must return a list'),
      (['optional_text', 7
        ], '_omit_none_from_json() must return a list of strings')])
-def test_omit_none_rejects_bad_hook(capsys, omitted_keys, message):
+def test_omit_none_rejects_bad_hook(capsys: CaptureFixture[str],
+                                    omitted_keys: object,
+                                    message: str) -> None:
     """Test that omit-None hook return values are type checked."""
     with pytest.raises(TypeError) as exc:
         _ = OmitNoneBadReturnConfig(omitted_keys, stderr_file=sys.stderr)
@@ -298,7 +300,8 @@ def test_omit_none_rejects_bad_hook(capsys, omitted_keys, message):
       'mouse'), ('{ "ab": "aaa", "cd": "mickey" }', 'aaa', 'mickey', 'ef99'),
      ('{ "ab": "donald", "ef": "duck" }', 'donald', 'cd99', 'duck'),
      ('{ "ab": "duck"}', 'duck', 'cd99', 'ef99')])
-def test_cfg_rocf_val_json_ok(capsys, jstext, aval, cval, fval):
+def test_cfg_rocf_val_json_ok(capsys: CaptureFixture[str], jstext: str,
+                              aval: str, cval: str, fval: str) -> None:
     """Test construction of cfg from json with default values."""
     abc = AbcConfig(from_json_data_text=jstext, from_json_filename=None)
     out, err = capsys.readouterr()
@@ -312,7 +315,8 @@ def test_cfg_rocf_val_json_ok(capsys, jstext, aval, cval, fval):
 @pytest.mark.parametrize('jstext', [
     '{ "cd": "c3d4", "ef": "e5f6" }', '{ "cd": "duck", "ef": "mouse" }',
     '{ "cd": "mickey" }', '{ "ef": "duck" }', '{}'])
-def test_cfg_rocf_val_json_nok(capsys, jstext):
+def test_cfg_rocf_val_json_nok(capsys: CaptureFixture[str],
+                               jstext: str) -> None:
     """Test construction of cfg from json with default values."""
     with pytest.raises(KeyError):
         _ = AbcConfig(from_json_data_text=jstext, from_json_filename=None,
@@ -399,7 +403,10 @@ def rename_json_keys(config: Config, json_data: dict[str, JsonType],
                                   'keep': 2
                               }, [{}]]
                           }, 'obsolete', True)])
-def test_rocf_remove_json_key_in_dict(capsys, ind, outd, key, changed):
+def test_rocf_remove_key_dict(capsys: CaptureFixture[str],
+                              ind: dict[str, JsonType],
+                              outd: dict[str, JsonType], key: str,
+                              changed: bool) -> None:
     """Test removing one ROCF key from nested dictionaries."""
     data = deepcopy(ind)
     assert remove_json_key_in_dict(key=key, json_data=data) == changed
@@ -422,7 +429,9 @@ def test_rocf_remove_json_key_in_dict(capsys, ind, outd, key, changed):
                           }, [{
                               'keep': 4
                           }]], 'obsolete', True)])
-def test_rocf_remove_json_key_in_list(capsys, ind, outd, key, changed):
+def test_rocf_remove_key_list(capsys: CaptureFixture[str], ind: list[JsonType],
+                              outd: list[JsonType], key: str,
+                              changed: bool) -> None:
     """Test removing one ROCF key from nested lists."""
     data = deepcopy(ind)
     assert remove_json_key_in_list(key=key, json_data=data) == changed
@@ -433,7 +442,9 @@ def test_rocf_remove_json_key_in_list(capsys, ind, outd, key, changed):
 
 
 @pytest.mark.parametrize('json_data', [{'a': 'b'}, [{'a': 'b'}]])
-def test_rocf_remove_json_key_rejects_none_key(capsys, json_data):
+def test_rocf_remove_rejects_none(
+        capsys: CaptureFixture[str],
+        json_data: dict[str, JsonType] | list[JsonType]) -> None:
     """Test that removing a None key fails like invalid ROCF rename rules."""
     with pytest.raises(AssertionError):
         if isinstance(json_data, dict):
@@ -444,7 +455,7 @@ def test_rocf_remove_json_key_rejects_none_key(capsys, json_data):
     assert '' == out
 
 
-def test_rocf_removed_keys_are_accepted_and_reported(capsys):
+def test_rocf_removed_keys_reported(capsys: CaptureFixture[str]) -> None:
     """Test parsing old JSON with removed, renamed and missing keys."""
     jstext = json.dumps({
         'title':
@@ -484,7 +495,7 @@ def test_rocf_removed_keys_are_accepted_and_reported(capsys):
     assert cfg.entries == [{'name': 'first'}, [{}]]
 
 
-def test_rocf_removed_keys_absent_does_not_report_change(capsys):
+def test_rocf_no_removed_keys(capsys: CaptureFixture[str]) -> None:
     """Test current JSON parsing when no removed old keys are present."""
     jstext = json.dumps({
         'version': 2,
@@ -601,7 +612,9 @@ def test_rocf_removed_keys_absent_does_not_report_change(capsys):
          }],
          'b': 5
      }, RocfKeyRename(old='a', new='c'), '')])
-def test_bw_compat_single1(capsys, ind, outd, ren, errtxt):
+def test_bw_compat_single1(
+        capsys: CaptureFixture[str], ind: dict[str, JsonType],
+        outd: dict[str, JsonType], ren: RocfKeyRename, errtxt: str) -> None:
     """Test Config._bwcompat_single for case 1."""
     data = deepcopy(ind)
     rename_json_key_in_dict(rename=ren, json_data=data, stderr_file=sys.stderr)
@@ -615,7 +628,8 @@ def test_bw_compat_single1(capsys, ind, outd, ren, errtxt):
     RocfKeyRename(old=cast(Any, None), new='sun'),
     RocfKeyRename(old='foo', new=cast(Any, None)),
     RocfKeyRename(old='foo', new='foo')])
-def test_bw_compat_single2(capsys, ren):
+def test_bw_compat_single2(capsys: CaptureFixture[str],
+                           ren: RocfKeyRename) -> None:
     """Test Config._bwcompat_single for not OK case."""
     with pytest.raises(AssertionError):
         rename_json_key_in_dict(rename=ren, json_data={'a': 'b'},
@@ -666,7 +680,9 @@ def test_bw_compat_single2(capsys, ren):
          'a': 3,
          'c': 4
      }]], RocfKeyRename(old='b', new='c'), '')])
-def test_bwcompat_single_lst1(capsys, ind, outd, ren, errtxt):
+def test_bwcompat_list1(capsys: CaptureFixture[str], ind: list[JsonType],
+                        outd: list[JsonType], ren: RocfKeyRename,
+                        errtxt: str) -> None:
     """Test Config._bwcompat_single_lst for case 1."""
     data = deepcopy(ind)
     rename_json_key_in_list(rename=ren, json_data=data, stderr_file=sys.stderr)
@@ -714,7 +730,10 @@ class DummyCfg(Config):
         'y': 'd'
     }]
 }, '')])
-def test_rename_backward_compatible(capsys, ind, outd, errtxt):
+def test_rename_backward_compatible(capsys: CaptureFixture[str],
+                                    ind: dict[str, JsonType],
+                                    outd: dict[str, JsonType],
+                                    errtxt: str) -> None:
     """Test Config._rename_backward_compatible."""
     data = deepcopy(ind)
     cfg = DummyCfg(stderr_file=sys.stderr)
