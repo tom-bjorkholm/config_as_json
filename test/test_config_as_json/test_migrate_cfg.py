@@ -1,5 +1,4 @@
 #! /usr/local/bin/python3
-# mypy: disable-error-code=no-untyped-def
 """Test factory selection and configuration migration helpers."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -9,6 +8,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Callable, TextIO, cast
 import sys
 import pytest
+from pytest import CaptureFixture
 from config_as_json.assert_dict_equal import assert_dict_equal
 from config_as_json.config import Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
@@ -101,7 +101,7 @@ def _migrate_and_assert(infilename: str,
     return res
 
 
-def test_config_factory_from_json_name_cfg(capsys):
+def test_factory_name_cfg(capsys: CaptureFixture[str]) -> None:
     """Select the name-based configuration class from legacy JSON."""
     cfg = _config_from_file(
         'test/test_config_as_json/bak_compat_0_7_13_name.cfg',
@@ -113,7 +113,7 @@ def test_config_factory_from_json_name_cfg(capsys):
     assert out == ''
 
 
-def test_config_factory_from_json_number_cfg(capsys):
+def test_factory_number_cfg(capsys: CaptureFixture[str]) -> None:
     """Select the number-based configuration class from legacy JSON."""
     cfg = _config_from_file(
         'test/test_config_as_json/bak_compat_0_7_13_number.cfg',
@@ -125,7 +125,7 @@ def test_config_factory_from_json_number_cfg(capsys):
     assert out == ''
 
 
-def test_config_factory_from_json_nok_no_match(capsys):
+def test_factory_no_match(capsys: CaptureFixture[str]) -> None:
     """Fail cleanly when no registered configuration matches the JSON."""
     with pytest.raises(SystemExit):
         config_factory_from_json(
@@ -138,7 +138,7 @@ def test_config_factory_from_json_nok_no_match(capsys):
     assert 'No matching config class found' in err
 
 
-def test_config_factory_from_json_nok_missing_input(capsys):
+def test_factory_missing_input(capsys: CaptureFixture[str]) -> None:
     """Fail cleanly when no JSON input source was supplied."""
     with pytest.raises(RuntimeError):
         config_factory_from_json(match_configs=_match_configs(),
@@ -149,7 +149,7 @@ def test_config_factory_from_json_nok_missing_input(capsys):
     assert 'Either JSON text or JSON file needed' in err
 
 
-def test_config_factory_from_json_nok_both_inputs(capsys):
+def test_factory_both_inputs(capsys: CaptureFixture[str]) -> None:
     """Fail cleanly when both JSON input sources were supplied."""
     with pytest.raises(RuntimeError):
         config_factory_from_json(match_configs=_match_configs(),
@@ -162,7 +162,7 @@ def test_config_factory_from_json_nok_both_inputs(capsys):
     assert 'Both cannot be given' in err
 
 
-def test_json_value_matcher_returns_false_for_missing_key(capsys):
+def test_matcher_missing_key(capsys: CaptureFixture[str]) -> None:
     """Return False when the distinguishing key is missing."""
     matcher = JsonValueMatcher('column_ref', 'BY_NAME')
     ret = matcher('{"other_key": "BY_NAME"}', sys.stderr)
@@ -172,7 +172,7 @@ def test_json_value_matcher_returns_false_for_missing_key(capsys):
     assert err == ''
 
 
-def test_json_value_matcher_compares_non_string_values(capsys):
+def test_matcher_non_str_value(capsys: CaptureFixture[str]) -> None:
     """Compare non-string JSON values with ordinary equality."""
     matcher = JsonValueMatcher('version', 2)
     ret = matcher('{"version": 2}', sys.stderr)
@@ -182,7 +182,7 @@ def test_json_value_matcher_compares_non_string_values(capsys):
     assert err == ''
 
 
-def test_json_value_matcher_rejects_invalid_json(capsys):
+def test_matcher_invalid_json(capsys: CaptureFixture[str]) -> None:
     """Stop with a helpful message for malformed JSON text."""
     matcher = JsonValueMatcher('column_ref', 'BY_NAME')
     with pytest.raises(SystemExit):
@@ -192,7 +192,7 @@ def test_json_value_matcher_rejects_invalid_json(capsys):
     assert 'Configuration JSON cannot be decoded.' in err
 
 
-def test_json_value_matcher_rejects_invalid_utf8_bytes(capsys):
+def test_matcher_invalid_utf8(capsys: CaptureFixture[str]) -> None:
     """Stop with a helpful message for invalid UTF-8 byte input."""
     matcher = JsonValueMatcher('column_ref', 'BY_NAME')
     with pytest.raises(SystemExit):
@@ -203,7 +203,7 @@ def test_json_value_matcher_rejects_invalid_utf8_bytes(capsys):
     assert 'decode byte 0xff in position 0' in err
 
 
-def test_json_value_matcher_rejects_non_dict_top_level(capsys):
+def test_matcher_non_dict(capsys: CaptureFixture[str]) -> None:
     """Stop with a helpful message for non-dictionary top-level JSON."""
     matcher = JsonValueMatcher('column_ref', 'BY_NAME')
     with pytest.raises(SystemExit):
@@ -213,7 +213,7 @@ def test_json_value_matcher_rejects_non_dict_top_level(capsys):
     assert 'Top level not dict' in err
 
 
-def test_migrate_cfg_single_name(capsys):
+def test_migrate_single_name(capsys: CaptureFixture[str]) -> None:
     """Migrate a name-based legacy file using one known config class."""
     infilename = 'test/test_config_as_json/bak_compat_0_7_13_name.cfg'
     res = _migrate_and_assert(infilename, ConfigXlsListTransfName,
@@ -224,7 +224,7 @@ def test_migrate_cfg_single_name(capsys):
     assert res == 0
 
 
-def test_migrate_cfg_single_number(capsys):
+def test_migrate_single_number(capsys: CaptureFixture[str]) -> None:
     """Migrate a number-based legacy file using one known config class."""
     infilename = 'test/test_config_as_json/bak_compat_0_7_13_number.cfg'
     res = _migrate_and_assert(infilename, ConfigXlsListTransfNum,
@@ -235,7 +235,7 @@ def test_migrate_cfg_single_number(capsys):
     assert res == 0
 
 
-def test_migrate_cfg_multiple_name(capsys):
+def test_migrate_multiple_name(capsys: CaptureFixture[str]) -> None:
     """Migrate a name-based legacy file chosen from several config classes."""
     infilename = 'test/test_config_as_json/bak_compat_0_7_13_name.cfg'
     res = _migrate_and_assert(infilename, _match_configs(), _assert_name_cfg)
@@ -245,7 +245,7 @@ def test_migrate_cfg_multiple_name(capsys):
     assert res == 0
 
 
-def test_migrate_cfg_multiple_number(capsys):
+def test_migrate_multiple_number(capsys: CaptureFixture[str]) -> None:
     """Migrate a number-based legacy file using several config classes."""
     infilename = 'test/test_config_as_json/bak_compat_0_7_13_number.cfg'
     res = _migrate_and_assert(infilename, _match_configs(), _assert_number_cfg)
@@ -255,7 +255,7 @@ def test_migrate_cfg_multiple_number(capsys):
     assert res == 0
 
 
-def test_migrate_cfg_multiple_nok_no_match(capsys):
+def test_migrate_multiple_no_match(capsys: CaptureFixture[str]) -> None:
     """Report a factory selection failure during migration."""
     with TemporaryDirectory() as dirname:
         infilename = dirname + '/a.cfg'
@@ -277,7 +277,8 @@ def test_migrate_cfg_multiple_nok_no_match(capsys):
            [('not a matcher', ConfigXlsListTransfName)]), 'non-MatchConfig'),
      (cast(Any, 'not a matcher'), 'Config subclass'),
      (cast(Any, ConfigAutoChangeHook), 'Config subclass')])
-def test_migrate_cfg_nok_invalid_config_class(config_class, msg, capsys):
+def test_migrate_bad_config_class(config_class: Any, msg: str,
+                                  capsys: CaptureFixture[str]) -> None:
     """Reject invalid configuration selector arguments."""
     infilename = 'test/test_config_as_json/bak_compat_0_7_13_name.cfg'
     with TemporaryDirectory() as dirname:
@@ -290,7 +291,7 @@ def test_migrate_cfg_nok_invalid_config_class(config_class, msg, capsys):
     assert err == ''
 
 
-def test_migrate_cfg_nok_missing_input(capsys):
+def test_migrate_missing_input(capsys: CaptureFixture[str]) -> None:
     """Report a missing input file when migrating configuration."""
     with TemporaryDirectory() as dirname:
         infilename = dirname + '/a.cfg'
@@ -303,7 +304,7 @@ def test_migrate_cfg_nok_missing_input(capsys):
     assert 'Cannot find input configuration file' in err
 
 
-def test_migrate_cfg_nok_existing_output(capsys):
+def test_migrate_existing_output(capsys: CaptureFixture[str]) -> None:
     """Refuse to overwrite an existing migration output file."""
     cfg = ConfigXlsListTransfNum()
     with TemporaryDirectory() as dirname:

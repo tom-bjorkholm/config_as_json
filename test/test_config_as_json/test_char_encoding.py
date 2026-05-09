@@ -1,13 +1,13 @@
 #! /usr/local/bin/python3
-# mypy: disable-error-code="no-untyped-def,no-untyped-call"
 """Test character encoding helpers and validators."""
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
 import sys
-from typing import cast
+from typing import Any, cast
 import pytest
+from pytest import CaptureFixture
 from config_as_json.char_encoding import CharEncodingValidator, \
     check_char_encoding, valid_char_encoding
 from config_as_json.config import Config
@@ -25,7 +25,8 @@ def _validate_char_encoding(member_value: object) -> object:
 
 @pytest.mark.parametrize('enc, is_ok', [('utf-8', True), ('iso8859-1', True),
                                         ('abc123', False)])
-def test_valid_char_encoding_returns_lookup_result(capsys, enc, is_ok):
+def test_valid_encoding_lookup(capsys: CaptureFixture[str], enc: str,
+                               is_ok: bool) -> None:
     """Test direct character encoding lookup results."""
     ret = valid_char_encoding(enc)
     out, err = capsys.readouterr()
@@ -35,10 +36,11 @@ def test_valid_char_encoding_returns_lookup_result(capsys, enc, is_ok):
 
 
 @pytest.mark.parametrize('enc', [8, True])
-def test_valid_char_encoding_rejects_non_string_values(capsys, enc):
+def test_valid_encoding_bad_type(capsys: CaptureFixture[str],
+                                 enc: object) -> None:
     """Test direct character encoding lookup with wrong value types."""
     with pytest.raises(TypeError) as exc_info:
-        _ = valid_char_encoding(enc)
+        _ = valid_char_encoding(cast(Any, enc))
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -46,7 +48,7 @@ def test_valid_char_encoding_rejects_non_string_values(capsys, enc):
 
 
 @pytest.mark.parametrize('enc', ['utf-8', 'iso8859-1'])
-def test_check_char_encoding_accepts_known_encodings(capsys, enc):
+def test_check_encoding_known(capsys: CaptureFixture[str], enc: str) -> None:
     """Test check_char_encoding accepts recognized encodings."""
     check_char_encoding(enc, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
@@ -55,7 +57,7 @@ def test_check_char_encoding_accepts_known_encodings(capsys, enc):
 
 
 @pytest.mark.parametrize('enc', ['utf-88', 'abc123'])
-def test_check_char_encoding_exits_for_unknown_encodings(capsys, enc):
+def test_check_encoding_unknown(capsys: CaptureFixture[str], enc: str) -> None:
     """Test direct check_char_encoding failure behavior."""
     with pytest.raises(SystemExit):
         check_char_encoding(enc, stderr_file=sys.stderr)
@@ -65,7 +67,8 @@ def test_check_char_encoding_exits_for_unknown_encodings(capsys, enc):
 
 
 @pytest.mark.parametrize('enc', ['utf-8', 'iso8859-1'])
-def test_char_encoding_validator_accepts_known_encodings(capsys, enc):
+def test_validator_accepts_encoding(capsys: CaptureFixture[str],
+                                    enc: str) -> None:
     """Test CharEncodingValidator accepts recognized encodings."""
     ret = _validate_char_encoding(enc)
     assert ret == enc
@@ -79,8 +82,9 @@ def test_char_encoding_validator_accepts_known_encodings(capsys, enc):
     [(8, 'Value for encoding is not a string.'),
      (True, 'Value for encoding is not a string.'),
      ('abc123', 'abc123 is not a recognized character encoding for')])
-def test_char_encoding_validator_rejects_invalid_members(
-        capsys, member_value, error_text):
+def test_validator_rejects_encoding(capsys: CaptureFixture[str],
+                                    member_value: object,
+                                    error_text: str) -> None:
     """Test CharEncodingValidator raises InvalidConfiguration."""
     with pytest.raises(InvalidConfiguration) as exc_info:
         _ = _validate_char_encoding(member_value)
