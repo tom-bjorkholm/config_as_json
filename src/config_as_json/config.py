@@ -25,8 +25,7 @@ from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.validator import ValidationPlan
 
 
-RocfKeyRename = NamedTuple('RocfKeyRename',
-                           [('old', str), ('new', str)])
+RocfKeyRename = NamedTuple('RocfKeyRename', [('old', str), ('new', str)])
 """Describe a configuration key rename from an old name to a new name.
 
     Renaming rule for Reading Old Configuration File (ROCF).
@@ -160,8 +159,7 @@ class Config():
             msg += 'Config. (Create object variables in __init__ before '
             msg += 'calling super().__init__().)'
             raise AttributeError(msg)
-        self._checked_omit_none_from_json(self_keys,
-                                          check_default_values=True)
+        self._checked_omit_none_from_json(self_keys, check_default_values=True)
         unchecked = getattr(self, '_unchecked_dicts', None)
         if unchecked is None:
             self._unchecked_dicts: list[str] = []
@@ -192,15 +190,12 @@ class Config():
             keyword arguments passed to that callable.
         """
         return {'in_type': ParseConverter(result_type=int,
-                                          func=_over_ride_needed,
-                                          args={})}
+                                          func=_over_ride_needed, args={})}
 
     @staticmethod
     def check_key_match(
-            expected_keys: list[str],
-            j_keys: list[str],
-            ok_to_use_defaults: bool,
-            stderr_file: TextIO,
+            expected_keys: list[str], j_keys: list[str],
+            ok_to_use_defaults: bool, stderr_file: TextIO,
             allowed_missing_keys: Optional[list[str]] = None) -> None:
         """Validate that parsed keys match the declared configuration keys.
 
@@ -233,9 +228,8 @@ class Config():
 
     @staticmethod
     # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-    def check_dict_parse(self_data: dict[str, Any],
-                         json_data: dict[str, Any], key: str,
-                         ok_to_use_defaults: bool,
+    def check_dict_parse(self_data: dict[str, Any], json_data: dict[str, Any],
+                         key: str, ok_to_use_defaults: bool,
                          unchecked_dicts: list[str],
                          stderr_file: TextIO) -> None:
         """Recursively validate nested dictionaries against default values.
@@ -314,9 +308,8 @@ class Config():
         """
         return []
 
-    def _checked_omit_none_from_json(
-            self, self_keys: list[str],
-            check_default_values: bool) -> list[str]:
+    def _checked_omit_none_from_json(self, self_keys: list[str],
+                                     check_default_values: bool) -> list[str]:
         """Return validated omit-when-None member names.
 
         Args:
@@ -382,17 +375,16 @@ class Config():
         for value in json_data.values():
             if isinstance(value, dict):
                 assert isinstance(value, dict)
-                ret |= Config._rocf_remove_json_key_in_dict(
-                    key=key, json_data=value)
+                ret |= Config._rocf_remove_json_key_in_dict(key=key,
+                                                            json_data=value)
             if isinstance(value, list):
                 assert isinstance(value, list)
-                ret |= Config._rocf_remove_json_key_in_list(
-                    key=key, json_data=value)
+                ret |= Config._rocf_remove_json_key_in_list(key=key,
+                                                            json_data=value)
         return ret
 
     @staticmethod
-    def _rocf_remove_json_key_in_list(key: str,
-                                      json_data: list[JsonType]) \
+    def _rocf_remove_json_key_in_list(key: str, json_data: list[JsonType]) \
             -> bool:
         """Remove one ROCF key inside nested lists.
 
@@ -409,16 +401,15 @@ class Config():
         for value in json_data:
             if isinstance(value, dict):
                 assert isinstance(value, dict)
-                ret |= Config._rocf_remove_json_key_in_dict(
-                    key=key, json_data=value)
+                ret |= Config._rocf_remove_json_key_in_dict(key=key,
+                                                            json_data=value)
             if isinstance(value, list):
                 assert isinstance(value, list)
-                ret |= Config._rocf_remove_json_key_in_list(
-                    key=key, json_data=value)
+                ret |= Config._rocf_remove_json_key_in_list(key=key,
+                                                            json_data=value)
         return ret
 
-    def _rocf_remove_json_keys(self,
-                               json_data: dict[str, JsonType]) -> None:
+    def _rocf_remove_json_keys(self, json_data: dict[str, JsonType]) -> None:
         """Apply all declared ROCF key removals in place.
 
         When Reading an Old Configuration File (ROCF), some key names in the
@@ -506,8 +497,7 @@ class Config():
             if rename.new in json_data:
                 print('Inconsistent configuration:', file=stderr_file)
                 print(f'Both new config parameter {rename.new} and '
-                      f'old {rename.old} present.',
-                      file=stderr_file)
+                      f'old {rename.old} present.', file=stderr_file)
                 print(f'Ignoring old parameter {rename.old}', file=stderr_file)
                 del json_data[rename.old]
             else:
@@ -553,8 +543,7 @@ class Config():
                     rename=rename, json_data=value, stderr_file=stderr_file)
         return ret
 
-    def _rocf_rename_json_keys(self,
-                               json_data: dict[str, JsonType],
+    def _rocf_rename_json_keys(self, json_data: dict[str, JsonType],
                                stderr_file: TextIO) -> None:
         """Apply all declared ROCF key renames in place.
 
@@ -574,8 +563,7 @@ class Config():
                                                   stderr_file=stderr_file):
                 self._hook_cfg_autochange.old_key_handled(old_key=name.old)
 
-    def parse_json(self, from_json_text: str,
-                   ok_to_use_defaults: bool = False,
+    def parse_json(self, from_json_text: str, ok_to_use_defaults: bool = False,
                    stderr_file: TextIO = sys.stderr) -> None:
         """Parse JSON text and apply it to the configuration object.
 
@@ -624,8 +612,7 @@ class Config():
             if i in data.keys():
                 self.check_dict_parse(getattr(self, i), data[i], i,
                                       ok_to_use_defaults,
-                                      self._unchecked_dicts,
-                                      stderr_file)
+                                      self._unchecked_dicts, stderr_file)
                 setattr(self, i, data[i])
 
     def as_json_string(self, stderr_file: TextIO) -> str:
@@ -670,8 +657,7 @@ class Config():
                         stderr_file=stderr_file)
         with open(file=from_json_filename, mode='r', encoding='UTF-8') as file:
             data = file.read()
-            self.parse_json(data, ok_to_use_defaults,
-                            stderr_file=stderr_file)
+            self.parse_json(data, ok_to_use_defaults, stderr_file=stderr_file)
 
     def write(self, to_json_filename: PathOrStr,
               stderr_file: TextIO = sys.stderr) -> None:

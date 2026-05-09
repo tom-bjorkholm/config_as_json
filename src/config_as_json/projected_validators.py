@@ -66,8 +66,8 @@ def _validate_projected_validators(
             raise TypeError(msg)
 
 
-class ProjectedMemberValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class ProjectedMemberValidator(MemberValidator):
     """Validate a projected value while keeping the original member value.
 
     This validator is intended for configuration members whose natural
@@ -95,11 +95,10 @@ class ProjectedMemberValidator(  # pylint: disable=too-few-public-methods
     work on detached values.
     """
 
-    def __init__(
-            self,
-            projector: Callable[['Config', str, object, TextIO], object],
-            validators: Sequence[MemberValidator],
-            source_validator: Optional[MemberValidator] = None) -> None:
+    def __init__(self,
+                 projector: Callable[['Config', str, object, TextIO], object],
+                 validators: Sequence[MemberValidator],
+                 source_validator: Optional[MemberValidator] = None) -> None:
         """Initialize the projected member validator.
 
         Args:
@@ -152,11 +151,12 @@ class ProjectedMemberValidator(  # pylint: disable=too-few-public-methods
         source = member_value
         if self.source_validator is not None:
             source = self.source_validator.validate_member(
-                config=config, member_name=member_name,
-                member_value=source, stderr_file=stderr_file)
+                config=config, member_name=member_name, member_value=source,
+                stderr_file=stderr_file)
         current = self.projector(config, member_name, source, stderr_file)
         for validator in self.validators:
-            current = validator.validate_member(
-                config=config, member_name=member_name,
-                member_value=current, stderr_file=stderr_file)
+            current = validator.validate_member(config=config,
+                                                member_name=member_name,
+                                                member_value=current,
+                                                stderr_file=stderr_file)
         return member_value

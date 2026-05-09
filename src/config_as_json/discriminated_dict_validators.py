@@ -135,10 +135,10 @@ def _raise_missing_discriminator(member_name: str, discriminator_key: str,
     raise InvalidConfiguration(msg)
 
 
-def _variant_for_discriminator_value(
-        discriminator_name: str, discriminator_value: object,
-        variants: Mapping[object, DictVariant],
-        stderr_file: TextIO) -> DictVariant:
+def _variant_for_discriminator_value(discriminator_name: str,
+                                     discriminator_value: object,
+                                     variants: Mapping[object, DictVariant],
+                                     stderr_file: TextIO) -> DictVariant:
     """Return the variant selected by one discriminator value.
 
     Args:
@@ -195,8 +195,7 @@ class DiscriminatedDictValidator(MemberValidator):
     def __init__(
             self, discriminator_key: str,
             variants: Mapping[object, DictVariant],
-            discriminator_validator: Optional[MemberValidator] = None
-            ) -> None:
+            discriminator_validator: Optional[MemberValidator] = None) -> None:
         """Initialize the discriminated dictionary validator.
 
         Args:
@@ -242,8 +241,8 @@ class DiscriminatedDictValidator(MemberValidator):
         discriminator_value = result[self.discriminator_key]
         if self.discriminator_validator is None:
             return result, discriminator_value
-        discriminator_name = _inner_member_name(
-            member_name, self.discriminator_key)
+        discriminator_name = _inner_member_name(member_name,
+                                                self.discriminator_key)
         discriminator_value = self.discriminator_validator.validate_member(
             config=config, member_name=discriminator_name,
             member_value=discriminator_value, stderr_file=stderr_file)
@@ -274,21 +273,21 @@ class DiscriminatedDictValidator(MemberValidator):
             InvalidConfigurationValue: If an inner validator rejects a value
                 because it is not one of its allowed values.
         """
-        validated_dict = _validate_dict_member_value(
-            member_name=member_name, member_value=member_value,
-            stderr_file=stderr_file)
+        validated_dict = _validate_dict_member_value(member_name=member_name,
+                                                     member_value=member_value,
+                                                     stderr_file=stderr_file)
         result, discriminator_value = self._validate_discriminator(
             config=config, member_name=member_name,
             member_value=validated_dict, stderr_file=stderr_file)
-        discriminator_name = _inner_member_name(
-            member_name, self.discriminator_key)
+        discriminator_name = _inner_member_name(member_name,
+                                                self.discriminator_key)
         variant = _variant_for_discriminator_value(
             discriminator_name=discriminator_name,
-            discriminator_value=discriminator_value,
-            variants=self.variants, stderr_file=stderr_file)
+            discriminator_value=discriminator_value, variants=self.variants,
+            stderr_file=stderr_file)
         key_validator = DictKeysValidator(
-            mandatory_keys=_variant_mandatory_keys(
-                self.discriminator_key, variant),
+            mandatory_keys=_variant_mandatory_keys(self.discriminator_key,
+                                                   variant),
             allowed_keys=variant.allowed_keys,
             allow_extra_dict_keys=variant.allow_extra_dict_keys)
         key_validator.validate_member(

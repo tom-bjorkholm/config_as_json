@@ -44,8 +44,7 @@ _CSV_DIALECT_KEYS = ('name', 'delimiter', 'quoting', 'quotechar',
                      'lineterminator', 'escapechar')
 
 
-def _csv_dialect_from_name(name: str,
-                           stderr_file: TextIO) -> csv.Dialect:
+def _csv_dialect_from_name(name: str, stderr_file: TextIO) -> csv.Dialect:
     """Return the CSV dialect template selected by ``name``."""
     if name.lower() == 'csv.excel':
         dialect: csv.Dialect = csv.excel()
@@ -64,9 +63,8 @@ def _csv_dialect_from_name(name: str,
     raise KeyError(errmsg)
 
 
-def _csv_quoting_from_name(
-        quoting: Optional[str],
-        stderr_file: TextIO) -> Literal[0, 1, 2, 3, 4, 5]:
+def _csv_quoting_from_name(quoting: Optional[str],
+                           stderr_file: TextIO) -> Literal[0, 1, 2, 3, 4, 5]:
     """Return the CSV quoting constant selected by ``quoting``."""
     if quoting is None:
         return csv.QUOTE_MINIMAL
@@ -86,8 +84,7 @@ def _csv_quoting_from_name(
 # pylint: disable=too-many-arguments
 def get_csv_dialect(*, name: str, delimiter: Optional[str],
                     quoting: Optional[str], quotechar: Optional[str],
-                    lineterminator: Optional[str],
-                    escapechar: Optional[str],
+                    lineterminator: Optional[str], escapechar: Optional[str],
                     stderr_file: TextIO = sys.stderr) -> csv.Dialect:
     """Build a ``csv.Dialect`` from serialized configuration fields.
 
@@ -111,8 +108,8 @@ def get_csv_dialect(*, name: str, delimiter: Optional[str],
     dialect = _csv_dialect_from_name(name=name, stderr_file=stderr_file)
     if delimiter is not None:
         dialect.delimiter = delimiter
-    dialect.quoting = _csv_quoting_from_name(
-        quoting=quoting, stderr_file=stderr_file)
+    dialect.quoting = _csv_quoting_from_name(quoting=quoting,
+                                             stderr_file=stderr_file)
     if quotechar is None:
         dialect.quotechar = '"'
     else:

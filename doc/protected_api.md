@@ -177,7 +177,7 @@
   * [config\_factory\_from\_json](#config_as_json.config_factory.config_factory_from_json)
 * [config\_as\_json.list\_validators](#config_as_json.list_validators)
   * [Basictype](#config_as_json.list_validators.Basictype)
-  * [\_validate\_supported\_list\_element\_type](#config_as_json.list_validators._validate_supported_list_element_type)
+  * [\_validate\_list\_element\_type](#config_as_json.list_validators._validate_list_element_type)
   * [\_validate\_list\_size\_bounds](#config_as_json.list_validators._validate_list_size_bounds)
   * [\_validate\_list\_member\_value](#config_as_json.list_validators._validate_list_member_value)
   * [\_validate\_typed\_list\_member](#config_as_json.list_validators._validate_typed_list_member)
@@ -185,7 +185,7 @@
   * [\_unique\_list\_values](#config_as_json.list_validators._unique_list_values)
   * [\_validate\_list\_order](#config_as_json.list_validators._validate_list_order)
   * [\_validate\_unique\_list\_values](#config_as_json.list_validators._validate_unique_list_values)
-  * [\_indexed\_not\_one\_of\_allowed\_values](#config_as_json.list_validators._indexed_not_one_of_allowed_values)
+  * [\_indexed\_not\_allowed\_message](#config_as_json.list_validators._indexed_not_allowed_message)
   * [\_IndexedInvalidConfigurationValue](#config_as_json.list_validators._IndexedInvalidConfigurationValue)
     * [\_\_init\_\_](#config_as_json.list_validators._IndexedInvalidConfigurationValue.__init__)
   * [ListValueValidator](#config_as_json.list_validators.ListValueValidator)
@@ -2931,8 +2931,7 @@ Validate validators applied to the projected value.
 ## ProjectedMemberValidator Objects
 
 ```python
-class ProjectedMemberValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator)
+class ProjectedMemberValidator(MemberValidator)
 ```
 
 Validate a projected value while keeping the original member value.
@@ -3807,12 +3806,12 @@ Implement list validators for config-as-json.
 
 Basic scalar type accepted by the list validators.
 
-<a id="config_as_json.list_validators._validate_supported_list_element_type"></a>
+<a id="config_as_json.list_validators._validate_list_element_type"></a>
 
-#### \_validate\_supported\_list\_element\_type
+#### \_validate\_list\_element\_type
 
 ```python
-def _validate_supported_list_element_type(element_type: type[object]) -> None
+def _validate_list_element_type(element_type: type[object]) -> None
 ```
 
 Validate that a list validator uses one supported runtime type.
@@ -3999,15 +3998,15 @@ custom ordering comparator.
 
 - `InvalidConfiguration` - If a duplicate value is found.
 
-<a id="config_as_json.list_validators._indexed_not_one_of_allowed_values"></a>
+<a id="config_as_json.list_validators._indexed_not_allowed_message"></a>
 
-#### \_indexed\_not\_one\_of\_allowed\_values
+#### \_indexed\_not\_allowed\_message
 
 ```python
-def _indexed_not_one_of_allowed_values(member_name: str, member_value: object,
-                                       member_index: int,
-                                       allowed_values: Sequence[object],
-                                       stderr_file: Optional[TextIO]) -> str
+def _indexed_not_allowed_message(member_name: str, member_value: object,
+                                 member_index: int,
+                                 allowed_values: Sequence[object],
+                                 stderr_file: Optional[TextIO]) -> str
 ```
 
 Construct a message for a list element outside the allowed values.
@@ -4280,9 +4279,7 @@ a subclass of ``int`` in Python.
 ## ListIsOrderedValidator Objects
 
 ```python
-class ListIsOrderedValidator(
-        MemberValidator,  # pylint: disable=too-few-public-methods # noqa: E501
-        Generic[Basictype])
+class ListIsOrderedValidator(MemberValidator, Generic[Basictype])
 ```
 
 Validate list element types, optional ordering, and uniqueness.
@@ -4371,9 +4368,7 @@ Validate one list member against order and uniqueness rules.
 ## ListOrderingValidator Objects
 
 ```python
-class ListOrderingValidator(
-        MemberValidator,  # pylint: disable=too-few-public-methods # noqa: E501
-        Generic[Basictype])
+class ListOrderingValidator(MemberValidator, Generic[Basictype])
 ```
 
 Normalize one list by ordering, reversing, and deduplicating it.

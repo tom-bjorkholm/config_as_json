@@ -186,16 +186,14 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
         SystemExit: The JSON could not be decoded, no matcher accepted it, or
             a referenced input file does not exist.
     """
-    text: str = _config_factory_get_text(
-        from_json_text=from_json_data_text,
-        from_json_filename=from_json_filename,
-        stderr_file=stderr_file)
+    text: str = _config_factory_get_text(from_json_text=from_json_data_text,
+                                         from_json_filename=from_json_filename,
+                                         stderr_file=stderr_file)
     for match_config in match_configs:
         if match_config.match_func(text, stderr_file):
             return match_config.config_class(from_json_data_text=text,
                                              from_json_filename=None,
                                              auto_ch_hook=auto_ch_hook,
                                              stderr_file=stderr_file)
-    _config_factory_exit(msg='No matching config class found',
-                         exc=None,
+    _config_factory_exit(msg='No matching config class found', exc=None,
                          stderr_file=stderr_file)

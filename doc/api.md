@@ -1997,8 +1997,7 @@ Define validators that validate projected member values.
 ## ProjectedMemberValidator Objects
 
 ```python
-class ProjectedMemberValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator)
+class ProjectedMemberValidator(MemberValidator)
 ```
 
 Validate a projected value while keeping the original member value.
@@ -2884,9 +2883,7 @@ a subclass of ``int`` in Python.
 ## ListIsOrderedValidator Objects
 
 ```python
-class ListIsOrderedValidator(
-        MemberValidator,  # pylint: disable=too-few-public-methods # noqa: E501
-        Generic[Basictype])
+class ListIsOrderedValidator(MemberValidator, Generic[Basictype])
 ```
 
 Validate list element types, optional ordering, and uniqueness.
@@ -2975,9 +2972,7 @@ Validate one list member against order and uniqueness rules.
 ## ListOrderingValidator Objects
 
 ```python
-class ListOrderingValidator(
-        MemberValidator,  # pylint: disable=too-few-public-methods # noqa: E501
-        Generic[Basictype])
+class ListOrderingValidator(MemberValidator, Generic[Basictype])
 ```
 
 Normalize one list by ordering, reversing, and deduplicating it.

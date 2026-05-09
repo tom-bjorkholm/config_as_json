@@ -99,8 +99,7 @@ def migrate_cfg(infile: PathOrStr, outfile: PathOrStr,
               file=stderr_file)
         sys.exit(1)
     if isinstance(config_class, type) and issubclass(config_class, Config):
-        cfg = config_class(from_json_data_text=None,
-                           from_json_filename=infile,
+        cfg = config_class(from_json_data_text=None, from_json_filename=infile,
                            auto_ch_hook=ConfigAutoChangeHook(),
                            stderr_file=stderr_file)
         cfg.write(to_json_filename=outfile)

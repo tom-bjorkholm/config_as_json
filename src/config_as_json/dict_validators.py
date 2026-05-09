@@ -18,9 +18,8 @@ from config_as_json.config import Config
 from config_as_json.validator import InvalidConfiguration, MemberValidator
 
 
-def _validate_dict_member_value(
-        member_name: str, member_value: object,
-        stderr_file: TextIO) -> dict[Hashable, object]:
+def _validate_dict_member_value(member_name: str, member_value: object,
+                                stderr_file: TextIO) -> dict[Hashable, object]:
     """Validate that one member value is a dict and return it.
 
     Args:
@@ -42,8 +41,7 @@ def _validate_dict_member_value(
     return member_value
 
 
-def _validate_string_keys(keys: Sequence[str],
-                          parameter_name: str) -> None:
+def _validate_string_keys(keys: Sequence[str], parameter_name: str) -> None:
     """Validate that ``keys`` is a sequence of distinct strings.
 
     Args:
@@ -176,8 +174,7 @@ class DictKeysValidator(MemberValidator):  # pylint: disable=too-few-public-meth
         _validate_string_keys(mandatory_keys, 'mandatory_keys')
         if allowed_keys is not None:
             _validate_string_keys(allowed_keys, 'allowed_keys')
-        _validate_bool_argument(allow_extra_dict_keys,
-                                'allow_extra_dict_keys')
+        _validate_bool_argument(allow_extra_dict_keys, 'allow_extra_dict_keys')
         self.mandatory_keys: tuple[str, ...] = tuple(mandatory_keys)
         extra: tuple[str, ...] = tuple(allowed_keys) \
             if allowed_keys is not None else ()
@@ -381,8 +378,8 @@ class DictForEachValidator(MemberValidator):
     # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def _run_rule_on_key(self, rule: DictRule, config: Config,
                          member_name: str,
-                         member_value: dict[Hashable, object],
-                         key: Hashable, stderr_file: TextIO) \
+                         member_value: dict[Hashable, object], key: Hashable,
+                         stderr_file: TextIO) \
             -> Optional[object]:
         """Run a single rule on a dict member.
 
@@ -427,18 +424,18 @@ class DictForEachValidator(MemberValidator):
             InvalidConfigurationValue: If a supplied validator raised
                 ``InvalidConfigurationValue``.
         """
-        validated_dict = _validate_dict_member_value(
-            member_name=member_name, member_value=member_value,
-            stderr_file=stderr_file)
+        validated_dict = _validate_dict_member_value(member_name=member_name,
+                                                     member_value=member_value,
+                                                     stderr_file=stderr_file)
         result: dict[Hashable, object] = dict(validated_dict)
         for rule in self.rules:
             if callable(rule.keys):
                 for key in result:
                     if rule.keys(key):
                         result[key] = self._run_rule_on_key(
-                            rule=rule, config=config,
-                            member_name=member_name, member_value=result,
-                            key=key, stderr_file=stderr_file)
+                            rule=rule, config=config, member_name=member_name,
+                            member_value=result, key=key,
+                            stderr_file=stderr_file)
             else:
                 assert isinstance(rule.keys, SequenceABC)
                 for key in rule.keys:
@@ -446,6 +443,5 @@ class DictForEachValidator(MemberValidator):
                         continue
                     result[key] = self._run_rule_on_key(
                         rule=rule, config=config, member_name=member_name,
-                        member_value=result, key=key,
-                        stderr_file=stderr_file)
+                        member_value=result, key=key, stderr_file=stderr_file)
         return result

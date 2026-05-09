@@ -21,8 +21,7 @@ Basictype = TypeVar('Basictype', int, float, str, bool)
 """Basic scalar type accepted by the list validators."""
 
 
-def _validate_supported_list_element_type(
-        element_type: type[object]) -> None:
+def _validate_list_element_type(element_type: type[object]) -> None:
     """Validate that a list validator uses one supported runtime type.
 
     Args:
@@ -103,9 +102,9 @@ def _validate_typed_list_member(
         InvalidConfiguration: If the member is not a list or one element has
                               the wrong runtime type.
     """
-    raw_list = _validate_list_member_value(
-        member_name=member_name, member_value=member_value,
-        stderr_file=stderr_file)
+    raw_list = _validate_list_member_value(member_name=member_name,
+                                           member_value=member_value,
+                                           stderr_file=stderr_file)
     typed_list: list[Basictype] = []
     for member_index, raw_value in enumerate(raw_list):
         if not isinstance(raw_value, element_type):
@@ -155,10 +154,10 @@ def _unique_list_values(values: Sequence[Basictype]) -> list[Basictype]:
     return list(dict.fromkeys(values))
 
 
-def _validate_list_order(
-        member_name: str, values: Sequence[Basictype], is_reversed: bool,
-        lt_comparator: Callable[[Basictype, Basictype], bool],
-        stderr_file: TextIO) -> None:
+def _validate_list_order(member_name: str, values: Sequence[Basictype],
+                         is_reversed: bool,
+                         lt_comparator: Callable[[Basictype, Basictype], bool],
+                         stderr_file: TextIO) -> None:
     """Validate that adjacent values are in the requested non-strict order.
 
     Args:
@@ -188,8 +187,7 @@ def _validate_list_order(
             raise InvalidConfiguration(msg)
 
 
-def _validate_unique_list_values(member_name: str,
-                                 values: Sequence[Basictype],
+def _validate_unique_list_values(member_name: str, values: Sequence[Basictype],
                                  stderr_file: TextIO) -> None:
     """Validate that a list contains no duplicate values.
 
@@ -216,10 +214,10 @@ def _validate_unique_list_values(member_name: str,
         first_indices[value] = member_index
 
 
-def _indexed_not_one_of_allowed_values(
-        member_name: str, member_value: object, member_index: int,
-        allowed_values: Sequence[object],
-        stderr_file: Optional[TextIO]) -> str:
+def _indexed_not_allowed_message(member_name: str, member_value: object,
+                                 member_index: int,
+                                 allowed_values: Sequence[object],
+                                 stderr_file: Optional[TextIO]) -> str:
     """Construct a message for a list element outside the allowed values.
 
     Construct a message that one element in a list value is not one of the
@@ -247,12 +245,11 @@ class _IndexedInvalidConfigurationValue(InvalidConfigurationValue):
     """Raised when a list element value is not one of the allowed values."""
 
     def __init__(self, member_name: str, member_value: object,
-                 member_index: int,
-                 allowed_values: Sequence[object]) -> None:
+                 member_index: int, allowed_values: Sequence[object]) -> None:
         """Initialize the exception."""
         super().__init__(member_name, member_value, allowed_values)
         self.member_index: int = member_index
-        self.message = _indexed_not_one_of_allowed_values(
+        self.message = _indexed_not_allowed_message(
             member_name, member_value, member_index, allowed_values, None)
         self.args = (self.message,)
 
@@ -307,8 +304,7 @@ class ListValueValidator(MemberValidator, Generic[Basictype]):
             Sequence[Basictype] | Callable[[], Sequence[Basictype]]] = \
             allowed_values
 
-    def validate_member(self, config: Config,
-                        member_name: str,
+    def validate_member(self, config: Config, member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate one list member against elementwise constraints.
@@ -367,9 +363,9 @@ class ListValueValidator(MemberValidator, Generic[Basictype]):
                 print(msg, file=stderr_file)
                 raise InvalidConfiguration(msg)
             if allowed is not None and value not in allowed:
-                _ = _indexed_not_one_of_allowed_values(member_name, value,
-                                                       member_index, allowed,
-                                                       stderr_file)
+                _ = _indexed_not_allowed_message(member_name, value,
+                                                 member_index, allowed,
+                                                 stderr_file)
                 raise _IndexedInvalidConfigurationValue(member_name, value,
                                                         member_index, allowed)
         return member_value
@@ -397,8 +393,7 @@ class ListSizeValidator(MemberValidator):  # pylint: disable=too-few-public-meth
         self.min_size: int = min_size
         self.max_size: int = max_size
 
-    def validate_member(self, config: Config,
-                        member_name: str,
+    def validate_member(self, config: Config, member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate one list member against the configured size bounds.
@@ -452,8 +447,7 @@ class ListValueTypeValidator(MemberValidator):  # pylint: disable=too-few-public
         self.element_type: type[object] = _validate_type_argument(
             element_type, 'element_type')
 
-    def validate_member(self, config: Config,
-                        member_name: str,
+    def validate_member(self, config: Config, member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate one list member's element types.
@@ -476,9 +470,9 @@ class ListValueTypeValidator(MemberValidator):  # pylint: disable=too-few-public
                 is not an instance of ``element_type``.
         """
         _ = config
-        raw_list = _validate_list_member_value(
-            member_name=member_name, member_value=member_value,
-            stderr_file=stderr_file)
+        raw_list = _validate_list_member_value(member_name=member_name,
+                                               member_value=member_value,
+                                               stderr_file=stderr_file)
         for member_index, raw_value in enumerate(raw_list):
             if not isinstance(raw_value, self.element_type):
                 msg = 'Invalid configuration: '
@@ -490,14 +484,13 @@ class ListValueTypeValidator(MemberValidator):  # pylint: disable=too-few-public
         return member_value
 
 
-class ListIsOrderedValidator(MemberValidator,  # pylint: disable=too-few-public-methods # noqa: E501
-                             Generic[Basictype]):
+# pylint: disable-next=too-few-public-methods
+class ListIsOrderedValidator(MemberValidator, Generic[Basictype]):
     """Validate list element types, optional ordering, and uniqueness."""
 
-    def __init__(self,  # pylint: disable=too-many-arguments, too-many-positional-arguments # noqa: E501
-                 element_type: type[Basictype],
-                 is_ordered: bool = True, is_reversed: bool = False,
-                 unique_values: bool = False,
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
+    def __init__(self, element_type: type[Basictype], is_ordered: bool = True,
+                 is_reversed: bool = False, unique_values: bool = False,
                  lt_comparator: Callable[[Basictype, Basictype], bool] =
                  operator_lt) -> None:
         """Initialize the validator.
@@ -530,7 +523,7 @@ class ListIsOrderedValidator(MemberValidator,  # pylint: disable=too-few-public-
             ValueError: If ``is_reversed`` is true while ``is_ordered`` is
                         false.
         """
-        _validate_supported_list_element_type(element_type)
+        _validate_list_element_type(element_type)
         if not is_ordered and is_reversed:
             msg = 'is_reversed requires is_ordered to be True.'
             raise ValueError(msg)
@@ -565,25 +558,24 @@ class ListIsOrderedValidator(MemberValidator,  # pylint: disable=too-few-public-
             member_name=member_name, member_value=member_value,
             element_type=self.element_type, stderr_file=stderr_file)
         if self.is_ordered:
-            _validate_list_order(
-                member_name=member_name, values=typed_values,
-                is_reversed=self.is_reversed,
-                lt_comparator=self.lt_comparator, stderr_file=stderr_file)
+            _validate_list_order(member_name=member_name, values=typed_values,
+                                 is_reversed=self.is_reversed,
+                                 lt_comparator=self.lt_comparator,
+                                 stderr_file=stderr_file)
         if self.unique_values:
-            _validate_unique_list_values(
-                member_name=member_name, values=typed_values,
-                stderr_file=stderr_file)
+            _validate_unique_list_values(member_name=member_name,
+                                         values=typed_values,
+                                         stderr_file=stderr_file)
         return member_value
 
 
-class ListOrderingValidator(MemberValidator,  # pylint: disable=too-few-public-methods # noqa: E501
-                            Generic[Basictype]):
+# pylint: disable-next=too-few-public-methods
+class ListOrderingValidator(MemberValidator, Generic[Basictype]):
     """Normalize one list by ordering, reversing, and deduplicating it."""
 
-    def __init__(self,  # pylint: disable=too-many-arguments, too-many-positional-arguments # noqa: E501
-                 element_type: type[Basictype],
-                 order: bool = True, reverse: bool = False,
-                 keep_only_unique: bool = False,
+    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
+    def __init__(self, element_type: type[Basictype], order: bool = True,
+                 reverse: bool = False, keep_only_unique: bool = False,
                  lt_comparator: Callable[[Basictype, Basictype], bool] =
                  operator_lt) -> None:
         """Initialize the validator.
@@ -620,7 +612,7 @@ class ListOrderingValidator(MemberValidator,  # pylint: disable=too-few-public-m
         Raises:
             TypeError: If ``element_type`` is unsupported.
         """
-        _validate_supported_list_element_type(element_type)
+        _validate_list_element_type(element_type)
         self.element_type: type[Basictype] = element_type
         self.order: bool = order
         self.reverse: bool = reverse
@@ -655,9 +647,9 @@ class ListOrderingValidator(MemberValidator,  # pylint: disable=too-few-public-m
                 not self.keep_only_unique:
             return member_value
         if self.order:
-            result = _sort_list_values(
-                values=typed_values, lt_comparator=self.lt_comparator,
-                reverse=self.reverse)
+            result = _sort_list_values(values=typed_values,
+                                       lt_comparator=self.lt_comparator,
+                                       reverse=self.reverse)
         else:
             result = list(typed_values)
             if self.reverse:
@@ -776,8 +768,7 @@ class ListForEachValidator(MemberValidator):  # pylint: disable=too-few-public-m
         self.element_type: Optional[type[object]] = element_type
 
     def _validate_element_type(self, member_name: str, index: int,
-                               element: object,
-                               stderr_file: TextIO) -> None:
+                               element: object, stderr_file: TextIO) -> None:
         """Check one element's type when ``element_type`` is configured.
 
         Args:
@@ -824,14 +815,14 @@ class ListForEachValidator(MemberValidator):  # pylint: disable=too-few-public-m
             InvalidConfigurationValue: If a supplied validator raised
                 ``InvalidConfigurationValue``.
         """
-        raw_list = _validate_list_member_value(
-            member_name=member_name, member_value=member_value,
-            stderr_file=stderr_file)
+        raw_list = _validate_list_member_value(member_name=member_name,
+                                               member_value=member_value,
+                                               stderr_file=stderr_file)
         result: list[object] = []
         for index, element in enumerate(raw_list):
-            self._validate_element_type(
-                member_name=member_name, index=index, element=element,
-                stderr_file=stderr_file)
+            self._validate_element_type(member_name=member_name, index=index,
+                                        element=element,
+                                        stderr_file=stderr_file)
             element_name = f'{member_name}[{index}]'
             current: object = element
             for validator in self.element_validators:
@@ -874,8 +865,7 @@ class ListOfDictsKeysValidator(MemberValidator):  # pylint: disable=too-few-publ
                 allow_extra_dict_keys=allow_extra_dict_keys)],
             element_type=dict)
 
-    def validate_member(self, config: Config,
-                        member_name: str,
+    def validate_member(self, config: Config, member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate one list-of-dicts member against the configured keys.
@@ -894,6 +884,7 @@ class ListOfDictsKeysValidator(MemberValidator):  # pylint: disable=too-few-publ
                 not a dict, one dict misses a mandatory key, or one dict has
                 an unknown key while ``allow_extra_dict_keys`` is ``False``.
         """
-        return self._validator.validate_member(
-            config=config, member_name=member_name,
-            member_value=member_value, stderr_file=stderr_file)
+        return self._validator.validate_member(config=config,
+                                               member_name=member_name,
+                                               member_value=member_value,
+                                               stderr_file=stderr_file)

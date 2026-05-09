@@ -29,8 +29,7 @@ def _print_dict_differs(msg: str, lhs: Mapping[str, object],
     print(f'{msg}\n' +
           f'Number of keys in left dict: {len(lhs)}\n' +
           f'Number of keys in right dict: {len(rhs)}\n' +
-          f' left dict: {str(lhs)}\nright dict: {str(rhs)}',
-          file=stderr_file)
+          f' left dict: {str(lhs)}\nright dict: {str(rhs)}', file=stderr_file)
 
 
 def assert_dict_equal(lhs: Mapping[str, object], rhs: Mapping[str, object],
@@ -63,8 +62,8 @@ def assert_dict_equal(lhs: Mapping[str, object], rhs: Mapping[str, object],
         if key in rhs_val:
             del rhs_val[key]
     if len(lhs_val) != len(rhs_val):
-        _print_dict_differs('Different number of keys in dicts',
-                            lhs_val, rhs_val, stderr_file)
+        _print_dict_differs('Different number of keys in dicts', lhs_val,
+                            rhs_val, stderr_file)
     assert len(lhs_val) == len(rhs_val)
     for key, value in lhs_val.items():
         if key not in rhs_val:

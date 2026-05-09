@@ -32,8 +32,7 @@ def valid_char_encoding(enc: str) -> bool:
     return True
 
 
-def check_char_encoding(enc: str,
-                        stderr_file: TextIO = sys.stderr) -> None:
+def check_char_encoding(enc: str, stderr_file: TextIO = sys.stderr) -> None:
     """Fail fast when a named character encoding is not recognized.
 
     Args:

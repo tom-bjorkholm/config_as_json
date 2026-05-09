@@ -219,11 +219,10 @@ class ValueTypeValidator(MemberValidator):
         Raises:
             TypeError: If ``value_type`` is not a type.
         """
-        self.value_type: type[object] = _validate_type_argument(
-            value_type, 'value_type')
+        self.value_type: type[object] = _validate_type_argument(value_type,
+                                                                'value_type')
 
-    def validate_member(self, config: 'Config',
-                        member_name: str,
+    def validate_member(self, config: 'Config', member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate one member's runtime type.
@@ -427,8 +426,7 @@ class StrValidator(MemberValidator):
         self.best_match: bool = best_match
         self.normalize: bool = normalize
 
-    def validate_member(self, config: 'Config',
-                        member_name: str,
+    def validate_member(self, config: 'Config', member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate the aspect of the Config object for a specific str member.
@@ -472,8 +470,8 @@ class StrValidator(MemberValidator):
                     return allowed_value
                 return member_value
         if self.best_match:
-            return string_best_match(member_value, allowed_values,
-                                     member_name, stderr_file)
+            return string_best_match(member_value, allowed_values, member_name,
+                                     stderr_file)
         msg = not_one_of_allowed_values(member_name, member_value,
                                         allowed_values, stderr_file)
         raise InvalidConfigurationValue(member_name, member_value,
@@ -529,8 +527,7 @@ def _validated_constraint_vtype(min_value: Optional[ConstraintValue],
     if value_type is None and allowed_values is not None:
         assert allowed_values is not None
         value_type = _get_allowed_values_type(allowed_values)
-        _ = _validate_allowed_values_sequence(allowed_values,
-                                              value_type)
+        _ = _validate_allowed_values_sequence(allowed_values, value_type)
     assert value_type is not None  # logically impossible
     if max_value is not None and not isinstance(max_value, value_type):
         msg = 'max_value must be of type ' + value_type.__name__
@@ -546,8 +543,7 @@ def _validated_constraint_vtype(min_value: Optional[ConstraintValue],
     return value_type
 
 
-def _get_allowed_values_type(
-        allowed_values: object) -> type[ConstraintValue]:
+def _get_allowed_values_type(allowed_values: object) -> type[ConstraintValue]:
     """Return the type of the first value in a non-empty sequence."""
     if not isinstance(allowed_values, SequenceABC):
         raise TypeError('allowed_values must be a sequence.')
@@ -651,8 +647,7 @@ class IntFloatValidator(MemberValidator, Generic[IntFloat]):
             Sequence[IntFloat] | Callable[[], Sequence[IntFloat]]] = \
             allowed_values
 
-    def validate_member(self, config: 'Config',
-                        member_name: str,
+    def validate_member(self, config: 'Config', member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate the aspect of the Config object for a specific member.
@@ -696,8 +691,7 @@ class IntFloatValidator(MemberValidator, Generic[IntFloat]):
         if allowed_values is not None:
             if value not in allowed_values:
                 _ = not_one_of_allowed_values(member_name, value,
-                                              allowed_values,
-                                              stderr_file)
+                                              allowed_values, stderr_file)
                 raise InvalidConfigurationValue(member_name, value,
                                                 allowed_values)
         return value
@@ -806,8 +800,8 @@ class CallingMemberValidator(MemberValidator):
             ValueError: If one argument name is empty or would overwrite
                 another generated argument.
         """
-        self.method_name: str = _validate_non_empty_str_argument(
-            method_name, 'method_name')
+        self.method_name: str = _validate_non_empty_str_argument(method_name,
+                                                                 'method_name')
         self.arg_name_value: str = _validate_non_empty_str_argument(
             arg_name_value, 'arg_name_value')
         if arg_name_member_name is None:
@@ -832,8 +826,7 @@ class CallingMemberValidator(MemberValidator):
             raise TypeError('normalizing must be a bool.')
         self.normalizing: bool = normalizing
 
-    def validate_member(self, config: 'Config',
-                        member_name: str,
+    def validate_member(self, config: 'Config', member_name: str,
                         member_value: object,
                         stderr_file: TextIO = sys.stderr) -> Optional[object]:
         """Validate one member by calling a method of the Config object.
