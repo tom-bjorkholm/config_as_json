@@ -1,5 +1,4 @@
 #! /usr/local/bin/python3
-# mypy: disable-error-code=no-untyped-def
 """Test validator-based helper configurations beside the legacy ones."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -8,8 +7,11 @@
 import sys
 import json
 from io import StringIO
+from typing import Any, cast
 import pytest
+from pytest import CaptureFixture
 from config_as_json.assert_dict_equal import assert_dict_equal
+from config_as_json.config import Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.validator import InvalidConfiguration
 from .config_xls_list_transf_name import ConfigXlsListTransfName
@@ -20,13 +22,13 @@ from .config_xls_list_transf_num_validated import \
     ConfigXlsListTransfNumValidated
 
 
-def assert_cfg_equal(left, right) -> None:
+def assert_cfg_equal(left: Config, right: Config) -> None:
     """Assert equality of two config objects except for hook identity."""
     assert_dict_equal(left.__dict__, right.__dict__, ['_hook_cfg_autochange'],
                       stderr_file=sys.stderr)
 
 
-def test_validated_name_cfg_matches_legacy_default(capsys):
+def test_name_cfg_default(capsys: CaptureFixture[str]) -> None:
     """Test validated helper config against legacy default config."""
     refcfg = ConfigXlsListTransfName()
     cfg = ConfigXlsListTransfNameValidated()
@@ -36,7 +38,7 @@ def test_validated_name_cfg_matches_legacy_default(capsys):
     assert err == ''
 
 
-def test_validated_num_cfg_matches_legacy_default(capsys):
+def test_num_cfg_default(capsys: CaptureFixture[str]) -> None:
     """Test validated helper config against legacy default config."""
     refcfg = ConfigXlsListTransfNum()
     cfg = ConfigXlsListTransfNumValidated()
@@ -46,7 +48,7 @@ def test_validated_num_cfg_matches_legacy_default(capsys):
     assert err == ''
 
 
-def test_validated_name_cfg_matches_legacy_compat_file(capsys):
+def test_name_cfg_compat_file(capsys: CaptureFixture[str]) -> None:
     """Test validated name config against legacy parsing of compat file."""
     filename = 'test/test_config_as_json/bak_compat_0_7_13_name.cfg'
     refcfg = ConfigXlsListTransfName(from_json_filename=filename,
@@ -59,7 +61,7 @@ def test_validated_name_cfg_matches_legacy_compat_file(capsys):
     assert err == ''
 
 
-def test_validated_num_cfg_matches_legacy_compat_file(capsys):
+def test_num_cfg_compat_file(capsys: CaptureFixture[str]) -> None:
     """Test validated number config against legacy parsing of compat file."""
     filename = 'test/test_config_as_json/bak_compat_0_7_13_number.cfg'
     refcfg = ConfigXlsListTransfNum(from_json_filename=filename,
@@ -72,7 +74,7 @@ def test_validated_num_cfg_matches_legacy_compat_file(capsys):
     assert err == ''
 
 
-def test_legacy_name_cfg_uses_supplied_stderr_file(capsys):
+def test_legacy_name_stderr(capsys: CaptureFixture[str]) -> None:
     """Test legacy helper diagnostics with an explicitly supplied stream."""
     template = ConfigXlsListTransfName()
     template.s07_rename_columns[0]['column'] = 'last name'
@@ -91,7 +93,7 @@ def test_legacy_name_cfg_uses_supplied_stderr_file(capsys):
         stderr_file.getvalue()
 
 
-def test_validated_name_cfg_uses_supplied_stderr_file(capsys):
+def test_validated_name_stderr(capsys: CaptureFixture[str]) -> None:
     """Test validated helper diagnostics with an explicitly supplied stream."""
     template = ConfigXlsListTransfNameValidated()
     template.s07_rename_columns[0]['extra'] = 'boom'
@@ -108,11 +110,13 @@ def test_validated_name_cfg_uses_supplied_stderr_file(capsys):
         stderr_file.getvalue()
 
 
-def test_validated_name_cfg_reports_duplicate_single_columns(capsys):
+def test_name_cfg_duplicate_columns(capsys: CaptureFixture[str]) -> None:
     """Test validated helper catches duplicate single-column rules."""
     template = ConfigXlsListTransfNameValidated()
     stderr_file = StringIO()
-    json_data = json.loads(template.as_json_string(stderr_file=stderr_file))
+    json_data = cast(dict[str, Any],
+                     json.loads(template.as_json_string(
+                         stderr_file=stderr_file)))
     json_data['s07_rename_columns'][0]['column'] = 'last name'
     with pytest.raises(InvalidConfiguration):
         _ = ConfigXlsListTransfNameValidated(
@@ -124,11 +128,13 @@ def test_validated_name_cfg_reports_duplicate_single_columns(capsys):
     assert 'duplicates the value at index 0' in stderr_file.getvalue()
 
 
-def test_validated_num_cfg_reports_decreasing_merge_columns(capsys):
+def test_num_cfg_decreasing_merge(capsys: CaptureFixture[str]) -> None:
     """Test validated helper catches decreasing merge-column rules."""
     template = ConfigXlsListTransfNumValidated()
     stderr_file = StringIO()
-    json_data = json.loads(template.as_json_string(stderr_file=stderr_file))
+    json_data = cast(dict[str, Any],
+                     json.loads(template.as_json_string(
+                         stderr_file=stderr_file)))
     json_data['s05_merge_columns'][0]['columns'] = [2, 1]
     with pytest.raises(InvalidConfiguration):
         _ = ConfigXlsListTransfNumValidated(

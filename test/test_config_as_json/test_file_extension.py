@@ -1,5 +1,4 @@
 #! /usr/local/bin/python3
-# mypy: disable-error-code=no-untyped-def
 """Test the config_as_json file extension utility functionality."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -10,6 +9,7 @@
 
 from copy import deepcopy
 import pytest
+from pytest import CaptureFixture
 from config_as_json.file_extension import fix_file_extension
 
 
@@ -23,7 +23,8 @@ from config_as_json.file_extension import fix_file_extension
                           ('/bin/ls/b', '.bo', '.fo', True, '/bin/ls/b.bo'),
                           ('/bin/ls/b', '.bo', '.fo', False, '/bin/ls/b.bo')])
 # pylint: disable-next=R0913,R0917,C0301
-def test_file_extension_1(capsys, fil, add, rem, readp, res):
+def test_file_extension_1(capsys: CaptureFixture[str], fil: str, add: str,
+                          rem: str, readp: bool, res: str) -> None:
     """Test fix_file_extension."""
     filn = deepcopy(fil)
     addn = deepcopy(add)
