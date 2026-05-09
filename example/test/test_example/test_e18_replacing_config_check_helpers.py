@@ -12,32 +12,29 @@ import example.e18_replacing_config_check_helpers as e18_module
 from example.cmd_line_handling import SetValues
 from example.e18_replacing_config_check_helpers import ExampleConfig18
 from example.e18_replacing_config_check_helpers import \
-    e18_replacing_config_check_helpers_print
+    e18_replacing_config_check_helpers_print as e18_print
 from example.e18_replacing_config_check_helpers import \
-    e18_replacing_config_check_helpers_set
+    e18_replacing_check_helpers_set
 from example.e18_replacing_config_check_helpers import main as e18_main
 from .helpers import ExampleProgramSpec
-from .helpers import assert_main_round_trip_print_output
-from .helpers import assert_print_command_reports_validator_error
+from .helpers import assert_rt_out
+from .helpers import assert_print_validator_error
 from .helpers import assert_write_command_output
 
+E18_CONFIG_BASENAME = 'replacing_config_check_helpers.cfg'
 
-E18_SPEC = ExampleProgramSpec(
-    module=e18_module,
-    factory_name='ExampleConfig18',
-    config_factory=ExampleConfig18,
-    set_command=e18_replacing_config_check_helpers_set,
-    print_command=e18_replacing_config_check_helpers_print,
-    config_basename='replacing_config_check_helpers.cfg'
-)
-
+E18_SPEC = ExampleProgramSpec(module=e18_module,
+                              factory_name='ExampleConfig18',
+                              config_factory=ExampleConfig18,
+                              set_command=e18_replacing_check_helpers_set,
+                              print_command=e18_print,
+                              config_basename=E18_CONFIG_BASENAME)
 
 DEFAULT_DATA: dict[str, object] = {
     'column_mappings': [{'column': 'first_name', 'source': 'First Name'}],
     'merge_rules': [{'columns': ['first_name', 'last_name'],
                      'separator': ' '}],
-    'rewrite_rules': [{'kind': 'strip', 'column': 'phone', 'chars': ' '}]
-}
+    'rewrite_rules': [{'kind': 'strip', 'column': 'phone', 'chars': ' '}]}
 """Default values stored by the helper-replacement example."""
 
 
@@ -53,7 +50,7 @@ def test_e18_set_uses_defaults_when_no_overrides(
     """Write the default helper-replacement configuration."""
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/replacing_config_check_helpers.cfg'
-        e18_replacing_config_check_helpers_set({}, config_file)
+        e18_replacing_check_helpers_set({}, config_file)
         config = ExampleConfig18(from_json_filename=config_file)
         json_data = read_json_data(config_file)
     assert_write_command_output(capsys, config_file)
@@ -66,27 +63,28 @@ def test_e18_set_uses_defaults_when_no_overrides(
 def test_e18_set_accepts_extra_keys_and_normalizes_kind(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Accept open dict shapes and normalize discriminated rule kinds."""
-    set_values = cast(SetValues, {
-        'column_mappings': [{
-            'column': 'first_name',
-            'source': 'First Name',
-            'display_order': 1
-        }],
-        'merge_rules': [{
-            'columns': ['first_name', 'last_name'],
-            'separator': ' ',
-            'label': 'full_name'
-        }],
-        'rewrite_rules': [{
-            'kind': 'REMOVE_CHARS',
-            'column': 'phone',
-            'chars': [' ', '-'],
-            'comment': 'digits only'
-        }]
-    })
+    set_values = cast(
+        SetValues, {
+            'column_mappings': [{
+                'column': 'first_name',
+                'source': 'First Name',
+                'display_order': 1
+            }],
+            'merge_rules': [{
+                'columns': ['first_name', 'last_name'],
+                'separator': ' ',
+                'label': 'full_name'
+            }],
+            'rewrite_rules': [{
+                'kind': 'REMOVE_CHARS',
+                'column': 'phone',
+                'chars': [' ', '-'],
+                'comment': 'digits only'
+            }]
+        })
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/replacing_config_check_helpers.cfg'
-        e18_replacing_config_check_helpers_set(set_values, config_file)
+        e18_replacing_check_helpers_set(set_values, config_file)
         config = ExampleConfig18(from_json_filename=config_file)
     assert_write_command_output(capsys, config_file)
     assert config.column_mappings[0]['display_order'] == 1
@@ -105,13 +103,11 @@ def test_e18_print_reports_missing_column_mapping_key(
     """Reject a mapping row that lacks the required scalar key."""
     data = dict(DEFAULT_DATA)
     data['column_mappings'] = [{'source': 'First Name'}]
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E18_SPEC,
-        data,
-        ['column_mappings[0]', "Mandatory key 'column'", 'missing']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E18_SPEC, data, [
+        'column_mappings[0]',
+        "Mandatory key 'column'",
+        'missing',
+    ])
 
 
 def test_e18_print_reports_column_mapping_type_error(
@@ -120,13 +116,10 @@ def test_e18_print_reports_column_mapping_type_error(
     """Reject a mapping row whose required key has the wrong type."""
     data = dict(DEFAULT_DATA)
     data['column_mappings'] = [{'column': 3, 'source': 'First Name'}]
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E18_SPEC,
-        data,
-        ['column_mappings[0][column]', 'not of type str']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E18_SPEC, data, [
+        'column_mappings[0][column]',
+        'not of type str',
+    ])
 
 
 def test_e18_print_reports_empty_merge_columns(
@@ -135,13 +128,11 @@ def test_e18_print_reports_empty_merge_columns(
     """Reject a merge rule whose checked list is too short."""
     data = dict(DEFAULT_DATA)
     data['merge_rules'] = [{'columns': [], 'separator': ' '}]
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E18_SPEC,
-        data,
-        ['merge_rules[0][columns]', 'size 0', 'minimum 1']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E18_SPEC, data, [
+        'merge_rules[0][columns]',
+        'size 0',
+        'minimum 1',
+    ])
 
 
 def test_e18_print_reports_merge_column_type_error(
@@ -150,13 +141,11 @@ def test_e18_print_reports_merge_column_type_error(
     """Reject a checked inner list that contains the wrong value type."""
     data = dict(DEFAULT_DATA)
     data['merge_rules'] = [{'columns': ['first_name', 4], 'separator': ' '}]
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E18_SPEC,
-        data,
-        ['merge_rules[0][columns]', 'index 1', 'not of type str']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E18_SPEC, data, [
+        'merge_rules[0][columns]',
+        'index 1',
+        'not of type str',
+    ])
 
 
 def test_e18_print_reports_missing_rewrite_variant_key(
@@ -169,13 +158,11 @@ def test_e18_print_reports_missing_rewrite_variant_key(
         'column': 'country',
         'from': 'SE'
     }]
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E18_SPEC,
-        data,
-        ['rewrite_rules[0]', "Mandatory key 'to'", 'missing']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E18_SPEC, data, [
+        'rewrite_rules[0]',
+        "Mandatory key 'to'",
+        'missing',
+    ])
 
 
 def test_e18_print_reports_rewrite_variant_type_error(
@@ -188,13 +175,8 @@ def test_e18_print_reports_rewrite_variant_type_error(
         'column': 'phone',
         'chars': ' -'
     }]
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E18_SPEC,
-        data,
-        ['rewrite_rules[0][chars]', 'not a list']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E18_SPEC, data,
+                                 ['rewrite_rules[0][chars]', 'not a list'])
 
 
 def test_e18_main_round_trip_with_json_overrides(
@@ -203,19 +185,19 @@ def test_e18_main_round_trip_with_json_overrides(
     column_mappings = '[{"column":"first_name","source":"First Name"}]'
     merge_rules = '[{"columns":["first_name","last_name"],"separator":" "}]'
     rewrite_rules = (
-        '[{"kind":"REPLACE","column":"country","from":"SE","to":"Sweden"}]'
-    )
-    assert_main_round_trip_print_output(
-        capsys,
-        e18_main,
-        'replacing_config_check_helpers.cfg',
-        ['--column-mappings', column_mappings,
-         '--merge-rules', merge_rules,
-         '--rewrite-rules', rewrite_rules],
-        ["Column mappings: [{'column': 'first_name', "
-         "'source': 'First Name'}]",
-         "Merge rules: [{'columns': ['first_name', 'last_name'], "
-         "'separator': ' '}]",
-         "Rewrite rules: [{'column': 'country', 'from': 'SE', "
-         "'kind': 'replace', 'to': 'Sweden'}]"]
-    )
+        '[{"kind":"REPLACE","column":"country","from":"SE","to":"Sweden"}]')
+    assert_rt_out(capsys, e18_main, 'replacing_config_check_helpers.cfg', [
+        '--column-mappings',
+        column_mappings,
+        '--merge-rules',
+        merge_rules,
+        '--rewrite-rules',
+        rewrite_rules,
+    ], [
+        "Column mappings: [{'column': 'first_name', "
+        "'source': 'First Name'}]",
+        "Merge rules: [{'columns': ['first_name', 'last_name'], "
+        "'separator': ' '}]",
+        "Rewrite rules: [{'column': 'country', 'from': 'SE', "
+        "'kind': 'replace', 'to': 'Sweden'}]",
+    ])

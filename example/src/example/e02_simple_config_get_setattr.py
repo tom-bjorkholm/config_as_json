@@ -107,8 +107,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e02_simple_config_get_setattr',
                       input_specs=INPUT_SPECS,
                       set_command=e02_simple_config_set,
-                      print_command=e02_simple_config_print,
-                      args=args)
+                      print_command=e02_simple_config_print, args=args)
 
 
 if __name__ == '__main__':

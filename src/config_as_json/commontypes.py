@@ -10,7 +10,8 @@ input.
 
 from pathlib import Path
 # imports needed by mypy, but not by python:
-from typing import Union, List, Dict  # pylint: disable=unused-import,ungrouped-imports # noqa: E501
+# pylint: disable-next=unused-import,ungrouped-imports
+from typing import Union, List, Dict
 
 
 type PathOrStr = Path | str

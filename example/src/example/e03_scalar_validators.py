@@ -108,18 +108,14 @@ class ExampleConfig(Config):
         #
         # Using MemberValidationStep makes it easy to apply one validator
         # class to one or several configuration attributes.
-        return [MemberValidationStep(
-                    member_names=['number_of_iterations'],
-                    validator=num_iter_validator),
-                MemberValidationStep(
-                    member_names=['estimate'],
-                    validator=estimate_validator),
-                MemberValidationStep(
-                    member_names=['confidence'],
-                    validator=confidence_validator),
-                MemberValidationStep(
-                    member_names=['issue_type'],
-                    validator=issue_type_validator)]
+        return [MemberValidationStep(member_names=['number_of_iterations'],
+                                     validator=num_iter_validator),
+                MemberValidationStep(member_names=['estimate'],
+                                     validator=estimate_validator),
+                MemberValidationStep(member_names=['confidence'],
+                                     validator=confidence_validator),
+                MemberValidationStep(member_names=['issue_type'],
+                                     validator=issue_type_validator)]
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading JSON.
@@ -209,8 +205,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e03_scalar_validators',
                       input_specs=INPUT_SPECS,
                       set_command=e03_scalar_validators_set,
-                      print_command=e03_scalar_validators_print,
-                      args=args)
+                      print_command=e03_scalar_validators_print, args=args)
 
 
 if __name__ == '__main__':

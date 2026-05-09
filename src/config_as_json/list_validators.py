@@ -371,7 +371,8 @@ class ListValueValidator(MemberValidator, Generic[Basictype]):
         return member_value
 
 
-class ListSizeValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class ListSizeValidator(MemberValidator):
     """Validate that a list length stays within mandatory size bounds."""
 
     def __init__(self, min_size: int, max_size: int) -> None:
@@ -432,7 +433,8 @@ class ListSizeValidator(MemberValidator):  # pylint: disable=too-few-public-meth
         return member_value
 
 
-class ListValueTypeValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class ListValueTypeValidator(MemberValidator):
     """Validate that a member is a list with one element runtime type."""
 
     def __init__(self, element_type: type[object]) -> None:
@@ -694,7 +696,8 @@ def _validate_for_each_element_type(
         raise TypeError('element_type must be a type or None.')
 
 
-class ListForEachValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class ListForEachValidator(MemberValidator):
     """Apply a sequence of inner validators to each element of a list.
 
     This validator is the general composition mechanism for list members.
@@ -833,7 +836,8 @@ class ListForEachValidator(MemberValidator):  # pylint: disable=too-few-public-m
         return result
 
 
-class ListOfDictsKeysValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class ListOfDictsKeysValidator(MemberValidator):
     """Validate the keys of every dict element in a list member.
 
     This is the dedicated predefined validator for the common "list of

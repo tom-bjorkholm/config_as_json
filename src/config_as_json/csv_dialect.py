@@ -191,7 +191,8 @@ def _normalized_csv_dialect_config(member_name: str, member_value: object,
             'escapechar': normalized.get('escapechar')}
 
 
-class CsvDialectValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class CsvDialectValidator(MemberValidator):
     """Validate one CSV dialect configuration dictionary.
 
     The member value must be a ``dict[str, Optional[str]]``. No keys other

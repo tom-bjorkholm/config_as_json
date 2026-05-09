@@ -49,10 +49,10 @@ def test_validated_num_cfg_matches_legacy_default(capsys):
 def test_validated_name_cfg_matches_legacy_compat_file(capsys):
     """Test validated name config against legacy parsing of compat file."""
     filename = 'test/test_config_as_json/bak_compat_0_7_13_name.cfg'
-    refcfg = ConfigXlsListTransfName(
-        from_json_filename=filename, auto_ch_hook=ConfigAutoChangeHook())
-    cfg = ConfigXlsListTransfNameValidated(
-        from_json_filename=filename, auto_ch_hook=ConfigAutoChangeHook())
+    refcfg = ConfigXlsListTransfName(from_json_filename=filename,
+                                     auto_ch_hook=ConfigAutoChangeHook())
+    cfg = ConfigXlsListTransfNameValidated(from_json_filename=filename,
+                                           auto_ch_hook=ConfigAutoChangeHook())
     out, err = capsys.readouterr()
     assert_cfg_equal(refcfg, cfg)
     assert out == ''
@@ -62,10 +62,10 @@ def test_validated_name_cfg_matches_legacy_compat_file(capsys):
 def test_validated_num_cfg_matches_legacy_compat_file(capsys):
     """Test validated number config against legacy parsing of compat file."""
     filename = 'test/test_config_as_json/bak_compat_0_7_13_number.cfg'
-    refcfg = ConfigXlsListTransfNum(
-        from_json_filename=filename, auto_ch_hook=ConfigAutoChangeHook())
-    cfg = ConfigXlsListTransfNumValidated(
-        from_json_filename=filename, auto_ch_hook=ConfigAutoChangeHook())
+    refcfg = ConfigXlsListTransfNum(from_json_filename=filename,
+                                    auto_ch_hook=ConfigAutoChangeHook())
+    cfg = ConfigXlsListTransfNumValidated(from_json_filename=filename,
+                                          auto_ch_hook=ConfigAutoChangeHook())
     out, err = capsys.readouterr()
     assert_cfg_equal(refcfg, cfg)
     assert out == ''
@@ -79,8 +79,8 @@ def test_legacy_name_cfg_uses_supplied_stderr_file(capsys):
     stderr_file = StringIO()
     with pytest.raises(InvalidConfiguration):
         _ = ConfigXlsListTransfName(
-            from_json_data_text=template.as_json_string(
-                stderr_file=stderr_file),
+            from_json_data_text=template.as_json_string(stderr_file=stderr_file
+                                                        ),
             stderr_file=stderr_file)
     out, err = capsys.readouterr()
     assert out == ''
@@ -98,8 +98,8 @@ def test_validated_name_cfg_uses_supplied_stderr_file(capsys):
     stderr_file = StringIO()
     with pytest.raises(InvalidConfiguration):
         _ = ConfigXlsListTransfNameValidated(
-            from_json_data_text=template.as_json_string(
-                stderr_file=stderr_file),
+            from_json_data_text=template.as_json_string(stderr_file=stderr_file
+                                                        ),
             stderr_file=stderr_file)
     out, err = capsys.readouterr()
     assert out == ''
@@ -116,8 +116,7 @@ def test_validated_name_cfg_reports_duplicate_single_columns(capsys):
     json_data['s07_rename_columns'][0]['column'] = 'last name'
     with pytest.raises(InvalidConfiguration):
         _ = ConfigXlsListTransfNameValidated(
-            from_json_data_text=json.dumps(json_data),
-            stderr_file=stderr_file)
+            from_json_data_text=json.dumps(json_data), stderr_file=stderr_file)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -133,8 +132,7 @@ def test_validated_num_cfg_reports_decreasing_merge_columns(capsys):
     json_data['s05_merge_columns'][0]['columns'] = [2, 1]
     with pytest.raises(InvalidConfiguration):
         _ = ConfigXlsListTransfNumValidated(
-            from_json_data_text=json.dumps(json_data),
-            stderr_file=stderr_file)
+            from_json_data_text=json.dumps(json_data), stderr_file=stderr_file)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''

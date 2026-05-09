@@ -90,35 +90,25 @@ class ExampleConfig13(Config):
         # are *dict validators* instead of the *list validators* that
         # ``e09_list_for_each`` used. That is the dict-in-list lesson.
         per_window_keys_validator = DictKeysValidator(
-            mandatory_keys=['name', 'hours_utc'],
-            allowed_keys=['priority']
-        )
+            mandatory_keys=['name', 'hours_utc'], allowed_keys=['priority'])
         # The per-key value rules show the list-in-dict lesson: one
         # rule contains list validators, and they validate the list
         # value stored at one dict key.
         name_rule = DictRule(
             keys=['name'],
-            validators=[StrValidator(
-                allowed_values=WINDOW_NAMES,
-                ignore_case=True,
-                normalize=True)]
-        )
-        hours_rule = DictRule(
-            keys=['hours_utc'],
-            validators=[
-                ListSizeValidator(min_size=1, max_size=24),
-                ListValueValidator(min_value=0, max_value=23,
-                                   allowed_values=None)
-            ]
-        )
+            validators=[StrValidator(allowed_values=WINDOW_NAMES,
+                                     ignore_case=True, normalize=True)])
+        hours_rule = DictRule(keys=['hours_utc'],
+                              validators=[
+                                  ListSizeValidator(min_size=1, max_size=24),
+                                  ListValueValidator(min_value=0, max_value=23,
+                                                     allowed_values=None)])
         priority_rule = DictRule(
             keys=['priority'],
             validators=[IntFloatValidator(min_value=0, max_value=9,
-                                          allowed_values=None)]
-        )
+                                          allowed_values=None)])
         per_window_values_validator = DictForEachValidator(
-            rules=[name_rule, hours_rule, priority_rule]
-        )
+            rules=[name_rule, hours_rule, priority_rule])
         # ``ListForEachValidator`` accepts any ``MemberValidator`` as
         # an element validator. Here we pass two of them: first the
         # dict-keys check, then the per-key value check. This mirrors
@@ -126,18 +116,16 @@ class ExampleConfig13(Config):
         per_window_validator = ListForEachValidator(
             element_validators=[per_window_keys_validator,
                                 per_window_values_validator],
-            element_type=dict
-        )
-        return [MemberValidationStep(
-                    member_names=['maintenance_windows'],
-                    validator=outer_size_validator),
-                MemberValidationStep(
-                    member_names=['maintenance_windows'],
-                    validator=per_window_validator)]
+            element_type=dict)
+        return [MemberValidationStep(member_names=['maintenance_windows'],
+                                     validator=outer_size_validator),
+                MemberValidationStep(member_names=['maintenance_windows'],
+                                     validator=per_window_validator)]
 
 
-def e13_list_of_dicts_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e13_list_of_dicts_set(set_values: SetValues,
+                          config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -157,8 +145,8 @@ def e13_list_of_dicts_set(  # pylint: disable=duplicate-code
         pass  # Error already printed by the Config object.
 
 
-def e13_list_of_dicts_print(  # pylint: disable=duplicate-code
-        config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e13_list_of_dicts_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show how the values are used.
 
     Args:
@@ -212,8 +200,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e13_list_of_dicts',
                       input_specs=INPUT_SPECS,
                       set_command=e13_list_of_dicts_set,
-                      print_command=e13_list_of_dicts_print,
-                      args=args)
+                      print_command=e13_list_of_dicts_print, args=args)
 
 
 if __name__ == '__main__':

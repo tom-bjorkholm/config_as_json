@@ -69,16 +69,13 @@ type NoDupKeydType[Column] = \
     Rule[Column] | RuleMerge[Column] | RuleSplit[Column]
 
 
-def check_unique_values(config: Config, values: list[Column],
-                        param_name: str, tinfo: Column,
-                        stderr_file: TextIO) -> None:
+def check_unique_values(config: Config, values: list[Column], param_name: str,
+                        tinfo: Column, stderr_file: TextIO) -> None:
     """Flag as error if a value occurs more than once."""
-    validator = ListIsOrderedValidator(
-        element_type=type(tinfo), is_ordered=False,
-        unique_values=True)
-    _ = validator.validate_member(
-        config=config, member_name=param_name, member_value=values,
-        stderr_file=stderr_file)
+    validator = ListIsOrderedValidator(element_type=type(tinfo),
+                                       is_ordered=False, unique_values=True)
+    _ = validator.validate_member(config=config, member_name=param_name,
+                                  member_value=values, stderr_file=stderr_file)
 
 
 class ColInfo(NamedTuple, Generic[Column]):
@@ -93,12 +90,13 @@ class ColInfo(NamedTuple, Generic[Column]):
     tinfo: Column
 
 
-class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-many-instance-attributes, line-too-long # noqa: E501
+# pylint: disable-next=too-many-instance-attributes,line-too-long
+class ConfigExcelListTransform(Config, Generic[Column]):
     """Class with configuration for excel list transform."""
 
-    def __init__(self, *, col_ref: ColumnRef,  # pylint: disable=too-many-arguments # noqa: E501
-                 colinfo: ColInfo[Column], tinfo: Column,
-                 from_json_data_text: Optional[str] = None,
+    # pylint: disable-next=too-many-arguments
+    def __init__(self, *, col_ref: ColumnRef, colinfo: ColInfo[Column],
+                 tinfo: Column, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
@@ -167,30 +165,24 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
               'case': CaseSensitivity.IGNORE_CASE}]
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook,
-                         stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
         self.check_array_configs(split_last=colinfo.split_last,
                                  insert_last=colinfo.insert_last,
                                  stderr_file=stderr_file)
         self.sort_sx_hook()
         self._check_no_duplicate_single(self.s03_split_columns,
-                                        's03_split_columns',
-                                        colinfo.tinfo,
+                                        's03_split_columns', colinfo.tinfo,
                                         stderr_file=stderr_file)
         self._check_no_duplicate_single(self.s07_rename_columns,
-                                        's07_rename_columns',
-                                        colinfo.tinfo,
+                                        's07_rename_columns', colinfo.tinfo,
                                         stderr_file=stderr_file)
         self._check_no_duplicate_single(self.s08_insert_columns,
-                                        's08_insert_columns',
-                                        colinfo.tinfo,
+                                        's08_insert_columns', colinfo.tinfo,
                                         stderr_file=stderr_file)
         self.check_rewrite_configs(coltype=type(colinfo.tinfo),
                                    stderr_file=stderr_file)
-        check_char_encoding(self.in_csv_encoding,
-                            stderr_file=stderr_file)
-        check_char_encoding(self.out_csv_encoding,
-                            stderr_file=stderr_file)
+        check_char_encoding(self.in_csv_encoding, stderr_file=stderr_file)
+        check_char_encoding(self.out_csv_encoding, stderr_file=stderr_file)
         self.check_split_row_cfg(stderr_file=stderr_file)
         self.check_merge_row_cfg(stderr_file=stderr_file)
 
@@ -241,27 +233,20 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
     def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
         """Get names of backward compatible config parameters."""
         return [
-            RocfKeyRename(old='s1_split_columns',
-                          new='s03_split_columns'),
-            RocfKeyRename(old='s2_remove_columns',
-                          new='s04_remove_columns'),
-            RocfKeyRename(old='s3_merge_columns',
-                          new='s05_merge_columns'),
+            RocfKeyRename(old='s1_split_columns', new='s03_split_columns'),
+            RocfKeyRename(old='s2_remove_columns', new='s04_remove_columns'),
+            RocfKeyRename(old='s3_merge_columns', new='s05_merge_columns'),
             RocfKeyRename(old='s4_place_columns_first',
                           new='s06_place_columns_first'),
-            RocfKeyRename(old='s5_rename_columns',
-                          new='s07_rename_columns'),
-            RocfKeyRename(old='s6_insert_columns',
-                          new='s08_insert_columns'),
-            RocfKeyRename(old='s7_rewrite_columns',
-                          new='s09_rewrite_columns'),
+            RocfKeyRename(old='s5_rename_columns', new='s07_rename_columns'),
+            RocfKeyRename(old='s6_insert_columns', new='s08_insert_columns'),
+            RocfKeyRename(old='s7_rewrite_columns', new='s09_rewrite_columns'),
             RocfKeyRename(old='s8_column_order', new='s10_column_order')
         ]
 
     @staticmethod
     def get_cols_single(rule: Rule[Column] | RuleSplit[Column] |
-                        RuleRewrite[Column],
-                        tinfo: Column) -> list[Column]:
+                        RuleRewrite[Column], tinfo: Column) -> list[Column]:
         """Get list of columns for modification rule."""
         cols: list[Column] = []
         for row in rule:
@@ -271,8 +256,7 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
         return cols
 
     @staticmethod
-    def get_cols_multi(rule: RuleMerge[Column],
-                       tinfo: Column) -> list[Column]:
+    def get_cols_multi(rule: RuleMerge[Column], tinfo: Column) -> list[Column]:
         """Get list of columns for merge rule."""
         cols: list[Column] = []
         for row in rule:
@@ -282,9 +266,8 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                 cols.append(singlecol)
         return cols
 
-    def _check_no_duplicate_values(self, values: list[Column],
-                                   param_name: str, tinfo: Column,
-                                   stderr_file: TextIO) -> None:
+    def _check_no_duplicate_values(self, values: list[Column], param_name: str,
+                                   tinfo: Column, stderr_file: TextIO) -> None:
         """Flag as error if a value occurs more than once."""
         check_unique_values(self, values, param_name, tinfo, stderr_file)
 
@@ -321,8 +304,7 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
 
     @staticmethod
     def _check_increasing_multi(rule: RuleMerge[Column], param_name: str,
-                                tinfo: Column,
-                                stderr_file: TextIO) -> None:
+                                tinfo: Column, stderr_file: TextIO) -> None:
         """Flag as error if order is not increasing.
 
         Args:
@@ -369,8 +351,7 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
                 'case': self.get_converter_dict(CaseSensitivity),
                 'column_ref': self.get_converter_dict(ColumnRef)}
 
-    def check_array_configs(self, split_last: str,
-                            insert_last: Optional[str],
+    def check_array_configs(self, split_last: str, insert_last: Optional[str],
                             stderr_file: TextIO) -> None:
         """Check that keywords in configuration arrays are OK.
 
@@ -387,15 +368,13 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             self, 's05_merge_columns', self.s05_merge_columns, stderr_file)
         rename_col_keys = ['column', 'name']
         _ = ListOfDictsKeysValidator(rename_col_keys).validate_member(
-            self, 's07_rename_columns', self.s07_rename_columns,
-            stderr_file)
+            self, 's07_rename_columns', self.s07_rename_columns, stderr_file)
         insert_col_keys = ['column', 'value']
         if insert_last is not None:
             assert insert_last is not None  # keep mypy happy
             insert_col_keys.append(insert_last)
         _ = ListOfDictsKeysValidator(insert_col_keys).validate_member(
-            self, 's08_insert_columns', self.s08_insert_columns,
-            stderr_file)
+            self, 's08_insert_columns', self.s08_insert_columns, stderr_file)
 
     def check_rewrite_configs(self, coltype: type,
                               stderr_file: TextIO) -> None:
@@ -405,17 +384,16 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             coltype: Expected runtime type for the configured columns.
             stderr_file: Stream used for user-facing diagnostics.
         """
-        column_rule = DictRule(
-            keys=['column'], validators=[ValueTypeValidator(coltype)])
-        chars_str_rule = DictRule(
-            keys=['chars'], validators=[ValueTypeValidator(str)])
-        chars_list_rule = DictRule(
-            keys=['chars'], validators=[ValueTypeValidator(list)])
-        case_rule = DictRule(
-            keys=['case'],
-            validators=[ValueTypeValidator(CaseSensitivity)])
-        from_to_rule = DictRule(
-            keys=['from', 'to'], validators=[ValueTypeValidator(str)])
+        column_rule = DictRule(keys=['column'],
+                               validators=[ValueTypeValidator(coltype)])
+        chars_str_rule = DictRule(keys=['chars'],
+                                  validators=[ValueTypeValidator(str)])
+        chars_list_rule = DictRule(keys=['chars'],
+                                   validators=[ValueTypeValidator(list)])
+        case_rule = DictRule(keys=['case'],
+                             validators=[ValueTypeValidator(CaseSensitivity)])
+        from_to_rule = DictRule(keys=['from', 'to'],
+                                validators=[ValueTypeValidator(str)])
         variants: dict[object, DictVariant] = {
             RewriteKind.STRIP: DictVariant(
                 mandatory_keys=['column', 'chars', 'case'],
@@ -436,17 +414,14 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
         }
         rewrite_validator = ListForEachValidator(
             element_validators=[DiscriminatedDictValidator(
-                discriminator_key='kind',
-                variants=variants,
+                discriminator_key='kind', variants=variants,
                 discriminator_validator=ValueTypeValidator(RewriteKind))],
             element_type=dict)
         _ = rewrite_validator.validate_member(
-            self, 's09_rewrite_columns', self.s09_rewrite_columns,
-            stderr_file)
+            self, 's09_rewrite_columns', self.s09_rewrite_columns, stderr_file)
 
     @staticmethod
-    def check_sep_not_sep(separators: list[str],
-                          not_separators: list[str],
+    def check_sep_not_sep(separators: list[str], not_separators: list[str],
                           stderr_file: TextIO) -> None:
         """Check relationship between separators and not separators.
 
@@ -483,19 +458,15 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             self, 's01_split_rows', self.s01_split_rows, stderr_file)
         split_rows_validator = ListForEachValidator(
             element_validators=[DictForEachValidator(rules=[
-                DictRule(
-                    keys=['column'],
-                    validators=[ValueTypeValidator(self._columntype)]),
-                DictRule(
-                    keys=['separators'],
-                    validators=[ListSizeValidator(1, sys.maxsize),
-                                ListValueTypeValidator(str)]),
-                DictRule(
-                    keys=['not_separators'],
-                    validators=[ListSizeValidator(0, sys.maxsize),
-                                ListValueTypeValidator(str)])
-            ])],
-            element_type=dict)
+                DictRule(keys=['column'],
+                         validators=[ValueTypeValidator(self._columntype)]),
+                DictRule(keys=['separators'],
+                         validators=[ListSizeValidator(1, sys.maxsize),
+                                     ListValueTypeValidator(str)]),
+                DictRule(keys=['not_separators'],
+                         validators=[ListSizeValidator(0, sys.maxsize),
+                                     ListValueTypeValidator(str)])
+            ])], element_type=dict)
         _ = split_rows_validator.validate_member(
             self, 's01_split_rows', self.s01_split_rows, stderr_file)
         for elem in self.s01_split_rows:
@@ -517,15 +488,13 @@ class ConfigExcelListTransform(Config, Generic[Column]):  # pylint: disable=too-
             self, 's02_merge_rows', self.s02_merge_rows, stderr_file)
         merge_rows_validator = ListForEachValidator(
             element_validators=[DictForEachValidator(rules=[
-                DictRule(
-                    keys=['columns'],
-                    validators=[ListSizeValidator(1, sys.maxsize),
-                                ListValueTypeValidator(self._columntype)]),
-                DictRule(
-                    keys=['separator'],
-                    validators=[ValueTypeValidator(str)])
-            ])],
-            element_type=dict)
+                DictRule(keys=['columns'],
+                         validators=[
+                             ListSizeValidator(1, sys.maxsize),
+                             ListValueTypeValidator(self._columntype)]),
+                DictRule(keys=['separator'],
+                         validators=[ValueTypeValidator(str)])
+            ])], element_type=dict)
         _ = merge_rows_validator.validate_member(
             self, 's02_merge_rows', self.s02_merge_rows, stderr_file)
 

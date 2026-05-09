@@ -79,56 +79,49 @@ class ExampleConfig12(Config):
         # Step 1: gate on the key set, just as in ``e11_dict_for_each``.
         tag_keys_validator = DictKeysValidator(
             mandatory_keys=['region', 'environment', 'team'],
-            allowed_keys=None
-        )
+            allowed_keys=None)
         # Step 2: run all three rules in order.
         #
         # Rule A normalizes case for every key. After this rule runs,
         # the value at every key is the canonical spelling stored in
         # ``CANONICAL_TAG_VALUES``.
-        rule_a = DictRule(
-            keys=['region', 'environment', 'team'],
-            validators=[StrValidator(
-                allowed_values=CANONICAL_TAG_VALUES,
-                ignore_case=True,
-                normalize=True)]
-        )
+        rule_a = DictRule(keys=['region', 'environment', 'team'],
+                          validators=[
+                              StrValidator(allowed_values=CANONICAL_TAG_VALUES,
+                                           ignore_case=True, normalize=True)])
         # Rule B applies a narrower allowed-values list to the region
         # and environment keys. ``ignore_case=False`` is safe here
         # because Rule A already normalized the case for every value.
         # If Rule B ran *before* Rule A, the user input ``'eu'`` would
         # be rejected: that is the order-matters lesson, made visible.
-        rule_b = DictRule(
-            keys=['region', 'environment'],
-            validators=[StrValidator(
-                allowed_values=['Eu', 'Us', 'Production', 'Staging'],
-                ignore_case=False)]
-        )
+        rule_b = DictRule(keys=['region', 'environment'],
+                          validators=[
+                              StrValidator(allowed_values=[
+                                  'Eu', 'Us', 'Production', 'Staging'
+                              ], ignore_case=False)])
         # Rule C applies a different narrower allowed-values list to
         # the team key.
-        rule_c = DictRule(
-            keys=['team'],
-            validators=[StrValidator(
-                allowed_values=['Engineering', 'Marketing', 'Support'],
-                ignore_case=False)]
-        )
+        rule_c = DictRule(keys=['team'],
+                          validators=[
+                              StrValidator(allowed_values=[
+                                  'Engineering', 'Marketing', 'Support'
+                              ], ignore_case=False)])
         # The iteration shape inside ``DictForEachValidator`` is
         # rule-major, then key-within-rule, then validator-within-rule.
         # That means Rule A runs for all three keys before Rule B runs
         # for any key, which is what makes the threading work.
-        values_validator = DictForEachValidator(
-            rules=[rule_a, rule_b, rule_c]
-        )
-        return [MemberValidationStep(
-                    member_names=['team_tags'],
-                    validator=tag_keys_validator),
-                MemberValidationStep(
-                    member_names=['team_tags'],
-                    validator=values_validator)]
+        values_validator = DictForEachValidator(rules=[rule_a, rule_b, rule_c])
+        return [
+            MemberValidationStep(member_names=['team_tags'],
+                                 validator=tag_keys_validator),
+            MemberValidationStep(member_names=['team_tags'],
+                                 validator=values_validator)
+        ]
 
 
-def e12_dict_for_each_ordering_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e12_dict_for_each_ordering_set(set_values: SetValues,
+                                   config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -148,8 +141,8 @@ def e12_dict_for_each_ordering_set(  # pylint: disable=duplicate-code
         pass  # Error already printed by the Config object.
 
 
-def e12_dict_for_each_ordering_print(  # pylint: disable=duplicate-code
-        config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e12_dict_for_each_ordering_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show how the values are used.
 
     Args:
@@ -177,8 +170,7 @@ def e12_dict_for_each_ordering_print(  # pylint: disable=duplicate-code
 # -----------------------------------------------------------------------------
 
 INPUT_SPECS = [
-    InputSpec(name='team_tags', single=False, value_type=str,
-              dict_kv=True)
+    InputSpec(name='team_tags', single=False, value_type=str, dict_kv=True)
 ]
 """Command line values that the example exposes for ``set``.
 

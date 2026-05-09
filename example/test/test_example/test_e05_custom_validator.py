@@ -13,7 +13,7 @@ from example.e05_custom_validator import ExampleConfig5
 from example.e05_custom_validator import e05_custom_validator_print
 from example.e05_custom_validator import e05_custom_validator_set
 from example.e05_custom_validator import main
-from .helpers import assert_main_round_trip_print_output
+from .helpers import assert_rt_out
 from .helpers import assert_validator_error_output, assert_write_command_output
 from .helpers import patch_config_factory_stderr, write_json_file
 
@@ -59,23 +59,16 @@ def test_custom_validator_set_reports_invalid_format_subtype_pair(
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Show the custom validator message when writing an invalid pair."""
     stderr_buffer = StringIO()
-    patch_config_factory_stderr(monkeypatch,
-                                e05_module,
-                                'ExampleConfig5',
-                                ExampleConfig5,
-                                stderr_buffer)
+    patch_config_factory_stderr(monkeypatch, e05_module, 'ExampleConfig5',
+                                ExampleConfig5, stderr_buffer)
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/custom_validator.cfg'
         e05_custom_validator_set({'output_format': 'CSV',
-                                  'output_subtype': 'OpenPyxl'},
-                                 config_file)
-    assert_validator_error_output(
-        capsys,
-        stderr_buffer,
-        ['output_subtype OpenPyxl',
-         'output_format CSV',
-         'excelDialect, unixDialect']
-    )
+                                  'output_subtype': 'OpenPyxl'}, config_file)
+    assert_validator_error_output(capsys, stderr_buffer,
+                                  ['output_subtype OpenPyxl',
+                                   'output_format CSV',
+                                   'excelDialect, unixDialect'])
 
 
 def test_custom_validator_print_reports_invalid_stored_pair(
@@ -83,36 +76,25 @@ def test_custom_validator_print_reports_invalid_stored_pair(
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Show the custom validator message when reading an invalid file."""
     stderr_buffer = StringIO()
-    patch_config_factory_stderr(monkeypatch,
-                                e05_module,
-                                'ExampleConfig5',
-                                ExampleConfig5,
-                                stderr_buffer)
+    patch_config_factory_stderr(monkeypatch, e05_module, 'ExampleConfig5',
+                                ExampleConfig5, stderr_buffer)
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/custom_validator.cfg'
         write_json_file(config_file,
                         {'output_format': 'Excel',
                          'output_subtype': 'unixDialect'})
         e05_custom_validator_print(config_file)
-    assert_validator_error_output(
-        capsys,
-        stderr_buffer,
-        ['output_subtype unixDialect',
-         'output_format Excel',
-         'PylightXL, OpenPyxl, XlsxWriter']
-    )
+    assert_validator_error_output(capsys, stderr_buffer,
+                                  ['output_subtype unixDialect',
+                                   'output_format Excel',
+                                   'PylightXL, OpenPyxl, XlsxWriter'])
 
 
 def test_custom_validator_main_round_trip_prints_values(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Round-trip configuration through the example command line."""
-    assert_main_round_trip_print_output(
-        capsys,
-        main,
-        'custom_validator.cfg',
-        ['--output-format', 'excel',
-         '--output-subtype', 'xlsxwriter'],
-        ['Output format: Excel',
-         'Output subtype: XlsxWriter',
-         'Would write Excel output with the XlsxWriter backend.']
-    )
+    assert_rt_out(capsys, main, 'custom_validator.cfg',
+                  ['--output-format', 'excel',
+                   '--output-subtype', 'xlsxwriter'],
+                  ['Output format: Excel', 'Output subtype: XlsxWriter',
+                   'Would write Excel output with the XlsxWriter backend.'])

@@ -29,11 +29,10 @@ from example.e12_dict_for_each_ordering import \
     e12_dict_for_each_ordering_set
 from example.e12_dict_for_each_ordering import main as e12_main
 from .helpers import ExampleProgramSpec
-from .helpers import assert_main_round_trip_print_output
-from .helpers import assert_print_command_reports_validator_error
-from .helpers import assert_set_command_reports_validator_error
+from .helpers import assert_rt_out
+from .helpers import assert_print_validator_error
+from .helpers import assert_set_validator_error
 from .helpers import assert_write_command_output
-
 
 E10_SPEC = ExampleProgramSpec(module=e10_module,
                               factory_name='ExampleConfig10',
@@ -75,25 +74,24 @@ def test_e10_set_uses_defaults_when_no_overrides(
     assert_write_command_output(capsys, config_file)
     assert config.feature_flags == {'logging': True, 'metrics': True}
     assert config.port_assignments == {'http': 80, 'https': 443}
-    assert json_data == {
-        'feature_flags': {'logging': True, 'metrics': True},
-        'port_assignments': {'http': 80, 'https': 443}
-    }
+    assert json_data == {'feature_flags': {'logging': True, 'metrics': True},
+                         'port_assignments': {'http': 80, 'https': 443}}
 
 
 def test_e10_set_accepts_optional_keys_in_feature_flags(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Accept optional keys in addition to the mandatory ones."""
     set_values: SetValues = {
-        'feature_flags': {'logging': True, 'metrics': False, 'debug': True}
-    }
+        'feature_flags': {'logging': True, 'metrics': False, 'debug': True}}
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/dict_basic_validators.cfg'
         e10_dict_basic_validators_set(set_values, config_file)
         config = ExampleConfig10(from_json_filename=config_file)
     assert_write_command_output(capsys, config_file)
     assert config.feature_flags == {
-        'logging': True, 'metrics': False, 'debug': True
+        'logging': True,
+        'metrics': False,
+        'debug': True
     }
 
 
@@ -101,59 +99,48 @@ def test_e10_set_reports_missing_mandatory_feature_flag(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject a feature flags dict that lacks a mandatory key."""
-    assert_set_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E10_SPEC,
-        {'feature_flags': {'logging': True}},
-        ['feature_flags', "Mandatory key 'metrics'", 'missing']
-    )
+    assert_set_validator_error(capsys, monkeypatch, E10_SPEC,
+                               {'feature_flags': {'logging': True}},
+                               ['feature_flags', "Mandatory key 'metrics'",
+                                'missing'])
 
 
 def test_e10_print_reports_unknown_feature_flag_key(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject a feature flags dict that contains an unknown key."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E10_SPEC,
-        {
-            'feature_flags': {'logging': True, 'metrics': True,
-                              'extra': True},
-            'port_assignments': {'http': 80, 'https': 443}
-        },
-        ['feature_flags', "Unknown key 'extra'"]
-    )
+    assert_print_validator_error(
+        capsys, monkeypatch, E10_SPEC, {
+            'feature_flags': {'logging': True, 'metrics': True, 'extra': True},
+            'port_assignments': {'http': 80, 'https': 443}},
+        ['feature_flags', "Unknown key 'extra'"])
 
 
 def test_e10_print_reports_unknown_port_assignment_key(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject extra keys in the exact-shape port_assignments dict."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E10_SPEC,
-        {
+    assert_print_validator_error(
+        capsys, monkeypatch, E10_SPEC, {
             'feature_flags': {'logging': True, 'metrics': True},
-            'port_assignments': {'http': 80, 'https': 443, 'ftp': 21}
-        },
-        ['port_assignments', "Unknown key 'ftp'"]
-    )
+            'port_assignments': {'http': 80,
+                                 'https': 443, 'ftp': 21}},
+        ['port_assignments', "Unknown key 'ftp'"])
 
 
 def test_e10_main_round_trip_prints_dict_values(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Round-trip the basic dict example through the command line."""
-    assert_main_round_trip_print_output(
-        capsys,
-        e10_main,
-        'dict_basic_validators.cfg',
-        ['--feature-flags', 'logging=true', 'metrics=false', 'debug=true'],
-        ["Feature flags: {'debug': True, 'logging': True, 'metrics': False}",
-         "Port assignments: {'http': 80, 'https': 443}"]
-    )
+    assert_rt_out(capsys, e10_main, 'dict_basic_validators.cfg', [
+        '--feature-flags',
+        'logging=true',
+        'metrics=false',
+        'debug=true',
+    ], [
+        "Feature flags: {'debug': True, 'logging': True, "
+        "'metrics': False}",
+        "Port assignments: {'http': 80, 'https': 443}",
+    ])
 
 
 def test_e11_set_uses_defaults_when_no_overrides(
@@ -209,79 +196,70 @@ def test_e11_print_reports_value_below_minimum_seconds(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject a value that is below the seconds-rule minimum."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E11_SPEC,
-        {
+    assert_print_validator_error(
+        capsys, monkeypatch, E11_SPEC, {
             'cache_settings': {
                 'ttl_seconds': 0,
                 'refresh_seconds': 30,
                 'max_entries': 100,
                 'eviction_policy': 'lru'
             }
-        },
-        ['cache_settings[ttl_seconds]', 'less than minimum 1']
-    )
+        }, [
+            'cache_settings[ttl_seconds]',
+            'less than minimum 1',
+        ])
 
 
 def test_e11_print_reports_value_above_maximum_max_entries(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject a max_entries value above the rule's maximum."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E11_SPEC,
-        {
+    assert_print_validator_error(
+        capsys, monkeypatch, E11_SPEC, {
             'cache_settings': {
                 'ttl_seconds': 60,
                 'refresh_seconds': 30,
                 'max_entries': 1000000,
                 'eviction_policy': 'lru'
             }
-        },
-        ['cache_settings[max_entries]', 'greater than maximum 10000']
-    )
+        }, [
+            'cache_settings[max_entries]',
+            'greater than maximum 10000',
+        ])
 
 
 def test_e11_print_reports_unknown_eviction_policy(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject an eviction policy that is not in the allowed list."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E11_SPEC,
-        {
+    assert_print_validator_error(
+        capsys, monkeypatch, E11_SPEC, {
             'cache_settings': {
                 'ttl_seconds': 60,
                 'refresh_seconds': 30,
                 'max_entries': 100,
                 'eviction_policy': 'random'
             }
-        },
-        ['cache_settings[eviction_policy]', 'lru', 'lfu', 'fifo']
-    )
+        }, [
+            'cache_settings[eviction_policy]',
+            'lru',
+            'lfu',
+            'fifo',
+        ])
 
 
 def test_e11_main_round_trip_prints_cache_settings(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Round-trip the cache settings example through the command line."""
-    json_override = (
-        '{"ttl_seconds": 60, "refresh_seconds": 30, '
-        '"max_entries": 100, "eviction_policy": "fifo"}'
-    )
-    assert_main_round_trip_print_output(
-        capsys,
-        e11_main,
-        'dict_for_each.cfg',
-        ['--cache-settings', json_override],
-        ["Cache settings: {'eviction_policy': 'fifo', 'max_entries': 100,"
-         " 'refresh_seconds': 30, 'ttl_seconds': 60}",
-         'Time-to-live: 60 seconds',
-         'Eviction policy: fifo']
-    )
+    json_override = ('{"ttl_seconds": 60, "refresh_seconds": 30, '
+                     '"max_entries": 100, "eviction_policy": "fifo"}')
+    assert_rt_out(
+        capsys, e11_main, 'dict_for_each.cfg',
+        ['--cache-settings', json_override], [
+            "Cache settings: {'eviction_policy': 'fifo', 'max_entries': 100,"
+            " 'refresh_seconds': 30, 'ttl_seconds': 60}",
+            'Time-to-live: 60 seconds', 'Eviction policy: fifo'
+        ])
 
 
 def test_e12_set_uses_defaults_when_no_overrides(
@@ -341,71 +319,56 @@ def test_e12_print_reports_region_outside_rule_b_subset(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject a region that passes Rule A but not the narrower Rule B."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E12_SPEC,
-        {
+    assert_print_validator_error(
+        capsys, monkeypatch, E12_SPEC, {
             'team_tags': {
                 'region': 'As',
                 'environment': 'Production',
                 'team': 'Engineering'
             }
-        },
-        ['team_tags[region]', 'As', 'Eu', 'Us']
-    )
+        }, ['team_tags[region]', 'As', 'Eu', 'Us'])
 
 
 def test_e12_print_reports_team_outside_rule_c_subset(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject a team that passes Rule A but not the narrower Rule C."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E12_SPEC,
-        {
-            'team_tags': {
-                'region': 'Eu',
-                'environment': 'Production',
-                'team': 'Test'
-            }
-        },
-        ['team_tags[team]', 'Engineering', 'Marketing', 'Support']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E12_SPEC, {
+        'team_tags': {
+            'region': 'Eu',
+            'environment': 'Production',
+            'team': 'Test'
+        }
+    }, [
+        'team_tags[team]',
+        'Engineering',
+        'Marketing',
+        'Support',
+    ])
 
 
 def test_e12_print_reports_value_outside_rule_a_canonical_set(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject a value that is not in the canonical set Rule A allows."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E12_SPEC,
-        {
+    assert_print_validator_error(
+        capsys, monkeypatch, E12_SPEC, {
             'team_tags': {
                 'region': 'Antarctica',
                 'environment': 'Production',
                 'team': 'Engineering'
             }
-        },
-        ['team_tags[region]', 'Antarctica']
-    )
+        }, ['team_tags[region]', 'Antarctica'])
 
 
 def test_e12_main_round_trip_prints_normalized_team_tags(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Round-trip the ordering example through the command line."""
-    assert_main_round_trip_print_output(
-        capsys,
-        e12_main,
-        'dict_for_each_ordering.cfg',
-        ['--team-tags', 'region=eu', 'environment=production',
-         'team=engineering'],
-        ["Team tags: {'environment': 'Production', 'region': 'Eu',"
-         " 'team': 'Engineering'}",
-         'Region: Eu',
-         'Environment: Production',
-         'Team: Engineering']
-    )
+    assert_rt_out(capsys, e12_main, 'dict_for_each_ordering.cfg', [
+        '--team-tags', 'region=eu', 'environment=production',
+        'team=engineering'
+    ], [
+        "Team tags: {'environment': 'Production', 'region': 'Eu',"
+        " 'team': 'Engineering'}", 'Region: Eu', 'Environment: Production',
+        'Team: Engineering'
+    ])

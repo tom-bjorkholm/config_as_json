@@ -146,12 +146,15 @@ class RocfRemoveConfig(Config):
         self.version = 2
         self.name = 'current'
         self.count = 0
-        self.details: dict[str, JsonType] = {'mode': 'normal',
-                                             'limits': {'high': 10}}
+        self.details: dict[str, JsonType] = {
+            'mode': 'normal',
+            'limits': {
+                'high': 10
+            }
+        }
         self.entries: list[JsonType] = []
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None,
-                         auto_ch_hook=auto_ch_hook,
+                         from_json_filename=None, auto_ch_hook=auto_ch_hook,
                          stderr_file=stderr_file)
 
     def _rocf_get_keys_to_remove(self) -> list[str]:
@@ -211,11 +214,9 @@ def test_omit_none_config_accepts_missing_values(capsys):
 
 def test_omit_none_config_accepts_explicit_null(capsys):
     """Test that explicit JSON null is treated like a missing value."""
-    cfg = OmitNoneConfig(
-        from_json_data_text='{"required_name": "read", '
-                            '"optional_text": null, '
-                            '"optional_mode": null}',
-        stderr_file=sys.stderr)
+    cfg = OmitNoneConfig(from_json_data_text='{"required_name": "read", '
+                         '"optional_text": null, '
+                         '"optional_mode": null}', stderr_file=sys.stderr)
     json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
     out, err = capsys.readouterr()
     assert '' == out
@@ -227,20 +228,20 @@ def test_omit_none_config_accepts_explicit_null(capsys):
 
 def test_omit_none_config_keeps_explicit_values(capsys):
     """Test that explicit optional values are read, converted, and written."""
-    cfg = OmitNoneConfig(
-        from_json_data_text='{"required_name": "read", '
-                            '"optional_text": "note", '
-                            '"optional_mode": "FAST"}',
-        stderr_file=sys.stderr)
+    cfg = OmitNoneConfig(from_json_data_text='{"required_name": "read", '
+                         '"optional_text": "note", '
+                         '"optional_mode": "FAST"}', stderr_file=sys.stderr)
     json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
     assert cfg.optional_text == 'note'
     assert cfg.optional_mode == OptionalOutputMode.FAST
-    assert json_data == {'optional_mode': 'FAST',
-                         'optional_text': 'note',
-                         'required_name': 'read'}
+    assert json_data == {
+        'optional_mode': 'FAST',
+        'optional_text': 'note',
+        'required_name': 'read'
+    }
 
 
 def test_omit_none_config_still_requires_normal_members(capsys):
@@ -278,10 +279,9 @@ def test_omit_none_config_rejects_non_none_default(capsys):
 @pytest.mark.parametrize(
     'omitted_keys, message',
     [('optional_text', '_omit_none_from_json() must return a list'),
-     (['optional_text', 7],
-      '_omit_none_from_json() must return a list of strings')])
-def test_omit_none_config_rejects_invalid_hook_return(
-        capsys, omitted_keys, message):
+     (['optional_text', 7
+       ], '_omit_none_from_json() must return a list of strings')])
+def test_omit_none_rejects_bad_hook(capsys, omitted_keys, message):
     """Test that omit-None hook return values are type checked."""
     with pytest.raises(TypeError) as exc:
         _ = OmitNoneBadReturnConfig(omitted_keys, stderr_file=sys.stderr)
@@ -291,17 +291,13 @@ def test_omit_none_config_rejects_invalid_hook_return(
     assert message in str(exc.value)
 
 
-@pytest.mark.parametrize('jstext, aval, cval, fval',
-                         [('{ "ab": "a1b2", "cd": "c3d4", "ef": "e5f6" }',
-                           'a1b2', 'c3d4', 'e5f6'),
-                          ('{ "ab": "donald", "cd": "duck", "ef": "mouse" }',
-                           'donald', 'duck', 'mouse'),
-                          ('{ "ab": "aaa", "cd": "mickey" }',
-                           'aaa', 'mickey', 'ef99'),
-                          ('{ "ab": "donald", "ef": "duck" }',
-                           'donald', 'cd99', 'duck'),
-                          ('{ "ab": "duck"}',
-                           'duck', 'cd99', 'ef99')])
+@pytest.mark.parametrize(
+    'jstext, aval, cval, fval',
+    [('{ "ab": "a1b2", "cd": "c3d4", "ef": "e5f6" }', 'a1b2', 'c3d4', 'e5f6'),
+     ('{ "ab": "donald", "cd": "duck", "ef": "mouse" }', 'donald', 'duck',
+      'mouse'), ('{ "ab": "aaa", "cd": "mickey" }', 'aaa', 'mickey', 'ef99'),
+     ('{ "ab": "donald", "ef": "duck" }', 'donald', 'cd99', 'duck'),
+     ('{ "ab": "duck"}', 'duck', 'cd99', 'ef99')])
 def test_cfg_rocf_val_json_ok(capsys, jstext, aval, cval, fval):
     """Test construction of cfg from json with default values."""
     abc = AbcConfig(from_json_data_text=jstext, from_json_filename=None)
@@ -313,11 +309,9 @@ def test_cfg_rocf_val_json_ok(capsys, jstext, aval, cval, fval):
     assert abc.ef == fval
 
 
-@pytest.mark.parametrize('jstext',
-                         ['{ "cd": "c3d4", "ef": "e5f6" }',
-                          '{ "cd": "duck", "ef": "mouse" }',
-                          '{ "cd": "mickey" }',
-                          '{ "ef": "duck" }', '{}'])
+@pytest.mark.parametrize('jstext', [
+    '{ "cd": "c3d4", "ef": "e5f6" }', '{ "cd": "duck", "ef": "mouse" }',
+    '{ "cd": "mickey" }', '{ "ef": "duck" }', '{}'])
 def test_cfg_rocf_val_json_nok(capsys, jstext):
     """Test construction of cfg from json with default values."""
     with pytest.raises(KeyError):
@@ -331,8 +325,7 @@ def test_cfg_rocf_val_json_nok(capsys, jstext):
 def remove_json_key_in_dict(key: str, json_data: dict[str, JsonType]) -> bool:
     """Remove one ROCF key from a dictionary in tests."""
     # pylint: disable-next=protected-access
-    return Config._rocf_remove_json_key_in_dict(key=key,
-                                                json_data=json_data)
+    return Config._rocf_remove_json_key_in_dict(key=key, json_data=json_data)
 
 
 def remove_json_key_in_list(key: str, json_data: list[JsonType]) -> bool:
@@ -341,8 +334,8 @@ def remove_json_key_in_list(key: str, json_data: list[JsonType]) -> bool:
     return Config._rocf_remove_json_key_in_list(key=key, json_data=json_data)
 
 
-def rename_json_key_in_dict(rename: RocfKeyRename,
-                            json_data: dict[str, JsonType],
+def rename_json_key_in_dict(rename: RocfKeyRename, json_data: dict[str,
+                                                                   JsonType],
                             stderr_file: TextIO) -> bool:
     """Rename one ROCF key in a dictionary in tests."""
     # pylint: disable-next=protected-access
@@ -351,8 +344,7 @@ def rename_json_key_in_dict(rename: RocfKeyRename,
                                                 stderr_file=stderr_file)
 
 
-def rename_json_key_in_list(rename: RocfKeyRename,
-                            json_data: list[JsonType],
+def rename_json_key_in_list(rename: RocfKeyRename, json_data: list[JsonType],
                             stderr_file: TextIO) -> bool:
     """Rename one ROCF key in a list in tests."""
     # pylint: disable-next=protected-access
@@ -365,30 +357,48 @@ def rename_json_keys(config: Config, json_data: dict[str, JsonType],
                      stderr_file: TextIO) -> None:
     """Rename all configured ROCF keys in tests."""
     # pylint: disable-next=protected-access
-    config._rocf_rename_json_keys(json_data=json_data,
-                                  stderr_file=stderr_file)
+    config._rocf_rename_json_keys(json_data=json_data, stderr_file=stderr_file)
 
 
 @pytest.mark.parametrize('ind,outd,key,changed',
-                         [({'keep': 1},
-                           {'keep': 1},
-                           'obsolete',
-                           False),
-                          ({'obsolete': 1, 'keep': 2},
-                           {'keep': 2},
-                           'obsolete',
-                           True),
-                          ({'outer': {'obsolete': 'old',
-                                      'keep': {'value': 3}}},
-                           {'outer': {'keep': {'value': 3}}},
-                           'obsolete',
-                           True),
-                          ({'items': [{'obsolete': 1, 'keep': 2},
-                                      [{'obsolete': 3}]],
-                            'obsolete': 4},
-                           {'items': [{'keep': 2}, [{}]]},
-                           'obsolete',
-                           True)])
+                         [({
+                             'keep': 1
+                         }, {
+                             'keep': 1
+                         }, 'obsolete', False),
+                          ({
+                              'obsolete': 1,
+                              'keep': 2
+                          }, {
+                              'keep': 2
+                          }, 'obsolete', True),
+                          ({
+                              'outer': {
+                                  'obsolete': 'old',
+                                  'keep': {
+                                      'value': 3
+                                  }
+                              }
+                          }, {
+                              'outer': {
+                                  'keep': {
+                                      'value': 3
+                                  }
+                              }
+                          }, 'obsolete', True),
+                          ({
+                              'items': [{
+                                  'obsolete': 1,
+                                  'keep': 2
+                              }, [{
+                                  'obsolete': 3
+                              }]],
+                              'obsolete': 4
+                          }, {
+                              'items': [{
+                                  'keep': 2
+                              }, [{}]]
+                          }, 'obsolete', True)])
 def test_rocf_remove_json_key_in_dict(capsys, ind, outd, key, changed):
     """Test removing one ROCF key from nested dictionaries."""
     data = deepcopy(ind)
@@ -400,15 +410,18 @@ def test_rocf_remove_json_key_in_dict(capsys, ind, outd, key, changed):
 
 
 @pytest.mark.parametrize('ind,outd,key,changed',
-                         [([],
-                           [],
-                           'obsolete',
-                           False),
-                          ([{'obsolete': 1, 'keep': 2},
-                            [{'obsolete': 3, 'keep': 4}]],
-                           [{'keep': 2}, [{'keep': 4}]],
-                           'obsolete',
-                           True)])
+                         [([], [], 'obsolete', False),
+                          ([{
+                              'obsolete': 1,
+                              'keep': 2
+                          }, [{
+                              'obsolete': 3,
+                              'keep': 4
+                          }]], [{
+                              'keep': 2
+                          }, [{
+                              'keep': 4
+                          }]], 'obsolete', True)])
 def test_rocf_remove_json_key_in_list(capsys, ind, outd, key, changed):
     """Test removing one ROCF key from nested lists."""
     data = deepcopy(ind)
@@ -419,39 +432,47 @@ def test_rocf_remove_json_key_in_list(capsys, ind, outd, key, changed):
     assert data == outd
 
 
-@pytest.mark.parametrize('json_data',
-                         [{'a': 'b'}, [{'a': 'b'}]])
+@pytest.mark.parametrize('json_data', [{'a': 'b'}, [{'a': 'b'}]])
 def test_rocf_remove_json_key_rejects_none_key(capsys, json_data):
     """Test that removing a None key fails like invalid ROCF rename rules."""
     with pytest.raises(AssertionError):
         if isinstance(json_data, dict):
-            remove_json_key_in_dict(key=cast(Any, None),
-                                    json_data=json_data)
+            remove_json_key_in_dict(key=cast(Any, None), json_data=json_data)
         else:
-            remove_json_key_in_list(key=cast(Any, None),
-                                    json_data=json_data)
+            remove_json_key_in_list(key=cast(Any, None), json_data=json_data)
     out, _ = capsys.readouterr()
     assert '' == out
 
 
 def test_rocf_removed_keys_are_accepted_and_reported(capsys):
     """Test parsing old JSON with removed, renamed and missing keys."""
-    jstext = json.dumps({'title': 'legacy report',
-                         'count': 3,
-                         'details': {
-                             'mode': 'careful',
-                             'obsolete_nested': 'drop',
-                             'limits': {'high': 20,
-                                        'obsolete_nested': 'drop'}},
-                         'entries': [{'name': 'first',
-                                      'obsolete_nested': 'drop'},
-                                     [{'obsolete_nested': 'drop'}]],
-                         'obsolete_top': {'ignored': True}})
+    jstext = json.dumps({
+        'title':
+        'legacy report',
+        'count':
+        3,
+        'details': {
+            'mode': 'careful',
+            'obsolete_nested': 'drop',
+            'limits': {
+                'high': 20,
+                'obsolete_nested': 'drop'
+            }
+        },
+        'entries': [{
+            'name': 'first',
+            'obsolete_nested': 'drop'
+        }, [{
+            'obsolete_nested': 'drop'
+        }]],
+        'obsolete_top': {
+            'ignored': True
+        }
+    })
     hook = RocfRemoveAutoChangeHook(
         old_keys_ver=['obsolete_top', 'obsolete_nested', 'title'],
         rocf_val_keys_ver=['version'])
-    cfg = RocfRemoveConfig(from_json_data_text=jstext,
-                           auto_ch_hook=hook,
+    cfg = RocfRemoveConfig(from_json_data_text=jstext, auto_ch_hook=hook,
                            stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
@@ -465,16 +486,21 @@ def test_rocf_removed_keys_are_accepted_and_reported(capsys):
 
 def test_rocf_removed_keys_absent_does_not_report_change(capsys):
     """Test current JSON parsing when no removed old keys are present."""
-    jstext = json.dumps({'version': 2,
-                         'name': 'current report',
-                         'count': 4,
-                         'details': {'mode': 'normal',
-                                     'limits': {'high': 9}},
-                         'entries': []})
+    jstext = json.dumps({
+        'version': 2,
+        'name': 'current report',
+        'count': 4,
+        'details': {
+            'mode': 'normal',
+            'limits': {
+                'high': 9
+            }
+        },
+        'entries': []
+    })
     cfg = RocfRemoveConfig(from_json_data_text=jstext,
                            auto_ch_hook=RocfRemoveAutoChangeHook(
-                               old_keys_ver=[],
-                               rocf_val_keys_ver=[]),
+                               old_keys_ver=[], rocf_val_keys_ver=[]),
                            stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
@@ -486,49 +512,109 @@ def test_rocf_removed_keys_absent_does_not_report_change(capsys):
     assert not cfg.entries
 
 
-@pytest.mark.parametrize('ind, outd, ren, errtxt',
-                         [({'foo': 12, 'bar': 'data'},
-                           {'foo': 12, 'bar': 'data'},
-                           RocfKeyRename(old='star', new='sun'), ''),
-                          ({'foo': 12, 'bar': 'data'},
-                           {'sun': 12, 'bar': 'data'},
-                           RocfKeyRename(old='foo', new='sun'), ''),
-                          ({'foo': 12, 'bar': 'data'},
-                           {'foo': 12, 'sun': 'data'},
-                           RocfKeyRename(old='bar', new='sun'), ''),
-                          ({'foo': 12, 'bar': 'data'},
-                           {'foo': 12},
-                           RocfKeyRename(old='bar', new='foo'),
-                           'Inconsistent configuration:\n' +
-                           'Both new config parameter foo and old bar ' +
-                           'present.\nIgnoring old parameter bar\n'),
-                          ({'foo': {'a': 'b', 'bar': 'c'}, 'bar': 'data'},
-                           {'foo': {'a': 'b', 'sun': 'c'}, 'sun': 'data'},
-                           RocfKeyRename(old='bar', new='sun'), ''),
-                          ({'foo': {'a': 'b', 'foo': 'c'}, 'bar': 'data'},
-                           {'sun': {'a': 'b', 'sun': 'c'}, 'bar': 'data'},
-                           RocfKeyRename(old='foo', new='sun'), ''),
-                          ({'foo': {'foo': 'b', 'bar': 'c'}, 'bar': 'data'},
-                           {'sun': {'sun': 'b', 'bar': 'c'}, 'bar': 'data'},
-                           RocfKeyRename(old='foo', new='sun'), ''),
-                          ({'a': [{'a': 1, 'b': 2}, {'a': 3, 'b': 4}], 'b': 5},
-                           {'c': [{'c': 1, 'b': 2}, {'c': 3, 'b': 4}], 'b': 5},
-                           RocfKeyRename(old='a', new='c'), '')])
+@pytest.mark.parametrize(
+    'ind, outd, ren, errtxt',
+    [({
+        'foo': 12,
+        'bar': 'data'
+    }, {
+        'foo': 12,
+        'bar': 'data'
+    }, RocfKeyRename(old='star', new='sun'), ''),
+     ({
+         'foo': 12,
+         'bar': 'data'
+     }, {
+         'sun': 12,
+         'bar': 'data'
+     }, RocfKeyRename(old='foo', new='sun'), ''),
+     ({
+         'foo': 12,
+         'bar': 'data'
+     }, {
+         'foo': 12,
+         'sun': 'data'
+     }, RocfKeyRename(old='bar', new='sun'), ''),
+     ({
+         'foo': 12,
+         'bar': 'data'
+     }, {
+         'foo': 12
+     }, RocfKeyRename(old='bar', new='foo'), 'Inconsistent configuration:\n' +
+      'Both new config parameter foo and old bar ' +
+      'present.\nIgnoring old parameter bar\n'),
+     ({
+         'foo': {
+             'a': 'b',
+             'bar': 'c'
+         },
+         'bar': 'data'
+     }, {
+         'foo': {
+             'a': 'b',
+             'sun': 'c'
+         },
+         'sun': 'data'
+     }, RocfKeyRename(old='bar', new='sun'), ''),
+     ({
+         'foo': {
+             'a': 'b',
+             'foo': 'c'
+         },
+         'bar': 'data'
+     }, {
+         'sun': {
+             'a': 'b',
+             'sun': 'c'
+         },
+         'bar': 'data'
+     }, RocfKeyRename(old='foo', new='sun'), ''),
+     ({
+         'foo': {
+             'foo': 'b',
+             'bar': 'c'
+         },
+         'bar': 'data'
+     }, {
+         'sun': {
+             'sun': 'b',
+             'bar': 'c'
+         },
+         'bar': 'data'
+     }, RocfKeyRename(old='foo', new='sun'), ''),
+     ({
+         'a': [{
+             'a': 1,
+             'b': 2
+         }, {
+             'a': 3,
+             'b': 4
+         }],
+         'b': 5
+     }, {
+         'c': [{
+             'c': 1,
+             'b': 2
+         }, {
+             'c': 3,
+             'b': 4
+         }],
+         'b': 5
+     }, RocfKeyRename(old='a', new='c'), '')])
 def test_bw_compat_single1(capsys, ind, outd, ren, errtxt):
     """Test Config._bwcompat_single for case 1."""
     data = deepcopy(ind)
-    rename_json_key_in_dict(rename=ren, json_data=data,
-                            stderr_file=sys.stderr)
+    rename_json_key_in_dict(rename=ren, json_data=data, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert err == errtxt
     assert data == outd
 
 
-@pytest.mark.parametrize('ren',
-                         [RocfKeyRename(old=cast(Any, None), new='sun'),
-                          RocfKeyRename(old='foo', new=cast(Any, None)),
-                          RocfKeyRename(old='foo', new='foo')])
+@pytest.mark.parametrize('ren', [
+    RocfKeyRename(old=cast(Any, None), new='sun'),
+    RocfKeyRename(old='foo', new=cast(Any, None)),
+    RocfKeyRename(old='foo', new='foo')])
 def test_bw_compat_single2(capsys, ren):
     """Test Config._bwcompat_single for not OK case."""
     with pytest.raises(AssertionError):
@@ -538,27 +624,52 @@ def test_bw_compat_single2(capsys, ren):
     assert '' == out
 
 
-@pytest.mark.parametrize('ind,outd,ren,errtxt',
-                         [([{'a': 2, 'b': 'c'},
-                            {'a': 4, 'b': 'd'}],
-                           [{'e': 2, 'b': 'c'},
-                            {'e': 4, 'b': 'd'}],
-                           RocfKeyRename(old='a', new='e'), ''),
-                          ([{'foo': 12, 'bar': 'data'},
-                            {'fff': 14, 'bar': 'other'}],
-                           [{'foo': 12}, {'fff': 14, 'foo': 'other'}],
-                           RocfKeyRename(old='bar', new='foo'),
-                           'Inconsistent configuration:\n' +
-                           'Both new config parameter foo and old bar ' +
-                           'present.\nIgnoring old parameter bar\n'),
-                          ([[{'a': 1, 'b': 2}, {'a': 3, 'b': 4}]],
-                           [[{'a': 1, 'c': 2}, {'a': 3, 'c': 4}]],
-                           RocfKeyRename(old='b', new='c'), '')])
+@pytest.mark.parametrize(
+    'ind,outd,ren,errtxt',
+    [([{
+        'a': 2,
+        'b': 'c'
+    }, {
+        'a': 4,
+        'b': 'd'
+    }], [{
+        'e': 2,
+        'b': 'c'
+    }, {
+        'e': 4,
+        'b': 'd'
+    }], RocfKeyRename(old='a', new='e'), ''),
+     ([{
+         'foo': 12,
+         'bar': 'data'
+     }, {
+         'fff': 14,
+         'bar': 'other'
+     }], [{
+         'foo': 12
+     }, {
+         'fff': 14,
+         'foo': 'other'
+     }], RocfKeyRename(old='bar', new='foo'), 'Inconsistent configuration:\n' +
+      'Both new config parameter foo and old bar ' +
+      'present.\nIgnoring old parameter bar\n'),
+     ([[{
+         'a': 1,
+         'b': 2
+     }, {
+         'a': 3,
+         'b': 4
+     }]], [[{
+         'a': 1,
+         'c': 2
+     }, {
+         'a': 3,
+         'c': 4
+     }]], RocfKeyRename(old='b', new='c'), '')])
 def test_bwcompat_single_lst1(capsys, ind, outd, ren, errtxt):
     """Test Config._bwcompat_single_lst for case 1."""
     data = deepcopy(ind)
-    rename_json_key_in_list(rename=ren, json_data=data,
-                            stderr_file=sys.stderr)
+    rename_json_key_in_list(rename=ren, json_data=data, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert err == errtxt
@@ -572,8 +683,7 @@ class DummyCfg(Config):
         """Create a DummyCfg object."""
         self.aa = 'text'
         super().__init__(from_json_data_text='{ "aa": "text" }',
-                         from_json_filename=None,
-                         stderr_file=stderr_file)
+                         from_json_filename=None, stderr_file=stderr_file)
 
     def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
         return [
@@ -587,10 +697,23 @@ class DummyCfg(Config):
         return []
 
 
-@pytest.mark.parametrize('ind,outd,errtxt',
-                         [({'p': [{'a': 2, 'b': 'c'}, {'a': 4, 'b': 'd'}]},
-                           {'p': [{'x': 2, 'y': 'c'}, {'x': 4, 'y': 'd'}]},
-                           '')])
+@pytest.mark.parametrize('ind,outd,errtxt', [({
+    'p': [{
+        'a': 2,
+        'b': 'c'
+    }, {
+        'a': 4,
+        'b': 'd'
+    }]
+}, {
+    'p': [{
+        'x': 2,
+        'y': 'c'
+    }, {
+        'x': 4,
+        'y': 'd'
+    }]
+}, '')])
 def test_rename_backward_compatible(capsys, ind, outd, errtxt):
     """Test Config._rename_backward_compatible."""
     data = deepcopy(ind)

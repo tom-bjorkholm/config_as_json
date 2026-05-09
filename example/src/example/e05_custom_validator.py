@@ -61,7 +61,8 @@ class OutputLibraryStub:  # pylint: disable=too-few-public-methods
             f'{self.output_subtype} backend.'
 
 
-class OutputFormatSubtypeValidator(WholeConfigValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class OutputFormatSubtypeValidator(WholeConfigValidator):
     """Validate that ``output_format`` and ``output_subtype`` match."""
 
     def validate(self, config: Config,
@@ -134,10 +135,8 @@ class ExampleConfig5(Config):
         format_validator = StrValidator(allowed_values=allowed_output_formats,
                                         ignore_case=True, normalize=True)
         subtype_validator = StrValidator(
-            allowed_values=allowed_output_subtypes,
-            ignore_case=True,
-            normalize=True
-        )
+            allowed_values=allowed_output_subtypes, ignore_case=True,
+            normalize=True)
         # The order matters. First we normalize the 2 strings to the exact
         # spellings we want to keep in the config file. Those first 2 steps
         # are MemberValidationStep objects because they validate one named
@@ -146,12 +145,10 @@ class ExampleConfig5(Config):
         # After that we use WholeConfigValidationStep for the rule that
         # depends on the combination of both members. That step receives the
         # whole Config object, so it can look at both values together.
-        return [MemberValidationStep(
-                    member_names=['output_format'],
-                    validator=format_validator),
-                MemberValidationStep(
-                    member_names=['output_subtype'],
-                    validator=subtype_validator),
+        return [MemberValidationStep(member_names=['output_format'],
+                                     validator=format_validator),
+                MemberValidationStep(member_names=['output_subtype'],
+                                     validator=subtype_validator),
                 WholeConfigValidationStep(
                     validator=OutputFormatSubtypeValidator())]
 
@@ -218,8 +215,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e05_custom_validator',
                       input_specs=INPUT_SPECS,
                       set_command=e05_custom_validator_set,
-                      print_command=e05_custom_validator_print,
-                      args=args)
+                      print_command=e05_custom_validator_print, args=args)
 
 
 if __name__ == '__main__':

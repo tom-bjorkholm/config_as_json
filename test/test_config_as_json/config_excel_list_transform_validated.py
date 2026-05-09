@@ -26,8 +26,8 @@ from .config_excel_list_transform import ColInfo, Column, Rule, RuleMerge, \
 from .config_enums import ColumnRef
 
 
-class ConfigMethodValidator(  # pylint: disable=too-few-public-methods
-        WholeConfigValidator):
+# pylint: disable-next=too-few-public-methods
+class ConfigMethodValidator(WholeConfigValidator):
     """Call one validation method on the Config object."""
 
     def __init__(self, method_name: str) -> None:
@@ -47,38 +47,34 @@ class ConfigMethodValidator(  # pylint: disable=too-few-public-methods
         method(stderr_file=stderr_file)
 
 
-def single_rule_columns_projector(
-        column_type: type[Column]
-        ) -> Callable[[Config, str, object, TextIO], object]:
+def single_rule_columns_projector(column_type: type[Column]) -> Callable[
+        [Config, str, object, TextIO], object]:
     """Build a projector from single-column rules to column values."""
-
-    def project_single_rule_columns(
-            config: Config, member_name: str, member_value: object,
-            stderr_file: TextIO) -> object:
+    def project_single_rule_columns(config: Config, member_name: str,
+                                    member_value: object,
+                                    stderr_file: TextIO) -> object:
         """Project one single-column rule list to its column values."""
         _ = config, member_name, stderr_file
         sample = column_type()
         checked_value = cast(Rule[Column] | RuleSplit[Column], member_value)
-        return LegacyConfigExcelListTransform.get_cols_single(
-            checked_value, sample)
+        return LegacyConfigExcelListTransform.get_cols_single(checked_value,
+                                                              sample)
 
     return project_single_rule_columns
 
 
-def merge_rule_columns_projector(
-        column_type: type[Column]
-        ) -> Callable[[Config, str, object, TextIO], object]:
+def merge_rule_columns_projector(column_type: type[Column]) -> Callable[
+        [Config, str, object, TextIO], object]:
     """Build a projector from merge rules to flattened column values."""
-
-    def project_merge_rule_columns(
-            config: Config, member_name: str, member_value: object,
-            stderr_file: TextIO) -> object:
+    def project_merge_rule_columns(config: Config, member_name: str,
+                                   member_value: object,
+                                   stderr_file: TextIO) -> object:
         """Project one merge rule list to its flattened column values."""
         _ = config, member_name, stderr_file
         sample = column_type()
         checked_value = cast(RuleMerge[Column], member_value)
-        return LegacyConfigExcelListTransform.get_cols_multi(
-            checked_value, sample)
+        return LegacyConfigExcelListTransform.get_cols_multi(checked_value,
+                                                             sample)
 
     return project_merge_rule_columns
 
@@ -88,9 +84,9 @@ def unique_single_columns_validator(
     """Build a validator for unique columns in single-column rules."""
     return ProjectedMemberValidator(
         projector=single_rule_columns_projector(column_type),
-        validators=[ListIsOrderedValidator(
-            element_type=column_type, is_ordered=False,
-            unique_values=True)])
+        validators=[
+            ListIsOrderedValidator(element_type=column_type, is_ordered=False,
+                                   unique_values=True)])
 
 
 def increasing_merge_columns_validator(
@@ -98,8 +94,9 @@ def increasing_merge_columns_validator(
     """Build a validator for increasing columns in merge-column rules."""
     return ProjectedMemberValidator(
         projector=merge_rule_columns_projector(column_type),
-        validators=[ListIsOrderedValidator(
-            element_type=column_type, unique_values=True)])
+        validators=[
+            ListIsOrderedValidator(element_type=column_type,
+                                   unique_values=True)])
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -108,17 +105,23 @@ def copy_common_state_from_legacy(config: Config, col_ref: ColumnRef,
                                   auto_ch_hook: ConfigAutoChangeHook,
                                   stderr_file: TextIO) -> None:
     """Copy the common default state from the legacy helper config."""
-    template = LegacyConfigExcelListTransform(
-        col_ref=col_ref, colinfo=deepcopy(colinfo), tinfo=tinfo,
-        from_json_data_text=None, from_json_filename=None,
-        auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+    template = LegacyConfigExcelListTransform(col_ref=col_ref,
+                                              colinfo=deepcopy(colinfo),
+                                              tinfo=tinfo,
+                                              from_json_data_text=None,
+                                              from_json_filename=None,
+                                              auto_ch_hook=auto_ch_hook,
+                                              stderr_file=stderr_file)
     for name, value in vars(template).items():
         if not name.startswith('_') or name == '_columntype':
             setattr(config, name, deepcopy(value))
+
+
 # pylint: enable=too-many-arguments,too-many-positional-arguments
 
 
-class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: disable=too-many-instance-attributes, line-too-long, duplicate-code # noqa: E501
+# pylint: disable-next=R0902,C0301,R0801
+class ConfigExcelTransformValidated(Config, Generic[Column]):
     """Validator-based test configuration for excel list transform."""
 
     _columntype: type[Column]
@@ -127,9 +130,9 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
     s07_rename_columns: Rule[Column]
     s08_insert_columns: Rule[Column]
 
-    def __init__(self, *, col_ref: ColumnRef,  # pylint: disable=too-many-arguments # noqa: E501
-                 colinfo: ColInfo[Column], tinfo: Column,
-                 from_json_data_text: Optional[str] = None,
+    # pylint: disable-next=too-many-arguments
+    def __init__(self, *, col_ref: ColumnRef, colinfo: ColInfo[Column],
+                 tinfo: Column, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
@@ -138,10 +141,10 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
             auto_ch_hook = MigrateCfgWarnHook()
         copy_common_state_from_legacy(self, col_ref, colinfo, tinfo,
                                       auto_ch_hook, stderr_file)
-        super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook,
-                         stderr_file=stderr_file)
+        super().__init__(
+            from_json_data_text=from_json_data_text,
+            from_json_filename=from_json_filename, auto_ch_hook=auto_ch_hook,
+            stderr_file=stderr_file)
 
     def sort_sx_hook(self, stderr_file: TextIO) -> None:
         """Sort s[0-9]_ as needed (hook)."""
@@ -164,8 +167,7 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
         """
         legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
         LegacyConfigExcelListTransform.check_rewrite_configs(
-            legacy_self, coltype=self._columntype,
-            stderr_file=stderr_file)
+            legacy_self, coltype=self._columntype, stderr_file=stderr_file)
 
     def _validate_split_row_cfg(self, stderr_file: TextIO) -> None:
         """Validate the split-row configuration.
@@ -194,22 +196,21 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
         return [
             WholeConfigValidationStep(
                 validator=ConfigMethodValidator('sort_sx_hook')),
-            MemberValidationStep(
-                member_names=['s03_split_columns'],
-                validator=ListOfDictsKeysValidator(
-                    ['column', 'separator', 'where',
-                     self._split_last_key()])),
+            MemberValidationStep(member_names=['s03_split_columns'],
+                                 validator=ListOfDictsKeysValidator([
+                                     'column', 'separator', 'where',
+                                     self._split_last_key()
+                                 ])),
             MemberValidationStep(
                 member_names=['s05_merge_columns'],
-                validator=ListOfDictsKeysValidator(
-                    ['columns', 'separator'])),
-            MemberValidationStep(
-                member_names=['s07_rename_columns'],
-                validator=ListOfDictsKeysValidator(['column', 'name'])),
+                validator=ListOfDictsKeysValidator(['columns', 'separator'])),
+            MemberValidationStep(member_names=['s07_rename_columns'],
+                                 validator=ListOfDictsKeysValidator(
+                                     ['column', 'name'])),
             MemberValidationStep(
                 member_names=['s08_insert_columns'],
-                validator=ListOfDictsKeysValidator(
-                    ['column', 'value'], insert_allowed_keys)),
+                validator=ListOfDictsKeysValidator(['column', 'value'],
+                                                   insert_allowed_keys)),
             MemberValidationStep(
                 member_names=['in_csv_encoding', 'out_csv_encoding'],
                 validator=CharEncodingValidator()),
@@ -217,18 +218,18 @@ class ConfigExcelListTransformValidated(Config, Generic[Column]):  # pylint: dis
                 member_names=['in_csv_dialect', 'out_csv_dialect'],
                 validator=CsvDialectValidator()),
             MemberValidationStep(
-                member_names=['s03_split_columns',
-                              's07_rename_columns',
-                              's08_insert_columns'],
-                validator=unique_single_columns_validator(
-                    self._columntype)),
+                member_names=[
+                    's03_split_columns', 's07_rename_columns',
+                    's08_insert_columns'
+                ],
+                validator=unique_single_columns_validator(self._columntype)),
             WholeConfigValidationStep(
-                validator=ConfigMethodValidator(
-                    '_validate_rewrite_configs')),
+                validator=ConfigMethodValidator('_validate_rewrite_configs')),
             WholeConfigValidationStep(
                 validator=ConfigMethodValidator('_validate_split_row_cfg')),
             WholeConfigValidationStep(
-                validator=ConfigMethodValidator('_validate_merge_row_cfg'))]
+                validator=ConfigMethodValidator('_validate_merge_row_cfg'))
+        ]
 
     get_out_csv_dialect = LegacyConfigExcelListTransform.get_out_csv_dialect
     get_in_csv_dialect = LegacyConfigExcelListTransform.get_in_csv_dialect

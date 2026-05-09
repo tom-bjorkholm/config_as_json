@@ -103,18 +103,16 @@ class ExampleConfig9(Config):
                                                    allowed_values=None)
         per_day_validator = ListForEachValidator(
             element_validators=[inner_size_validator, inner_value_validator],
-            element_type=list
-        )
-        return [MemberValidationStep(
-                    member_names=['daily_hour_ranges'],
-                    validator=outer_size_validator),
-                MemberValidationStep(
-                    member_names=['daily_hour_ranges'],
-                    validator=per_day_validator)]
+            element_type=list)
+        return [MemberValidationStep(member_names=['daily_hour_ranges'],
+                                     validator=outer_size_validator),
+                MemberValidationStep(member_names=['daily_hour_ranges'],
+                                     validator=per_day_validator)]
 
 
-def e09_list_for_each_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e09_list_for_each_set(set_values: SetValues,
+                          config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -143,8 +141,8 @@ def e09_list_for_each_set(  # pylint: disable=duplicate-code
         pass  # Error already printed by the Config object.
 
 
-def e09_list_for_each_print(  # pylint: disable=duplicate-code
-        config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e09_list_for_each_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show how the values are used.
 
     Args:
@@ -190,8 +188,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e09_list_for_each',
                       input_specs=INPUT_SPECS,
                       set_command=e09_list_for_each_set,
-                      print_command=e09_list_for_each_print,
-                      args=args)
+                      print_command=e09_list_for_each_print, args=args)
 
 
 if __name__ == '__main__':

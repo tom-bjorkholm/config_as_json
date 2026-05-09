@@ -94,8 +94,7 @@ class ExampleConfig31(Config):
         self.max_items: int = 25
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook,
-                         stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
 
     def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
         """Return current values for keys missing from old files."""
@@ -109,8 +108,7 @@ class ExampleConfig31(Config):
     def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
         """Return old key names that should be mapped to current names."""
         return [RocfKeyRename(old='title', new='report_name'),
-                RocfKeyRename(old='refresh_interval',
-                              new='refresh_seconds')]
+                RocfKeyRename(old='refresh_interval', new='refresh_seconds')]
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return extra validation steps for this example configuration."""
@@ -143,12 +141,10 @@ def output_format_from_text(text: str) -> OutputFormat:
     return string_to_enum_best_match(text, OutputFormat)
 
 
-def e31_write_old_config(
-        config_file: PathOrStr,
-        title: Optional[str] = None,
-        output_format: Optional[OutputFormat] = None,
-        refresh_interval: Optional[int] = None,
-        debug_trace: Optional[bool] = None) -> None:
+def e31_write_old_config(config_file: PathOrStr, title: Optional[str] = None,
+                         output_format: Optional[OutputFormat] = None,
+                         refresh_interval: Optional[int] = None,
+                         debug_trace: Optional[bool] = None) -> None:
     """Write an old-shape configuration file.
 
     Args:
@@ -171,12 +167,11 @@ def e31_write_old_config(
     print(f'Old configuration written to {config_file}')
 
 
-def e31_write_new_config(
-        config_file: PathOrStr,
-        report_name: Optional[str] = None,
-        output_format: Optional[OutputFormat] = None,
-        refresh_seconds: Optional[int] = None,
-        max_items: Optional[int] = None) -> None:
+def e31_write_new_config(config_file: PathOrStr,
+                         report_name: Optional[str] = None,
+                         output_format: Optional[OutputFormat] = None,
+                         refresh_seconds: Optional[int] = None,
+                         max_items: Optional[int] = None) -> None:
     """Write a current-shape configuration file.
 
     Args:
@@ -235,8 +230,7 @@ def e31_migrate_config(infile: PathOrStr, outfile: PathOrStr) -> None:
 
 def _create_argument_parser() -> argparse.ArgumentParser:
     """Create the command-line parser for this example."""
-    parser = argparse.ArgumentParser(
-        prog='e31_read_old_configuration_file')
+    parser = argparse.ArgumentParser(prog='e31_read_old_configuration_file')
     subparsers = parser.add_subparsers(dest='command')
     subparsers.required = True
     old_parser = subparsers.add_parser(
@@ -268,10 +262,8 @@ def _handle_write_old(parsed_args: argparse.Namespace) -> None:
     e31_write_old_config(
         config_file=cast(str, parsed_args.output),
         title=cast(Optional[str], parsed_args.title),
-        output_format=cast(Optional[OutputFormat],
-                           parsed_args.output_format),
-        refresh_interval=cast(Optional[int],
-                              parsed_args.refresh_interval),
+        output_format=cast(Optional[OutputFormat], parsed_args.output_format),
+        refresh_interval=cast(Optional[int], parsed_args.refresh_interval),
         debug_trace=cast(bool, parsed_args.debug_trace))
 
 
@@ -280,10 +272,8 @@ def _handle_write_new(parsed_args: argparse.Namespace) -> None:
     e31_write_new_config(
         config_file=cast(str, parsed_args.output),
         report_name=cast(Optional[str], parsed_args.report_name),
-        output_format=cast(Optional[OutputFormat],
-                           parsed_args.output_format),
-        refresh_seconds=cast(Optional[int],
-                             parsed_args.refresh_seconds),
+        output_format=cast(Optional[OutputFormat], parsed_args.output_format),
+        refresh_seconds=cast(Optional[int], parsed_args.refresh_seconds),
         max_items=cast(Optional[int], parsed_args.max_items))
 
 

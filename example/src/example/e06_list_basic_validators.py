@@ -84,8 +84,9 @@ class ExampleConfig6(Config):
                 MemberValidationStep(['backup_servers'], server_count)]
 
 
-def e06_list_basic_validators_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e06_list_basic_validators_set(set_values: SetValues,
+                                  config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -111,8 +112,8 @@ def e06_list_basic_validators_set(  # pylint: disable=duplicate-code
         pass  # Error already printed by the Config object.
 
 
-def e06_list_basic_validators_print(  # pylint: disable=duplicate-code
-        config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e06_list_basic_validators_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show how the values are used.
 
     Args:
@@ -155,8 +156,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e06_list_basic_validators',
                       input_specs=INPUT_SPECS,
                       set_command=e06_list_basic_validators_set,
-                      print_command=e06_list_basic_validators_print,
-                      args=args)
+                      print_command=e06_list_basic_validators_print, args=args)
 
 
 if __name__ == '__main__':

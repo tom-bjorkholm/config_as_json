@@ -39,12 +39,9 @@ def test_e31_write_old_creates_old_shape(
     """Write an old file with old key names and no current-only keys."""
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/old.cfg'
-        e31_write_old_config(
-            config_file=config_file,
-            title='operations',
-            output_format=OutputFormat.TEXT,
-            refresh_interval=120,
-            debug_trace=True)
+        e31_write_old_config(config_file=config_file, title='operations',
+                             output_format=OutputFormat.TEXT,
+                             refresh_interval=120, debug_trace=True)
         json_data = read_json_data(config_file)
     out, err = capsys.readouterr()
     assert out == f'Old configuration written to {config_file}\n'
@@ -60,12 +57,9 @@ def test_e31_write_new_creates_current_shape(
     """Write a current file with current key names."""
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/current.cfg'
-        e31_write_new_config(
-            config_file=config_file,
-            report_name='operations',
-            output_format=OutputFormat.TEXT,
-            refresh_seconds=120,
-            max_items=10)
+        e31_write_new_config(config_file=config_file, report_name='operations',
+                             output_format=OutputFormat.TEXT,
+                             refresh_seconds=120, max_items=10)
         json_data = read_json_data(config_file)
     out, err = capsys.readouterr()
     assert out == f'Current configuration written to {config_file}\n'
@@ -123,10 +117,8 @@ def test_e31_current_config_reads_old_file(
     """Create the current config object directly from an old JSON file."""
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/old.cfg'
-        e31_write_old_config(
-            config_file=config_file,
-            title='support',
-            refresh_interval=900)
+        e31_write_old_config(config_file=config_file, title='support',
+                             refresh_interval=900)
         _ = capsys.readouterr()
         config = ExampleConfig31(from_json_filename=config_file,
                                  auto_ch_hook=ConfigAutoChangeHook())
@@ -146,11 +138,9 @@ def test_e31_migrate_writes_current_shape_without_warning(
     with TemporaryDirectory() as dirname:
         old_file = dirname + '/old.cfg'
         new_file = dirname + '/new.cfg'
-        e31_write_old_config(
-            config_file=old_file,
-            title='support',
-            output_format=OutputFormat.TEXT,
-            refresh_interval=900)
+        e31_write_old_config(config_file=old_file, title='support',
+                             output_format=OutputFormat.TEXT,
+                             refresh_interval=900)
         _ = capsys.readouterr()
         e31_migrate_config(infile=old_file, outfile=new_file)
         json_data = read_json_data(new_file)
@@ -199,8 +189,7 @@ def test_e31_main_write_old_and_print(
     assert err == Example31MigrateWarnHook.migrate_warn_msg()
 
 
-def test_e31_main_migrate(
-        capsys: pytest.CaptureFixture[str]) -> None:
+def test_e31_main_migrate(capsys: pytest.CaptureFixture[str]) -> None:
     """Migrate an old file through the command-line entry point."""
     with TemporaryDirectory() as dirname:
         old_file = dirname + '/old.cfg'

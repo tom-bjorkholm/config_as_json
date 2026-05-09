@@ -20,7 +20,8 @@ from .validator_test_helpers import EmptyValidationConfig, \
     assert_validate_member_failure, assert_validate_member_ok
 
 
-class _RecordingProjector:  # pylint: disable=too-few-public-methods
+# pylint: disable-next=too-few-public-methods
+class _RecordingProjector:
     """Projector that records the context it received."""
 
     def __init__(self, projected_value: object) -> None:
@@ -28,20 +29,19 @@ class _RecordingProjector:  # pylint: disable=too-few-public-methods
         self.projected_value: object = projected_value
         self.calls: list[tuple[Config, str, object, TextIO]] = []
 
-    def __call__(self, config: Config, member_name: str,
-                 member_value: object, stderr_file: TextIO) -> object:
+    def __call__(self, config: Config, member_name: str, member_value: object,
+                 stderr_file: TextIO) -> object:
         """Record one projector call and return the stored value."""
         self.calls.append((config, member_name, member_value, stderr_file))
         return self.projected_value
 
 
-class _RecordingValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class _RecordingValidator(MemberValidator):
     """Validator that records its input and returns a configured value."""
 
-    def __init__(
-            self, name: str, recording: list[tuple[str, str, object]],
-            replacement: object) -> None:
+    def __init__(self, name: str, recording: list[tuple[str, str, object]],
+                 replacement: object) -> None:
         """Store the recording destination and replacement value."""
         self.name: str = name
         self.recording: list[tuple[str, str, object]] = recording
@@ -56,8 +56,8 @@ class _RecordingValidator(  # pylint: disable=too-few-public-methods
         return self.replacement
 
 
-class _AppendValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class _AppendValidator(MemberValidator):
     """Validator that mutates a list in place for aliasing tests."""
 
     def __init__(self, item: object) -> None:
@@ -74,8 +74,8 @@ class _AppendValidator(  # pylint: disable=too-few-public-methods
         return member_value
 
 
-class _FailingValidator(  # pylint: disable=too-few-public-methods
-        MemberValidator):
+# pylint: disable-next=too-few-public-methods
+class _FailingValidator(MemberValidator):
     """Validator that always rejects the projected value."""
 
     def validate_member(self, config: Config, member_name: str,
@@ -96,18 +96,23 @@ class ProjectedValidationConfig(Config):
                  from_json_data_text: Optional[str] = None) -> None:
         """Construct one config object with route data."""
         self._validator = validator
-        self.routes: list[dict[str, object]] = [
-            {'name': 'api', 'port': 8080},
-            {'name': 'admin', 'port': 9090}
-        ]
+        self.routes: list[dict[str, object]] = [{
+            'name': 'api',
+            'port': 8080
+        }, {
+            'name': 'admin',
+            'port': 9090
+        }]
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=None, stderr_file=sys.stderr)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
         _ = stderr_file
-        return [MemberValidationStep(member_names=['routes'],
-                                     validator=self._validator)]
+        return [
+            MemberValidationStep(member_names=['routes'],
+                                 validator=self._validator)
+        ]
 
 
 def project_names(config: Config, member_name: str, member_value: object,
@@ -153,43 +158,34 @@ def failing_projector(config: Config, member_name: str, member_value: object,
 
 def make_unique_names_validator() -> ProjectedMemberValidator:
     """Create a validator that checks route names through a projection."""
-    return ProjectedMemberValidator(
-        projector=project_names,
-        validators=[
-            ListIsOrderedValidator(
-                str, is_ordered=False, unique_values=True)
-        ])
+    return ProjectedMemberValidator(projector=project_names,
+                                    validators=[
+                                        ListIsOrderedValidator(
+                                            str, is_ordered=False,
+                                            unique_values=True)])
 
 
 @pytest.mark.parametrize(
     'projector, validators, source_validator, exc_type, message',
-    [(object(), [ListSizeValidator(0, 1)], None, TypeError,
-      'projector must be callable'),
-     (project_names, None, None, TypeError,
-      'validators must be a sequence'),
-     (project_names, [], None, ValueError,
-      'validators must be non-empty'),
-     (project_names, [], ListSizeValidator(0, 1), ValueError,
-      'validators must be non-empty'),
+    [(object(), [ListSizeValidator(0, 1)
+                 ], None, TypeError, 'projector must be callable'),
+     (project_names, None, None, TypeError, 'validators must be a sequence'),
+     (project_names, [], None, ValueError, 'validators must be non-empty'),
+     (project_names, [], ListSizeValidator(
+         0, 1), ValueError, 'validators must be non-empty'),
      (project_names, [object()], None, TypeError,
       'validators[0] must be a MemberValidator'),
      (project_names, [ListSizeValidator(0, 1)], object(), TypeError,
       'source_validator must be None or a MemberValidator')])
 def test_projected_member_validator_init_rejects_invalid_arguments(
-        projector: object,
-        validators: object,
-        source_validator: object,
-        exc_type: type[Exception],
-        message: str) -> None:
+        projector: object, validators: object, source_validator: object,
+        exc_type: type[Exception], message: str) -> None:
     """Test constructor validation."""
     with pytest.raises(exc_type) as exc:
         ProjectedMemberValidator(
-            projector=cast(
-                Callable[[Config, str, object, TextIO], object],
-                projector),
-            validators=cast(Any, validators),
-            source_validator=cast(Optional[MemberValidator],
-                                  source_validator))
+            projector=cast(Callable[[Config, str, object, TextIO], object],
+                           projector), validators=cast(Any, validators),
+            source_validator=cast(Optional[MemberValidator], source_validator))
     assert message in str(exc.value)
 
 
@@ -197,10 +193,9 @@ def test_projected_member_validator_init_stores_arguments() -> None:
     """Test that constructor arguments are exposed on the validator."""
     validator = ListSizeValidator(0, 2)
     source_validator = ListSizeValidator(0, 2)
-    projected = ProjectedMemberValidator(
-        projector=project_names,
-        validators=[validator],
-        source_validator=source_validator)
+    projected = ProjectedMemberValidator(projector=project_names,
+                                         validators=[validator],
+                                         source_validator=source_validator)
     assert projected.projector is project_names
     assert projected.validators == [validator]
     assert projected.source_validator is source_validator
@@ -212,8 +207,7 @@ def test_projected_member_validator_validates_projected_list_and_keeps_source(
     validator = make_unique_names_validator()
     routes = [{'name': 'api'}, {'name': 'admin'}]
     cfg = EmptyValidationConfig()
-    result = validator.validate_member(
-        cfg, 'value', routes, sys.stderr)
+    result = validator.validate_member(cfg, 'value', routes, sys.stderr)
     out, err = capsys.readouterr()
     assert result is routes
     assert routes == [{'name': 'api'}, {'name': 'admin'}]
@@ -225,18 +219,22 @@ def test_projected_member_validator_rejects_invalid_projected_list(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Reject a projected list when an inner validator rejects it."""
     validator = make_unique_names_validator()
-    assert_validate_member_failure(
-        capsys, validator, [{'name': 'api'}, {'name': 'api'}],
-        InvalidConfiguration, 'duplicates the value at index 0')
+    assert_validate_member_failure(capsys, validator, [{
+        'name': 'api'
+    }, {
+        'name': 'api'
+    }], InvalidConfiguration, 'duplicates the value at index 0')
 
 
 def test_projected_member_validator_validates_projected_scalar(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Validate a projected scalar and keep the original dict."""
-    validator = ProjectedMemberValidator(
-        projector=project_mode,
-        validators=[StrValidator(
-            allowed_values=['fast'], ignore_case=True, normalize=True)])
+    validator = ProjectedMemberValidator(projector=project_mode,
+                                         validators=[
+                                             StrValidator(
+                                                 allowed_values=['fast'],
+                                                 ignore_case=True,
+                                                 normalize=True)])
     settings = {'mode': 'FAST', 'limit': 3}
     assert_validate_member_ok(capsys, validator, settings, settings)
     assert settings == {'mode': 'FAST', 'limit': 3}
@@ -245,10 +243,11 @@ def test_projected_member_validator_validates_projected_scalar(
 def test_projected_member_validator_validates_projected_dict(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Validate a projected nested dict and keep the outer dict."""
-    validator = ProjectedMemberValidator(
-        projector=project_limits,
-        validators=[DictKeysValidator(
-            mandatory_keys=['min', 'max'], allowed_keys=None)])
+    validator = ProjectedMemberValidator(projector=project_limits,
+                                         validators=[
+                                             DictKeysValidator(
+                                                 mandatory_keys=['min', 'max'],
+                                                 allowed_keys=None)])
     settings = {'name': 'cache', 'limits': {'min': 1, 'max': 5}}
     assert_validate_member_ok(capsys, validator, settings, settings)
     assert settings == {'name': 'cache', 'limits': {'min': 1, 'max': 5}}
@@ -261,15 +260,14 @@ def test_projected_member_validator_uses_source_validator_before_projector(
     projector = _RecordingProjector('projected')
     validator = ProjectedMemberValidator(
         projector=projector,
-        source_validator=_RecordingValidator(
-            'source', recording, 'normalized-source'),
-        validators=[_RecordingValidator(
-            'projected', recording, 'normalized-projected')])
+        source_validator=_RecordingValidator('source', recording,
+                                             'normalized-source'),
+        validators=[
+            _RecordingValidator('projected', recording, 'normalized-projected')
+        ])
     assert_validate_member_ok(capsys, validator, 'original', 'original')
-    assert recording == [
-        ('source', 'value', 'original'),
-        ('projected', 'value', 'projected')
-    ]
+    assert recording == [('source', 'value', 'original'),
+                         ('projected', 'value', 'projected')]
     assert projector.calls[0][2] == 'normalized-source'
 
 
@@ -281,13 +279,10 @@ def test_projected_member_validator_chains_normalized_values(
         projector=_RecordingProjector('zero'),
         validators=[
             _RecordingValidator('first', recording, 'one'),
-            _RecordingValidator('second', recording, 'two')
-        ])
+            _RecordingValidator('second', recording, 'two')])
     assert_validate_member_ok(capsys, validator, 'original', 'original')
-    assert recording == [
-        ('first', 'value', 'zero'),
-        ('second', 'value', 'one')
-    ]
+    assert recording == [('first', 'value', 'zero'),
+                         ('second', 'value', 'one')]
 
 
 def test_projected_member_validator_passes_context_to_projector(
@@ -296,12 +291,11 @@ def test_projected_member_validator_passes_context_to_projector(
     cfg = EmptyValidationConfig()
     member_value = ['original']
     projector = _RecordingProjector(['projected'])
-    validator = ProjectedMemberValidator(
-        projector=projector,
-        validators=[ListSizeValidator(1, 1)])
-    result = validator.validate_member(
-        config=cfg, member_name='value', member_value=member_value,
-        stderr_file=sys.stderr)
+    validator = ProjectedMemberValidator(projector=projector,
+                                         validators=[ListSizeValidator(1, 1)])
+    result = validator.validate_member(config=cfg, member_name='value',
+                                       member_value=member_value,
+                                       stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert result is member_value
     assert projector.calls == [(cfg, 'value', member_value, sys.stderr)]
@@ -313,36 +307,33 @@ def test_projected_member_validator_propagates_source_failure(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Propagate an invalid configuration raised by the source validator."""
     projector = _RecordingProjector(['projected'])
-    validator = ProjectedMemberValidator(
-        projector=projector,
-        source_validator=_FailingValidator(),
-        validators=[ListSizeValidator(1, 1)])
-    assert_validate_member_failure(
-        capsys, validator, ['original'], InvalidConfiguration,
-        'projected value failed for value')
+    validator = ProjectedMemberValidator(projector=projector,
+                                         source_validator=_FailingValidator(),
+                                         validators=[ListSizeValidator(1, 1)])
+    assert_validate_member_failure(capsys, validator, ['original'],
+                                   InvalidConfiguration,
+                                   'projected value failed for value')
     assert not projector.calls
 
 
 def test_projected_member_validator_propagates_projector_failure(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Propagate an invalid configuration raised by the projector."""
-    validator = ProjectedMemberValidator(
-        projector=failing_projector,
-        validators=[ListSizeValidator(1, 1)])
-    assert_validate_member_failure(
-        capsys, validator, ['original'], InvalidConfiguration,
-        'cannot project value')
+    validator = ProjectedMemberValidator(projector=failing_projector,
+                                         validators=[ListSizeValidator(1, 1)])
+    assert_validate_member_failure(capsys, validator, ['original'],
+                                   InvalidConfiguration,
+                                   'cannot project value')
 
 
 def test_projected_member_validator_propagates_inner_failure(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Propagate an invalid configuration raised by an inner validator."""
-    validator = ProjectedMemberValidator(
-        projector=identity_projector,
-        validators=[_FailingValidator()])
-    assert_validate_member_failure(
-        capsys, validator, ['original'], InvalidConfiguration,
-        'projected value failed for value')
+    validator = ProjectedMemberValidator(projector=identity_projector,
+                                         validators=[_FailingValidator()])
+    assert_validate_member_failure(capsys, validator, ['original'],
+                                   InvalidConfiguration,
+                                   'projected value failed for value')
 
 
 def test_projected_member_validator_propagates_allowed_value_failure(
@@ -350,8 +341,7 @@ def test_projected_member_validator_propagates_allowed_value_failure(
     """Propagate ``InvalidConfigurationValue`` from an inner validator."""
     validator = ProjectedMemberValidator(
         projector=project_mode,
-        validators=[StrValidator(
-            allowed_values=['fast'], ignore_case=False)])
+        validators=[StrValidator(allowed_values=['fast'], ignore_case=False)])
     assert_validate_member_failure(
         capsys, validator, {'mode': 'slow'}, InvalidConfigurationValue,
         'Value slow for value is not one of the allowed values')
@@ -361,12 +351,10 @@ def test_projected_member_validator_can_expose_in_place_mutation(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Document that shared projected objects are not defensively copied."""
     validator = ProjectedMemberValidator(
-        projector=identity_projector,
-        validators=[_AppendValidator('mutated')])
+        projector=identity_projector, validators=[_AppendValidator('mutated')])
     values = ['original']
     cfg = EmptyValidationConfig()
-    result = validator.validate_member(
-        cfg, 'value', values, sys.stderr)
+    result = validator.validate_member(cfg, 'value', values, sys.stderr)
     out, err = capsys.readouterr()
     assert result is values
     assert values == ['original', 'mutated']
@@ -377,15 +365,12 @@ def test_projected_member_validator_can_expose_in_place_mutation(
 def test_projected_member_validator_integration_uses_parsed_json(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Test integration through ``Config.validate()`` and parsed JSON."""
-    config = ProjectedValidationConfig(
-        make_unique_names_validator(),
-        from_json_data_text='{"routes": ['
-                            '{"name": "api", "port": 8080}, '
-                            '{"name": "admin", "port": 9090}]}')
+    config = ProjectedValidationConfig(make_unique_names_validator(),
+                                       from_json_data_text='{"routes": ['
+                                       '{"name": "api", "port": 8080}, '
+                                       '{"name": "admin", "port": 9090}]}')
     out, err = capsys.readouterr()
-    assert config.routes == [
-        {'name': 'api', 'port': 8080},
-        {'name': 'admin', 'port': 9090}
-    ]
+    assert config.routes == [{'name': 'api', 'port': 8080},
+                             {'name': 'admin', 'port': 9090}]
     assert out == ''
     assert err == ''

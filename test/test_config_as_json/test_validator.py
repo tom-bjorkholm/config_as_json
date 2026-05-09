@@ -128,7 +128,8 @@ class ValidationOrderConfig(Config):
             MemberValidationStep(member_names=['alias'],
                                  validator=PrefixFromNameValidator()),
             WholeConfigValidationStep(
-                validator=WholeConfigSuffixValidator('!'))]
+                validator=WholeConfigSuffixValidator('!'))
+        ]
 
 
 class MissingMemberConfig(Config):
@@ -142,8 +143,10 @@ class MissingMemberConfig(Config):
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
-        return [MemberValidationStep(member_names=['missing'],
-                                     validator=IdentityValidator())]
+        return [
+            MemberValidationStep(member_names=['missing'],
+                                 validator=IdentityValidator())
+        ]
 
 
 class NoneWriteBackConfig(Config):
@@ -157,8 +160,10 @@ class NoneWriteBackConfig(Config):
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
-        return [MemberValidationStep(member_names=['value'],
-                                     validator=ReplaceWithNoneValidator())]
+        return [
+            MemberValidationStep(member_names=['value'],
+                                 validator=ReplaceWithNoneValidator())
+        ]
 
 
 class PaletteConfig(Config):
@@ -179,16 +184,15 @@ class PaletteConfig(Config):
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
         return [
-            MemberValidationStep(
-                member_names=['shade'],
-                validator=StrValidator(
-                    ['red', 'green'], ignore_case=True,
-                    normalize=True)),
-            MemberValidationStep(
-                member_names=['accent'],
-                validator=StrValidator(
-                    self.accent_names, ignore_case=False,
-                    best_match=True))]
+            MemberValidationStep(member_names=['shade'],
+                                 validator=StrValidator(['red', 'green'],
+                                                        ignore_case=True,
+                                                        normalize=True)),
+            MemberValidationStep(member_names=['accent'],
+                                 validator=StrValidator(self.accent_names,
+                                                        ignore_case=False,
+                                                        best_match=True))
+        ]
 
 
 class MethodCallConfig(EmptyValidationConfig):
@@ -266,11 +270,11 @@ class MethodCallValidationConfig(Config):
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
         _ = stderr_file
-        name_validator = CallingMemberValidator(
-            method_name='normalize_name', arg_name_value='value',
-            normalizing=True)
-        count_validator = CallingMemberValidator(
-            method_name='check_count', arg_name_value='value')
+        name_validator = CallingMemberValidator(method_name='normalize_name',
+                                                arg_name_value='value',
+                                                normalizing=True)
+        count_validator = CallingMemberValidator(method_name='check_count',
+                                                 arg_name_value='value')
         whole_config_validator = CallingWholeConfigValidator(
             method_name='add_name_suffix', other_args={'suffix': '!'})
         return [
@@ -278,7 +282,8 @@ class MethodCallValidationConfig(Config):
                                  validator=name_validator),
             MemberValidationStep(member_names=['count'],
                                  validator=count_validator),
-            WholeConfigValidationStep(validator=whole_config_validator)]
+            WholeConfigValidationStep(validator=whole_config_validator)
+        ]
 
 
 # pylint: disable-next=too-few-public-methods
@@ -300,33 +305,22 @@ class AppendTextValidator(MemberValidator):
         return member_value + self.text
 
 
-@pytest.mark.parametrize('validator, member_value, expected',
-                         [(StrValidator(['red', 'green'],
-                                        ignore_case=False),
-                           'red', 'red'),
-                          (StrValidator(['red', 'green'],
-                                        ignore_case=True),
-                           'GREEN', 'GREEN'),
-                          (StrValidator(['red', 'green'],
-                                        ignore_case=True,
-                                        normalize=True),
-                           'GREEN', 'green'),
-                          (StrValidator(['Alpha'],
-                                        ignore_case=False,
-                                        best_match=True),
-                           'alpha', 'Alpha'),
-                          (StrValidator(lambda: ['blue', 'black'],
-                                        ignore_case=False,
-                                        best_match=True),
-                           'blu', 'blue')])
+@pytest.mark.parametrize(
+    'validator, member_value, expected',
+    [(StrValidator(['red', 'green'], ignore_case=False), 'red', 'red'),
+     (StrValidator(['red', 'green'], ignore_case=True), 'GREEN', 'GREEN'),
+     (StrValidator(['red', 'green'], ignore_case=True,
+                   normalize=True), 'GREEN', 'green'),
+     (StrValidator(['Alpha'], ignore_case=False,
+                   best_match=True), 'alpha', 'Alpha'),
+     (StrValidator(lambda: ['blue', 'black'], ignore_case=False,
+                   best_match=True), 'blu', 'blue')])
 def test_str_validator_ok(capsys, validator, member_value, expected):
     """Test OK cases of StrValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
 
 
-@pytest.mark.parametrize(
-    'bad_value_type',
-    [None, 'str', [str]])
+@pytest.mark.parametrize('bad_value_type', [None, 'str', [str]])
 def test_value_type_validator_init_rejects_non_type(bad_value_type):
     """Test ValueTypeValidator constructor validation."""
     with pytest.raises(TypeError) as exc:
@@ -334,35 +328,32 @@ def test_value_type_validator_init_rejects_non_type(bad_value_type):
     assert 'value_type must be a type' in str(exc.value)
 
 
-@pytest.mark.parametrize(
-    'validator, member_value, expected',
-    [(ValueTypeValidator(str), 'alpha', 'alpha'),
-     (ValueTypeValidator(int), 3, 3),
-     (ValueTypeValidator(int), True, True),
-     (ValueTypeValidator(list), [1, 2], [1, 2])])
+@pytest.mark.parametrize('validator, member_value, expected',
+                         [(ValueTypeValidator(str), 'alpha', 'alpha'),
+                          (ValueTypeValidator(int), 3, 3),
+                          (ValueTypeValidator(int), True, True),
+                          (ValueTypeValidator(list), [1, 2], [1, 2])])
 def test_value_type_validator_ok(capsys, validator, member_value, expected):
     """Test OK cases of ValueTypeValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
 
 
-@pytest.mark.parametrize(
-    'validator, member_value, message',
-    [(ValueTypeValidator(str), 42, 'Value for value is not of type str'),
-     (ValueTypeValidator(bool), 1, 'Value for value is not of type bool'),
-     (ValueTypeValidator(list), (1, 2),
-      'Value for value is not of type list')])
+@pytest.mark.parametrize('validator, member_value, message', [
+    (ValueTypeValidator(str), 42, 'Value for value is not of type str'),
+    (ValueTypeValidator(bool), 1, 'Value for value is not of type bool'),
+    (ValueTypeValidator(list), (1, 2), 'Value for value is not of type list')])
 def test_value_type_validator_rejects_invalid_member_values(
         capsys, validator, member_value, message):
     """Test ValueTypeValidator failures."""
-    assert_validate_member_failure(
-        capsys, validator, member_value, InvalidConfiguration, message)
+    assert_validate_member_failure(capsys, validator, member_value,
+                                   InvalidConfiguration, message)
 
 
 def test_value_type_validator_integration_uses_parsed_json(capsys):
     """Test ValueTypeValidator integration through Config.validate()."""
-    cfg = SingleMemberValidationConfig(
-        'value', 'alpha', ValueTypeValidator(str),
-        from_json_data_text='{"value": "beta"}')
+    cfg = SingleMemberValidationConfig('value', 'alpha',
+                                       ValueTypeValidator(str),
+                                       from_json_data_text='{"value": "beta"}')
     out, err = capsys.readouterr()
     assert getattr(cfg, 'value') == 'beta'
     assert out == ''
@@ -424,8 +415,7 @@ def test_validate_member_can_write_back_none(capsys):
 
 def test_not_one_of_allowed_values_can_suppress_printing(capsys):
     """Test explicit suppression of printing in helper message builder."""
-    ret = not_one_of_allowed_values('color', 'orange',
-                                    ['red', 'green'], None)
+    ret = not_one_of_allowed_values('color', 'orange', ['red', 'green'], None)
     out, err = capsys.readouterr()
     assert 'Invalid configuration:' in ret
     assert 'orange' in ret
@@ -436,8 +426,7 @@ def test_not_one_of_allowed_values_can_suppress_printing(capsys):
 def test_string_best_match_rejects_invalid_value_type(capsys):
     """Test that string_best_match rejects non-string values."""
     with pytest.raises(InvalidConfiguration) as exc:
-        string_best_match(cast(Any, 42), ['red', 'green'],
-                          'value', sys.stderr)
+        string_best_match(cast(Any, 42), ['red', 'green'], 'value', sys.stderr)
     out, err = capsys.readouterr()
     assert 'Value for value is not a string.' in str(exc.value)
     assert out == ''
@@ -457,20 +446,17 @@ def test_validation_roles_and_step_base_class_are_abstract():
         ABCMeta.__call__(validation_step_class)
 
 
-@pytest.mark.parametrize(
-    'call, message',
-    [(lambda cfg: WholeConfigValidator.validate(
-        WholeConfigSuffixValidator('!'), cfg, sys.stderr),
-      'WholeConfigValidator.validate() must be implemented'),
-     (lambda cfg: MemberValidator.validate_member(
-         IdentityValidator(), cfg, 'value', 'raw', sys.stderr),
-      'MemberValidator.validate_member() must be implemented'),
-     (lambda cfg: ValidationStep.apply(
-         MemberValidationStep(['value'], IdentityValidator()),
-         cfg, sys.stderr),
-      'ValidationStep.apply() must be implemented')])
-def test_validation_base_methods_report_not_implemented(
-        capsys, call, message):
+@pytest.mark.parametrize('call, message', [
+    (lambda cfg: WholeConfigValidator.validate(WholeConfigSuffixValidator('!'),
+                                               cfg, sys.stderr),
+     'WholeConfigValidator.validate() must be implemented'),
+    (lambda cfg: MemberValidator.validate_member(IdentityValidator(), cfg,
+                                                 'value', 'raw', sys.stderr),
+     'MemberValidator.validate_member() must be implemented'),
+    (lambda cfg: ValidationStep.apply(
+        MemberValidationStep(['value'], IdentityValidator()), cfg, sys.stderr),
+     'ValidationStep.apply() must be implemented')])
+def test_validation_base_not_impl(capsys, call, message):
     """Test base validation methods when called directly."""
     cfg = EmptyValidationConfig()
     with pytest.raises(NotImplementedError) as exc:
@@ -484,27 +470,25 @@ def test_validation_base_methods_report_not_implemented(
 def test_str_validator_rejects_invalid_member_type(capsys):
     """Test that StrValidator rejects non-string values."""
     validator = StrValidator(['red', 'green'], ignore_case=False)
-    assert_validate_member_failure(
-        capsys, validator, 42, InvalidConfiguration,
-        'Value for value is not a string.')
+    assert_validate_member_failure(capsys, validator, 42, InvalidConfiguration,
+                                   'Value for value is not a string.')
 
 
 def test_str_validator_rejects_disallowed_value(capsys):
     """Test that StrValidator rejects unknown values."""
     validator = StrValidator(['red', 'green'], ignore_case=False)
-    assert_validate_member_failure(
-        capsys, validator, 'blue', InvalidConfigurationValue,
-        'Value blue for value')
+    assert_validate_member_failure(capsys, validator, 'blue',
+                                   InvalidConfigurationValue,
+                                   'Value blue for value')
 
 
 def test_str_validator_rejects_ambiguous_best_match(capsys):
     """Test that best-match validation rejects ambiguous prefixes."""
-    validator = StrValidator(['blue', 'black'],
-                             ignore_case=False,
+    validator = StrValidator(['blue', 'black'], ignore_case=False,
                              best_match=True)
-    assert_validate_member_failure(
-        capsys, validator, 'bl', InvalidConfigurationValue,
-        'Value bl for value')
+    assert_validate_member_failure(capsys, validator, 'bl',
+                                   InvalidConfigurationValue,
+                                   'Value bl for value')
 
 
 def test_palette_config_uses_str_validator_on_default_values(capsys):
@@ -528,52 +512,70 @@ def test_palette_config_uses_str_validator_on_parsed_json(capsys):
     assert err == ''
 
 
-@pytest.mark.parametrize('kwargs, exc_type, message',
-                         [({'method_name': 42,
-                            'arg_name_value': 'value'}, TypeError,
-                           'method_name must be a str'),
-                          ({'method_name': '',
-                            'arg_name_value': 'value'}, ValueError,
-                           'method_name must be non-empty'),
-                          ({'method_name': 'check_member',
-                            'arg_name_value': ''}, ValueError,
-                           'arg_name_value must be non-empty'),
-                          ({'method_name': 'check_member',
-                            'arg_name_value': 'value',
-                            'arg_name_member_name': 42}, TypeError,
-                           'arg_name_member_name must be a str'),
-                          ({'method_name': 'check_member',
-                            'arg_name_value': 'value',
-                            'arg_name_member_name': ''}, ValueError,
-                           'arg_name_member_name must be non-empty'),
-                          ({'method_name': 'check_member',
-                            'arg_name_value': 'value',
-                            'other_args': []}, TypeError,
-                           'other_args must be a mapping'),
-                          ({'method_name': 'check_member',
-                            'arg_name_value': 'value',
-                            'other_args': {'': 1}}, ValueError,
-                           'other_args key must be non-empty'),
-                          ({'method_name': 'check_member',
-                            'arg_name_value': 'value',
-                            'normalizing': 'yes'}, TypeError,
-                           'normalizing must be a bool'),
-                          ({'method_name': 'check_member',
-                            'arg_name_value': 'value',
-                            'arg_name_member_name': 'value'}, ValueError,
-                           'arg_name_member_name must differ '
-                           'from arg_name_value'),
-                          ({'method_name': 'check_member',
-                            'arg_name_value': 'value',
-                            'other_args': {'value': 1}}, ValueError,
-                           "other_args must not contain generated argument "
-                           "'value'"),
-                          ({'method_name': 'check_member',
-                            'arg_name_value': 'value',
-                            'arg_name_member_name': 'member',
-                            'other_args': {'member': 1}}, ValueError,
-                           "other_args must not contain generated argument "
-                           "'member'")])
+@pytest.mark.parametrize(
+    'kwargs, exc_type, message',
+    [({
+        'method_name': 42,
+        'arg_name_value': 'value'
+    }, TypeError, 'method_name must be a str'),
+     ({
+         'method_name': '',
+         'arg_name_value': 'value'
+     }, ValueError, 'method_name must be non-empty'),
+     ({
+         'method_name': 'check_member',
+         'arg_name_value': ''
+     }, ValueError, 'arg_name_value must be non-empty'),
+     ({
+         'method_name': 'check_member',
+         'arg_name_value': 'value',
+         'arg_name_member_name': 42
+     }, TypeError, 'arg_name_member_name must be a str'),
+     ({
+         'method_name': 'check_member',
+         'arg_name_value': 'value',
+         'arg_name_member_name': ''
+     }, ValueError, 'arg_name_member_name must be non-empty'),
+     ({
+         'method_name': 'check_member',
+         'arg_name_value': 'value',
+         'other_args': []
+     }, TypeError, 'other_args must be a mapping'),
+     ({
+         'method_name': 'check_member',
+         'arg_name_value': 'value',
+         'other_args': {
+             '': 1
+         }
+     }, ValueError, 'other_args key must be non-empty'),
+     ({
+         'method_name': 'check_member',
+         'arg_name_value': 'value',
+         'normalizing': 'yes'
+     }, TypeError, 'normalizing must be a bool'),
+     ({
+         'method_name': 'check_member',
+         'arg_name_value': 'value',
+         'arg_name_member_name': 'value'
+     }, ValueError, 'arg_name_member_name must differ '
+      'from arg_name_value'),
+     ({
+         'method_name': 'check_member',
+         'arg_name_value': 'value',
+         'other_args': {
+             'value': 1
+         }
+     }, ValueError, "other_args must not contain generated argument "
+      "'value'"),
+     ({
+         'method_name': 'check_member',
+         'arg_name_value': 'value',
+         'arg_name_member_name': 'member',
+         'other_args': {
+             'member': 1
+         }
+     }, ValueError, "other_args must not contain generated argument "
+      "'member'")])
 def test_member_call_init_rejects_bad_args(kwargs, exc_type, message):
     """Test constructor validation for CallingMemberValidator."""
     with pytest.raises(exc_type) as exc:
@@ -678,12 +680,12 @@ def test_calling_member_validator_rejects_unexpected_return(capsys):
     assert 'expected None, True, or False' in err
 
 
-@pytest.mark.parametrize('method_name, exc_type, message',
-                         [('missing_method', AttributeError,
-                           'Method missing_method not found in Config object'),
-                          ('non_callable', TypeError,
-                           'Method non_callable in Config object '
-                           'is not callable')])
+@pytest.mark.parametrize(
+    'method_name, exc_type, message',
+    [('missing_method', AttributeError,
+      'Method missing_method not found in Config object'),
+     ('non_callable', TypeError, 'Method non_callable in Config object '
+      'is not callable')])
 def test_member_call_rejects_method(capsys, method_name, exc_type, message):
     """Test method lookup failures in CallingMemberValidator."""
     cfg = MethodCallConfig()
@@ -698,16 +700,22 @@ def test_member_call_rejects_method(capsys, method_name, exc_type, message):
 
 
 @pytest.mark.parametrize('kwargs, exc_type, message',
-                         [({'method_name': 42}, TypeError,
-                           'method_name must be a str'),
-                          ({'method_name': ''}, ValueError,
-                           'method_name must be non-empty'),
-                          ({'method_name': 'check_whole_config',
-                            'other_args': []}, TypeError,
-                           'other_args must be a mapping'),
-                          ({'method_name': 'check_whole_config',
-                            'other_args': {'': 1}}, ValueError,
-                           'other_args key must be non-empty')])
+                         [({
+                             'method_name': 42
+                         }, TypeError, 'method_name must be a str'),
+                          ({
+                              'method_name': ''
+                          }, ValueError, 'method_name must be non-empty'),
+                          ({
+                              'method_name': 'check_whole_config',
+                              'other_args': []
+                          }, TypeError, 'other_args must be a mapping'),
+                          ({
+                              'method_name': 'check_whole_config',
+                              'other_args': {
+                                  '': 1
+                              }
+                          }, ValueError, 'other_args key must be non-empty')])
 def test_whole_call_init_rejects_bad_args(kwargs, exc_type, message):
     """Test constructor validation for CallingWholeConfigValidator."""
     with pytest.raises(exc_type) as exc:
@@ -786,11 +794,11 @@ def test_method_call_validators_reject_invalid_config(capsys):
     assert 'Method check_count returned False' in err
 
 
-@pytest.mark.parametrize('validators, exc_type, message',
-                         [(None, TypeError, 'validators must be a sequence'),
-                          ([], ValueError, 'validators must be non-empty'),
-                          ([object()], TypeError,
-                           'validators[0] must be a MemberValidator')])
+@pytest.mark.parametrize(
+    'validators, exc_type, message',
+    [(None, TypeError, 'validators must be a sequence'),
+     ([], ValueError, 'validators must be non-empty'),
+     ([object()], TypeError, 'validators[0] must be a MemberValidator')])
 def test_member_sequence_init_rejects_bad_args(validators, exc_type, message):
     """Test constructor validation for MemberValidatorSequence."""
     with pytest.raises(exc_type) as exc:
@@ -808,15 +816,15 @@ def test_member_validator_sequence_copies_validators() -> None:
 
 def test_member_validator_sequence_applies_validators_in_order(capsys):
     """Test direct use of MemberValidatorSequence."""
-    validator = MemberValidatorSequence([UppercaseValidator(),
-                                         AppendTextValidator('!')])
+    validator = MemberValidatorSequence(
+        [UppercaseValidator(), AppendTextValidator('!')])
     assert_validate_member_ok(capsys, validator, 'alpha', 'ALPHA!')
 
 
 def test_member_validator_sequence_integrates_with_config(capsys):
     """Test MemberValidatorSequence through Config.validate()."""
-    validator = MemberValidatorSequence([UppercaseValidator(),
-                                         AppendTextValidator('!')])
+    validator = MemberValidatorSequence(
+        [UppercaseValidator(), AppendTextValidator('!')])
     cfg = SingleMemberValidationConfig('value', 'alpha', validator)
     out, err = capsys.readouterr()
     assert getattr(cfg, 'value') == 'ALPHA!'
@@ -834,8 +842,8 @@ def test_member_validator_sequence_integrates_with_config(capsys):
      (True, None, None, TypeError,
       'IntFloatValidator only supports exact int or float values'),
      (1, 2.0, None, TypeError, 'max_value must be of type int'),
-     (None, 2.0, [1.0, 2], TypeError,
-      'allowed_values must be a sequence of float'),
+     (None, 2.0, [1.0, 2
+                  ], TypeError, 'allowed_values must be a sequence of float'),
      (None, None, lambda: [], ValueError,
       'allowed_values must be a non-empty'),
      (None, None, lambda: [1, 2.0], TypeError,
@@ -851,19 +859,15 @@ def test_int_float_validator_init_rejects_invalid_constraints(
     assert message in str(exc.value)
 
 
-@pytest.mark.parametrize('validator, member_value, expected',
-                         [(IntFloatValidator(1, 5, None), 1, 1),
-                          (IntFloatValidator(0, 1, None), True, True),
-                          (IntFloatValidator(1, 5, [2, 3, 5]), 3, 3),
-                          (IntFloatValidator(None, 1.5, [0.5, 1.5]),
-                           0.5, 0.5),
-                          (IntFloatValidator(None, None, [2.0]), 2.0,
-                           2.0),
-                          (IntFloatValidator(None, None, lambda: [2, 4]),
-                           4, 4),
-                          (IntFloatValidator(None, None,
-                                             lambda: [2.0, 4.0]),
-                           4.0, 4.0)])
+@pytest.mark.parametrize(
+    'validator, member_value, expected',
+    [(IntFloatValidator(1, 5, None), 1, 1),
+     (IntFloatValidator(0, 1, None), True, True),
+     (IntFloatValidator(1, 5, [2, 3, 5]), 3, 3),
+     (IntFloatValidator(None, 1.5, [0.5, 1.5]), 0.5, 0.5),
+     (IntFloatValidator(None, None, [2.0]), 2.0, 2.0),
+     (IntFloatValidator(None, None, lambda: [2, 4]), 4, 4),
+     (IntFloatValidator(None, None, lambda: [2.0, 4.0]), 4.0, 4.0)])
 def test_int_float_validator_ok(capsys, validator, member_value, expected):
     """Test OK cases of IntFloatValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
@@ -884,8 +888,8 @@ def test_int_float_validator_ok(capsys, validator, member_value, expected):
 def test_int_float_validator_rejects_invalid_member_values(
         capsys, validator, member_value, exc_type, message):
     """Test IntFloatValidator failures for value type and constraints."""
-    assert_validate_member_failure(
-        capsys, validator, member_value, exc_type, message)
+    assert_validate_member_failure(capsys, validator, member_value, exc_type,
+                                   message)
 
 
 def test_int_float_validator_requires_allowed_value_to_be_in_range(capsys):
@@ -959,8 +963,7 @@ def test_int_float_validator_callable_validates_each_later_result(
         """Return the parameterized allowed-values sequence."""
         return allowed_values
 
-    validator = IntFloatValidator(
-        1, 5, cast(Any, current_allowed_values))
+    validator = IntFloatValidator(1, 5, cast(Any, current_allowed_values))
     cfg = EmptyValidationConfig()
     with pytest.raises(exc_type) as exc:
         validator.validate_member(cfg, 'value', 2, sys.stderr)
@@ -972,9 +975,9 @@ def test_int_float_validator_callable_validates_each_later_result(
 
 def test_int_float_validator_integration_uses_parsed_json(capsys):
     """Test IntFloatValidator integration through Config.validate()."""
-    cfg = SingleMemberValidationConfig(
-        'value', 2, IntFloatValidator(1, 5, [2, 3]),
-        from_json_data_text='{"value": 3}')
+    cfg = SingleMemberValidationConfig('value', 2,
+                                       IntFloatValidator(1, 5, [2, 3]),
+                                       from_json_data_text='{"value": 3}')
     out, err = capsys.readouterr()
     assert getattr(cfg, 'value') == 3
     assert out == ''

@@ -14,39 +14,42 @@ from .config_excel_list_transform import \
 from .config_enums import SplitWhere, ColumnRef
 
 
-class ConfigXlsListTransfName(ConfigExcelListTransform[str]):  # pylint: disable=too-many-instance-attributes, line-too-long # noqa: E501
+NAME_COLUMN_ORDER = [
+    'Class', 'Division', 'Nationality', 'Sail Number', 'Boat Name',
+    'First Name', 'Last Name', 'Club Name', 'Email', 'Phone', 'WhatsApp']
+
+
+def make_name_colinfo() -> ColInfo[str]:
+    """Build column info for the name-based transform fixture."""
+    cols = ['street', 'street number', 'name', 'last name', 'Phone',
+            'Phone', 'Phone', 'Phone', 'Phone', 'Last Name']
+    row_cols = ['Club Name', 'name', 'last name']
+    return ColInfo[str](split_last='right_name', insert_last=None,
+                        s03=[{'column': 'name',
+                              'separator': ' ',
+                              'where': SplitWhere.RIGHTMOST,
+                              'right_name': 'last name'}],
+                        s08=[{'column': 'Division', 'value': None},
+                             {'column': 'Other', 'value': 'some text'}],
+                        col_to_use=cols, col_to_use_row=row_cols, tinfo='a')
+
+
+# pylint: disable-next=R0902,C0301,R0801
+class ConfigXlsListTransfName(ConfigExcelListTransform[str]):
     """Class with configuration for excel list transform."""
 
-    def __init__(self,
-                 from_json_data_text: Optional[str] = None,
+    def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for excel list transform."""
         if auto_ch_hook is None:
             auto_ch_hook = MigrateCfgWarnHook()
-        col_to_use = ['street', 'street number', 'name', 'last name',
-                      'Phone', 'Phone', 'Phone', 'Phone', 'Phone',
-                      'Last Name']
-        col_to_use_row = ['Club Name', 'name', 'last name']
-        colinfo = ColInfo[str](split_last='right_name', insert_last=None,
-                               s03=[{'column': 'name',
-                                     'separator': ' ',
-                                     'where': SplitWhere.RIGHTMOST,
-                                     'right_name': 'last name'}],
-                               s08=[{'column': 'Division', 'value': None},
-                                    {'column': 'Other', 'value': 'some text'}],
-                               col_to_use=col_to_use,
-                               col_to_use_row=col_to_use_row, tinfo='a')
-        self.s10_column_order: RuleOrder = \
-            ['Class', 'Division', 'Nationality', 'Sail Number', 'Boat Name',
-             'First Name', 'Last Name', 'Club Name', 'Email', 'Phone',
-             'WhatsApp']
-        super().__init__(col_ref=ColumnRef.BY_NAME,
-                         colinfo=colinfo, tinfo='a',
+        colinfo = make_name_colinfo()
+        self.s10_column_order: RuleOrder = list(NAME_COLUMN_ORDER)
+        super().__init__(col_ref=ColumnRef.BY_NAME, colinfo=colinfo, tinfo='a',
                          from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook,
-                         stderr_file=stderr_file)
-        check_unique_values(self, self.s10_column_order,
-                            's10_column_order', 'a', stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+        check_unique_values(self, self.s10_column_order, 's10_column_order',
+                            'a', stderr_file)

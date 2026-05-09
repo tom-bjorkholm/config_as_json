@@ -84,8 +84,7 @@ class ExampleConfig11(Config):
         keys_validator = DictKeysValidator(
             mandatory_keys=['ttl_seconds', 'refresh_seconds',
                             'max_entries', 'eviction_policy'],
-            allowed_keys=None
-        )
+            allowed_keys=None)
         # Step 2: per-key value rules.
         #
         # A ``DictRule`` ties a list of keys to a list of inner
@@ -94,44 +93,37 @@ class ExampleConfig11(Config):
         # the same range rule, so we list them together in one rule
         # with one validator chain. Without that grouping we would
         # have had to repeat the same ``IntFloatValidator`` twice.
-        seconds_range_validator = IntFloatValidator(
-            min_value=1, max_value=86400, allowed_values=None
-        )
-        seconds_rule = DictRule(
-            keys=['ttl_seconds', 'refresh_seconds'],
-            validators=[seconds_range_validator]
-        )
+        seconds_range_validator = IntFloatValidator(min_value=1,
+                                                    max_value=86400,
+                                                    allowed_values=None)
+        seconds_rule = DictRule(keys=['ttl_seconds', 'refresh_seconds'],
+                                validators=[seconds_range_validator])
         # The next two rules each apply a different validator to a
         # single key. Splitting them into separate rules keeps each
         # rule's intent obvious.
         max_entries_rule = DictRule(
             keys=['max_entries'],
             validators=[IntFloatValidator(min_value=1, max_value=10000,
-                                          allowed_values=None)]
-        )
+                                          allowed_values=None)])
         eviction_policy_rule = DictRule(
             keys=['eviction_policy'],
-            validators=[StrValidator(
-                allowed_values=['lru', 'lfu', 'fifo'],
-                ignore_case=False)]
-        )
+            validators=[StrValidator(allowed_values=['lru', 'lfu', 'fifo'],
+                                     ignore_case=False)])
         values_validator = DictForEachValidator(
-            rules=[seconds_rule, max_entries_rule, eviction_policy_rule]
-        )
+            rules=[seconds_rule, max_entries_rule, eviction_policy_rule])
         # Note that ``DictForEachValidator`` silently skips a rule key
         # that is not present in the dict. Enforcing that mandatory
         # keys are present is the job of ``DictKeysValidator`` in
         # step 1, so the two validators stay strictly orthogonal.
-        return [MemberValidationStep(
-                    member_names=['cache_settings'],
-                    validator=keys_validator),
-                MemberValidationStep(
-                    member_names=['cache_settings'],
-                    validator=values_validator)]
+        return [MemberValidationStep(member_names=['cache_settings'],
+                                     validator=keys_validator),
+                MemberValidationStep(member_names=['cache_settings'],
+                                     validator=values_validator)]
 
 
-def e11_dict_for_each_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e11_dict_for_each_set(set_values: SetValues,
+                          config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -153,8 +145,8 @@ def e11_dict_for_each_set(  # pylint: disable=duplicate-code
         pass  # Error already printed by the Config object.
 
 
-def e11_dict_for_each_print(  # pylint: disable=duplicate-code
-        config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e11_dict_for_each_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show how the values are used.
 
     Args:
@@ -210,8 +202,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e11_dict_for_each',
                       input_specs=INPUT_SPECS,
                       set_command=e11_dict_for_each_set,
-                      print_command=e11_dict_for_each_print,
-                      args=args)
+                      print_command=e11_dict_for_each_print, args=args)
 
 
 if __name__ == '__main__':

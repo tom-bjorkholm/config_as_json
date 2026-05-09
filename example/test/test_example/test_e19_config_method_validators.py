@@ -17,9 +17,9 @@ from example.e19_config_method_validators import \
     e19_config_method_validators_set
 from example.e19_config_method_validators import main as e19_main
 from .helpers import ExampleProgramSpec
-from .helpers import assert_main_round_trip_print_output
-from .helpers import assert_print_command_reports_validator_error
-from .helpers import assert_set_command_reports_validator_error
+from .helpers import assert_rt_out
+from .helpers import assert_print_validator_error
+from .helpers import assert_set_validator_error
 from .helpers import assert_write_command_output
 
 
@@ -83,11 +83,8 @@ def test_e19_set_rejects_retry_count(capsys: CaptureFixture[str],
         'endpoint': 'https://eu-west.example.invalid/jobs'
     }
     messages = ['Method check_retry_count returned False']
-    assert_set_command_reports_validator_error(capsys,
-                                               monkeypatch,
-                                               E19_SPEC,
-                                               set_values,
-                                               messages)
+    assert_set_validator_error(capsys, monkeypatch, E19_SPEC, set_values,
+                               messages)
 
 
 def test_e19_print_rejects_endpoint_region(capsys: CaptureFixture[str],
@@ -99,11 +96,8 @@ def test_e19_print_rejects_endpoint_region(capsys: CaptureFixture[str],
         'endpoint': 'https://eu-west.example.invalid/jobs'
     }
     messages = ['Method check_endpoint_matches_region returned False']
-    assert_print_command_reports_validator_error(capsys,
-                                                 monkeypatch,
-                                                 E19_SPEC,
-                                                 config_values,
-                                                 messages)
+    assert_print_validator_error(capsys, monkeypatch, E19_SPEC, config_values,
+                                 messages)
 
 
 def test_e19_main_round_trip(capsys: CaptureFixture[str]) -> None:
@@ -116,8 +110,5 @@ def test_e19_main_round_trip(capsys: CaptureFixture[str]) -> None:
         'Region: us-east',
         'Retry count: 4',
         'Endpoint: https://us-east.example.invalid/jobs']
-    assert_main_round_trip_print_output(capsys,
-                                        e19_main,
-                                        'config_method_validators.cfg',
-                                        args,
-                                        expected_lines)
+    assert_rt_out(capsys, e19_main, 'config_method_validators.cfg', args,
+                  expected_lines)

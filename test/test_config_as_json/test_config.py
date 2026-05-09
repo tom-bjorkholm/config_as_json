@@ -69,7 +69,8 @@ def test__over_ride_needed_2(capsys):
     assert '' == out
 
 
-class ConfigSomething(Config):  # pylint: disable=too-many-instance-attributes
+# pylint: disable-next=too-many-instance-attributes
+class ConfigSomething(Config):
     """Class to test Config."""
 
     def __init__(self, from_json_text=None, from_json_filename=None,
@@ -200,8 +201,7 @@ def test_config_something_def(capsys):
     assert err == ''
 
 
-@pytest.mark.parametrize('indel, outdel',
-                         [(';', ','), (':', ';')])
+@pytest.mark.parametrize('indel, outdel', [(';', ','), (':', ';')])
 def test_config_something_changed(capsys, indel, outdel):
     """Test ConfigSomething with changed values."""
     xst = ConfigSomething()
@@ -293,8 +293,7 @@ def test_config_something_cha_bad(capsys, abc_not_pqr, value, exm):
     assert exm in err
 
 
-@pytest.mark.parametrize('indel, outdel',
-                         [(';', ','), (':', ';')])
+@pytest.mark.parametrize('indel, outdel', [(';', ','), (':', ';')])
 def test_config_something_writeread(capsys, indel, outdel):
     """Test ConfigSomething writing and reading."""
     xst = ConfigSomething()
@@ -315,8 +314,7 @@ def test_config_something_writeread(capsys, indel, outdel):
     assert err == ''
 
 
-@pytest.mark.parametrize('indel, outdel',
-                         [(';', ','), (':', ';')])
+@pytest.mark.parametrize('indel, outdel', [(';', ','), (':', ';')])
 def test_config_something_writeinit(capsys, indel, outdel):
     """Test ConfigSomething writing and reading."""
     xst = ConfigSomething()
@@ -465,8 +463,7 @@ def test_config_something_read_bad4(capsys, txt):
     """Test ConfigSomething read bad 4."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(ConfigBadJson) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True,
-                       stderr_file=sys.stderr)
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert exc_info.type is ConfigBadJson
     assert 'decode byte 0xff in position 0' in str(exc_info)
@@ -482,8 +479,7 @@ def test_config_smt_read_dict_mism(capsys, txt, errtxt):
     """Test ConfigSomething read dict mismatch."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True,
-                       stderr_file=sys.stderr)
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
     assert out == ''
@@ -542,8 +538,8 @@ def par_json_quote(var):
     return '"' + var + '"'
 
 
-def csv_combinations_chcker(nam,   # pylint: disable=too-many-arguments, too-many-positional-arguments, line-too-long, too-many-branches, too-many-locals # noqa: E501
-                            dlm, esc, quot, qchar, lterm, err):
+# pylint: disable-next=R0913,R0917,C0301,R0912,R0914
+def csv_combinations_chcker(nam, dlm, esc, quot, qchar, lterm, err):
     """Check test combinations of CSV configurations."""
     scfg = '{"csv_dialect2": {"name": ' + par_json_quote(nam)\
         + ', "delimiter": '\
@@ -607,10 +603,9 @@ def csv_combinations_chcker(nam,   # pylint: disable=too-many-arguments, too-man
                                      ('|', False)])
 @pytest.mark.parametrize('ltr,er6', [(None, False), ('end', False),
                                      ('>', False), (None, False)])
-def test_config_smt_csv_comb_s(capsys,  # pylint: disable=too-many-arguments, too-many-positional-arguments, line-too-long, too-many-locals # noqa: E501
-                               nam, dmt, esc, quo, qch,
-                               ltr, er1, er2, er3, er4, er5,
-                               er6):
+# pylint: disable-next=R0913,R0917,C0301,R0914
+def test_config_smt_csv_comb_s(capsys, nam, dmt, esc, quo, qch, ltr, er1, er2,
+                               er3, er4, er5, er6):
     """Test combinations of CSV configurations thorough."""
     err = er1 or er2 or er3 or er4 or er5 or er6
     csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, err)
@@ -632,10 +627,9 @@ def test_config_smt_csv_comb_s(capsys,  # pylint: disable=too-many-arguments, to
                                      ('csv.quote_all', False)])
 @pytest.mark.parametrize('qch,er5', [(None, False)])
 @pytest.mark.parametrize('ltr,er6', [('>', False), (None, False)])
-def test_config_smt_csv_comb_f1(capsys,  # pylint: disable=too-many-arguments, too-many-positional-arguments, line-too-long, too-many-locals # noqa: E501
-                                nam, dmt, esc, quo, qch,
-                                ltr, er1, er2, er3, er4, er5,
-                                er6):
+# pylint: disable-next=R0913,R0917,C0301,R0914
+def test_config_smt_csv_comb_f1(capsys, nam, dmt, esc, quo, qch, ltr, er1, er2,
+                                er3, er4, er5, er6):
     """Test combinations of CSV configurations f1."""
     err = er1 or er2 or er3 or er4 or er5 or er6
     csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, err)
@@ -654,10 +648,9 @@ def test_config_smt_csv_comb_f1(capsys,  # pylint: disable=too-many-arguments, t
 @pytest.mark.parametrize('qch,er5', [(None, False)])
 @pytest.mark.parametrize('ltr,er6', [(None, False), ('end', False),
                                      ('>', False)])
-def test_config_smt_csv_comb_f6(capsys,  # pylint: disable=too-many-arguments, too-many-positional-arguments, line-too-long, too-many-locals # noqa: E501
-                                nam, dmt, esc, quo,
-                                qch, ltr, er1, er2, er3,
-                                er4, er5, er6):
+# pylint: disable-next=R0913,R0917,C0301,R0914
+def test_config_smt_csv_comb_f6(capsys, nam, dmt, esc, quo, qch, ltr, er1, er2,
+                                er3, er4, er5, er6):
     """Test combinations of CSV configurations f6."""
     err = er1 or er2 or er3 or er4 or er5 or er6
     csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, err)

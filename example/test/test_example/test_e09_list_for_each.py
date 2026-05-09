@@ -15,13 +15,12 @@ from example.e09_list_for_each import e09_list_for_each_print
 from example.e09_list_for_each import e09_list_for_each_set
 from example.e09_list_for_each import main as e09_main
 from .helpers import ExampleProgramSpec
-from .helpers import assert_main_round_trip_print_output
-from .helpers import assert_print_command_reports_validator_error
+from .helpers import assert_rt_out
+from .helpers import assert_print_validator_error
 from .helpers import assert_write_command_output
 
 
-E09_SPEC = ExampleProgramSpec(module=e09_module,
-                              factory_name='ExampleConfig9',
+E09_SPEC = ExampleProgramSpec(module=e09_module, factory_name='ExampleConfig9',
                               config_factory=ExampleConfig9,
                               set_command=e09_list_for_each_set,
                               print_command=e09_list_for_each_print,
@@ -69,13 +68,9 @@ def test_e09_print_reports_outer_list_too_short(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject an empty outer list before the per-element step runs."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E09_SPEC,
-        {'daily_hour_ranges': []},
-        ['daily_hour_ranges', 'size 0', 'minimum 1']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E09_SPEC,
+                                 {'daily_hour_ranges': []},
+                                 ['daily_hour_ranges', 'size 0', 'minimum 1'])
 
 
 def test_e09_print_reports_outer_list_too_long(
@@ -83,66 +78,59 @@ def test_e09_print_reports_outer_list_too_long(
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject an outer list with more than the allowed number of days."""
     too_many_days = [[h, h + 1] for h in range(8)]
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E09_SPEC,
-        {'daily_hour_ranges': too_many_days},
-        ['daily_hour_ranges', 'size 8', 'maximum 7']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E09_SPEC,
+                                 {'daily_hour_ranges': too_many_days},
+                                 ['daily_hour_ranges', 'size 8', 'maximum 7'])
 
 
 def test_e09_print_reports_invalid_element_type(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject an outer element that is not itself a list."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E09_SPEC,
-        {'daily_hour_ranges': [[8, 12], 14]},
-        ['daily_hour_ranges[1]', 'type int', 'expected list']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E09_SPEC,
+                                 {'daily_hour_ranges': [[8, 12], 14]},
+                                 [
+                                     'daily_hour_ranges[1]',
+                                     'type int',
+                                     'expected list',
+                                 ])
 
 
 def test_e09_print_reports_inner_list_wrong_size(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject an inner list whose size is not exactly 2."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E09_SPEC,
-        {'daily_hour_ranges': [[8, 12, 15]]},
-        ['daily_hour_ranges[0]', 'size 3', 'maximum 2']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E09_SPEC,
+                                 {'daily_hour_ranges': [[8, 12, 15]]},
+                                 [
+                                     'daily_hour_ranges[0]',
+                                     'size 3',
+                                     'maximum 2',
+                                 ])
 
 
 def test_e09_print_reports_invalid_hour_value(
         capsys: pytest.CaptureFixture[str],
         monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject an hour value that is outside the allowed range."""
-    assert_print_command_reports_validator_error(
-        capsys,
-        monkeypatch,
-        E09_SPEC,
-        {'daily_hour_ranges': [[8, 12], [14, 25]]},
-        ['daily_hour_ranges[1]', 'index 1', 'greater than maximum 23']
-    )
+    assert_print_validator_error(capsys, monkeypatch, E09_SPEC,
+                                 {'daily_hour_ranges': [[8, 12], [14, 25]]},
+                                 [
+                                     'daily_hour_ranges[1]',
+                                     'index 1',
+                                     'greater than maximum 23',
+                                 ])
 
 
 def test_e09_main_round_trip_prints_default_ranges(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Round-trip the example through its command-line entry point."""
-    assert_main_round_trip_print_output(
-        capsys,
-        e09_main,
-        'list_for_each.cfg',
-        [],
-        ['Daily hour ranges: [[8, 12], [14, 18]]',
-         'Day 0: from 8 to 12',
-         'Day 1: from 14 to 18']
-    )
+    assert_rt_out(capsys, e09_main, 'list_for_each.cfg', [],
+                  [
+                      'Daily hour ranges: [[8, 12], [14, 18]]',
+                      'Day 0: from 8 to 12',
+                      'Day 1: from 14 to 18',
+                  ])
 
 
 def test_e09_set_accepts_nested_list_overrides(
@@ -166,26 +154,18 @@ def test_e09_set_accepts_nested_list_overrides(
 def test_e09_main_round_trip_with_nested_cli_override(
         capsys: pytest.CaptureFixture[str]) -> None:
     """The CLI accepts a matrix via comma-separated nested tokens."""
-    assert_main_round_trip_print_output(
-        capsys,
-        e09_main,
-        'list_for_each.cfg',
-        ['--daily-hour-ranges', '6,10', '13,17', '20,22'],
-        ['Daily hour ranges: [[6, 10], [13, 17], [20, 22]]',
-         'Day 0: from 6 to 10',
-         'Day 1: from 13 to 17',
-         'Day 2: from 20 to 22']
-    )
+    assert_rt_out(capsys, e09_main, 'list_for_each.cfg',
+                  ['--daily-hour-ranges', '6,10', '13,17', '20,22'],
+                  ['Daily hour ranges: [[6, 10], [13, 17], [20, 22]]',
+                   'Day 0: from 6 to 10',
+                   'Day 1: from 13 to 17',
+                   'Day 2: from 20 to 22'])
 
 
 def test_e09_main_round_trip_with_single_day_cli_override(
         capsys: pytest.CaptureFixture[str]) -> None:
     """A single CLI token becomes a matrix with one inner list."""
-    assert_main_round_trip_print_output(
-        capsys,
-        e09_main,
-        'list_for_each.cfg',
-        ['--daily-hour-ranges', '9,17'],
-        ['Daily hour ranges: [[9, 17]]',
-         'Day 0: from 9 to 17']
-    )
+    assert_rt_out(capsys, e09_main, 'list_for_each.cfg',
+                  ['--daily-hour-ranges', '9,17'],
+                  ['Daily hour ranges: [[9, 17]]',
+                   'Day 0: from 9 to 17'])

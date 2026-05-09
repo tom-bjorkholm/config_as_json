@@ -58,9 +58,8 @@ class ExampleConfig17(Config):
             MemberValidationStep(
                 member_names=['input_encoding', 'output_encoding'],
                 validator=CharEncodingValidator()),
-            MemberValidationStep(
-                member_names=['csv_dialect'],
-                validator=CsvDialectValidator())]
+            MemberValidationStep(member_names=['csv_dialect'],
+                                 validator=CsvDialectValidator())]
 
     def get_csv_dialect(self, stderr_file: TextIO = sys.stderr) -> Dialect:
         """Return the configured CSV dialect as a standard-library object.
@@ -77,12 +76,12 @@ class ExampleConfig17(Config):
             quoting=self.csv_dialect['quoting'],
             quotechar=self.csv_dialect['quotechar'],
             lineterminator=self.csv_dialect['lineterminator'],
-            escapechar=self.csv_dialect['escapechar'],
-            stderr_file=stderr_file)
+            escapechar=self.csv_dialect['escapechar'], stderr_file=stderr_file)
 
 
-def e17_csv_dialect_and_encoding_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e17_csv_dialect_and_encoding_set(set_values: SetValues,
+                                     config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -124,8 +123,7 @@ def e17_csv_dialect_and_encoding_print(config_file: PathOrStr) -> None:
 INPUT_SPECS = [
     InputSpec(name='input_encoding', single=True, value_type=str),
     InputSpec(name='output_encoding', single=True, value_type=str),
-    InputSpec(name='csv_dialect', single=True, value_type=str,
-              json_value=True)
+    InputSpec(name='csv_dialect', single=True, value_type=str, json_value=True)
 ]
 """Command line values that the example exposes for ``set``."""
 

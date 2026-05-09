@@ -118,7 +118,8 @@ def _inner_member_name(outer: str, key: Hashable) -> str:
     return f'{outer}[{key}]'
 
 
-class DictKeysValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class DictKeysValidator(MemberValidator):
     """Validate that a dict's key set conforms to a fixed policy.
 
     The validator accepts only actual dict values. All keys listed in

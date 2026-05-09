@@ -58,13 +58,10 @@ class CommandCallRecorder:
         self.print_calls.append(str(config_file))
 
 
-@pytest.mark.parametrize('text, expected',
-                         [('true', True),
-                          ('TRUE', True),
-                          ('false', False),
-                          ('FaLsE', False)])
-def test_bool_from_text_accepts_true_and_false_words(
-        text: str, expected: bool) -> None:
+@pytest.mark.parametrize('text, expected', [('true', True), ('TRUE', True),
+                                            ('false', False),
+                                            ('FaLsE', False)])
+def test_bool_text_accepts_words(text: str, expected: bool) -> None:
     """Convert case-insensitive true and false text to booleans."""
     assert _bool_from_text(text) is expected
 
@@ -116,8 +113,8 @@ def test_nested_value_parser_reports_invalid_scalar_values() -> None:
 def test_token_parser_rejects_nested_single_combination() -> None:
     """Reject the unsupported combination of nested and single."""
     with pytest.raises(ValueError) as exc:
-        _ = _token_parser(InputSpec(name='bad', single=True,
-                                    value_type=int, nested=True))
+        _ = _token_parser(
+            InputSpec(name='bad', single=True, value_type=int, nested=True))
     assert 'nested' in str(exc.value)
     assert 'single' in str(exc.value)
 
@@ -163,17 +160,14 @@ def test_json_token_parser_reports_invalid_json() -> None:
 
 
 @pytest.mark.parametrize('input_spec, expected_fragment', [
-    (InputSpec(name='bad', single=True, value_type=int, dict_kv=True),
-     'dict_kv'),
-    (InputSpec(name='bad', single=False, value_type=int, json_value=True),
-     'json_value'),
-    (InputSpec(name='bad', single=False, value_type=int,
-               nested=True, dict_kv=True),
-     'mutually exclusive'),
     (InputSpec(name='bad', single=True, value_type=int,
-               nested=False, json_value=True, dict_kv=True),
-     'mutually exclusive'),
-])
+               dict_kv=True), 'dict_kv'),
+    (InputSpec(name='bad', single=False, value_type=int,
+               json_value=True), 'json_value'),
+    (InputSpec(name='bad', single=False, value_type=int, nested=True,
+               dict_kv=True), 'mutually exclusive'),
+    (InputSpec(name='bad', single=True, value_type=int, nested=False,
+               json_value=True, dict_kv=True), 'mutually exclusive'),])
 def test_token_parser_rejects_unsupported_flag_combinations(
         input_spec: InputSpec, expected_fragment: str) -> None:
     """Reject every unsupported combination of input spec flags."""
@@ -187,16 +181,10 @@ def test_add_set_arguments_adds_single_list_and_nested_options() -> None:
     parser = argparse.ArgumentParser(prog='demo')
     _add_set_arguments(parser, TEST_INPUT_SPECS)
     parsed_args = parser.parse_args([
-        '--file-name', 'Ada',
-        '--count', '7',
-        '--ratio', '2.5',
-        '--enabled', 'false',
-        '--mode', 'beta',
-        '--step-values', '1', '2', '3',
-        '--matrix', '1,2', '3,4', '5,6',
-        '--flags', 'logging=true', 'debug=false',
-        '--payload', '{"k": [1, 2]}'
-    ])
+        '--file-name', 'Ada', '--count', '7', '--ratio', '2.5', '--enabled',
+        'false', '--mode', 'beta', '--step-values', '1', '2', '3', '--matrix',
+        '1,2', '3,4', '5,6', '--flags', 'logging=true', 'debug=false',
+        '--payload', '{"k": [1, 2]}'])
     assert parsed_args.file_name == 'Ada'
     assert parsed_args.count == 7
     assert parsed_args.ratio == pytest.approx(2.5)
@@ -210,17 +198,13 @@ def test_add_set_arguments_adds_single_list_and_nested_options() -> None:
 
 def test_set_values_from_args_collects_only_explicit_values() -> None:
     """Return only values that were set explicitly on the command line."""
-    parsed_args = argparse.Namespace(
-        file_name='Ada',
-        count=None,
-        ratio=2.5,
-        enabled=None,
-        mode=SampleMode.ALPHA,
-        step_values=[1, 2],
-        matrix=[[7, 8], [9, 10]],
-        flags=[('logging', True), ('debug', False)],
-        payload={'k': [1, 2]}
-    )
+    parsed_args = argparse.Namespace(file_name='Ada', count=None, ratio=2.5,
+                                     enabled=None, mode=SampleMode.ALPHA,
+                                     step_values=[1, 2],
+                                     matrix=[[7, 8], [9, 10]],
+                                     flags=[('logging', True),
+                                            ('debug', False)],
+                                     payload={'k': [1, 2]})
     set_values = _set_values_from_args(parsed_args, TEST_INPUT_SPECS)
     assert set_values == {
         'file_name': 'Ada',
@@ -238,11 +222,8 @@ def test_create_argument_parser_parses_print_and_set_commands() -> None:
     parser = _create_argument_parser('demo', TEST_INPUT_SPECS)
     print_args = parser.parse_args(['print', '--input', 'input.cfg'])
     set_args = parser.parse_args([
-        'set',
-        '--output', 'output.cfg',
-        '--count', '7',
-        '--step-values', '1', '2'
-    ])
+        'set', '--output', 'output.cfg', '--count', '7', '--step-values', '1',
+        '2'])
     assert print_args.command == 'print'
     assert print_args.input == 'input.cfg'
     assert set_args.command == 'set'
@@ -290,13 +271,10 @@ def test_create_argument_parser_help_mentions_subcommands_and_options(
 def test_cmd_line_handling_routes_print_command() -> None:
     """Call the print command with the requested input file."""
     recorder = CommandCallRecorder()
-    cmd_line_handling(
-        example_name='demo',
-        input_specs=TEST_INPUT_SPECS,
-        set_command=recorder.set_command,
-        print_command=recorder.print_command,
-        args=['print', '--input', 'input.cfg']
-    )
+    cmd_line_handling(example_name='demo', input_specs=TEST_INPUT_SPECS,
+                      set_command=recorder.set_command,
+                      print_command=recorder.print_command,
+                      args=['print', '--input', 'input.cfg'])
     assert recorder.print_calls == ['input.cfg']
     assert not recorder.set_calls
 
@@ -304,25 +282,16 @@ def test_cmd_line_handling_routes_print_command() -> None:
 def test_cmd_line_handling_routes_set_command_with_converted_values() -> None:
     """Convert text to Python values before calling the set command."""
     recorder = CommandCallRecorder()
-    cmd_line_handling(
-        example_name='demo',
-        input_specs=TEST_INPUT_SPECS,
-        set_command=recorder.set_command,
-        print_command=recorder.print_command,
-        args=[
-            'set',
-            '--output', 'output.cfg',
-            '--file-name', 'Ada',
-            '--count', '7',
-            '--ratio', '2.5',
-            '--enabled', 'true',
-            '--mode', 'beta',
-            '--step-values', '1', '2', '3',
-            '--matrix', '1,2', '3,4',
-            '--flags', 'logging=true', 'debug=false',
-            '--payload', '[{"a": 1}]'
-        ]
-    )
+    cmd_line_handling(example_name='demo', input_specs=TEST_INPUT_SPECS,
+                      set_command=recorder.set_command,
+                      print_command=recorder.print_command,
+                      args=[
+                          'set', '--output', 'output.cfg', '--file-name',
+                          'Ada', '--count', '7', '--ratio', '2.5', '--enabled',
+                          'true', '--mode', 'beta', '--step-values', '1', '2',
+                          '3', '--matrix', '1,2', '3,4', '--flags',
+                          'logging=true', 'debug=false', '--payload',
+                          '[{"a": 1}]'])
     assert not recorder.print_calls
     assert recorder.set_calls == [({
         'file_name': 'Ada',
@@ -332,27 +301,27 @@ def test_cmd_line_handling_routes_set_command_with_converted_values() -> None:
         'mode': SampleMode.BETA,
         'step_values': [1, 2, 3],
         'matrix': [[1, 2], [3, 4]],
-        'flags': {'logging': True, 'debug': False},
-        'payload': [{'a': 1}]
+        'flags': {
+            'logging': True,
+            'debug': False
+        },
+        'payload': [{
+            'a': 1
+        }]
     }, 'output.cfg')]
 
 
-@pytest.mark.parametrize('args, required_name',
-                         [(['print'], '--input'),
-                          (['set'], '--output')])
+@pytest.mark.parametrize('args, required_name', [(['print'], '--input'),
+                                                 (['set'], '--output')])
 def test_cmd_line_handling_requires_input_and_output_files(
         args: list[str], required_name: str,
         capsys: pytest.CaptureFixture[str]) -> None:
     """Require the file option that belongs to each subcommand."""
     recorder = CommandCallRecorder()
     with pytest.raises(SystemExit) as exc:
-        cmd_line_handling(
-            example_name='demo',
-            input_specs=TEST_INPUT_SPECS,
-            set_command=recorder.set_command,
-            print_command=recorder.print_command,
-            args=args
-        )
+        cmd_line_handling(example_name='demo', input_specs=TEST_INPUT_SPECS,
+                          set_command=recorder.set_command,
+                          print_command=recorder.print_command, args=args)
     _, err = capsys.readouterr()
     assert exc.value.code == 2
     assert 'error:' in err
@@ -367,14 +336,10 @@ def test_cmd_line_handling_rejects_invalid_boolean_text(
     recorder = CommandCallRecorder()
     with pytest.raises(SystemExit) as exc:
         cmd_line_handling(
-            example_name='demo',
-            input_specs=TEST_INPUT_SPECS,
+            example_name='demo', input_specs=TEST_INPUT_SPECS,
             set_command=recorder.set_command,
             print_command=recorder.print_command,
-            args=['set',
-                  '--output', 'output.cfg',
-                  '--enabled', 'maybe']
-        )
+            args=['set', '--output', 'output.cfg', '--enabled', 'maybe'])
     _, err = capsys.readouterr()
     assert exc.value.code == 2
     assert '--enabled' in err
@@ -389,14 +354,10 @@ def test_cmd_line_handling_rejects_invalid_enum_text(
     recorder = CommandCallRecorder()
     with pytest.raises(SystemExit) as exc:
         cmd_line_handling(
-            example_name='demo',
-            input_specs=TEST_INPUT_SPECS,
+            example_name='demo', input_specs=TEST_INPUT_SPECS,
             set_command=recorder.set_command,
             print_command=recorder.print_command,
-            args=['set',
-                  '--output', 'output.cfg',
-                  '--mode', 'missing']
-        )
+            args=['set', '--output', 'output.cfg', '--mode', 'missing'])
     _, err = capsys.readouterr()
     assert exc.value.code == 2
     assert '--mode' in err

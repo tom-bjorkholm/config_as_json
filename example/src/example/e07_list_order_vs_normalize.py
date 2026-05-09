@@ -59,27 +59,23 @@ class ExampleConfig7(Config):
         # The first validator only checks. It does not modify the list.
         # The alert thresholds must already be in ascending order, and the
         # values must also be unique.
-        threshold_validator = ListIsOrderedValidator(
-            element_type=float,
-            unique_values=True
-        )
+        threshold_validator = ListIsOrderedValidator(element_type=float,
+                                                     unique_values=True)
         # The second validator normalizes the list. It sorts the strings
         # case-insensitively, but it keeps the original spelling of each
         # string in the final stored list.
-        report_name_validator = ListOrderingValidator(
-            element_type=str,
-            lt_comparator=casefold_lt
-        )
-        return [MemberValidationStep(
-                    member_names=['alert_thresholds'],
-                    validator=threshold_validator),
-                MemberValidationStep(
-                    member_names=['report_names'],
-                    validator=report_name_validator)]
+        report_name_validator = ListOrderingValidator(element_type=str,
+                                                      lt_comparator=casefold_lt
+                                                      )
+        return [MemberValidationStep(member_names=['alert_thresholds'],
+                                     validator=threshold_validator),
+                MemberValidationStep(member_names=['report_names'],
+                                     validator=report_name_validator)]
 
 
-def e07_list_order_vs_normalize_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e07_list_order_vs_normalize_set(set_values: SetValues,
+                                    config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -101,8 +97,8 @@ def e07_list_order_vs_normalize_set(  # pylint: disable=duplicate-code
         pass  # Error already printed by the Config object.
 
 
-def e07_list_order_vs_normalize_print(  # pylint: disable=duplicate-code
-        config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e07_order_vs_normalize_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show how the values are used.
 
     Args:
@@ -140,8 +136,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e07_list_order_vs_normalize',
                       input_specs=INPUT_SPECS,
                       set_command=e07_list_order_vs_normalize_set,
-                      print_command=e07_list_order_vs_normalize_print,
-                      args=args)
+                      print_command=e07_order_vs_normalize_print, args=args)
 
 
 if __name__ == '__main__':

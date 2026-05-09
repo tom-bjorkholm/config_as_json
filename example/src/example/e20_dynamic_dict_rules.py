@@ -95,27 +95,26 @@ class ExampleConfig20(Config):
             keys=is_seconds_tunable,
             validators=[IntFloatValidator(min_value=1, max_value=3600,
                                           allowed_values=None)])
-        slots_rule = DictRule(
-            keys=is_slots_tunable,
-            validators=[IntFloatValidator(
-                min_value=None, max_value=None,
-                allowed_values=self.allowed_pool_sizes)])
+        slots_rule = DictRule(keys=is_slots_tunable,
+                              validators=[IntFloatValidator(
+                                  min_value=None, max_value=None,
+                                  allowed_values=self.allowed_pool_sizes)])
         cache_tunables_validator = DictForEachValidator(
             rules=[seconds_rule, slots_rule])
         pool_sizes_validator = DictForEachValidator(
-            rules=[DictRule(
-                keys=accept_all_keys,
-                validators=[IntFloatValidator(
-                    min_value=None, max_value=None,
-                    allowed_values=self.allowed_pool_sizes)])])
+            rules=[DictRule(keys=accept_all_keys,
+                            validators=[IntFloatValidator(
+                                min_value=None, max_value=None,
+                                allowed_values=self.allowed_pool_sizes)])])
         return [MemberValidationStep(member_names=['cache_tunables'],
                                      validator=cache_tunables_validator),
                 MemberValidationStep(member_names=['pool_sizes'],
                                      validator=pool_sizes_validator)]
 
 
-def e20_dynamic_dict_rules_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e20_dynamic_dict_rules_set(set_values: SetValues,
+                               config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -135,8 +134,8 @@ def e20_dynamic_dict_rules_set(  # pylint: disable=duplicate-code
         pass  # Error already printed by the Config object.
 
 
-def e20_dynamic_dict_rules_print(  # pylint: disable=duplicate-code
-        config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e20_dynamic_dict_rules_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show how the values are used.
 
     Args:
@@ -164,8 +163,7 @@ def e20_dynamic_dict_rules_print(  # pylint: disable=duplicate-code
 INPUT_SPECS = [
     InputSpec(name='cache_tunables', single=True, value_type=str,
               json_value=True),
-    InputSpec(name='pool_sizes', single=True, value_type=str,
-              json_value=True)
+    InputSpec(name='pool_sizes', single=True, value_type=str, json_value=True)
 ]
 """Command line values that the example exposes for ``set``.
 
@@ -189,8 +187,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e20_dynamic_dict_rules',
                       input_specs=INPUT_SPECS,
                       set_command=e20_dynamic_dict_rules_set,
-                      print_command=e20_dynamic_dict_rules_print,
-                      args=args)
+                      print_command=e20_dynamic_dict_rules_print, args=args)
 
 
 if __name__ == '__main__':

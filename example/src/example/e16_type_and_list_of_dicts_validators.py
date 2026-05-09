@@ -55,21 +55,18 @@ class ExampleConfig16(Config):
         """Return the ordered validation steps for this example."""
         _ = stderr_file
         return [
-            MemberValidationStep(
-                member_names=['worker_count'],
-                validator=ValueTypeValidator(int)),
-            MemberValidationStep(
-                member_names=['alert_recipients'],
-                validator=ListValueTypeValidator(str)),
-            MemberValidationStep(
-                member_names=['pipeline_steps'],
-                validator=ListOfDictsKeysValidator(
-                    mandatory_keys=['name', 'enabled'],
-                    allowed_keys=['owner']))]
+            MemberValidationStep(member_names=['worker_count'],
+                                 validator=ValueTypeValidator(int)),
+            MemberValidationStep(member_names=['alert_recipients'],
+                                 validator=ListValueTypeValidator(str)),
+            MemberValidationStep(member_names=['pipeline_steps'],
+                                 validator=ListOfDictsKeysValidator(
+                                     mandatory_keys=['name', 'enabled'],
+                                     allowed_keys=['owner']))]
 
 
-def e16_validators_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e16_validators_set(set_values: SetValues, config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -120,12 +117,9 @@ def main(args: Optional[list[str]] = None) -> None:
     Args:
         args: Optional replacement for ``sys.argv[1:]``, mainly for tests.
     """
-    cmd_line_handling(
-        example_name='e16_type_and_list_of_dicts_validators',
-        input_specs=INPUT_SPECS,
-        set_command=e16_validators_set,
-        print_command=e16_validators_print,
-        args=args)
+    cmd_line_handling(example_name='e16_type_and_list_of_dicts_validators',
+                      input_specs=INPUT_SPECS, set_command=e16_validators_set,
+                      print_command=e16_validators_print, args=args)
 
 
 if __name__ == '__main__':

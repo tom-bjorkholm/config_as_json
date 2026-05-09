@@ -12,8 +12,7 @@ from example.e01_simple_config import YesNoAsk
 from example.e02_simple_config_get_setattr import e02_simple_config_print
 from example.e02_simple_config_get_setattr import e02_simple_config_set
 from example.e02_simple_config_get_setattr import (
-    get_normal_instance_attribute_names
-)
+    get_normal_instance_attribute_names)
 from .helpers import CONFIGURED_SIMPLE_CONFIG, DEFAULT_SIMPLE_CONFIG
 from .helpers import assert_simple_config_written_by_set_command
 
@@ -37,29 +36,21 @@ def test_get_normal_instance_attribute_names_returns_public_values() -> None:
 def test_e02_simple_config_set_uses_defaults_when_no_overrides(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Write a configuration file with the default values."""
-    assert_simple_config_written_by_set_command(
-        capsys,
-        e02_simple_config_set,
-        {},
-        DEFAULT_SIMPLE_CONFIG
-    )
+    assert_simple_config_written_by_set_command(capsys, e02_simple_config_set,
+                                                {}, DEFAULT_SIMPLE_CONFIG)
 
 
 def test_e02_simple_config_set_stores_overrides(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Apply overrides with setattr before writing the file."""
-    assert_simple_config_written_by_set_command(
-        capsys,
-        e02_simple_config_set,
-        {
-            'name': 'configured',
-            'answer': 7,
-            'approximation': 2.5,
-            'easy': False,
-            'confirmation': YesNoAsk.NO
-        },
-        CONFIGURED_SIMPLE_CONFIG
-    )
+    assert_simple_config_written_by_set_command(capsys, e02_simple_config_set,
+                                                {
+                                                    'name': 'configured',
+                                                    'answer': 7,
+                                                    'approximation': 2.5,
+                                                    'easy': False,
+                                                    'confirmation': YesNoAsk.NO
+                                                }, CONFIGURED_SIMPLE_CONFIG)
 
 
 def test_e02_simple_config_set_rejects_invalid_key() -> None:
@@ -83,9 +74,7 @@ def test_e02_simple_config_print_reads_written_file(
                 'approximation': 2.75,
                 'easy': True,
                 'confirmation': YesNoAsk.YES
-            },
-            config_file
-        )
+            }, config_file)
         _ = capsys.readouterr()
         e02_simple_config_print(config_file)
     out, err = capsys.readouterr()
@@ -107,12 +96,9 @@ def test_main_calls_shared_command_line_helper(
     """Pass the expected callbacks and metadata to the shared helper."""
     received: dict[str, object] = {}
 
-    def fake_cmd_line_handling(
-            example_name: str,
-            input_specs: list[object],
-            set_command: object,
-            print_command: object,
-            args: object = None) -> None:
+    def fake_cmd_line_handling(example_name: str, input_specs: list[object],
+                               set_command: object, print_command: object,
+                               args: object = None) -> None:
         """Record the values passed to cmd_line_handling."""
         received['example_name'] = example_name
         received['input_specs'] = input_specs
@@ -120,11 +106,8 @@ def test_main_calls_shared_command_line_helper(
         received['print_command'] = print_command
         received['args'] = args
 
-    monkeypatch.setattr(
-        e02_module,
-        'cmd_line_handling',
-        fake_cmd_line_handling
-    )
+    monkeypatch.setattr(e02_module, 'cmd_line_handling', fake_cmd_line_handling
+                        )
     e02_module.main(['set', '--output', 'simple.cfg'])
     assert received == {
         'example_name': 'e02_simple_config_get_setattr',

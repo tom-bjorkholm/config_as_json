@@ -48,38 +48,28 @@ class ExampleConfig8(Config):
         # Step 1: reject impossible values before we try to normalize.
         # If one hour is outside 0..23, we want a clear error about that
         # specific bad element.
-        hour_value_validator = ListValueValidator(
-            min_value=0,
-            max_value=23,
-            allowed_values=None
-        )
+        hour_value_validator = ListValueValidator(min_value=0, max_value=23,
+                                                  allowed_values=None)
         # Step 2: sort the list and keep only the first occurrence of each
         # hour. After this step later validators see the normalized list,
         # not the original user input.
-        hour_ordering_validator = ListOrderingValidator(
-            element_type=int,
-            keep_only_unique=True
-        )
+        hour_ordering_validator = ListOrderingValidator(element_type=int,
+                                                        keep_only_unique=True)
         # Step 3: check the size after normalization.
         # This means that ``[12, 12]`` fails here because step 2 turns it
         # into ``[12]`` before the size check runs.
-        hour_count_validator = ListSizeValidator(
-            min_size=2,
-            max_size=6
-        )
-        return [MemberValidationStep(
-                    member_names=['run_hours_utc'],
-                    validator=hour_value_validator),
-                MemberValidationStep(
-                    member_names=['run_hours_utc'],
-                    validator=hour_ordering_validator),
-                MemberValidationStep(
-                    member_names=['run_hours_utc'],
-                    validator=hour_count_validator)]
+        hour_count_validator = ListSizeValidator(min_size=2, max_size=6)
+        return [MemberValidationStep(member_names=['run_hours_utc'],
+                                     validator=hour_value_validator),
+                MemberValidationStep(member_names=['run_hours_utc'],
+                                     validator=hour_ordering_validator),
+                MemberValidationStep(member_names=['run_hours_utc'],
+                                     validator=hour_count_validator)]
 
 
-def e08_combined_list_validators_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e08_combined_list_validators_set(set_values: SetValues,
+                                     config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -102,8 +92,8 @@ def e08_combined_list_validators_set(  # pylint: disable=duplicate-code
         pass  # Error already printed by the Config object.
 
 
-def e08_combined_list_validators_print(  # pylint: disable=duplicate-code
-        config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e08_combined_validators_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show how the values are used.
 
     Args:
@@ -141,8 +131,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e08_combined_list_validators',
                       input_specs=INPUT_SPECS,
                       set_command=e08_combined_list_validators_set,
-                      print_command=e08_combined_list_validators_print,
-                      args=args)
+                      print_command=e08_combined_validators_print, args=args)
 
 
 if __name__ == '__main__':

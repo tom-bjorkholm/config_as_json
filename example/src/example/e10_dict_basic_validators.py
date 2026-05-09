@@ -96,25 +96,21 @@ class ExampleConfig10(Config):
         # union of ``mandatory_keys`` and ``allowed_keys``.
         feature_flags_validator = DictKeysValidator(
             mandatory_keys=['logging', 'metrics'],
-            allowed_keys=['debug', 'profiling']
-        )
+            allowed_keys=['debug', 'profiling'])
         # Second mode: only mandatory keys, exact shape.
         # Passing ``allowed_keys=None`` means "no optional keys", so the
         # dict must contain exactly the mandatory keys and nothing else.
         port_assignments_validator = DictKeysValidator(
-            mandatory_keys=['http', 'https'],
-            allowed_keys=None
-        )
-        return [MemberValidationStep(
-                    member_names=['feature_flags'],
-                    validator=feature_flags_validator),
-                MemberValidationStep(
-                    member_names=['port_assignments'],
-                    validator=port_assignments_validator)]
+            mandatory_keys=['http', 'https'], allowed_keys=None)
+        return [MemberValidationStep(member_names=['feature_flags'],
+                                     validator=feature_flags_validator),
+                MemberValidationStep(member_names=['port_assignments'],
+                                     validator=port_assignments_validator)]
 
 
-def e10_dict_basic_validators_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e10_dict_basic_validators_set(set_values: SetValues,
+                                  config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -137,8 +133,8 @@ def e10_dict_basic_validators_set(  # pylint: disable=duplicate-code
         pass  # Error already printed by the Config object.
 
 
-def e10_dict_basic_validators_print(  # pylint: disable=duplicate-code
-        config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e10_dict_basic_validators_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show how the values are used.
 
     Args:
@@ -184,8 +180,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e10_dict_basic_validators',
                       input_specs=INPUT_SPECS,
                       set_command=e10_dict_basic_validators_set,
-                      print_command=e10_dict_basic_validators_print,
-                      args=args)
+                      print_command=e10_dict_basic_validators_print, args=args)
 
 
 if __name__ == '__main__':

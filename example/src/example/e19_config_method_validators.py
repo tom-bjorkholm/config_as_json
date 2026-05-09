@@ -87,8 +87,7 @@ class ExampleConfig19(ThirdPartyJobOptions, Config):
             ValueTypeValidator(str),
             # The third-party method normalizes text such as " EU_WEST ".
             CallingMemberValidator(method_name='normalize_region_text',
-                                   arg_name_value='value',
-                                   normalizing=True),
+                                   arg_name_value='value', normalizing=True),
             # Then a normal built-in validator checks the normalized value.
             StrValidator(ALLOWED_REGIONS, ignore_case=False)]
         region_validator = MemberValidatorSequence(region_validators)

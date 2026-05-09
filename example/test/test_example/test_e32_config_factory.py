@@ -15,7 +15,7 @@ from example.cmd_line_handling import SetValues
 from example.e32_config_factory import Cad2DConfig, Cad3DConfig, \
     e32_config_factory_print, e32_config_factory_set, MATCH_CONFIGS
 from example.e32_config_factory import main as e32_main
-from .helpers import assert_main_round_trip_print_output, \
+from .helpers import assert_rt_out, \
     assert_write_command_output, write_json_file
 
 
@@ -106,46 +106,44 @@ def test_e32_print_reads_3d_config_with_factory(
 def test_e32_main_round_trip_prints_default_2d_values(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Round-trip default 2D values through the command line."""
-    assert_main_round_trip_print_output(
-        capsys,
-        e32_main,
-        'cad.cfg',
-        [],
-        ['Configuration class: Cad2DConfig',
-         'Selector mode: 2D',
-         'Project name: demo-part',
-         'Grid size: 1.0 mm',
-         'Drawing plane: XY']
-    )
+    assert_rt_out(capsys, e32_main, 'cad.cfg', [],
+                  [
+                      'Configuration class: Cad2DConfig',
+                      'Selector mode: 2D',
+                      'Project name: demo-part',
+                      'Grid size: 1.0 mm',
+                      'Drawing plane: XY',
+                  ])
 
 
 def test_e32_main_round_trip_with_3d_overrides(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Round-trip a 3D configuration through the command line."""
-    assert_main_round_trip_print_output(
-        capsys,
-        e32_main,
-        'cad.cfg',
-        ['--mode', '3D',
-         '--project-name', 'gearbox',
-         '--grid-size-mm', '0.5'],
-        ['Configuration class: Cad3DConfig',
-         'Selector space: 3D',
-         'Project name: gearbox',
-         'Grid size: 0.5 mm',
-         'Default view: isometric',
-         'Show shadows: True']
-    )
+    assert_rt_out(capsys, e32_main, 'cad.cfg',
+                  [
+                      '--mode',
+                      '3D',
+                      '--project-name',
+                      'gearbox',
+                      '--grid-size-mm',
+                      '0.5',
+                  ],
+                  [
+                      'Configuration class: Cad3DConfig',
+                      'Selector space: 3D',
+                      'Project name: gearbox',
+                      'Grid size: 0.5 mm',
+                      'Default view: isometric',
+                      'Show shadows: True',
+                  ])
 
 
-@pytest.mark.parametrize(
-    'json_data',
-    [{'mode': '4D',
-      'project_name': 'demo-part',
-      'grid_size_mm': 1.0},
-     {'project_name': 'demo-part',
-      'grid_size_mm': 1.0}]
-)
+@pytest.mark.parametrize('json_data',
+                         [{'mode': '4D',
+                           'project_name': 'demo-part',
+                           'grid_size_mm': 1.0},
+                          {'project_name': 'demo-part',
+                           'grid_size_mm': 1.0}])
 def test_e32_read_fails_when_no_mode_matches(
         capsys: pytest.CaptureFixture[str],
         json_data: dict[str, object]) -> None:

@@ -36,7 +36,6 @@ from config_as_json import Config, PathOrStr, ValidationPlan, \
     InvalidConfiguration, InvalidConfigurationValue
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
-
 EXPORT_KINDS = ['file', 'queue']
 """Allowed normalized export target kinds."""
 
@@ -78,52 +77,46 @@ class ExampleConfig14(Config):
         # The file variant accepts only file-related keys. The ``format`` key
         # is optional, so a file target may be just ``kind`` + ``filename``.
         file_variant = DictVariant(
-            mandatory_keys=['filename'],
-            allowed_keys=['format'],
+            mandatory_keys=['filename'], allowed_keys=['format'],
             rules=[
-                DictRule(
-                    keys=['filename'],
-                    validators=[StrValidator(
-                        allowed_values=['report.json', 'report.csv'],
-                        ignore_case=False)]),
-                DictRule(
-                    keys=['format'],
-                    validators=[StrValidator(
-                        allowed_values=['json', 'csv'],
-                        ignore_case=True,
-                        normalize=True)])
-            ]
-        )
+                DictRule(keys=['filename'],
+                         validators=[
+                             StrValidator(
+                                 allowed_values=['report.json', 'report.csv'],
+                                 ignore_case=False)
+                         ]),
+                DictRule(keys=['format'],
+                         validators=[
+                             StrValidator(allowed_values=['json', 'csv'],
+                                          ignore_case=True, normalize=True)])])
         # The queue variant has different mandatory and optional keys.
         # ``batch_size`` is validated only when this variant is selected.
         queue_variant = DictVariant(
-            mandatory_keys=['queue'],
-            allowed_keys=['batch_size'],
+            mandatory_keys=['queue'], allowed_keys=['batch_size'],
             rules=[
-                DictRule(
-                    keys=['queue'],
-                    validators=[StrValidator(
-                        allowed_values=['reports', 'alerts'],
-                        ignore_case=True,
-                        normalize=True)]),
-                DictRule(
-                    keys=['batch_size'],
-                    validators=[IntFloatValidator(
-                        min_value=1, max_value=1000,
-                        allowed_values=None)])
-            ]
-        )
+                DictRule(keys=['queue'],
+                         validators=[
+                             StrValidator(allowed_values=['reports', 'alerts'],
+                                          ignore_case=True, normalize=True)
+                         ]),
+                DictRule(keys=['batch_size'],
+                         validators=[
+                             IntFloatValidator(min_value=1, max_value=1000,
+                                               allowed_values=None)])])
         target_validator = DiscriminatedDictValidator(
             discriminator_key='kind',
-            variants={'file': file_variant, 'queue': queue_variant},
-            discriminator_validator=kind_validator
-        )
-        return [MemberValidationStep(member_names=['export_target'],
-                                     validator=target_validator)]
+            variants={
+                'file': file_variant,
+                'queue': queue_variant
+            }, discriminator_validator=kind_validator)
+        return [
+            MemberValidationStep(member_names=['export_target'],
+                                 validator=target_validator)
+        ]
 
 
-def e14_discriminated_dict_validator_set(
-        set_values: SetValues, config_file: PathOrStr) -> None:
+def e14_discriminated_dict_set(set_values: SetValues,
+                               config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -195,7 +188,7 @@ def main(args: Optional[list[str]] = None) -> None:
     """
     cmd_line_handling(example_name='e14_discriminated_dict_validator',
                       input_specs=INPUT_SPECS,
-                      set_command=e14_discriminated_dict_validator_set,
+                      set_command=e14_discriminated_dict_set,
                       print_command=e14_discriminated_dict_validator_print,
                       args=args)
 

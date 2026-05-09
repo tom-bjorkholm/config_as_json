@@ -36,8 +36,7 @@ DEFAULT_MODE = MODE_2D
 class Cad2DConfig(Config):
     """Configuration for the 2D drawing mode of the example application."""
 
-    def __init__(self,
-                 from_json_data_text: Optional[str] = None,
+    def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
@@ -55,8 +54,7 @@ class Cad2DConfig(Config):
         self.drawing_plane: str = 'XY'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook,
-                         stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return extra validation steps for this example configuration."""
@@ -67,8 +65,7 @@ class Cad2DConfig(Config):
 class Cad3DConfig(Config):
     """Configuration for the 3D modeling mode of the example application."""
 
-    def __init__(self,
-                 from_json_data_text: Optional[str] = None,
+    def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
@@ -87,8 +84,7 @@ class Cad3DConfig(Config):
         self.show_shadows: bool = True
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook,
-                         stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return extra validation steps for this example configuration."""
@@ -254,8 +250,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e32_config_factory',
                       input_specs=INPUT_SPECS,
                       set_command=e32_config_factory_set,
-                      print_command=e32_config_factory_print,
-                      args=args)
+                      print_command=e32_config_factory_print, args=args)
 
 
 if __name__ == '__main__':

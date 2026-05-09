@@ -31,8 +31,7 @@ def _match_configs() -> MatchConfigSeq:
     ]
 
 
-def _config_from_file(filename: str,
-                      auto_ch_hook: ConfigAutoChangeHook,
+def _config_from_file(filename: str, auto_ch_hook: ConfigAutoChangeHook,
                       stderr_file: TextIO) -> \
         ConfigXlsListTransfName | ConfigXlsListTransfNum:
     """Create one of the copied test configurations from a file."""
@@ -97,8 +96,7 @@ def _migrate_and_assert(infilename: str,
     with TemporaryDirectory() as dirname:
         outfilename = dirname + '/a.cfg'
         res = migrate_cfg(infile=infilename, outfile=outfilename,
-                          config_class=config_class,
-                          stderr_file=sys.stderr)
+                          config_class=config_class, stderr_file=sys.stderr)
         check_config_func(outfilename)
     return res
 
@@ -240,8 +238,7 @@ def test_migrate_cfg_single_number(capsys):
 def test_migrate_cfg_multiple_name(capsys):
     """Migrate a name-based legacy file chosen from several config classes."""
     infilename = 'test/test_config_as_json/bak_compat_0_7_13_name.cfg'
-    res = _migrate_and_assert(infilename, _match_configs(),
-                              _assert_name_cfg)
+    res = _migrate_and_assert(infilename, _match_configs(), _assert_name_cfg)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -251,8 +248,7 @@ def test_migrate_cfg_multiple_name(capsys):
 def test_migrate_cfg_multiple_number(capsys):
     """Migrate a number-based legacy file using several config classes."""
     infilename = 'test/test_config_as_json/bak_compat_0_7_13_number.cfg'
-    res = _migrate_and_assert(infilename, _match_configs(),
-                              _assert_number_cfg)
+    res = _migrate_and_assert(infilename, _match_configs(), _assert_number_cfg)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -268,8 +264,7 @@ def test_migrate_cfg_multiple_nok_no_match(capsys):
             file.write('{"column_ref": "UNKNOWN"}')
         with pytest.raises(SystemExit):
             migrate_cfg(infile=infilename, outfile=outfilename,
-                        config_class=_match_configs(),
-                        stderr_file=sys.stderr)
+                        config_class=_match_configs(), stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'No matching config class found' in err
@@ -278,8 +273,8 @@ def test_migrate_cfg_multiple_nok_no_match(capsys):
 @pytest.mark.parametrize(
     ('config_class', 'msg'),
     [(cast(Any, []), 'empty MatchConfig'),
-     (cast(Any, [('not a matcher', ConfigXlsListTransfName)]),
-      'non-MatchConfig'),
+     (cast(Any,
+           [('not a matcher', ConfigXlsListTransfName)]), 'non-MatchConfig'),
      (cast(Any, 'not a matcher'), 'Config subclass'),
      (cast(Any, ConfigAutoChangeHook), 'Config subclass')])
 def test_migrate_cfg_nok_invalid_config_class(config_class, msg, capsys):
@@ -289,8 +284,7 @@ def test_migrate_cfg_nok_invalid_config_class(config_class, msg, capsys):
         outfilename = dirname + '/b.cfg'
         with pytest.raises(TypeError, match=msg):
             migrate_cfg(infile=infilename, outfile=outfilename,
-                        config_class=config_class,
-                        stderr_file=sys.stderr)
+                        config_class=config_class, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -303,8 +297,7 @@ def test_migrate_cfg_nok_missing_input(capsys):
         outfilename = dirname + '/b.cfg'
         with pytest.raises(SystemExit):
             migrate_cfg(infile=infilename, outfile=outfilename,
-                        config_class=_match_configs(),
-                        stderr_file=sys.stderr)
+                        config_class=_match_configs(), stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Cannot find input configuration file' in err
@@ -320,8 +313,7 @@ def test_migrate_cfg_nok_existing_output(capsys):
         cfg.write(to_json_filename=outfilename)
         with pytest.raises(SystemExit):
             migrate_cfg(infile=infilename, outfile=outfilename,
-                        config_class=_match_configs(),
-                        stderr_file=sys.stderr)
+                        config_class=_match_configs(), stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Output configuration file' in err

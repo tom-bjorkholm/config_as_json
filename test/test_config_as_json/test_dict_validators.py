@@ -13,25 +13,20 @@ from typing import Any, Callable, Optional, TextIO, cast
 import pytest
 from config_as_json import accept_all_keys as public_accept_all_keys
 from config_as_json.config import Config
-from config_as_json.dict_validators import (DictForEachValidator,
-                                            DictKeysValidator, DictRule,
-                                            accept_all_keys,
-                                            _inner_member_name,
-                                            _validate_dict_member_value,
-                                            _validate_for_each_rules,
-                                            _validate_string_keys)
+from config_as_json.dict_validators import (
+    DictForEachValidator, DictKeysValidator, DictRule, accept_all_keys,
+    _inner_member_name, _validate_dict_member_value, _validate_for_each_rules,
+    _validate_string_keys)
 from config_as_json.list_validators import (ListForEachValidator,
                                             ListSizeValidator,
                                             ListValueValidator)
-from config_as_json.validator import (IntFloatValidator,
-                                      InvalidConfiguration,
+from config_as_json.validator import (IntFloatValidator, InvalidConfiguration,
                                       InvalidConfigurationValue,
                                       MemberValidator)
 from .validator_test_helpers import (EmptyValidationConfig,
                                      SingleMemberValidationConfig,
                                      assert_validate_member_failure,
                                      assert_validate_member_ok)
-
 
 Recording = list[tuple[str, str, object]]
 
@@ -106,9 +101,8 @@ class _RecordingValidator(MemberValidator):
 # ---- _validate_dict_member_value -------------------------------------------
 
 
-@pytest.mark.parametrize(
-    'member_value',
-    [[], [1, 2], (1, 2), 'a', 1, 1.0, True, None])
+@pytest.mark.parametrize('member_value', [[], [1, 2],
+                                          (1, 2), 'a', 1, 1.0, True, None])
 def test_validate_dict_member_value_rejects_non_dict(capsys, member_value):
     """Non-dict member values must be rejected with a clear message."""
     with pytest.raises(InvalidConfiguration) as exc:
@@ -147,10 +141,10 @@ def test_validate_dict_member_value_accepts_empty_dict(capsys):
     [(['a', 1, 'b'], TypeError, 'mandatory_keys[1] must be a str'),
      (['a', 'b', 2.5], TypeError, 'mandatory_keys[2] must be a str'),
      (['a', 'b', None], TypeError, 'mandatory_keys[2] must be a str'),
-     (['a', 'a'], ValueError,
-      "mandatory_keys[1]='a' duplicates an earlier entry"),
-     (['x', 'y', 'x'], ValueError,
-      "mandatory_keys[2]='x' duplicates an earlier entry")])
+     (['a', 'a'
+       ], ValueError, "mandatory_keys[1]='a' duplicates an earlier entry"),
+     (['x', 'y', 'x'
+       ], ValueError, "mandatory_keys[2]='x' duplicates an earlier entry")])
 def test_validate_string_keys_rejects_invalid(keys, exc_type, message):
     """Non-string entries and duplicates must be rejected."""
     with pytest.raises(exc_type) as exc:
@@ -176,15 +170,12 @@ def test_validate_string_keys_uses_provided_parameter_name():
 # ---- _inner_member_name ----------------------------------------------------
 
 
-@pytest.mark.parametrize(
-    'outer, key, expected',
-    [('cfg', 'port', 'cfg[port]'),
-     ('cfg', 3, 'cfg[3]'),
-     ('cfg', RuleKey.ALPHA, 'cfg[RuleKey.ALPHA]'),
-     ('cfg.server', 'port', 'cfg.server[port]'),
-     ('value[0]', 'name', 'value[0][name]'),
-     ('', 'a', '[a]'),
-     ('outer', '', 'outer[]')])
+@pytest.mark.parametrize('outer, key, expected',
+                         [('cfg', 'port', 'cfg[port]'), ('cfg', 3, 'cfg[3]'),
+                          ('cfg', RuleKey.ALPHA, 'cfg[RuleKey.ALPHA]'),
+                          ('cfg.server', 'port', 'cfg.server[port]'),
+                          ('value[0]', 'name', 'value[0][name]'),
+                          ('', 'a', '[a]'), ('outer', '', 'outer[]')])
 def test_inner_member_name(outer, key, expected):
     """The combined inner name has the documented bracket form."""
     assert _inner_member_name(outer, key) == expected
@@ -256,16 +247,16 @@ def test_dict_keys_validator_init_accepts_empty_mandatory_keys():
 
 def test_dict_keys_validator_init_unions_allowed_with_mandatory():
     """allowed_keys is internally unioned with mandatory_keys."""
-    validator = DictKeysValidator(
-        mandatory_keys=['a', 'b'], allowed_keys=['c'])
+    validator = DictKeysValidator(mandatory_keys=['a', 'b'],
+                                  allowed_keys=['c'])
     assert validator.mandatory_keys == ('a', 'b')
     assert validator.allowed_keys == frozenset({'a', 'b', 'c'})
 
 
 def test_dict_keys_validator_init_accepts_overlap():
     """Overlap between mandatory_keys and allowed_keys is harmless."""
-    validator = DictKeysValidator(
-        mandatory_keys=['a'], allowed_keys=['a', 'b'])
+    validator = DictKeysValidator(mandatory_keys=['a'],
+                                  allowed_keys=['a', 'b'])
     assert validator.allowed_keys == frozenset({'a', 'b'})
 
 
@@ -286,16 +277,20 @@ def test_dict_keys_validator_init_rejects_non_bool_extra_policy():
 # ---- DictKeysValidator: validate_member ------------------------------------
 
 
-@pytest.mark.parametrize(
-    'mandatory_keys, allowed_keys, member_value',
-    [(['a'], None, {'a': 1}),
-     (['a', 'b'], ['c'], {'a': 1, 'b': 2}),
-     (['a'], ['b'], {'a': 1, 'b': 2}),
-     ([], ['a'], {'a': 1}),
-     ([], None, {}),
-     ([], ['a'], {})])
-def test_dict_keys_validator_ok(
-        capsys, mandatory_keys, allowed_keys, member_value):
+@pytest.mark.parametrize('mandatory_keys, allowed_keys, member_value',
+                         [(['a'], None, {
+                             'a': 1
+                         }), (['a', 'b'], ['c'], {
+                             'a': 1,
+                             'b': 2
+                         }), (['a'], ['b'], {
+                             'a': 1,
+                             'b': 2
+                         }), ([], ['a'], {
+                             'a': 1
+                         }), ([], None, {}), ([], ['a'], {})])
+def test_dict_keys_validator_ok(capsys, mandatory_keys, allowed_keys,
+                                member_value):
     """Test that DictKeysValidator passes well-formed dicts unchanged."""
     validator = DictKeysValidator(mandatory_keys=mandatory_keys,
                                   allowed_keys=allowed_keys)
@@ -316,12 +311,11 @@ def test_dict_keys_validator_returns_same_dict_object(capsys):
 
 def test_dict_keys_validator_accepts_unknown_keys_when_allowed(capsys):
     """Open dict policy keeps mandatory keys and allows extra keys."""
-    validator = DictKeysValidator(
-        mandatory_keys=['a'], allow_extra_dict_keys=True)
+    validator = DictKeysValidator(mandatory_keys=['a'],
+                                  allow_extra_dict_keys=True)
     member_value = {'a': 1, 'extra': 2}
     cfg = EmptyValidationConfig()
-    result = validator.validate_member(cfg, 'value', member_value,
-                                       sys.stderr)
+    result = validator.validate_member(cfg, 'value', member_value, sys.stderr)
     out, err = capsys.readouterr()
     assert result is member_value
     assert validator.allow_extra_dict_keys is True
@@ -331,28 +325,35 @@ def test_dict_keys_validator_accepts_unknown_keys_when_allowed(capsys):
 
 def test_dict_keys_validator_open_policy_still_requires_mandatory(capsys):
     """Open dict policy must not weaken mandatory-key checks."""
-    validator = DictKeysValidator(
-        mandatory_keys=['a'], allow_extra_dict_keys=True)
-    assert_validate_member_failure(
-        capsys, validator, {'extra': 2}, InvalidConfiguration,
-        "Mandatory key 'a' is missing from value")
+    validator = DictKeysValidator(mandatory_keys=['a'],
+                                  allow_extra_dict_keys=True)
+    assert_validate_member_failure(capsys, validator, {'extra': 2},
+                                   InvalidConfiguration,
+                                   "Mandatory key 'a' is missing from value")
 
 
 @pytest.mark.parametrize(
     'mandatory_keys, allowed_keys, member_value, message',
     [([], None, [1, 2], 'Value for value is not a dict'),
      (['a'], None, {}, "Mandatory key 'a' is missing from value"),
-     (['a', 'b'], None, {'a': 1},
-      "Mandatory key 'b' is missing from value"),
-     (['a'], None, {'a': 1, 'b': 2}, "Unknown key 'b' in value"),
-     (['a'], ['b'], {'a': 1, 'c': 3}, "Unknown key 'c' in value")])
+     (['a', 'b'], None, {
+         'a': 1
+     }, "Mandatory key 'b' is missing from value"),
+     (['a'], None, {
+         'a': 1,
+         'b': 2
+     }, "Unknown key 'b' in value"),
+     (['a'], ['b'], {
+         'a': 1,
+         'c': 3
+     }, "Unknown key 'c' in value")])
 def test_dict_keys_validator_rejects_invalid_member_values(
         capsys, mandatory_keys, allowed_keys, member_value, message):
     """Test that bad dicts are rejected with descriptive errors."""
     validator = DictKeysValidator(mandatory_keys=mandatory_keys,
                                   allowed_keys=allowed_keys)
-    assert_validate_member_failure(
-        capsys, validator, member_value, InvalidConfiguration, message)
+    assert_validate_member_failure(capsys, validator, member_value,
+                                   InvalidConfiguration, message)
 
 
 def test_dict_keys_validator_reports_missing_before_unknown(capsys):
@@ -386,8 +387,11 @@ def test_dict_keys_validator_reports_first_unknown_in_insertion_order(capsys):
     validator = DictKeysValidator(mandatory_keys=['a'], allowed_keys=None)
     cfg = EmptyValidationConfig()
     with pytest.raises(InvalidConfiguration) as exc:
-        validator.validate_member(
-            cfg, 'value', {'a': 1, 'z': 2, 'm': 3}, sys.stderr)
+        validator.validate_member(cfg, 'value', {
+            'a': 1,
+            'z': 2,
+            'm': 3
+        }, sys.stderr)
     out, err = capsys.readouterr()
     assert "Unknown key 'z' in value" in str(exc.value)
     assert "Unknown key 'm'" not in str(exc.value)
@@ -403,7 +407,12 @@ def test_dict_keys_validator_integration_uses_parsed_json(capsys):
     then re-checks the keys according to its own policy.
     """
     cfg = SingleMemberValidationConfig(
-        'value', {'a': 0, 'b': 0}, DictKeysValidator(['a'], ['b']),
+        'value',
+        {
+            'a': 0,
+            'b': 0
+        },
+        DictKeysValidator(['a'], ['b']),
         from_json_data_text='{"value": {"a": 1, "b": 2}}')
     out, err = capsys.readouterr()
     assert getattr(cfg, 'value') == {'a': 1, 'b': 2}
@@ -419,17 +428,15 @@ def test_dict_keys_validator_integration_uses_parsed_json(capsys):
     [([], [ListSizeValidator(0, 1)], ValueError, 'keys must be non-empty'),
      (['a'], [], ValueError, 'validators must be non-empty'),
      (accept_all_keys, [], ValueError, 'validators must be non-empty'),
-     ([['a']], [ListSizeValidator(0, 1)], TypeError,
-      'keys[0] must be hashable'),
-     (['a', 'a'], [ListSizeValidator(0, 1)], ValueError,
-      "keys[1]='a' duplicates an earlier entry"),
-     (['a'], [ListSizeValidator(0, 1), 'not-a-validator'], TypeError,
-      'validators[1] must be a MemberValidator'),
-     (accept_all_keys, [ListSizeValidator(0, 1), 'not-a-validator'],
-      TypeError,
+     ([['a']], [ListSizeValidator(0, 1)
+                ], TypeError, 'keys[0] must be hashable'),
+     (['a', 'a'], [ListSizeValidator(0, 1)
+                   ], ValueError, "keys[1]='a' duplicates an earlier entry"),
+     (['a'], [ListSizeValidator(0, 1), 'not-a-validator'
+              ], TypeError, 'validators[1] must be a MemberValidator'),
+     (accept_all_keys, [ListSizeValidator(0, 1), 'not-a-validator'], TypeError,
       'validators[1] must be a MemberValidator')])
-def test_dict_rule_init_rejects_invalid_arguments(
-        keys, validators, exc_type, message):
+def test_dict_rule_rejects_bad_args(keys, validators, exc_type, message):
     """Test that DictRule validates its inputs through __post_init__."""
     with pytest.raises(exc_type) as exc:
         DictRule(keys=keys, validators=validators)
@@ -500,7 +507,7 @@ def test_dict_for_each_validator_init_rejects_non_dict_rule(bad_entry):
 def test_dict_for_each_validator_init_stores_rules_as_list():
     """The constructor copies the input sequence into a list attribute."""
     rule = DictRule(keys=['x'], validators=[ListSizeValidator(0, 1)])
-    validator = DictForEachValidator(rules=(rule,))
+    validator = DictForEachValidator(rules=(rule, ))
     assert isinstance(validator.rules, list)
     assert validator.rules == [rule]
 
@@ -512,9 +519,9 @@ def test_dict_for_each_validator_rejects_non_dict_member(capsys):
     """The outer member value must be a dict."""
     rule = DictRule(keys=['x'], validators=[ListSizeValidator(0, 1)])
     validator = DictForEachValidator(rules=[rule])
-    assert_validate_member_failure(
-        capsys, validator, [1, 2], InvalidConfiguration,
-        'Value for value is not a dict')
+    assert_validate_member_failure(capsys, validator, [1, 2],
+                                   InvalidConfiguration,
+                                   'Value for value is not a dict')
 
 
 def test_dict_for_each_validator_skips_absent_rule_keys(capsys):
@@ -523,8 +530,8 @@ def test_dict_for_each_validator_skips_absent_rule_keys(capsys):
                     validators=[ListSizeValidator(0, 5)])
     validator = DictForEachValidator(rules=[rule])
     cfg = EmptyValidationConfig()
-    result = validator.validate_member(
-        cfg, 'value', {'present': [1, 2]}, sys.stderr)
+    result = validator.validate_member(cfg, 'value', {'present': [1, 2]},
+                                       sys.stderr)
     out, err = capsys.readouterr()
     assert result == {'present': [1, 2]}
     assert out == ''
@@ -548,13 +555,13 @@ def test_dict_for_each_validator_static_rule_supports_non_string_key(capsys):
     """A fixed-key rule can match non-string keys."""
     recording: Recording = []
     rule = DictRule(keys=[RuleKey.ALPHA],
-                    validators=[_RecordingValidator(
-                        'seen', recording, transform=_add_one)])
+                    validators=[
+                        _RecordingValidator('seen', recording,
+                                            transform=_add_one)])
     validator = DictForEachValidator(rules=[rule])
     cfg = EmptyValidationConfig()
     member_value = {RuleKey.ALPHA: 1, RuleKey.BETA: 10}
-    result = validator.validate_member(cfg, 'value', member_value,
-                                       sys.stderr)
+    result = validator.validate_member(cfg, 'value', member_value, sys.stderr)
     out, err = capsys.readouterr()
     assert recording == [('seen', 'value[RuleKey.ALPHA]', 1)]
     assert result == {RuleKey.ALPHA: 2, RuleKey.BETA: 10}
@@ -566,13 +573,13 @@ def test_dict_for_each_validator_predicate_rule_selects_keys(capsys):
     """A callable rule validates only keys with truthy predicate results."""
     recording: Recording = []
     rule = DictRule(keys=_is_positive_int_key,
-                    validators=[_RecordingValidator(
-                        'seen', recording, transform=_add_one)])
+                    validators=[
+                        _RecordingValidator('seen', recording,
+                                            transform=_add_one)])
     validator = DictForEachValidator(rules=[rule])
     cfg = EmptyValidationConfig()
     member_value = {1: 10, 0: 20, '1': 30}
-    result = validator.validate_member(cfg, 'value', member_value,
-                                       sys.stderr)
+    result = validator.validate_member(cfg, 'value', member_value, sys.stderr)
     out, err = capsys.readouterr()
     assert recording == [('seen', 'value[1]', 10)]
     assert result == {1: 11, 0: 20, '1': 30}
@@ -584,13 +591,13 @@ def test_dict_for_each_validator_predicate_uses_python_truthiness(capsys):
     """Predicate rules accept truthy and falsey values, not only bools."""
     recording: Recording = []
     rule = DictRule(keys=_truthy_for_alpha_key,
-                    validators=[_RecordingValidator(
-                        'seen', recording, transform=_add_one)])
+                    validators=[
+                        _RecordingValidator('seen', recording,
+                                            transform=_add_one)])
     validator = DictForEachValidator(rules=[rule])
     cfg = EmptyValidationConfig()
     member_value = {'alpha': 1, 'beta': 2}
-    result = validator.validate_member(cfg, 'value', member_value,
-                                       sys.stderr)
+    result = validator.validate_member(cfg, 'value', member_value, sys.stderr)
     out, err = capsys.readouterr()
     assert recording == [('seen', 'value[alpha]', 1)]
     assert result == {'alpha': 2, 'beta': 2}
@@ -602,17 +609,16 @@ def test_dict_for_each_validator_accept_all_keys_rule(capsys):
     """The convenience predicate validates every present key."""
     recording: Recording = []
     rule = DictRule(keys=accept_all_keys,
-                    validators=[_RecordingValidator(
-                        'seen', recording, transform=_add_one)])
+                    validators=[
+                        _RecordingValidator('seen', recording,
+                                            transform=_add_one)])
     validator = DictForEachValidator(rules=[rule])
     cfg = EmptyValidationConfig()
     member_value = {'alpha': 1, RuleKey.BETA: 2}
-    result = validator.validate_member(cfg, 'value', member_value,
-                                       sys.stderr)
+    result = validator.validate_member(cfg, 'value', member_value, sys.stderr)
     out, err = capsys.readouterr()
-    assert recording == [
-        ('seen', 'value[alpha]', 1),
-        ('seen', 'value[RuleKey.BETA]', 2)]
+    assert recording == [('seen', 'value[alpha]', 1),
+                         ('seen', 'value[RuleKey.BETA]', 2)]
     assert result == {'alpha': 2, RuleKey.BETA: 3}
     assert out == ''
     assert err == ''
@@ -635,8 +641,10 @@ def test_dict_for_each_validator_returns_new_dict(capsys):
 def test_dict_for_each_validator_does_not_mutate_input(capsys):
     """Test that the input dict is not mutated by value transforms."""
     recording: Recording = []
-    rule = DictRule(keys=['a'], validators=[_RecordingValidator(
-        'x', recording, transform=_replace_with_changed)])
+    rule = DictRule(keys=['a'],
+                    validators=[
+                        _RecordingValidator('x', recording,
+                                            transform=_replace_with_changed)])
     validator = DictForEachValidator(rules=[rule])
     cfg = EmptyValidationConfig()
     member_value = {'a': 'original'}
@@ -651,8 +659,8 @@ def test_dict_for_each_validator_does_not_mutate_input(capsys):
 def test_dict_for_each_validator_preserves_input_key_order(capsys):
     """The returned dict preserves the input dict's key insertion order."""
     recording: Recording = []
-    rule = DictRule(keys=['a', 'b'], validators=[
-        _RecordingValidator('x', recording)])
+    rule = DictRule(keys=['a', 'b'],
+                    validators=[_RecordingValidator('x', recording)])
     validator = DictForEachValidator(rules=[rule])
     cfg = EmptyValidationConfig()
     member_value = {'b': 1, 'a': 2, 'extra': 3}
@@ -744,10 +752,12 @@ def test_dict_for_each_validator_threads_value_within_rule(capsys):
 def test_dict_for_each_validator_threads_value_across_rules(capsys):
     """A later rule sees the value left by earlier rules at the same key."""
     recording: Recording = []
-    rule_a = DictRule(keys=['k'], validators=[_RecordingValidator(
-        'first', recording, transform=_add_one)])
-    rule_b = DictRule(keys=['k'], validators=[_RecordingValidator(
-        'second', recording)])
+    rule_a = DictRule(keys=['k'],
+                      validators=[
+                          _RecordingValidator('first', recording,
+                                              transform=_add_one)])
+    rule_b = DictRule(keys=['k'],
+                      validators=[_RecordingValidator('second', recording)])
     validator = DictForEachValidator(rules=[rule_a, rule_b])
     cfg = EmptyValidationConfig()
     result = validator.validate_member(cfg, 'value', {'k': 100}, sys.stderr)
@@ -794,8 +804,10 @@ def test_dict_for_each_validator_integration_uses_parsed_json(capsys):
     rule = DictRule(keys=['port'],
                     validators=[IntFloatValidator(1, 65535, None)])
     cfg = SingleMemberValidationConfig(
-        'value', {'port': 0, 'name': 'seed'},
-        DictForEachValidator(rules=[rule]),
+        'value', {
+            'port': 0,
+            'name': 'seed'
+        }, DictForEachValidator(rules=[rule]),
         from_json_data_text='{"value": {"port": 8080, "name": "srv"}}')
     out, err = capsys.readouterr()
     assert getattr(cfg, 'value') == {'port': 8080, 'name': 'srv'}
@@ -813,30 +825,33 @@ def _make_list_of_dicts_validator() -> ListForEachValidator:
     list of int values in the range ``[1, 65535]``. ``name`` is checked
     only for presence by ``DictKeysValidator``.
     """
-    return ListForEachValidator(
-        element_validators=[
-            DictKeysValidator(mandatory_keys=['name', 'ports']),
-            DictForEachValidator(rules=[
-                DictRule(keys=['ports'],
-                         validators=[ListValueValidator(1, 65535, None)])])
-        ],
-        element_type=dict)
+    return ListForEachValidator(element_validators=[
+        DictKeysValidator(mandatory_keys=['name', 'ports']),
+        DictForEachValidator(rules=[
+            DictRule(keys=['ports'],
+                     validators=[ListValueValidator(1, 65535, None)])])
+    ], element_type=dict)
 
 
 def test_nested_list_of_dicts_with_lists_ok(capsys):
     """Validate ``list[dict[str, list[int]]]`` end to end via parsed JSON."""
     cfg = SingleMemberValidationConfig(
-        'value', [{'name': 'seed', 'ports': [80]}],
-        _make_list_of_dicts_validator(),
-        from_json_data_text=(
-            '{"value": ['
-            '{"name": "srv1", "ports": [80, 443]},'
-            '{"name": "srv2", "ports": [22]}'
-            ']}'))
+        'value', [{
+            'name': 'seed',
+            'ports': [80]
+        }], _make_list_of_dicts_validator(),
+        from_json_data_text=('{"value": ['
+                             '{"name": "srv1", "ports": [80, 443]},'
+                             '{"name": "srv2", "ports": [22]}'
+                             ']}'))
     out, err = capsys.readouterr()
-    assert getattr(cfg, 'value') == [
-        {'name': 'srv1', 'ports': [80, 443]},
-        {'name': 'srv2', 'ports': [22]}]
+    assert getattr(cfg, 'value') == [{
+        'name': 'srv1',
+        'ports': [80, 443]
+    }, {
+        'name': 'srv2',
+        'ports': [22]
+    }]
     assert out == ''
     assert err == ''
 
@@ -845,9 +860,13 @@ def test_nested_list_of_dicts_with_lists_inner_failure_path(capsys):
     """Errors in nested ``list[dict[str, list[int]]]`` carry the full path."""
     validator = _make_list_of_dicts_validator()
     cfg = EmptyValidationConfig()
-    member_value = [
-        {'name': 'srv1', 'ports': [80]},
-        {'name': 'srv2', 'ports': [22, 70000]}]
+    member_value = [{
+        'name': 'srv1',
+        'ports': [80]
+    }, {
+        'name': 'srv2',
+        'ports': [22, 70000]
+    }]
     with pytest.raises(InvalidConfiguration) as exc:
         validator.validate_member(cfg, 'value', member_value, sys.stderr)
     out, err = capsys.readouterr()
@@ -862,9 +881,14 @@ def test_nested_list_of_dicts_with_lists_unknown_key_path(capsys):
     """Unknown keys in nested dicts carry the outer list index."""
     validator = _make_list_of_dicts_validator()
     cfg = EmptyValidationConfig()
-    member_value = [
-        {'name': 'srv1', 'ports': [80]},
-        {'name': 'srv2', 'ports': [22], 'extra': 1}]
+    member_value = [{
+        'name': 'srv1',
+        'ports': [80]
+    }, {
+        'name': 'srv2',
+        'ports': [22],
+        'extra': 1
+    }]
     with pytest.raises(InvalidConfiguration) as exc:
         validator.validate_member(cfg, 'value', member_value, sys.stderr)
     out, err = capsys.readouterr()
@@ -882,8 +906,7 @@ def _make_dict_of_lists_of_dicts_validator() -> DictForEachValidator:
     profile_validator = DictForEachValidator(rules=[
         DictRule(keys=['level'], validators=[IntFloatValidator(0, 9, None)])])
     list_of_profiles = ListForEachValidator(
-        element_validators=[profile_validator],
-        element_type=dict)
+        element_validators=[profile_validator], element_type=dict)
     return DictForEachValidator(rules=[
         DictRule(keys=['admin', 'guest'], validators=[list_of_profiles])])
 
@@ -891,17 +914,30 @@ def _make_dict_of_lists_of_dicts_validator() -> DictForEachValidator:
 def test_nested_dict_of_lists_of_dicts_ok(capsys):
     """Validate ``dict[str, list[dict[str, int]]]`` end to end via JSON."""
     cfg = SingleMemberValidationConfig(
-        'value', {'admin': [{'level': 0}], 'guest': [{'level': 0}]},
-        _make_dict_of_lists_of_dicts_validator(),
-        from_json_data_text=(
-            '{"value": {'
-            '"admin": [{"level": 5}, {"level": 9}],'
-            '"guest": [{"level": 1}]'
-            '}}'))
+        'value',
+        {
+            'admin': [{
+                'level': 0
+            }],
+            'guest': [{
+                'level': 0
+            }]
+        }, _make_dict_of_lists_of_dicts_validator(),
+        from_json_data_text=('{"value": {'
+                             '"admin": [{"level": 5}, {"level": 9}],'
+                             '"guest": [{"level": 1}]'
+                             '}}'))
     out, err = capsys.readouterr()
     assert getattr(cfg, 'value') == {
-        'admin': [{'level': 5}, {'level': 9}],
-        'guest': [{'level': 1}]}
+        'admin': [{
+            'level': 5
+        }, {
+            'level': 9
+        }],
+        'guest': [{
+            'level': 1
+        }]
+    }
     assert out == ''
     assert err == ''
 
@@ -911,8 +947,15 @@ def test_nested_dict_of_lists_of_dicts_inner_failure_path(capsys):
     validator = _make_dict_of_lists_of_dicts_validator()
     cfg = EmptyValidationConfig()
     member_value = {
-        'admin': [{'level': 5}, {'level': 99}],
-        'guest': [{'level': 1}]}
+        'admin': [{
+            'level': 5
+        }, {
+            'level': 99
+        }],
+        'guest': [{
+            'level': 1
+        }]
+    }
     with pytest.raises(InvalidConfiguration) as exc:
         validator.validate_member(cfg, 'value', member_value, sys.stderr)
     out, err = capsys.readouterr()

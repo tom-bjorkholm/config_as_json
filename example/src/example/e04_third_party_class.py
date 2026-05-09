@@ -89,18 +89,14 @@ class ExampleConfig4(ThirdPartyParams, Config):
         issue_type_validator = StrValidator(allowed_values=['Story', 'Task',
                                                             'Bug', 'Epic'],
                                             ignore_case=True, normalize=True)
-        return [MemberValidationStep(
-                    member_names=['number_of_iterations'],
-                    validator=num_iter_validator),
-                MemberValidationStep(
-                    member_names=['estimate'],
-                    validator=estimate_validator),
-                MemberValidationStep(
-                    member_names=['confidence'],
-                    validator=confidence_validator),
-                MemberValidationStep(
-                    member_names=['issue_type'],
-                    validator=issue_type_validator)]
+        return [MemberValidationStep(member_names=['number_of_iterations'],
+                                     validator=num_iter_validator),
+                MemberValidationStep(member_names=['estimate'],
+                                     validator=estimate_validator),
+                MemberValidationStep(member_names=['confidence'],
+                                     validator=confidence_validator),
+                MemberValidationStep(member_names=['issue_type'],
+                                     validator=issue_type_validator)]
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading JSON.
@@ -179,8 +175,7 @@ def main(args: Optional[list[str]] = None) -> None:
     cmd_line_handling(example_name='e04_third_party_class',
                       input_specs=INPUT_SPECS,
                       set_command=e04_third_party_class_set,
-                      print_command=e04_third_party_class_print,
-                      args=args)
+                      print_command=e04_third_party_class_print, args=args)
 
 
 if __name__ == '__main__':

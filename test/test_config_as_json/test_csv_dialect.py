@@ -23,29 +23,33 @@ def _csv_config(**overrides: Optional[str]) -> CsvDialectConfig:
         'quoting': None,
         'quotechar': '"',
         'lineterminator': None,
-        'escapechar': None}
+        'escapechar': None
+    }
     values.update(overrides)
     name: str = values['name'] if values['name'] is not None else 'csv.excel'
-    return {'name': name,
-            'delimiter': values['delimiter'],
-            'quoting': values['quoting'],
-            'quotechar': values['quotechar'],
-            'lineterminator': values['lineterminator'],
-            'escapechar': values['escapechar']}
+    return {
+        'name': name,
+        'delimiter': values['delimiter'],
+        'quoting': values['quoting'],
+        'quotechar': values['quotechar'],
+        'lineterminator': values['lineterminator'],
+        'escapechar': values['escapechar']
+    }
 
 
 def _validate_csv_dialect(member_value: object) -> object:
     """Validate ``member_value`` with ``CsvDialectValidator``."""
-    return CsvDialectValidator().validate_member(
-        config=cast(Config, object()), member_name='csv_settings',
-        member_value=member_value, stderr_file=sys.stderr)
+    return CsvDialectValidator().validate_member(config=cast(Config, object()),
+                                                 member_name='csv_settings',
+                                                 member_value=member_value,
+                                                 stderr_file=sys.stderr)
 
 
 def test_get_csv_dialect_uses_defaults(capsys):
     """Test get_csv_dialect with default values."""
-    dialect = get_csv_dialect(
-        name='csv.excel', delimiter=None, quoting=None, quotechar=None,
-        lineterminator=None, escapechar=None, stderr_file=sys.stderr)
+    dialect = get_csv_dialect(name='csv.excel', delimiter=None, quoting=None,
+                              quotechar=None, lineterminator=None,
+                              escapechar=None, stderr_file=sys.stderr)
     assert isinstance(dialect, csv.excel)
     assert dialect.delimiter == ','
     assert dialect.quoting == csv.QUOTE_MINIMAL
@@ -57,17 +61,16 @@ def test_get_csv_dialect_uses_defaults(capsys):
     assert err == ''
 
 
-@pytest.mark.parametrize(
-    'name, expected_type, expected_lineterminator',
-    [('csv.excel', csv.excel, '\r\n'),
-     ('CSV.EXCEL_TAB', csv.excel_tab, '\r\n'),
-     ('csv.unix_dialect', csv.unix_dialect, '\n')])
-def test_get_csv_dialect_selects_standard_dialect(
-        capsys, name, expected_type, expected_lineterminator):
+@pytest.mark.parametrize('name, expected_type, expected_lineterminator',
+                         [('csv.excel', csv.excel, '\r\n'),
+                          ('CSV.EXCEL_TAB', csv.excel_tab, '\r\n'),
+                          ('csv.unix_dialect', csv.unix_dialect, '\n')])
+def test_get_csv_dialect_standard(capsys, name, expected_type,
+                                  expected_lineterminator):
     """Test all supported standard-library dialect names."""
-    dialect = get_csv_dialect(
-        name=name, delimiter=';', quoting=None, quotechar='|',
-        lineterminator=None, escapechar='@', stderr_file=sys.stderr)
+    dialect = get_csv_dialect(name=name, delimiter=';', quoting=None,
+                              quotechar='|', lineterminator=None,
+                              escapechar='@', stderr_file=sys.stderr)
     assert isinstance(dialect, expected_type)
     assert dialect.delimiter == ';'
     assert dialect.quotechar == '|'
@@ -78,17 +81,17 @@ def test_get_csv_dialect_selects_standard_dialect(
     assert err == ''
 
 
-@pytest.mark.parametrize(
-    'quoting, expected_quoting',
-    [('csv.quote_all', csv.QUOTE_ALL),
-     ('csv.quote_minimal', csv.QUOTE_MINIMAL),
-     ('csv.quote_none', csv.QUOTE_NONE),
-     ('csv.quote_nonnumeric', csv.QUOTE_NONNUMERIC)])
+@pytest.mark.parametrize('quoting, expected_quoting',
+                         [('csv.quote_all', csv.QUOTE_ALL),
+                          ('csv.quote_minimal', csv.QUOTE_MINIMAL),
+                          ('csv.quote_none', csv.QUOTE_NONE),
+                          ('csv.quote_nonnumeric', csv.QUOTE_NONNUMERIC)])
 def test_get_csv_dialect_selects_quoting(capsys, quoting, expected_quoting):
     """Test all supported serialized quoting names."""
-    dialect = get_csv_dialect(
-        name='csv.excel', delimiter=None, quoting=quoting, quotechar=None,
-        lineterminator='end', escapechar=None, stderr_file=sys.stderr)
+    dialect = get_csv_dialect(name='csv.excel', delimiter=None,
+                              quoting=quoting, quotechar=None,
+                              lineterminator='end', escapechar=None,
+                              stderr_file=sys.stderr)
     assert dialect.quoting == expected_quoting
     assert dialect.lineterminator == 'end'
     out, err = capsys.readouterr()
@@ -96,19 +99,22 @@ def test_get_csv_dialect_selects_quoting(capsys, quoting, expected_quoting):
     assert err == ''
 
 
-@pytest.mark.parametrize(
-    'kwargs, error_text',
-    [({'name': 'csv.missing', 'quoting': None},
-      'Unknown csv dialect: csv.missing'),
-     ({'name': 'csv.excel', 'quoting': 'csv.quote_sometimes'},
-      'Unknown csv quoting: csv.quote_sometimes')])
+@pytest.mark.parametrize('kwargs, error_text',
+                         [({
+                             'name': 'csv.missing',
+                             'quoting': None
+                         }, 'Unknown csv dialect: csv.missing'),
+                          ({
+                              'name': 'csv.excel',
+                              'quoting': 'csv.quote_sometimes'
+                          }, 'Unknown csv quoting: csv.quote_sometimes')])
 def test_get_csv_dialect_rejects_unknown_names(capsys, kwargs, error_text):
     """Test direct helper errors for unsupported serialized names."""
     with pytest.raises(KeyError) as exc_info:
-        _ = get_csv_dialect(
-            name=kwargs['name'], delimiter=None, quoting=kwargs['quoting'],
-            quotechar=None, lineterminator=None, escapechar=None,
-            stderr_file=sys.stderr)
+        _ = get_csv_dialect(name=kwargs['name'], delimiter=None,
+                            quoting=kwargs['quoting'], quotechar=None,
+                            lineterminator=None, escapechar=None,
+                            stderr_file=sys.stderr)
     assert error_text in str(exc_info.value)
     out, err = capsys.readouterr()
     assert out == ''

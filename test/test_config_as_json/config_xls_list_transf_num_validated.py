@@ -5,63 +5,40 @@
 # MIT License
 
 import sys
-from typing import Optional, TextIO
+from typing import Optional, TextIO, cast
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.list_validators import ListIsOrderedValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.validator import ValidationPlan, MemberValidationStep
-from .config_excel_list_transform import ColInfo, RulePlace, RuleRemove
-from .config_xls_list_transf_num import get_column, get_merge_first_column
+from .config_xls_list_transf_num import NumTransformRules, make_num_colinfo, \
+    set_num_base_rules, sort_num_rules
 from .config_excel_list_transform_validated import \
-    ConfigExcelListTransformValidated, increasing_merge_columns_validator
-from .config_enums import ColumnRef, SplitWhere
+    ConfigExcelTransformValidated, increasing_merge_columns_validator
+from .config_enums import ColumnRef
 
 
-class ConfigXlsListTransfNumValidated(  # pylint: disable=too-many-instance-attributes, line-too-long, duplicate-code, attribute-defined-outside-init # noqa: E501
-        ConfigExcelListTransformValidated[int]):
+# pylint: disable-next=R0902,C0301,R0801,W0201
+class ConfigXlsListTransfNumValidated(ConfigExcelTransformValidated[int]):
     """Validator-based configuration for excel list transform."""
 
-    def __init__(self,
-                 from_json_data_text: Optional[str] = None,
+    def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
-        """Construct configuration for excel list transform."""
+        """Construct validated configuration for excel list transform."""
         if auto_ch_hook is None:
             auto_ch_hook = MigrateCfgWarnHook()
-        self.s04_remove_columns: RuleRemove = [1, 2, 3]
-        self.s06_place_columns_first: RulePlace = [7, 3, 6]
-        col_to_use = [15, 16, 1, 2, 5, 5, 5, 5, 5, 6]
-        col_to_use_row = [7, 1, 2]
-        colinfo = ColInfo[int](split_last='store_single',
-                               insert_last='name',
-                               s03=[{'column': 15, 'separator': ' ',
-                                     'where': SplitWhere.RIGHTMOST,
-                                     'store_single':
-                                     SplitWhere.LEFTMOST}],
-                               s08=[{'column': 1, 'name': 'Division',
-                                     'value': None},
-                                    {'column': 7, 'name': 'Other',
-                                     'value': 'some text'}],
-                               col_to_use=col_to_use,
-                               col_to_use_row=col_to_use_row, tinfo=2)
+        set_num_base_rules(cast(NumTransformRules, self))
         super().__init__(col_ref=ColumnRef.BY_NUMBER,
-                         colinfo=colinfo, tinfo=2,
+                         colinfo=make_num_colinfo(), tinfo=2,
                          from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook,
-                         stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
 
     def sort_sx_hook(self, stderr_file: TextIO = sys.stderr) -> None:
         """Sort s[0-9]_ as needed as needed (hook)."""
-        self.s03_split_columns = sorted(self.s03_split_columns, key=get_column)
-        self.s04_remove_columns = sorted(self.s04_remove_columns)
-        self.s05_merge_columns = sorted(self.s05_merge_columns,
-                                        key=get_merge_first_column)
-        self.s07_rename_columns = sorted(self.s07_rename_columns,
-                                         key=get_column)
-        self.s08_insert_columns = sorted(self.s08_insert_columns,
-                                         key=get_column)
+        _ = stderr_file
+        sort_num_rules(cast(NumTransformRules, self))
 
     def _split_last_key(self) -> str:
         """Return the split-column key name used by this configuration."""
@@ -80,8 +57,7 @@ class ConfigXlsListTransfNumValidated(  # pylint: disable=too-many-instance-attr
                               's06_place_columns_first'],
                 validator=ListIsOrderedValidator(
                     int, is_ordered=False, unique_values=True)),
-            MemberValidationStep(
-                member_names=['s05_merge_columns'],
-                validator=increasing_merge_columns_validator(
+            MemberValidationStep(member_names=['s05_merge_columns'],
+                                 validator=increasing_merge_columns_validator(
                     self._columntype))])
         return ret

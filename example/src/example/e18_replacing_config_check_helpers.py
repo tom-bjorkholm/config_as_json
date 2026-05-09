@@ -32,7 +32,6 @@ from config_as_json import Config, PathOrStr, ValidationPlan, \
     ListValueTypeValidator, StrValidator, ValueTypeValidator
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
-
 REWRITE_KINDS = ['strip', 'remove_chars', 'replace']
 """Allowed normalized rewrite rule kinds."""
 
@@ -46,8 +45,8 @@ def column_mapping_validator() -> ListForEachValidator:
     # Extra keys are allowed because a real mapping row may contain metadata
     # such as a source column name, a label, or display-order information.
     # Those keys are application data, so this validator leaves them alone.
-    keys_validator = DictKeysValidator(
-        mandatory_keys=['column'], allow_extra_dict_keys=True)
+    keys_validator = DictKeysValidator(mandatory_keys=['column'],
+                                       allow_extra_dict_keys=True)
     values_validator = DictForEachValidator(rules=[
         DictRule(keys=['column'], validators=[ValueTypeValidator(str)])])
     return ListForEachValidator(
@@ -65,17 +64,15 @@ def merge_rule_validator() -> ListForEachValidator:
     # ``DictForEachValidator`` validates values at selected keys. For
     # ``columns`` we chain two list validators: one for the list size and one
     # for the element type. For ``separator`` a plain type validator is enough.
-    keys_validator = DictKeysValidator(
-        mandatory_keys=['columns', 'separator'],
-        allow_extra_dict_keys=True)
+    keys_validator = DictKeysValidator(mandatory_keys=['columns', 'separator'],
+                                       allow_extra_dict_keys=True)
     values_validator = DictForEachValidator(rules=[
-        DictRule(
-            keys=['columns'],
-            validators=[ListSizeValidator(1, sys.maxsize),
-                        ListValueTypeValidator(str)]),
-        DictRule(
-            keys=['separator'],
-            validators=[ValueTypeValidator(str)])])
+        DictRule(keys=['columns'],
+                 validators=[
+                     ListSizeValidator(1, sys.maxsize),
+                     ListValueTypeValidator(str)
+                 ]),
+        DictRule(keys=['separator'], validators=[ValueTypeValidator(str)])])
     return ListForEachValidator(
         element_validators=[keys_validator, values_validator],
         element_type=dict)
@@ -91,45 +88,40 @@ def rewrite_rule_validator() -> ListForEachValidator:
     # The discriminator value is ordinary configuration data, so it can use a
     # normal string validator. Here it accepts user-friendly spelling such as
     # ``REMOVE_CHARS`` and stores the normalized value ``remove_chars``.
-    kind_validator = StrValidator(
-        allowed_values=REWRITE_KINDS,
-        ignore_case=True,
-        normalize=True)
+    kind_validator = StrValidator(allowed_values=REWRITE_KINDS,
+                                  ignore_case=True, normalize=True)
     # Each ``DictVariant`` describes one shape selected by ``kind``. Variants
     # keep their mandatory keys and value rules close together, which is much
     # easier to read than one large collection of cross-cutting conditions.
-    strip_variant = DictVariant(
-        mandatory_keys=['column', 'chars'],
-        rules=[
-            DictRule(keys=['column', 'chars'],
-                     validators=[ValueTypeValidator(str)])],
-        allow_extra_dict_keys=True)
+    strip_variant = DictVariant(mandatory_keys=['column', 'chars'],
+                                rules=[
+                                    DictRule(
+                                        keys=['column', 'chars'],
+                                        validators=[ValueTypeValidator(str)])
+                                ], allow_extra_dict_keys=True)
     remove_chars_variant = DictVariant(
         mandatory_keys=['column', 'chars'],
         rules=[
             DictRule(keys=['column'], validators=[ValueTypeValidator(str)]),
-            DictRule(keys=['chars'],
-                     validators=[ListValueTypeValidator(str)])],
-        allow_extra_dict_keys=True)
-    replace_variant = DictVariant(
-        mandatory_keys=['column', 'from', 'to'],
-        rules=[
-            DictRule(keys=['column', 'from', 'to'],
-                     validators=[ValueTypeValidator(str)])],
-        allow_extra_dict_keys=True)
+            DictRule(keys=['chars'], validators=[ListValueTypeValidator(str)])
+        ], allow_extra_dict_keys=True)
+    replace_variant = DictVariant(mandatory_keys=['column', 'from', 'to'],
+                                  rules=[
+                                      DictRule(
+                                          keys=['column', 'from', 'to'],
+                                          validators=[ValueTypeValidator(str)])
+                                  ], allow_extra_dict_keys=True)
     one_rule_validator = DiscriminatedDictValidator(
         discriminator_key='kind',
         variants={
             'strip': strip_variant,
             'remove_chars': remove_chars_variant,
             'replace': replace_variant
-        },
-        discriminator_validator=kind_validator)
+        }, discriminator_validator=kind_validator)
     # Finally, wrap the one-row validator in ``ListForEachValidator`` so the
     # same kind-selected validation is applied to every row in the list.
-    return ListForEachValidator(
-        element_validators=[one_rule_validator],
-        element_type=dict)
+    return ListForEachValidator(element_validators=[one_rule_validator],
+                                element_type=dict)
 
 
 class ExampleConfig18(Config):
@@ -151,7 +143,8 @@ class ExampleConfig18(Config):
         }]
         self.merge_rules: list[dict[str, object]] = [{
             'columns': ['first_name', 'last_name'],
-            'separator': ' '
+            'separator':
+            ' '
         }]
         self.rewrite_rules: list[dict[str, object]] = [{
             'kind': 'strip',
@@ -166,25 +159,21 @@ class ExampleConfig18(Config):
         """Return the ordered validation steps for this example."""
         _ = stderr_file
         return [
-            MemberValidationStep(
-                member_names=['column_mappings'],
-                validator=ListSizeValidator(1, sys.maxsize)),
-            MemberValidationStep(
-                member_names=['column_mappings'],
-                validator=column_mapping_validator()),
-            MemberValidationStep(
-                member_names=['merge_rules'],
-                validator=ListSizeValidator(1, sys.maxsize)),
-            MemberValidationStep(
-                member_names=['merge_rules'],
-                validator=merge_rule_validator()),
-            MemberValidationStep(
-                member_names=['rewrite_rules'],
-                validator=rewrite_rule_validator())]
+            MemberValidationStep(member_names=['column_mappings'],
+                                 validator=ListSizeValidator(1, sys.maxsize)),
+            MemberValidationStep(member_names=['column_mappings'],
+                                 validator=column_mapping_validator()),
+            MemberValidationStep(member_names=['merge_rules'],
+                                 validator=ListSizeValidator(1, sys.maxsize)),
+            MemberValidationStep(member_names=['merge_rules'],
+                                 validator=merge_rule_validator()),
+            MemberValidationStep(member_names=['rewrite_rules'],
+                                 validator=rewrite_rule_validator())
+        ]
 
 
-def e18_replacing_config_check_helpers_set(
-        set_values: SetValues, config_file: PathOrStr) -> None:
+def e18_replacing_check_helpers_set(set_values: SetValues,
+                                    config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -237,12 +226,11 @@ def main(args: Optional[list[str]] = None) -> None:
     Args:
         args: Optional replacement for ``sys.argv[1:]``, mainly for tests.
     """
-    cmd_line_handling(
-        example_name='e18_replacing_config_check_helpers',
-        input_specs=INPUT_SPECS,
-        set_command=e18_replacing_config_check_helpers_set,
-        print_command=e18_replacing_config_check_helpers_print,
-        args=args)
+    cmd_line_handling(example_name='e18_replacing_config_check_helpers',
+                      input_specs=INPUT_SPECS,
+                      set_command=e18_replacing_check_helpers_set,
+                      print_command=e18_replacing_config_check_helpers_print,
+                      args=args)
 
 
 if __name__ == '__main__':

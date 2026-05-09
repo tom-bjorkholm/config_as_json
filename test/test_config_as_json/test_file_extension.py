@@ -22,8 +22,8 @@ from config_as_json.file_extension import fix_file_extension
                           ('/bin/ls.fo', '.bo', '.fo', False, '/bin/ls.bo'),
                           ('/bin/ls/b', '.bo', '.fo', True, '/bin/ls/b.bo'),
                           ('/bin/ls/b', '.bo', '.fo', False, '/bin/ls/b.bo')])
-def test_file_extension_1(capsys,  # pylint: disable=too-many-arguments, too-many-positional-arguments, line-too-long # noqa: E501
-                          fil, add, rem, readp, res):
+# pylint: disable-next=R0913,R0917,C0301
+def test_file_extension_1(capsys, fil, add, rem, readp, res):
     """Test fix_file_extension."""
     filn = deepcopy(fil)
     addn = deepcopy(add)

@@ -16,8 +16,8 @@ def test_print_dict_differs(capsys):
     lhs = {'a': 'b', 'c': 2}
     rhs = {'d': 'e', 'f': 4, 'g': 5}
     msg = 'A small test message'
-    _print_dict_differs(msg=msg,  # pylint: disable=protected-access
-                        lhs=lhs, rhs=rhs, stderr_file=sys.stderr)
+    # pylint: disable-next=protected-access
+    _print_dict_differs(msg=msg, lhs=lhs, rhs=rhs, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert '' == out
     assert msg in err

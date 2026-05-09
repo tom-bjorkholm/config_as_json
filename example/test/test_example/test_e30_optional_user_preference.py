@@ -14,7 +14,7 @@ from example.e30_optional_user_preference import DeliveryFormat, \
     ExampleConfig30, Palette, e30_optional_user_preference_print, \
     e30_optional_user_preference_set
 from example.e30_optional_user_preference import main as e30_main
-from .helpers import assert_main_round_trip_print_output
+from .helpers import assert_rt_out
 from .helpers import assert_write_command_output
 
 
@@ -119,33 +119,26 @@ def test_e30_print_uses_effective_palette(
 def test_e30_main_round_trip_prints_default_values(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Round-trip default omit-None values through the command line."""
-    assert_main_round_trip_print_output(
-        capsys,
-        e30_main,
-        'optional_user_preference.cfg',
-        [],
-        ['Report name: daily-status',
-         'Delivery format: HTML',
-         'Author note: not configured',
-         'Palette setting: automatic',
-         'Selected palette: ACCESSIBLE']
-    )
+    assert_rt_out(capsys, e30_main, 'optional_user_preference.cfg', [],
+                  [
+                      'Report name: daily-status',
+                      'Delivery format: HTML',
+                      'Author note: not configured',
+                      'Palette setting: automatic',
+                      'Selected palette: ACCESSIBLE',
+                  ])
 
 
 def test_e30_main_round_trip_with_optional_overrides(
         capsys: pytest.CaptureFixture[str]) -> None:
     """Round-trip explicit optional values through the command line."""
-    assert_main_round_trip_print_output(
-        capsys,
-        e30_main,
-        'optional_user_preference.cfg',
-        ['--report-name', 'weekly-summary',
-         '--delivery-format', 'text',
-         '--author-note', 'Reviewed by Ada',
-         '--palette', 'vivid'],
-        ['Report name: weekly-summary',
-         'Delivery format: TEXT',
-         'Author note: Reviewed by Ada',
-         'Palette setting: VIVID',
-         'Selected palette: VIVID']
-    )
+    assert_rt_out(capsys, e30_main, 'optional_user_preference.cfg',
+                  ['--report-name', 'weekly-summary',
+                   '--delivery-format', 'text',
+                   '--author-note', 'Reviewed by Ada',
+                   '--palette', 'vivid'],
+                  ['Report name: weekly-summary',
+                   'Delivery format: TEXT',
+                   'Author note: Reviewed by Ada',
+                   'Palette setting: VIVID',
+                   'Selected palette: VIVID'])

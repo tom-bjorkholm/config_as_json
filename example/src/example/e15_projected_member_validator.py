@@ -33,13 +33,11 @@ from config_as_json import Config, PathOrStr, ValidationPlan, \
     InvalidConfigurationValue
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
-
 STEP_NAMES = ['prepare', 'build', 'test', 'deploy']
 """Allowed normalized names for release steps."""
 
 
-def project_step_orders(config: Config, member_name: str,
-                        member_value: object,
+def project_step_orders(config: Config, member_name: str, member_value: object,
                         stderr_file: TextIO) -> object:
     """Return the ``order`` values from a list of release-step dicts.
 
@@ -61,6 +59,7 @@ def project_step_orders(config: Config, member_name: str,
     return [step['order'] for step in steps]
 
 
+# pylint: disable=duplicate-code
 class ExampleConfig15(Config):
     """Configuration using a projected member validator."""
 
@@ -80,8 +79,7 @@ class ExampleConfig15(Config):
         self.release_steps: list[dict[str, object]] = [
             {'name': 'prepare', 'order': 10, 'duration_minutes': 5},
             {'name': 'build', 'order': 20, 'duration_minutes': 15},
-            {'name': 'deploy', 'order': 30, 'duration_minutes': 10}
-        ]
+            {'name': 'deploy', 'order': 30, 'duration_minutes': 10}]
         super().__init__(from_json_data_text=from_json_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
@@ -91,46 +89,42 @@ class ExampleConfig15(Config):
         _ = stderr_file
         step_keys_validator = DictKeysValidator(
             mandatory_keys=['name', 'order', 'duration_minutes'])
-        name_rule = DictRule(
-            keys=['name'],
-            validators=[StrValidator(
-                allowed_values=STEP_NAMES,
-                ignore_case=True,
-                normalize=True)]
-        )
-        order_rule = DictRule(
-            keys=['order'],
-            validators=[IntFloatValidator(min_value=1, max_value=100,
-                                          allowed_values=None)]
-        )
-        duration_rule = DictRule(
-            keys=['duration_minutes'],
-            validators=[IntFloatValidator(min_value=1, max_value=240,
-                                          allowed_values=None)]
-        )
+        name_rule = DictRule(keys=['name'],
+                             validators=[
+                                 StrValidator(allowed_values=STEP_NAMES,
+                                              ignore_case=True, normalize=True)
+                             ])
+        order_rule = DictRule(keys=['order'],
+                              validators=[
+                                  IntFloatValidator(min_value=1, max_value=100,
+                                                    allowed_values=None)])
+        duration_rule = DictRule(keys=['duration_minutes'],
+                                 validators=[
+                                     IntFloatValidator(min_value=1,
+                                                       max_value=240,
+                                                       allowed_values=None)])
         step_values_validator = DictForEachValidator(
-            rules=[name_rule, order_rule, duration_rule]
-        )
+            rules=[name_rule, order_rule, duration_rule])
         per_step_validator = ListForEachValidator(
             element_validators=[step_keys_validator, step_values_validator],
-            element_type=dict
-        )
+            element_type=dict)
         order_projection_validator = ProjectedMemberValidator(
             projector=project_step_orders,
             source_validator=ListSizeValidator(min_size=1, max_size=10),
-            validators=[ListIsOrderedValidator(
-                int, is_ordered=True, unique_values=True)]
-        )
-        return [MemberValidationStep(
-                    member_names=['release_steps'],
-                    validator=per_step_validator),
-                MemberValidationStep(
-                    member_names=['release_steps'],
-                    validator=order_projection_validator)]
+            validators=[
+                ListIsOrderedValidator(int, is_ordered=True,
+                                       unique_values=True)])
+        return [
+            MemberValidationStep(member_names=['release_steps'],
+                                 validator=per_step_validator),
+            MemberValidationStep(member_names=['release_steps'],
+                                 validator=order_projection_validator)
+        ]
 
 
-def e15_projected_member_validator_set(  # pylint: disable=duplicate-code
-        set_values: SetValues, config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e15_projected_member_set(set_values: SetValues,
+                             config_file: PathOrStr) -> None:
     """Create configuration, apply overrides, and store it.
 
     Args:
@@ -150,8 +144,8 @@ def e15_projected_member_validator_set(  # pylint: disable=duplicate-code
         pass  # Error already printed by the Config object.
 
 
-def e15_projected_member_validator_print(  # pylint: disable=duplicate-code
-        config_file: PathOrStr) -> None:
+# pylint: disable=duplicate-code
+def e15_projected_member_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show how the values are used.
 
     Args:
@@ -161,8 +155,8 @@ def e15_projected_member_validator_print(  # pylint: disable=duplicate-code
         config = ExampleConfig15(from_json_filename=config_file)
         print(f'Configuration read from {config_file}')
         print(f'Release steps: {config.release_steps}')
-        order_values = project_step_orders(
-            config, 'release_steps', config.release_steps, sys.stderr)
+        order_values = project_step_orders(config, 'release_steps',
+                                           config.release_steps, sys.stderr)
         print(f'Projected order values: {order_values}')
     except (InvalidConfiguration, InvalidConfigurationValue):
         pass  # Error already printed by the Config object.
@@ -196,9 +190,8 @@ def main(args: Optional[list[str]] = None) -> None:
     """
     cmd_line_handling(example_name='e15_projected_member_validator',
                       input_specs=INPUT_SPECS,
-                      set_command=e15_projected_member_validator_set,
-                      print_command=e15_projected_member_validator_print,
-                      args=args)
+                      set_command=e15_projected_member_set,
+                      print_command=e15_projected_member_print, args=args)
 
 
 if __name__ == '__main__':

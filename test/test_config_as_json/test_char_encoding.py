@@ -16,15 +16,15 @@ from config_as_json.validator import InvalidConfiguration
 
 def _validate_char_encoding(member_value: object) -> object:
     """Validate ``member_value`` with ``CharEncodingValidator``."""
-    return CharEncodingValidator().validate_member(
-        config=cast(Config, object()), member_name='encoding',
-        member_value=member_value, stderr_file=sys.stderr)
+    return CharEncodingValidator().validate_member(config=cast(Config,
+                                                               object()),
+                                                   member_name='encoding',
+                                                   member_value=member_value,
+                                                   stderr_file=sys.stderr)
 
 
-@pytest.mark.parametrize('enc, is_ok',
-                         [('utf-8', True),
-                          ('iso8859-1', True),
-                          ('abc123', False)])
+@pytest.mark.parametrize('enc, is_ok', [('utf-8', True), ('iso8859-1', True),
+                                        ('abc123', False)])
 def test_valid_char_encoding_returns_lookup_result(capsys, enc, is_ok):
     """Test direct character encoding lookup results."""
     ret = valid_char_encoding(enc)
@@ -34,8 +34,7 @@ def test_valid_char_encoding_returns_lookup_result(capsys, enc, is_ok):
     assert err == ''
 
 
-@pytest.mark.parametrize('enc',
-                         [8, True])
+@pytest.mark.parametrize('enc', [8, True])
 def test_valid_char_encoding_rejects_non_string_values(capsys, enc):
     """Test direct character encoding lookup with wrong value types."""
     with pytest.raises(TypeError) as exc_info:
@@ -46,8 +45,7 @@ def test_valid_char_encoding_rejects_non_string_values(capsys, enc):
     assert 'must be str' in str(exc_info.value)
 
 
-@pytest.mark.parametrize('enc',
-                         ['utf-8', 'iso8859-1'])
+@pytest.mark.parametrize('enc', ['utf-8', 'iso8859-1'])
 def test_check_char_encoding_accepts_known_encodings(capsys, enc):
     """Test check_char_encoding accepts recognized encodings."""
     check_char_encoding(enc, stderr_file=sys.stderr)
@@ -56,8 +54,7 @@ def test_check_char_encoding_accepts_known_encodings(capsys, enc):
     assert err == ''
 
 
-@pytest.mark.parametrize('enc',
-                         ['utf-88', 'abc123'])
+@pytest.mark.parametrize('enc', ['utf-88', 'abc123'])
 def test_check_char_encoding_exits_for_unknown_encodings(capsys, enc):
     """Test direct check_char_encoding failure behavior."""
     with pytest.raises(SystemExit):
@@ -67,8 +64,7 @@ def test_check_char_encoding_exits_for_unknown_encodings(capsys, enc):
     assert f'{enc} is not a recognized encoding' in err
 
 
-@pytest.mark.parametrize('enc',
-                         ['utf-8', 'iso8859-1'])
+@pytest.mark.parametrize('enc', ['utf-8', 'iso8859-1'])
 def test_char_encoding_validator_accepts_known_encodings(capsys, enc):
     """Test CharEncodingValidator accepts recognized encodings."""
     ret = _validate_char_encoding(enc)

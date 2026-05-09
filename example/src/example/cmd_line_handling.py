@@ -178,10 +178,9 @@ def _value_parser(
     return lambda text: _enum_from_text(text, cast(type[Enum], value_type))
 
 
-def _nested_value_parser(
-        value_type: SingleValueTypes,
-        separator: str = NESTED_LIST_SEPARATOR
-        ) -> Callable[[str], list[SingleValue]]:
+def _nested_value_parser(value_type: SingleValueTypes,
+                         separator: str = NESTED_LIST_SEPARATOR
+                         ) -> Callable[[str], list[SingleValue]]:
     """Return a converter that turns one CLI token into a list of values.
 
     The returned converter splits the token on ``separator`` and converts
@@ -205,10 +204,9 @@ def _nested_value_parser(
     return parse_nested_token
 
 
-def _dict_kv_token_parser(
-        value_type: SingleValueTypes,
-        separator: str = DICT_KV_SEPARATOR
-        ) -> Callable[[str], tuple[str, SingleValue]]:
+def _dict_kv_token_parser(value_type: SingleValueTypes,
+                          separator: str = DICT_KV_SEPARATOR
+                          ) -> Callable[[str], tuple[str, SingleValue]]:
     """Return a converter that turns one ``key=value`` token into a pair.
 
     The returned converter splits the token on the first occurrence of
@@ -314,9 +312,8 @@ def _token_parser(input_spec: InputSpec) -> Callable[[str], object]:
     return _value_parser(input_spec.value_type)
 
 
-def _add_set_arguments(
-        parser: argparse.ArgumentParser,
-        input_specs: list[InputSpec]) -> None:
+def _add_set_arguments(parser: argparse.ArgumentParser,
+                       input_specs: list[InputSpec]) -> None:
     """Add one ``--name`` style option for each configurable value.
 
     Args:
@@ -328,21 +325,13 @@ def _add_set_arguments(
         token_parser = _token_parser(input_spec)
         if not input_spec.single:
             parser.add_argument(
-                argument_name,
-                dest=input_spec.name,
-                type=token_parser,
-                default=None,
-                nargs='+',
-                help=f'Set configuration value {input_spec.name}.'
-            )
+                argument_name, dest=input_spec.name, type=token_parser,
+                default=None, nargs='+',
+                help=f'Set configuration value {input_spec.name}.')
             continue
-        parser.add_argument(
-            argument_name,
-            dest=input_spec.name,
-            type=token_parser,
-            default=None,
-            help=f'Set configuration value {input_spec.name}.'
-        )
+        parser.add_argument(argument_name, dest=input_spec.name,
+                            type=token_parser, default=None,
+                            help=f'Set configuration value {input_spec.name}.')
 
 
 def _coerce_input_value(input_spec: InputSpec, value: object) -> CfgValue:
@@ -402,32 +391,20 @@ def _create_argument_parser(
     subparsers = parser.add_subparsers(dest='command')
     subparsers.required = True
     print_parser = subparsers.add_parser(
-        'print',
-        help='Read a configuration file and print the values.'
-    )
-    print_parser.add_argument(
-        '-i',
-        '--input',
-        required=True,
-        help='Configuration file to read.'
-    )
+        'print', help='Read a configuration file and print the values.')
+    print_parser.add_argument('-i', '--input', required=True,
+                              help='Configuration file to read.')
     set_parser = subparsers.add_parser(
         'set',
-        help='Write a configuration file, optionally overriding defaults.'
-    )
-    set_parser.add_argument(
-        '-o',
-        '--output',
-        required=True,
-        help='Configuration file to write.'
-    )
+        help='Write a configuration file, optionally overriding defaults.')
+    set_parser.add_argument('-o', '--output', required=True,
+                            help='Configuration file to write.')
     _add_set_arguments(set_parser, input_specs)
     return parser
 
 
 def cmd_line_handling(example_name: str, input_specs: list[InputSpec],
-                      set_command: SetCommand,
-                      print_command: PrintCommand,
+                      set_command: SetCommand, print_command: PrintCommand,
                       args: Optional[list[str]] = None) -> None:
     """Handle command line arguments for one example program.
 

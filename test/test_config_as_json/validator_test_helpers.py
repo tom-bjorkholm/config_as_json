@@ -60,10 +60,11 @@ def assert_validate_member_ok(capsys: pytest.CaptureFixture[str],
     assert err == ''
 
 
-def assert_validate_member_failure(
-        capsys: pytest.CaptureFixture[str], validator: MemberValidator,
-        member_value: object, exc_type: type[Exception],
-        message: str) -> None:
+def assert_validate_member_failure(capsys: pytest.CaptureFixture[str],
+                                   validator: MemberValidator,
+                                   member_value: object,
+                                   exc_type: type[Exception], message: str
+                                   ) -> None:
     """Assert that one member validation fails with one error message."""
     cfg = EmptyValidationConfig()
     with pytest.raises(exc_type) as exc:

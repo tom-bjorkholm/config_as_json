@@ -48,7 +48,8 @@ def check_char_encoding(enc: str, stderr_file: TextIO = sys.stderr) -> None:
         sys.exit(1)
 
 
-class CharEncodingValidator(MemberValidator):  # pylint: disable=too-few-public-methods # noqa: E501
+# pylint: disable-next=too-few-public-methods
+class CharEncodingValidator(MemberValidator):
     """Validate that one string member names a recognized text encoding."""
 
     def validate_member(self, config: 'Config', member_name: str,
