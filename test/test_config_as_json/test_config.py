@@ -1,22 +1,22 @@
 #! /usr/local/bin/python3
-# mypy: disable-error-code="no-untyped-def,no-untyped-call"
 """Test the Config class."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
-# pylint: disable=duplicate-code
 from tempfile import NamedTemporaryFile as ntf
 from os import remove as os_remove
 from io import StringIO
 from enum import Enum, auto
 import csv
 import sys
-from typing import Any, cast, TextIO
+from typing import Any, Optional, TextIO, cast
 import pytest
+from pytest import CaptureFixture
 from config_as_json.config import _ConfigEncoder, \
-    ConfigBadJson, _over_ride_needed, Config
+    ConfigBadJson, _over_ride_needed, Config, ParseConverter
 from config_as_json.assert_dict_equal import assert_dict_equal
+from config_as_json.commontypes import PathOrStr
 from config_as_json.csv_dialect import get_csv_dialect, CsvDialectConfig
 from config_as_json.list_validators import ListOfDictsKeysValidator
 from config_as_json.validator import InvalidConfiguration, ValidationPlan
@@ -31,7 +31,8 @@ class EnumInTesting(Enum):
 
 @pytest.mark.parametrize('obj, res', [(EnumInTesting.FOOBAR, 'FOOBAR'),
                                       (EnumInTesting.BARFOO, 'BARFOO')])
-def test_config_encode(capsys, obj, res):
+def test_config_encode(capsys: CaptureFixture[str], obj: EnumInTesting,
+                       res: str) -> None:
     """Test ConfigEncoder."""
     enc = _ConfigEncoder()
     ret = enc.default(obj)
@@ -42,14 +43,14 @@ def test_config_encode(capsys, obj, res):
 
 
 @pytest.mark.parametrize('obj', [1, 'hello'])
-def test_config_encode_bad(obj):
+def test_config_encode_bad(obj: object) -> None:
     """Test ConfigEncoder with bad arguments."""
     enc = _ConfigEncoder()
     with pytest.raises(TypeError):
         _ = enc.default(obj)
 
 
-def test__over_ride_needed_1(capsys):
+def test__over_ride_needed_1(capsys: CaptureFixture[str]) -> None:
     """Test _over_ride_needed with None."""
     ret = _over_ride_needed(cast(Any, None))
     out, err = capsys.readouterr()
@@ -58,7 +59,7 @@ def test__over_ride_needed_1(capsys):
     assert '' == out
 
 
-def test__over_ride_needed_2(capsys):
+def test__over_ride_needed_2(capsys: CaptureFixture[str]) -> None:
     """Test _over_ride_needed with non-None."""
     with pytest.raises(NotImplementedError) as exc:
         _ = _over_ride_needed('42')
@@ -73,8 +74,9 @@ def test__over_ride_needed_2(capsys):
 class ConfigSomething(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None,
-                 stderr_file: TextIO = sys.stderr):
+    def __init__(self, from_json_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for test."""
         self.csv_dialect1: CsvDialectConfig = {'name': 'csv.excel',
                                                'delimiter': ',',
@@ -88,21 +90,23 @@ class ConfigSomething(Config):
                                                'quotechar': '"',
                                                'lineterminator': None,
                                                'escapechar': None}
-        self.kind = EnumInTesting.FOOBAR
-        self.aa1 = 'nice'
-        self.abc = [{'def': 15, 'geh': ';', 'ijk': EnumInTesting.BARFOO},
-                    {'def': 26, 'geh': 'x', 'ijk': EnumInTesting.FOOBAR}]
-        self.mno = {'ab': 4, 'cd': 7}
-        self.pqr = {'ef': [{'gh': EnumInTesting.FOOBAR, 'ij': 'kl', 'mn': 7},
-                           {'gh': EnumInTesting.BARFOO, 'ij': 'op', 'mn': 9}],
-                    'qr': [{'gh': EnumInTesting.BARFOO, 'ij': 'st', 'mn': 3},
-                           {'gh': EnumInTesting.BARFOO, 'ij': 'uv', 'mn': 4}]}
-        self._unchecked_dicts = ['mno', 'pqr']
+        self.kind: EnumInTesting = EnumInTesting.FOOBAR
+        self.aa1: str = 'nice'
+        self.abc: list[dict[str, object]] = [
+            {'def': 15, 'geh': ';', 'ijk': EnumInTesting.BARFOO},
+            {'def': 26, 'geh': 'x', 'ijk': EnumInTesting.FOOBAR}]
+        self.mno: dict[str, int] = {'ab': 4, 'cd': 7}
+        self.pqr: dict[str, list[dict[str, object]]] = {
+            'ef': [{'gh': EnumInTesting.FOOBAR, 'ij': 'kl', 'mn': 7},
+                   {'gh': EnumInTesting.BARFOO, 'ij': 'op', 'mn': 9}],
+            'qr': [{'gh': EnumInTesting.BARFOO, 'ij': 'st', 'mn': 3},
+                   {'gh': EnumInTesting.BARFOO, 'ij': 'uv', 'mn': 4}]}
+        self._unchecked_dicts: list[str] = ['mno', 'pqr']
         super().__init__(from_json_text, from_json_filename,
                          stderr_file=stderr_file)
         self.check_array_configs(stderr_file=stderr_file)
 
-    def get_csv_dialect1(self, stderr_file: TextIO):
+    def get_csv_dialect1(self, stderr_file: TextIO) -> csv.Dialect:
         """Get CSV dialect 1."""
         return get_csv_dialect(
             name=self.csv_dialect1['name'],
@@ -113,7 +117,7 @@ class ConfigSomething(Config):
             escapechar=self.csv_dialect1['escapechar'],
             stderr_file=stderr_file)
 
-    def get_csv_dialect2(self, stderr_file: TextIO):
+    def get_csv_dialect2(self, stderr_file: TextIO) -> csv.Dialect:
         """Get CSV dialect 2."""
         return get_csv_dialect(
             name=self.csv_dialect2['name'],
@@ -124,7 +128,7 @@ class ConfigSomething(Config):
             escapechar=self.csv_dialect2['escapechar'],
             stderr_file=stderr_file)
 
-    def check_array_configs(self, stderr_file: TextIO):
+    def check_array_configs(self, stderr_file: TextIO) -> None:
         """Check that keywords in configuration arrays are OK."""
         abc_keys = ['def', 'geh', 'ijk']
         _ = ListOfDictsKeysValidator(abc_keys).validate_member(
@@ -134,7 +138,7 @@ class ConfigSomething(Config):
             _ = ListOfDictsKeysValidator(pqr_keys).validate_member(
                 self, 'pqr', val, stderr_file)
 
-    def parse_converters(self):
+    def parse_converters(self) -> dict[str, ParseConverter]:
         """Get converters for use when parsing JSON.
 
         Overriding in derived class.
@@ -153,7 +157,7 @@ class ConfigSomething(Config):
         return []
 
 
-def test_config_something_def(capsys):
+def test_config_something_def(capsys: CaptureFixture[str]) -> None:
     """Test default values of ConfigSomething."""
     xst = ConfigSomething()
     assert isinstance(xst.kind, EnumInTesting)
@@ -202,7 +206,8 @@ def test_config_something_def(capsys):
 
 
 @pytest.mark.parametrize('indel, outdel', [(';', ','), (':', ';')])
-def test_config_something_changed(capsys, indel, outdel):
+def test_config_something_changed(capsys: CaptureFixture[str], indel: str,
+                                  outdel: str) -> None:
     """Test ConfigSomething with changed values."""
     xst = ConfigSomething()
     xst.csv_dialect1['delimiter'] = indel
@@ -218,31 +223,33 @@ def test_config_something_changed(capsys, indel, outdel):
 
 @pytest.mark.parametrize('mno_not_pqr, value',
                          [(True, {'tgur': 2, 'c300': 5}),
-                          (False,
-                           {'reset': [{'gh': EnumInTesting.FOOBAR,
-                                       'ij': 'aa', 'mn': 5},
-                                      {'gh': EnumInTesting.BARFOO,
-                                       'ij': 'xx', 'mn': 1}],
-                            'start': [{'gh': EnumInTesting.BARFOO,
-                                       'ij': 'bb', 'mn': 30},
-                                      {'gh': EnumInTesting.BARFOO,
-                                       'ij': 'yy', 'mn': 7}]})])
-def test_config_something_changed2(capsys, mno_not_pqr, value):
+                          (False, {
+                              'reset': [{'gh': EnumInTesting.FOOBAR,
+                                         'ij': 'aa', 'mn': 5},
+                                        {'gh': EnumInTesting.BARFOO,
+                                         'ij': 'xx', 'mn': 1}],
+                              'start': [{'gh': EnumInTesting.BARFOO,
+                                         'ij': 'bb', 'mn': 30},
+                                        {'gh': EnumInTesting.BARFOO,
+                                         'ij': 'yy', 'mn': 7}]
+                          })])
+def test_config_changed_dicts(capsys: CaptureFixture[str], mno_not_pqr: bool,
+                              value: object) -> None:
     """Test ConfigSomething with other changed values."""
     xst = ConfigSomething()
     if mno_not_pqr:
-        xst.mno = value
+        xst.mno = cast(dict[str, int], value)
     else:
-        xst.pqr = value
+        xst.pqr = cast(dict[str, list[dict[str, object]]], value)
     scfg = xst.as_json_string(stderr_file=sys.stderr)
     yst = ConfigSomething(from_json_text=scfg)
     out, err = capsys.readouterr()
     assert_dict_equal(xst.__dict__, yst.__dict__, ['_hook_cfg_autochange'],
                       stderr_file=sys.stderr)
     if mno_not_pqr:
-        assert yst.mno == value
+        assert yst.mno == cast(dict[str, int], value)
     else:
-        assert yst.pqr == value
+        assert yst.pqr == cast(dict[str, list[dict[str, object]]], value)
     assert out == ''
     assert err == ''
 
@@ -278,13 +285,15 @@ def test_config_something_changed2(capsys, mno_not_pqr, value):
                                       {'gh': EnumInTesting.BARFOO,
                                        'ij': 'yy', 'mn': 7}]},
                            "Mandatory key 'mn' is missing")])
-def test_config_something_cha_bad(capsys, abc_not_pqr, value, exm):
+def test_config_something_cha_bad(capsys: CaptureFixture[str],
+                                  abc_not_pqr: bool, value: object,
+                                  exm: str) -> None:
     """Test ConfigSomething with bad changed values."""
     xst = ConfigSomething(stderr_file=sys.stderr)
     if abc_not_pqr:
-        xst.abc = value
+        xst.abc = cast(list[dict[str, object]], value)
     else:
-        xst.pqr = value
+        xst.pqr = cast(dict[str, list[dict[str, object]]], value)
     scfg = xst.as_json_string(stderr_file=sys.stderr)
     with pytest.raises(InvalidConfiguration):
         _ = ConfigSomething(from_json_text=scfg, stderr_file=sys.stderr)
@@ -294,14 +303,14 @@ def test_config_something_cha_bad(capsys, abc_not_pqr, value, exm):
 
 
 @pytest.mark.parametrize('indel, outdel', [(';', ','), (':', ';')])
-def test_config_something_writeread(capsys, indel, outdel):
+def test_config_something_writeread(capsys: CaptureFixture[str], indel: str,
+                                    outdel: str) -> None:
     """Test ConfigSomething writing and reading."""
     xst = ConfigSomething()
     xst.csv_dialect1['delimiter'] = indel
     xst.csv_dialect2['delimiter'] = outdel
-    fname = None
     with ntf(delete=False) as tfile:
-        fname = tfile.name
+        fname: str = tfile.name
         tfile.close()
         xst.write(fname)
         yst = ConfigSomething()
@@ -315,14 +324,14 @@ def test_config_something_writeread(capsys, indel, outdel):
 
 
 @pytest.mark.parametrize('indel, outdel', [(';', ','), (':', ';')])
-def test_config_something_writeinit(capsys, indel, outdel):
+def test_config_something_writeinit(capsys: CaptureFixture[str], indel: str,
+                                    outdel: str) -> None:
     """Test ConfigSomething writing and reading."""
     xst = ConfigSomething()
     xst.csv_dialect1['delimiter'] = indel
     xst.csv_dialect2['delimiter'] = outdel
-    fname = None
     with ntf(delete=False) as tfile:
-        fname = tfile.name
+        fname: str = tfile.name
         tfile.close()
         xst.write(fname)
         yst = ConfigSomething(from_json_filename=fname)
@@ -337,7 +346,8 @@ def test_config_something_writeinit(capsys, indel, outdel):
 @pytest.mark.parametrize('txt,indel',
                          [('{"csv_dialect1" : {"delimiter" : "B"}}', 'B'),
                           ('{"csv_dialect1" : {"delimiter" : ":"}}', ':')])
-def test_config_smt_read_incompl1(capsys, txt, indel):
+def test_config_smt_read_incompl1(capsys: CaptureFixture[str], txt: str,
+                                  indel: str) -> None:
     """Test ConfigSomething read incomplete 1."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     outdelold = yst.csv_dialect2['delimiter']
@@ -354,7 +364,8 @@ def test_config_smt_read_incompl1(capsys, txt, indel):
 @pytest.mark.parametrize('txt',
                          ['{"csv_dialect1": {"delimiter" : "B"}}',
                           '{"csv_dialect1": {"delimiter" : ";"}}'])
-def test_config_smt_read_incompl2(capsys, txt):
+def test_config_smt_read_incompl2(capsys: CaptureFixture[str],
+                                  txt: str) -> None:
     """Test ConfigSomething read incomplete 2."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
@@ -365,7 +376,7 @@ def test_config_smt_read_incompl2(capsys, txt):
     assert 'No value for' in err
 
 
-def test_config_smt_read_nonexist(capsys):
+def test_config_smt_read_nonexist(capsys: CaptureFixture[str]) -> None:
     """Test ConfigSomething read non-existing."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(SystemExit) as exc_info:
@@ -378,7 +389,7 @@ def test_config_smt_read_nonexist(capsys):
     assert 'with configuration JSON input does not exist' in err
 
 
-def test_config_smt_read_uses_supplied_stderr_file(capsys):
+def test_config_read_custom_stderr(capsys: CaptureFixture[str]) -> None:
     """Test that read() forwards a custom stderr stream to parse_json()."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     stderr_file = StringIO()
@@ -402,7 +413,8 @@ def test_config_smt_read_uses_supplied_stderr_file(capsys):
 @pytest.mark.parametrize('txt',
                          ['{"csv_dialect1": {"delimiter" : "B"}}',
                           '{"csv_dialect1": {"delimiter" : ";"}}'])
-def test_config_smt_init_incompl(capsys, txt):
+def test_config_smt_init_incompl(capsys: CaptureFixture[str],
+                                 txt: str) -> None:
     """Test ConfigSomething init incomplete."""
     with pytest.raises(KeyError) as exc_info:
         yst = ConfigSomething(from_json_text=txt, stderr_file=sys.stderr)
@@ -416,7 +428,8 @@ def test_config_smt_init_incompl(capsys, txt):
 @pytest.mark.parametrize('txt',
                          ['{"csv_dialect1": {"delimiter2" : "B"}}',
                           '{"csv_dialec": {"delimiter" : ";"}}'])
-def test_config_something_read_bad(capsys, txt):
+def test_config_something_read_bad(capsys: CaptureFixture[str],
+                                   txt: str) -> None:
     """Test ConfigSomething read bad."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
@@ -430,7 +443,8 @@ def test_config_something_read_bad(capsys, txt):
 @pytest.mark.parametrize('txt',
                          ['{"csv_dialect1": {"delimiter2" : "B"}}',
                           '{"csv_dialect2t": {"delimiter" : ";"}}'])
-def test_config_something_read_bad2(capsys, txt):
+def test_config_something_read_bad2(capsys: CaptureFixture[str],
+                                    txt: str) -> None:
     """Test ConfigSomething read bad 2."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
@@ -444,7 +458,8 @@ def test_config_something_read_bad2(capsys, txt):
 @pytest.mark.parametrize('txt',
                          ['{"csv_dialect1"... {"delimiter2" : "B"}}',
                           'do you beleave in music'])
-def test_config_something_read_bad3(capsys, txt):
+def test_config_something_read_bad3(capsys: CaptureFixture[str],
+                                    txt: str) -> None:
     """Test ConfigSomething read bad 3."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(ConfigBadJson) as exc_info:
@@ -459,11 +474,13 @@ def test_config_something_read_bad3(capsys, txt):
 @pytest.mark.parametrize('txt',
                          [b'\xff\xf8\x00\x00\x00\x00\x00\xff',
                           b'\xff'])
-def test_config_something_read_bad4(capsys, txt):
+def test_config_something_read_bad4(capsys: CaptureFixture[str],
+                                    txt: bytes) -> None:
     """Test ConfigSomething read bad 4."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(ConfigBadJson) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
+        yst.parse_json(cast(Any, txt), ok_to_use_defaults=True,
+                       stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert exc_info.type is ConfigBadJson
     assert 'decode byte 0xff in position 0' in str(exc_info)
@@ -475,7 +492,8 @@ def test_config_something_read_bad4(capsys, txt):
                          [('{"csv_dialect1": "B"}', 'Not dictionary for'),
                           ('{"abc": {"delimiter" : ";"}}',
                            'Unexpected dictionary for')])
-def test_config_smt_read_dict_mism(capsys, txt, errtxt):
+def test_config_smt_read_dict_mism(capsys: CaptureFixture[str], txt: str,
+                                   errtxt: str) -> None:
     """Test ConfigSomething read dict mismatch."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
@@ -486,7 +504,7 @@ def test_config_smt_read_dict_mism(capsys, txt, errtxt):
     assert errtxt in err
 
 
-def test_config_something_csv_ok_1(capsys):
+def test_config_something_csv_ok_1(capsys: CaptureFixture[str]) -> None:
     """Test ConfigSomething csv OK 1."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     txt = """{"csv_dialect2": {"name": "csv.excel", "delimiter": "+",
@@ -502,7 +520,7 @@ def test_config_something_csv_ok_1(capsys):
     assert err == ''
 
 
-def test_config_something_csv_bad_1(capsys):
+def test_config_something_csv_bad_1(capsys: CaptureFixture[str]) -> None:
     """Test ConfigSomething csv bad 1."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     txt = """{"csv_dialect2": {"name": "csv.excelent", "delimiter": "+",
@@ -519,11 +537,11 @@ def test_config_something_csv_bad_1(capsys):
     assert "Unknown csv dialect" in err
 
 
-def test_config_smt_csv_def(capsys):
+def test_config_smt_csv_def(capsys: CaptureFixture[str]) -> None:
     """Test ConfigSomething csv default."""
     yst = ConfigSomething()
-    out = yst.get_csv_dialect2(stderr_file=sys.stderr)
-    assert out.delimiter == ','
+    out_dial = yst.get_csv_dialect2(stderr_file=sys.stderr)
+    assert out_dial.delimiter == ','
     inp = yst.get_csv_dialect1(stderr_file=sys.stderr)
     assert inp.delimiter == ','
     out, err = capsys.readouterr()
@@ -531,7 +549,7 @@ def test_config_smt_csv_def(capsys):
     assert err == ''
 
 
-def par_json_quote(var):
+def par_json_quote(var: Optional[str]) -> str:
     """Quote parameter for JSON string."""
     if var is None:
         return 'null'
@@ -539,7 +557,10 @@ def par_json_quote(var):
 
 
 # pylint: disable-next=R0913,R0917,C0301,R0912,R0914
-def csv_combinations_chcker(nam, dlm, esc, quot, qchar, lterm, err):
+def csv_combinations_chcker(
+        nam: Optional[str], dlm: Optional[str], esc: Optional[str],
+        quot: Optional[str], qchar: Optional[str], lterm: Optional[str],
+        err: bool) -> None:
     """Check test combinations of CSV configurations."""
     scfg = '{"csv_dialect2": {"name": ' + par_json_quote(nam)\
         + ', "delimiter": '\
@@ -604,17 +625,20 @@ def csv_combinations_chcker(nam, dlm, esc, quot, qchar, lterm, err):
 @pytest.mark.parametrize('ltr,er6', [(None, False), ('end', False),
                                      ('>', False), (None, False)])
 # pylint: disable-next=R0913,R0917,C0301,R0914
-def test_config_smt_csv_comb_s(capsys, nam, dmt, esc, quo, qch, ltr, er1, er2,
-                               er3, er4, er5, er6):
+def test_config_smt_csv_comb_s(
+        capsys: CaptureFixture[str], nam: Optional[str], dmt: Optional[str],
+        esc: Optional[str], quo: Optional[str], qch: Optional[str],
+        ltr: Optional[str], er1: bool, er2: bool, er3: bool, er4: bool,
+        er5: bool, er6: bool) -> None:
     """Test combinations of CSV configurations thorough."""
-    err = er1 or er2 or er3 or er4 or er5 or er6
-    csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, err)
-    out, err = capsys.readouterr()
+    has_error = er1 or er2 or er3 or er4 or er5 or er6
+    csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, has_error)
+    out, err_text = capsys.readouterr()
     assert out == ''
-    if err:
-        assert err != ''
+    if has_error:
+        assert err_text != ''
     else:
-        assert err == ''
+        assert err_text == ''
 
 
 @pytest.mark.parametrize('nam,er1', [('csv.excel', False),
@@ -628,17 +652,20 @@ def test_config_smt_csv_comb_s(capsys, nam, dmt, esc, quo, qch, ltr, er1, er2,
 @pytest.mark.parametrize('qch,er5', [(None, False)])
 @pytest.mark.parametrize('ltr,er6', [('>', False), (None, False)])
 # pylint: disable-next=R0913,R0917,C0301,R0914
-def test_config_smt_csv_comb_f1(capsys, nam, dmt, esc, quo, qch, ltr, er1, er2,
-                                er3, er4, er5, er6):
+def test_config_smt_csv_comb_f1(
+        capsys: CaptureFixture[str], nam: Optional[str], dmt: Optional[str],
+        esc: Optional[str], quo: Optional[str], qch: Optional[str],
+        ltr: Optional[str], er1: bool, er2: bool, er3: bool, er4: bool,
+        er5: bool, er6: bool) -> None:
     """Test combinations of CSV configurations f1."""
-    err = er1 or er2 or er3 or er4 or er5 or er6
-    csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, err)
-    out, err = capsys.readouterr()
+    has_error = er1 or er2 or er3 or er4 or er5 or er6
+    csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, has_error)
+    out, err_text = capsys.readouterr()
     assert out == ''
-    if err:
-        assert err != ''
+    if has_error:
+        assert err_text != ''
     else:
-        assert err == ''
+        assert err_text == ''
 
 
 @pytest.mark.parametrize('nam,er1', [('csv.excel', False)])
@@ -649,26 +676,30 @@ def test_config_smt_csv_comb_f1(capsys, nam, dmt, esc, quo, qch, ltr, er1, er2,
 @pytest.mark.parametrize('ltr,er6', [(None, False), ('end', False),
                                      ('>', False)])
 # pylint: disable-next=R0913,R0917,C0301,R0914
-def test_config_smt_csv_comb_f6(capsys, nam, dmt, esc, quo, qch, ltr, er1, er2,
-                                er3, er4, er5, er6):
+def test_config_smt_csv_comb_f6(
+        capsys: CaptureFixture[str], nam: Optional[str], dmt: Optional[str],
+        esc: Optional[str], quo: Optional[str], qch: Optional[str],
+        ltr: Optional[str], er1: bool, er2: bool, er3: bool, er4: bool,
+        er5: bool, er6: bool) -> None:
     """Test combinations of CSV configurations f6."""
-    err = er1 or er2 or er3 or er4 or er5 or er6
-    csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, err)
-    out, err = capsys.readouterr()
+    has_error = er1 or er2 or er3 or er4 or er5 or er6
+    csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, has_error)
+    out, err_text = capsys.readouterr()
     assert out == ''
-    if err:
-        assert err != ''
+    if has_error:
+        assert err_text != ''
     else:
-        assert err == ''
+        assert err_text == ''
 
 
 class ConfigSomething2(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None,
-                 stderr_file: TextIO = sys.stderr):
+    def __init__(self, from_json_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for test."""
-        self.in_type = EnumInTesting.FOOBAR
+        self.in_type: EnumInTesting = EnumInTesting.FOOBAR
         super().__init__(from_json_text, from_json_filename,
                          stderr_file=stderr_file)
 
@@ -677,7 +708,7 @@ class ConfigSomething2(Config):
         return []
 
 
-def test_config_something2_bad(capsys):
+def test_config_something2_bad(capsys: CaptureFixture[str]) -> None:
     """Test error handling no parsse_converters."""
     xst = ConfigSomething2()
     scfg = xst.as_json_string(stderr_file=sys.stderr)
@@ -692,14 +723,15 @@ def test_config_something2_bad(capsys):
 class ConfigSomething3(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None,
-                 stderr_file: TextIO = sys.stderr):
+    def __init__(self, from_json_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for test."""
-        self.in_type = EnumInTesting.FOOBAR
+        self.in_type: EnumInTesting = EnumInTesting.FOOBAR
         super().__init__(from_json_text, from_json_filename,
                          stderr_file=stderr_file)
 
-    def parse_converters(self):
+    def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
         """Use no parse converters."""
         return None
 
@@ -708,7 +740,7 @@ class ConfigSomething3(Config):
         return []
 
 
-def test_config_something3_bad(capsys):
+def test_config_something3_bad(capsys: CaptureFixture[str]) -> None:
     """Test error handling no parsse_converters."""
     xst = ConfigSomething3(stderr_file=sys.stderr)
     scfg = xst.as_json_string(stderr_file=sys.stderr)
@@ -723,14 +755,15 @@ def test_config_something3_bad(capsys):
 class ConfigSomething4(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None,
-                 stderr_file: TextIO = sys.stderr):
+    def __init__(self, from_json_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for test."""
-        self.in_type = EnumInTesting.FOOBAR
+        self.in_type: EnumInTesting = EnumInTesting.FOOBAR
         super().__init__(from_json_text, from_json_filename,
                          stderr_file=stderr_file)
 
-    def parse_converters(self):
+    def parse_converters(self) -> dict[str, ParseConverter]:
         """Use no parse converters."""
         return {'in_type': self.get_converter_dict(EnumInTesting)}
 
@@ -739,7 +772,7 @@ class ConfigSomething4(Config):
         return []
 
 
-def test_config_something4_ok(capsys):
+def test_config_something4_ok(capsys: CaptureFixture[str]) -> None:
     """Test error handling no parsse_converters."""
     xst = ConfigSomething4(stderr_file=sys.stderr)
     scfg = xst.as_json_string(stderr_file=sys.stderr)
@@ -754,15 +787,16 @@ def test_config_something4_ok(capsys):
 class ConfigSomething5(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None,
-                 stderr_file: TextIO = sys.stderr):
+    def __init__(self, from_json_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for test."""
-        self.in_type = EnumInTesting.FOOBAR
+        self.in_type: EnumInTesting = EnumInTesting.FOOBAR
         self._unchecked_dicts = cast(Any, 'in_type')
         super().__init__(from_json_text, from_json_filename,
                          stderr_file=stderr_file)
 
-    def parse_converters(self):
+    def parse_converters(self) -> dict[str, ParseConverter]:
         """Use no parse converters."""
         return {'in_type': self.get_converter_dict(EnumInTesting)}
 
@@ -771,7 +805,7 @@ class ConfigSomething5(Config):
         return []
 
 
-def test_config_something5_bad(capsys):
+def test_config_something5_bad(capsys: CaptureFixture[str]) -> None:
     """Test error handling no parsse_converters."""
     with pytest.raises(TypeError) as exc:
         _ = ConfigSomething5(stderr_file=sys.stderr)
@@ -784,14 +818,15 @@ def test_config_something5_bad(capsys):
 class ConfigEmpty(Config):
     """Class to test Config."""
 
-    def __init__(self, from_json_text=None, from_json_filename=None,
-                 stderr_file: TextIO = sys.stderr):
+    def __init__(self, from_json_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for test."""
-        self._unchecked_dictscfg = ['in_type']
+        self._unchecked_dictscfg: list[str] = ['in_type']
         super().__init__(from_json_text, from_json_filename,
                          stderr_file=stderr_file)
 
-    def parse_converters(self):
+    def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
         """Use no parse converters."""
         return None
 
@@ -800,7 +835,7 @@ class ConfigEmpty(Config):
         return []
 
 
-def test_config_empty_bad(capsys):
+def test_config_empty_bad(capsys: CaptureFixture[str]) -> None:
     """Test error handling no parsse_converters."""
     with pytest.raises(AttributeError) as exc:
         _ = ConfigEmpty()
@@ -815,7 +850,8 @@ def test_config_empty_bad(capsys):
                           (1, int, 1),
                           ('1', int, 1),
                           (1, str, '1')])
-def test_value_of_type(capsys, inp, totype, res):
+def test_value_of_type(capsys: CaptureFixture[str], inp: object,
+                       totype: type[object], res: object) -> None:
     """Test method value_of_type."""
     ret = Config.value_of_type(input_value=inp, to_type=totype)
     out, err = capsys.readouterr()

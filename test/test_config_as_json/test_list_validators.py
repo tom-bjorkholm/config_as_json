@@ -1,18 +1,18 @@
 #! /usr/local/bin/python3
-# mypy: disable-error-code="no-untyped-def,no-untyped-call"
 """Test list validators."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
 import sys
-from typing import Any, Sequence, cast
+from typing import Any, Optional, Sequence, cast
 import pytest
+from pytest import CaptureFixture
 from config_as_json.list_validators import ListForEachValidator, \
     ListIsOrderedValidator, ListOrderingValidator, ListSizeValidator, \
     ListOfDictsKeysValidator, ListValueTypeValidator, ListValueValidator
 from config_as_json.validator import InvalidConfiguration, \
-    InvalidConfigurationValue
+    InvalidConfigurationValue, MemberValidator
 from .validator_test_helpers import EmptyValidationConfig, \
     SingleMemberValidationConfig, assert_validate_member_failure, \
     assert_validate_member_ok
@@ -23,10 +23,13 @@ def casefold_lt(left: str, right: str) -> bool:
     return left.casefold() < right.casefold()
 
 
-def _assert_allowed_values_fail(capsys, values, exc_type, message) -> None:
+def _assert_allowed_values_fail(capsys: CaptureFixture[str],
+                                values: Sequence[object],
+                                exc_type: type[Exception],
+                                message: str) -> None:
     """Assert failure from one validation-time allowed-values result."""
 
-    def current_allowed_values():
+    def current_allowed_values() -> Sequence[object]:
         """Return the parameterized allowed-values sequence."""
         return values
 
@@ -54,16 +57,18 @@ def _assert_allowed_values_fail(capsys, values, exc_type, message) -> None:
       'allowed_values must be a non-empty'),
      (None, None, lambda: [1, 2.0], TypeError,
       'allowed_values must be a sequence of int')])
-def test_list_value_validator_init_rejects_invalid_constraints(
-        min_value, max_value, allowed_values, exc_type, message):
+def test_list_value_init_bad_args(
+        min_value: object, max_value: object, allowed_values: object,
+        exc_type: type[Exception], message: str) -> None:
     """Test ListValueValidator constructor validation."""
     with pytest.raises(exc_type) as exc:
-        ListValueValidator(min_value=min_value, max_value=max_value,
-                           allowed_values=allowed_values)
+        ListValueValidator(min_value=cast(Any, min_value),
+                           max_value=cast(Any, max_value),
+                           allowed_values=cast(Any, allowed_values))
     assert message in str(exc.value)
 
 
-def test_list_value_validator_init_uses_custom_comparator():
+def test_list_value_custom_cmp_init() -> None:
     """Test that ListValueValidator uses the custom comparator in __init__."""
     with pytest.raises(ValueError) as exc:
         ListValueValidator(min_value='beta', max_value='Alpha',
@@ -85,7 +90,10 @@ def test_list_value_validator_init_uses_custom_comparator():
      (ListValueValidator(False, True, [False, True]), [False, True
                                                        ], [False, True]),
      (ListValueValidator(1, 5, None), [True, 2], [True, 2])])
-def test_list_value_validator_ok(capsys, validator, member_value, expected):
+def test_list_value_validator_ok(capsys: CaptureFixture[str],
+                                 validator: MemberValidator,
+                                 member_value: object,
+                                 expected: object) -> None:
     """Test OK cases of ListValueValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
 
@@ -102,14 +110,15 @@ def test_list_value_validator_ok(capsys, validator, member_value, expected):
       'Value 4 for value at index 1 is greater than maximum 3'),
      (ListValueValidator(1, 5, [2, 3]), [2, 4], InvalidConfigurationValue,
       'Value 4 for value at index 1 is not one of the allowed values')])
-def test_list_value_validator_rejects_invalid_member_values(
-        capsys, validator, member_value, exc_type, message):
+def test_list_value_rejects_values(
+        capsys: CaptureFixture[str], validator: MemberValidator,
+        member_value: object, exc_type: type[Exception], message: str) -> None:
     """Test ListValueValidator failures for type and value constraints."""
     assert_validate_member_failure(capsys, validator, member_value, exc_type,
                                    message)
 
 
-def test_list_value_custom_cmp(capsys):
+def test_list_value_custom_cmp(capsys: CaptureFixture[str]) -> None:
     """Test that ListValueValidator uses the custom comparator at runtime."""
     validator = ListValueValidator(min_value='bravo', max_value='delta',
                                    allowed_values=None,
@@ -125,7 +134,7 @@ def test_list_value_custom_cmp(capsys):
         in err
 
 
-def test_list_value_validator_requires_allowed_value_to_be_in_range(capsys):
+def test_list_value_allowed_range(capsys: CaptureFixture[str]) -> None:
     """Test that allowed values do not bypass range validation in lists."""
     validator = ListValueValidator(1, 5, [6])
     cfg = EmptyValidationConfig()
@@ -138,7 +147,7 @@ def test_list_value_validator_requires_allowed_value_to_be_in_range(capsys):
     assert 'Value 6 for value at index 0 is greater than maximum 5' in err
 
 
-def test_list_value_validator_callable_infers_type_when_needed(capsys):
+def test_list_value_callable_type(capsys: CaptureFixture[str]) -> None:
     """A callable supplies the element type when bounds do not."""
     calls: list[int] = []
 
@@ -153,7 +162,7 @@ def test_list_value_validator_callable_infers_type_when_needed(capsys):
     assert calls == [0, 1]
 
 
-def test_list_value_validator_callable_uses_bounds_type_first(capsys):
+def test_list_value_bounds_type(capsys: CaptureFixture[str]) -> None:
     """Bounds provide the element type without calling allowed_values."""
     calls: list[str] = []
 
@@ -168,7 +177,7 @@ def test_list_value_validator_callable_uses_bounds_type_first(capsys):
     assert calls == ['validate']
 
 
-def test_list_value_validator_callable_values_are_dynamic(capsys):
+def test_list_value_callable_dynamic(capsys: CaptureFixture[str]) -> None:
     """Every validation uses the callable's current allowed values."""
     allowed_values = [2, 3]
 
@@ -185,7 +194,7 @@ def test_list_value_validator_callable_values_are_dynamic(capsys):
     assert_validate_member_ok(capsys, validator, [4, 5], [4, 5])
 
 
-def test_list_value_validator_callable_is_called_once_per_member(capsys):
+def test_list_value_callable_once(capsys: CaptureFixture[str]) -> None:
     """One validate_member call uses one allowed-values snapshot."""
     calls: list[int] = []
 
@@ -204,12 +213,15 @@ def test_list_value_validator_callable_is_called_once_per_member(capsys):
     'values, exc_type, message',
     [([], ValueError, 'allowed_values must be a non-empty'),
      ([1.0], TypeError, 'allowed_values must be a sequence of int')])
-def test_list_value_rejects_dynamic(capsys, values, exc_type, message):
+def test_list_value_rejects_dynamic(capsys: CaptureFixture[str],
+                                    values: Sequence[object],
+                                    exc_type: type[Exception],
+                                    message: str) -> None:
     """Dynamic allowed values must stay non-empty and type-compatible."""
     _assert_allowed_values_fail(capsys, values, exc_type, message)
 
 
-def test_list_value_validator_integration_uses_parsed_json(capsys):
+def test_list_value_parsed_json(capsys: CaptureFixture[str]) -> None:
     """Test ListValueValidator integration through Config.validate()."""
     cfg = SingleMemberValidationConfig('value', [2],
                                        ListValueValidator(1, 5, [2, 3]),
@@ -227,18 +239,23 @@ def test_list_value_validator_integration_uses_parsed_json(capsys):
      (-1, 0, ValueError, 'min_size must be non-negative'),
      (0, -1, ValueError, 'max_size must be non-negative'),
      (3, 2, ValueError, 'min_size must be less than or equal to max_size')])
-def test_list_size_validator_init_rejects_invalid_bounds(
-        min_size, max_size, exc_type, message):
+def test_list_size_init_bad_bounds(
+        min_size: object, max_size: object, exc_type: type[Exception],
+        message: str) -> None:
     """Test ListSizeValidator constructor validation."""
     with pytest.raises(exc_type) as exc:
-        ListSizeValidator(min_size=min_size, max_size=max_size)
+        ListSizeValidator(min_size=cast(Any, min_size),
+                          max_size=cast(Any, max_size))
     assert message in str(exc.value)
 
 
 @pytest.mark.parametrize('validator, member_value, expected',
                          [(ListSizeValidator(0, 0), [], []),
                           (ListSizeValidator(1, 3), ['a', 'b'], ['a', 'b'])])
-def test_list_size_validator_ok(capsys, validator, member_value, expected):
+def test_list_size_validator_ok(capsys: CaptureFixture[str],
+                                validator: MemberValidator,
+                                member_value: object,
+                                expected: object) -> None:
     """Test OK cases of ListSizeValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
 
@@ -248,14 +265,15 @@ def test_list_size_validator_ok(capsys, validator, member_value, expected):
     (ListSizeValidator(1, 3), [], 'size 0 which is less than minimum 1'),
     (ListSizeValidator(0, 1), [1, 2], 'size 2 which is greater than maximum 1')
 ])
-def test_list_size_validator_rejects_invalid_member_values(
-        capsys, validator, member_value, message):
+def test_list_size_rejects_values(
+        capsys: CaptureFixture[str], validator: MemberValidator,
+        member_value: object, message: str) -> None:
     """Test ListSizeValidator failures."""
     assert_validate_member_failure(capsys, validator, member_value,
                                    InvalidConfiguration, message)
 
 
-def test_list_size_validator_integration_uses_parsed_json(capsys):
+def test_list_size_parsed_json(capsys: CaptureFixture[str]) -> None:
     """Test ListSizeValidator integration through Config.validate()."""
     cfg = SingleMemberValidationConfig('value', [1], ListSizeValidator(1, 3),
                                        from_json_data_text='{"value": [1, 2]}')
@@ -266,10 +284,10 @@ def test_list_size_validator_integration_uses_parsed_json(capsys):
 
 
 @pytest.mark.parametrize('bad_element_type', [None, 'str', [str]])
-def test_list_value_type_validator_init_rejects_non_type(bad_element_type):
+def test_list_type_init_bad_type(bad_element_type: object) -> None:
     """Test ListValueTypeValidator constructor validation."""
     with pytest.raises(TypeError) as exc:
-        ListValueTypeValidator(bad_element_type)
+        ListValueTypeValidator(cast(Any, bad_element_type))
     assert 'element_type must be a type' in str(exc.value)
 
 
@@ -279,7 +297,9 @@ def test_list_value_type_validator_init_rejects_non_type(bad_element_type):
      (ListValueTypeValidator(str), ['alpha', 'beta'], ['alpha', 'beta']),
      (ListValueTypeValidator(int), [True, 2], [True, 2]),
      (ListValueTypeValidator(list), [[1], [2, 3]], [[1], [2, 3]])])
-def test_list_value_type_ok(capsys, validator, member_value, expected):
+def test_list_value_type_ok(capsys: CaptureFixture[str],
+                            validator: MemberValidator, member_value: object,
+                            expected: object) -> None:
     """Test OK cases of ListValueTypeValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
 
@@ -292,14 +312,15 @@ def test_list_value_type_ok(capsys, validator, member_value, expected):
                           (ListValueTypeValidator(bool), [False, 1],
                            'Value 1 for value at index 1 is not of type bool')]
                          )
-def test_list_value_type_validator_rejects_invalid_member_values(
-        capsys, validator, member_value, message):
+def test_list_type_rejects_values(
+        capsys: CaptureFixture[str], validator: MemberValidator,
+        member_value: object, message: str) -> None:
     """Test ListValueTypeValidator failures."""
     assert_validate_member_failure(capsys, validator, member_value,
                                    InvalidConfiguration, message)
 
 
-def test_list_value_type_validator_integration_uses_parsed_json(capsys):
+def test_list_type_parsed_json(capsys: CaptureFixture[str]) -> None:
     """Test ListValueTypeValidator integration through Config.validate()."""
     cfg = SingleMemberValidationConfig(
         'value', ['alpha'], ListValueTypeValidator(str),
@@ -316,11 +337,12 @@ def test_list_value_type_validator_integration_uses_parsed_json(capsys):
       'element_type must be one of int, float, str, or bool'),
      (int, False, True, ValueError,
       'is_reversed requires is_ordered to be True')])
-def test_list_is_ordered_validator_init_rejects_invalid_arguments(
-        element_type, is_ordered, is_reversed, exc_type, message):
+def test_list_ordered_init_bad_args(
+        element_type: object, is_ordered: bool, is_reversed: bool,
+        exc_type: type[Exception], message: str) -> None:
     """Test ListIsOrderedValidator constructor validation."""
     with pytest.raises(exc_type) as exc:
-        ListIsOrderedValidator(element_type=element_type,
+        ListIsOrderedValidator(element_type=cast(Any, element_type),
                                is_ordered=is_ordered, is_reversed=is_reversed)
     assert message in str(exc.value)
 
@@ -335,7 +357,9 @@ def test_list_is_ordered_validator_init_rejects_invalid_arguments(
      (ListIsOrderedValidator(int), [True, 2], [True, 2]),
      (ListIsOrderedValidator(str, lt_comparator=casefold_lt),
       ['Alpha', 'beta'], ['Alpha', 'beta'])])
-def test_list_is_ordered_ok(capsys, validator, member_value, expected):
+def test_list_is_ordered_ok(capsys: CaptureFixture[str],
+                            validator: MemberValidator, member_value: object,
+                            expected: object) -> None:
     """Test OK cases of ListIsOrderedValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
 
@@ -352,16 +376,17 @@ def test_list_is_ordered_ok(capsys, validator, member_value, expected):
      (ListIsOrderedValidator(int, is_ordered=False, unique_values=True),
       [2, 1, 2], 'Value 2 for value at index 2 duplicates the value'),
      (ListIsOrderedValidator(str, lt_comparator=casefold_lt), [
-         'bravo', 'Alpha'
+        'bravo', 'Alpha'
      ], 'Value Alpha for value at index 1 is less than previous value bravo')])
-def test_list_is_ordered_validator_rejects_invalid_member_values(
-        capsys, validator, member_value, message):
+def test_list_ordered_rejects_values(
+        capsys: CaptureFixture[str], validator: MemberValidator,
+        member_value: object, message: str) -> None:
     """Test ListIsOrderedValidator failures."""
     assert_validate_member_failure(capsys, validator, member_value,
                                    InvalidConfiguration, message)
 
 
-def test_list_is_ordered_validator_integration_uses_parsed_json(capsys):
+def test_list_ordered_parsed_json(capsys: CaptureFixture[str]) -> None:
     """Test ListIsOrderedValidator integration through Config.validate()."""
     cfg = SingleMemberValidationConfig(
         'value', [1], ListIsOrderedValidator(int, unique_values=True),
@@ -375,10 +400,10 @@ def test_list_is_ordered_validator_integration_uses_parsed_json(capsys):
 @pytest.mark.parametrize(
     'element_type, message',
     [([], 'element_type must be one of int, float, str, or bool')])
-def test_list_ordering_bad_args(element_type, message):
+def test_list_ordering_bad_args(element_type: object, message: str) -> None:
     """Test ListOrderingValidator constructor validation."""
     with pytest.raises(TypeError) as exc:
-        ListOrderingValidator(element_type=element_type)
+        ListOrderingValidator(element_type=cast(Any, element_type))
     assert message in str(exc.value)
 
 
@@ -399,7 +424,10 @@ def test_list_ordering_bad_args(element_type, message):
          str, keep_only_unique=True,
          lt_comparator=casefold_lt), ['alpha', 'Alpha'], ['alpha', 'Alpha']),
      (ListOrderingValidator(int, order=False), [True, 2], [True, 2])])
-def test_list_ordering_validator_ok(capsys, validator, member_value, expected):
+def test_list_ordering_validator_ok(capsys: CaptureFixture[str],
+                                    validator: MemberValidator,
+                                    member_value: object,
+                                    expected: object) -> None:
     """Test OK cases of ListOrderingValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
 
@@ -409,14 +437,15 @@ def test_list_ordering_validator_ok(capsys, validator, member_value, expected):
     [(ListOrderingValidator(int), (1, 2), 'Value for value is not a list'),
      (ListOrderingValidator(bool), [1],
       'Value 1 for value at index 0 is not of type bool')])
-def test_list_ordering_validator_rejects_invalid_member_values(
-        capsys, validator, member_value, message):
+def test_list_sort_rejects_values(
+        capsys: CaptureFixture[str], validator: MemberValidator,
+        member_value: object, message: str) -> None:
     """Test ListOrderingValidator failures."""
     assert_validate_member_failure(capsys, validator, member_value,
                                    InvalidConfiguration, message)
 
 
-def test_list_ordering_validator_integration_uses_parsed_json(capsys):
+def test_list_sort_parsed_json(capsys: CaptureFixture[str]) -> None:
     """Test ListOrderingValidator integration through Config.validate()."""
     cfg = SingleMemberValidationConfig(
         'value', [3], ListOrderingValidator(int, keep_only_unique=True),
@@ -427,7 +456,7 @@ def test_list_ordering_validator_integration_uses_parsed_json(capsys):
     assert err == ''
 
 
-def test_list_for_each_validator_init_rejects_empty_element_validators():
+def test_list_each_init_empty() -> None:
     """Empty element_validators must be rejected."""
     with pytest.raises(ValueError) as exc:
         ListForEachValidator(element_validators=[])
@@ -435,25 +464,24 @@ def test_list_for_each_validator_init_rejects_empty_element_validators():
 
 
 @pytest.mark.parametrize('bad_entry', [object(), 'not-a-validator', 42])
-def test_list_for_each_validator_init_rejects_non_validator_entry(bad_entry):
+def test_list_each_init_bad_val(bad_entry: object) -> None:
     """Entries in element_validators must be MemberValidator instances."""
     good = ListSizeValidator(0, 10)
     with pytest.raises(TypeError) as exc:
-        ListForEachValidator(element_validators=[good, bad_entry])
+        ListForEachValidator(element_validators=cast(Any, [good, bad_entry]))
     assert 'element_validators[1] must be a MemberValidator' in str(exc.value)
 
 
 @pytest.mark.parametrize('bad_element_type', ['int', 0, [list]])
-def test_list_for_each_validator_init_rejects_non_type_element_type(
-        bad_element_type):
+def test_list_each_init_bad_type(bad_element_type: object) -> None:
     """element_type must be a type when it is not None."""
     with pytest.raises(TypeError) as exc:
         ListForEachValidator(element_validators=[ListSizeValidator(0, 10)],
-                             element_type=bad_element_type)
+                             element_type=cast(Any, bad_element_type))
     assert 'element_type must be a type or None' in str(exc.value)
 
 
-def test_list_for_each_validator_rejects_non_list_member_value(capsys):
+def test_list_each_rejects_non_list(capsys: CaptureFixture[str]) -> None:
     """The outer member value must be a list."""
     validator = ListForEachValidator(
         element_validators=[ListSizeValidator(0, 10)], element_type=list)
@@ -462,7 +490,7 @@ def test_list_for_each_validator_rejects_non_list_member_value(capsys):
                                    'Value for value is not a list')
 
 
-def test_list_for_each_validator_rejects_element_with_wrong_type(capsys):
+def test_list_each_rejects_bad_type(capsys: CaptureFixture[str]) -> None:
     """Elements must match element_type when it is configured."""
     validator = ListForEachValidator(
         element_validators=[ListSizeValidator(0, 10)], element_type=list)
@@ -471,8 +499,7 @@ def test_list_for_each_validator_rejects_element_with_wrong_type(capsys):
         'Value at value[1] has type int; expected list')
 
 
-def test_list_for_each_validator_skips_type_check_when_element_type_none(
-        capsys):
+def test_list_each_skips_type_check(capsys: CaptureFixture[str]) -> None:
     """Passing element_type=None leaves type checks to inner validators."""
     validator = ListForEachValidator(
         element_validators=[ListSizeValidator(min_size=2, max_size=2)])
@@ -485,14 +512,14 @@ def test_list_for_each_validator_skips_type_check_when_element_type_none(
     assert err == ''
 
 
-def test_list_for_each_validator_accepts_empty_outer_list(capsys):
+def test_list_each_accepts_empty(capsys: CaptureFixture[str]) -> None:
     """An empty outer list is accepted because there are no elements."""
     validator = ListForEachValidator(
         element_validators=[ListSizeValidator(2, 2)], element_type=list)
     assert_validate_member_ok(capsys, validator, [], [])
 
 
-def test_list_for_each_validator_chains_normalized_value(capsys):
+def test_list_each_chains_value(capsys: CaptureFixture[str]) -> None:
     """Each inner validator sees the value returned by the previous one."""
     sort_inner = ListOrderingValidator(int)
     check_sorted = ListIsOrderedValidator(int)
@@ -507,8 +534,7 @@ def test_list_for_each_validator_chains_normalized_value(capsys):
     assert err == ''
 
 
-def test_list_for_each_validator_returns_new_list_without_mutating_input(
-        capsys):
+def test_list_each_no_mutate(capsys: CaptureFixture[str]) -> None:
     """The caller's list must not be mutated in place."""
     validator = ListForEachValidator(
         element_validators=[ListOrderingValidator(int)], element_type=list)
@@ -525,7 +551,7 @@ def test_list_for_each_validator_returns_new_list_without_mutating_input(
     assert err == ''
 
 
-def test_list_for_each_validator_propagates_inner_failure(capsys):
+def test_list_each_inner_failure(capsys: CaptureFixture[str]) -> None:
     """An inner validator's exception must propagate to the caller."""
     validator = ListForEachValidator(
         element_validators=[ListValueValidator(0, 10, None)],
@@ -535,8 +561,7 @@ def test_list_for_each_validator_propagates_inner_failure(capsys):
         'Value 11 for value[1] at index 1 is greater than maximum 10')
 
 
-def test_list_for_each_validator_propagates_inner_allowed_values_failure(
-        capsys):
+def test_list_each_allowed_failure(capsys: CaptureFixture[str]) -> None:
     """Inner validators can raise InvalidConfigurationValue."""
     validator = ListForEachValidator(
         element_validators=[ListValueValidator(None, None, [1, 2, 3])],
@@ -546,7 +571,7 @@ def test_list_for_each_validator_propagates_inner_allowed_values_failure(
         'Value 4 for value[1] at index 1 is not one of the allowed values')
 
 
-def test_list_for_each_validator_integration_uses_parsed_json(capsys):
+def test_list_each_parsed_json(capsys: CaptureFixture[str]) -> None:
     """Test ListForEachValidator integration through Config.validate()."""
     per_row = ListForEachValidator(
         element_validators=[ListValueValidator(0, 9, None)], element_type=list)
@@ -568,16 +593,18 @@ def test_list_for_each_validator_integration_uses_parsed_json(capsys):
                  ], TypeError, 'allowed_keys[1] must be a str'),
      (['name'], ['enabled', 'enabled'], ValueError,
       "allowed_keys[1]='enabled' duplicates an earlier entry")])
-def test_list_of_dicts_keys_validator_init_rejects_invalid_keys(
-        mandatory_keys, allowed_keys, exc_type, message):
+def test_list_dict_keys_bad_keys(mandatory_keys: Sequence[object],
+                                 allowed_keys: Optional[Sequence[object]],
+                                 exc_type: type[Exception],
+                                 message: str) -> None:
     """Test ListOfDictsKeysValidator constructor validation."""
     with pytest.raises(exc_type) as exc:
-        ListOfDictsKeysValidator(mandatory_keys=mandatory_keys,
-                                 allowed_keys=allowed_keys)
+        ListOfDictsKeysValidator(mandatory_keys=cast(Any, mandatory_keys),
+                                 allowed_keys=cast(Any, allowed_keys))
     assert message in str(exc.value)
 
 
-def test_list_of_dicts_keys_validator_init_rejects_non_bool_extra_policy():
+def test_list_dict_keys_bad_policy() -> None:
     """allow_extra_dict_keys must be a bool."""
     with pytest.raises(TypeError) as exc:
         ListOfDictsKeysValidator(mandatory_keys=['name'],
@@ -608,12 +635,14 @@ def test_list_of_dicts_keys_validator_init_rejects_non_bool_extra_policy():
                           }, {}], [{
                               'name': 'optional'
                           }, {}])])
-def test_list_dict_keys_ok(capsys, validator, member_value, expected):
+def test_list_dict_keys_ok(capsys: CaptureFixture[str],
+                           validator: MemberValidator, member_value: object,
+                           expected: object) -> None:
     """Test OK cases of ListOfDictsKeysValidator."""
     assert_validate_member_ok(capsys, validator, member_value, expected)
 
 
-def test_list_dict_keys_extra_ok(capsys):
+def test_list_dict_keys_extra_ok(capsys: CaptureFixture[str]) -> None:
     """Open per-dict policy allows extra keys in list elements."""
     validator = ListOfDictsKeysValidator(mandatory_keys=['name'],
                                          allow_extra_dict_keys=True)
@@ -621,7 +650,7 @@ def test_list_dict_keys_extra_ok(capsys):
     assert_validate_member_ok(capsys, validator, member_value, member_value)
 
 
-def test_list_dict_keys_requires_key(capsys):
+def test_list_dict_keys_requires_key(capsys: CaptureFixture[str]) -> None:
     """Open per-dict policy still rejects missing mandatory keys."""
     validator = ListOfDictsKeysValidator(mandatory_keys=['name'],
                                          allow_extra_dict_keys=True)
@@ -649,15 +678,16 @@ def test_list_dict_keys_requires_key(capsys):
          'name': 'extract',
          'extra': 'boom'
      }], "Unknown key 'extra' in value[0]")])
-def test_list_of_dicts_keys_validator_rejects_invalid_member_values(
-        capsys, member_value, message):
+def test_list_dict_keys_bad_values(
+        capsys: CaptureFixture[str], member_value: object,
+        message: str) -> None:
     """Test ListOfDictsKeysValidator failures."""
     validator = ListOfDictsKeysValidator(['name'], ['enabled'])
     assert_validate_member_failure(capsys, validator, member_value,
                                    InvalidConfiguration, message)
 
 
-def test_list_of_dicts_keys_validator_returns_new_outer_list(capsys):
+def test_list_dict_keys_returns_new(capsys: CaptureFixture[str]) -> None:
     """Test ListOfDictsKeysValidator delegates through ListForEachValidator."""
     member_value = [{'name': 'extract'}]
     cfg = EmptyValidationConfig()
@@ -670,7 +700,7 @@ def test_list_of_dicts_keys_validator_returns_new_outer_list(capsys):
     assert err == ''
 
 
-def test_list_of_dicts_keys_validator_integration_uses_parsed_json(capsys):
+def test_list_dict_keys_parsed_json(capsys: CaptureFixture[str]) -> None:
     """Test ListOfDictsKeysValidator integration through Config.validate()."""
     validator = ListOfDictsKeysValidator(['name'], ['enabled'])
     cfg = SingleMemberValidationConfig(

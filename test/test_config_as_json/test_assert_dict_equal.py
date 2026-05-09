@@ -1,17 +1,18 @@
 #! /usr/local/bin/python3
-# mypy: disable-error-code=no-untyped-def
 """Test assert_dict_equal."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
 import sys
+from typing import Mapping
 import pytest
+from pytest import CaptureFixture
 from config_as_json.assert_dict_equal import _print_dict_differs, \
     assert_dict_equal
 
 
-def test_print_dict_differs(capsys):
+def test_print_dict_differs(capsys: CaptureFixture[str]) -> None:
     """Test simple case of _print_dict_differs."""
     lhs = {'a': 'b', 'c': 2}
     rhs = {'d': 'e', 'f': 4, 'g': 5}
@@ -36,7 +37,10 @@ def test_print_dict_differs(capsys):
                            ['d', 'e']),
                           ({'a': 2, 'b': 'c'}, {'a': 2, 'b': 'e'},
                            ['d', 'b'])])
-def test_assert_dict_equal_ok1(capsys, lhs, rhs, ign):
+def test_assert_dict_equal_ok1(capsys: CaptureFixture[str],
+                               lhs: Mapping[str, object],
+                               rhs: Mapping[str, object],
+                               ign: list[str]) -> None:
     """Test OK cases for assert_dict_equal."""
     assert_dict_equal(lhs, rhs, ign, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
@@ -57,7 +61,10 @@ def test_assert_dict_equal_ok1(capsys, lhs, rhs, ign):
                            {'a': 'x', 'c': 'k'}, ['y', 'z'],
                            ['Key "a" has different values in left and right',
                             ' left[a] = b', 'right[a] = x'])])
-def test_assert_dict_equal_nok1(capsys, lhs, rhs, ign, msgs):
+def test_assert_dict_equal_nok1(capsys: CaptureFixture[str],
+                                lhs: Mapping[str, object],
+                                rhs: Mapping[str, object], ign: list[str],
+                                msgs: list[str]) -> None:
     """Test not OK cases for assert_dict_equal."""
     with pytest.raises(AssertionError):
         assert_dict_equal(lhs, rhs, ign, stderr_file=sys.stderr)
