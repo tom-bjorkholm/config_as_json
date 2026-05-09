@@ -9,8 +9,7 @@ from build_spec import BuildInformation, BuildSpec
 PYTHON_LAYOUT_INITIAL_EXCLUDES = [
     Path('src'),
     Path('test'),
-    Path('example'),
-    Path('common_build_tools')
+    Path('example')
 ]
 
 
