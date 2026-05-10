@@ -628,6 +628,45 @@ The command line accepts both dict members as JSON values. For example:
 
 `--cache-tunables '{"frontend_seconds":30,"image_slots":8}' --pool-sizes '{"default":4}'`
 
+## e21_as_dict_view_validator.py
+
+[Source code for e21_as_dict_view_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e21_as_dict_view_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e21_as_dict_view_validator.py)
+
+This example teaches `AsDictViewValidator`. It is useful when one
+configuration member may be either a real `dict` or an application-defined
+runtime object, but both forms should be validated with the same dictionary
+rules.
+
+This configuration shows one possible shape for configuration member
+variables, and one of the possible shapes where `AsDictViewValidator` is
+handy. It is not the one and only recommended shape for configuration
+members.
+
+The configuration has one member `retry_policy`. At runtime the default is a
+`RetryPolicy` object with public attributes:
+
+- `mode`
+- `max_attempts`
+- `backoff_seconds`
+
+In JSON, the same member is stored as a dictionary. The example uses
+`parse_converters()` to turn that JSON dictionary back into a `RetryPolicy`
+object when reading a file. The validation plan uses
+`AsDictViewValidator` with `public_attrs_to_dict`, so the object form and the
+dict form are both checked with:
+
+- a `DictKeysValidator` for the required key set
+- `DictRule` entries for validating and normalizing the values
+
+The important contract detail is that replacement values from dict
+validation are stored back when the member is a dict. When the member is a
+runtime object, the projected dict is only a validation view and the original
+object remains the member value.
+
+The command line accepts the retry policy as one JSON value. For example:
+
+`--retry-policy '{"mode":"EXPONENTIAL","max_attempts":5,"backoff_seconds":60}'`
+
 ## e30_optional_user_preference.py
 
 [Source code for e30_optional_user_preference.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py)

@@ -132,7 +132,7 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 3649 passed in 10s
+- Test result: 3686 passed in 11s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

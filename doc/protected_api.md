@@ -215,6 +215,21 @@
 * [config\_as\_json.assert\_dict\_equal](#config_as_json.assert_dict_equal)
   * [\_print\_dict\_differs](#config_as_json.assert_dict_equal._print_dict_differs)
   * [assert\_dict\_equal](#config_as_json.assert_dict_equal.assert_dict_equal)
+* [config\_as\_json.as\_dict\_view\_validator](#config_as_json.as_dict_view_validator)
+  * [public\_attrs\_to\_dict](#config_as_json.as_dict_view_validator.public_attrs_to_dict)
+  * [\_validate\_non\_dict\_type](#config_as_json.as_dict_view_validator._validate_non_dict_type)
+  * [\_validate\_to\_dict](#config_as_json.as_dict_view_validator._validate_to_dict)
+  * [\_validate\_rules](#config_as_json.as_dict_view_validator._validate_rules)
+  * [\_validate\_validators](#config_as_json.as_dict_view_validator._validate_validators)
+  * [\_ensure\_work\_exists](#config_as_json.as_dict_view_validator._ensure_work_exists)
+  * [\_raise\_invalid\_member\_type](#config_as_json.as_dict_view_validator._raise_invalid_member_type)
+  * [\_validate\_projected\_dict](#config_as_json.as_dict_view_validator._validate_projected_dict)
+  * [\_validate\_dict\_view\_step](#config_as_json.as_dict_view_validator._validate_dict_view_step)
+  * [\_validation\_chain](#config_as_json.as_dict_view_validator._validation_chain)
+  * [AsDictViewValidator](#config_as_json.as_dict_view_validator.AsDictViewValidator)
+    * [\_\_init\_\_](#config_as_json.as_dict_view_validator.AsDictViewValidator.__init__)
+    * [\_validate\_dict\_view](#config_as_json.as_dict_view_validator.AsDictViewValidator._validate_dict_view)
+    * [validate\_member](#config_as_json.as_dict_view_validator.AsDictViewValidator.validate_member)
 
 <a id="config_as_json.validator"></a>
 
@@ -4776,4 +4791,285 @@ normal ``assert`` statements.
 
 - `AssertionError` - The mappings do not match after ignored keys have been
   removed.
+
+<a id="config_as_json.as_dict_view_validator"></a>
+
+# config\_as\_json.as\_dict\_view\_validator
+
+Validate a member value through a dictionary-shaped view.
+
+<a id="config_as_json.as_dict_view_validator.public_attrs_to_dict"></a>
+
+#### public\_attrs\_to\_dict
+
+```python
+def public_attrs_to_dict(config: 'Config', member_name: str,
+                         member_value: object,
+                         stderr_file: TextIO) -> dict[Hashable, object]
+```
+
+Project public object attributes to a dictionary.
+
+This helper is the explicit opt-in conversion for the common case where
+an application class stores its configuration data in normal public
+instance attributes. The intended dictionary view contains every
+non-callable entry in ``vars(member_value)`` whose name does not start
+with ``'_'``.
+
+The projected dictionary is intended to be a shallow copy. Replacing a
+value in the projected dictionary should not replace the corresponding
+attribute on ``member_value``. If an attribute value is itself mutable,
+validators that mutate that shared value in place may still affect the
+original object.
+
+**Arguments**:
+
+- `config` - The configuration object that owns ``member_name``.
+- `member_name` - The name of the member being projected.
+- `member_value` - The non-dict object to project.
+- `stderr_file` - The stream used for diagnostics.
+
+
+**Returns**:
+
+  A dictionary-shaped validation view of ``member_value``.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If ``member_value`` cannot be projected from
+  public attributes.
+
+<a id="config_as_json.as_dict_view_validator._validate_non_dict_type"></a>
+
+#### \_validate\_non\_dict\_type
+
+```python
+def _validate_non_dict_type(non_dict_type: object) -> type[object]
+```
+
+Validate and return the accepted non-dict runtime type.
+
+<a id="config_as_json.as_dict_view_validator._validate_to_dict"></a>
+
+#### \_validate\_to\_dict
+
+```python
+def _validate_to_dict(
+    to_dict: object
+) -> Callable[['Config', str, object, TextIO], dict[Hashable, object]]
+```
+
+Validate and return the dictionary-view projector.
+
+<a id="config_as_json.as_dict_view_validator._validate_rules"></a>
+
+#### \_validate\_rules
+
+```python
+def _validate_rules(rules: object) -> list[DictRule]
+```
+
+Validate and return dictionary rules for the view.
+
+<a id="config_as_json.as_dict_view_validator._validate_validators"></a>
+
+#### \_validate\_validators
+
+```python
+def _validate_validators(
+        validators: Optional[Sequence[MemberValidator]]
+) -> list[MemberValidator]
+```
+
+Validate and return whole-dict validators for the view.
+
+<a id="config_as_json.as_dict_view_validator._ensure_work_exists"></a>
+
+#### \_ensure\_work\_exists
+
+```python
+def _ensure_work_exists(rules: Sequence[DictRule],
+                        validators: Sequence[MemberValidator]) -> None
+```
+
+Validate that the validator has at least one operation to run.
+
+<a id="config_as_json.as_dict_view_validator._raise_invalid_member_type"></a>
+
+#### \_raise\_invalid\_member\_type
+
+```python
+def _raise_invalid_member_type(member_name: str, member_value: object,
+                               non_dict_type: type[object],
+                               stderr_file: TextIO) -> None
+```
+
+Raise an invalid-configuration error for an unsupported value type.
+
+<a id="config_as_json.as_dict_view_validator._validate_projected_dict"></a>
+
+#### \_validate\_projected\_dict
+
+```python
+def _validate_projected_dict(member_name: str, projected: object,
+                             stderr_file: TextIO) -> dict[Hashable, object]
+```
+
+Validate and return one projected dictionary view.
+
+<a id="config_as_json.as_dict_view_validator._validate_dict_view_step"></a>
+
+#### \_validate\_dict\_view\_step
+
+```python
+def _validate_dict_view_step(validator: MemberValidator, config: 'Config',
+                             member_name: str, member_value: dict[Hashable,
+                                                                  object],
+                             stderr_file: TextIO) -> dict[Hashable, object]
+```
+
+Run one dict-view validator and require a dict result.
+
+<a id="config_as_json.as_dict_view_validator._validation_chain"></a>
+
+#### \_validation\_chain
+
+```python
+def _validation_chain(
+        rules: Sequence[DictRule],
+        validators: Sequence[MemberValidator]) -> list[MemberValidator]
+```
+
+Return the complete validation chain for one dictionary view.
+
+<a id="config_as_json.as_dict_view_validator.AsDictViewValidator"></a>
+
+## AsDictViewValidator Objects
+
+```python
+class AsDictViewValidator(MemberValidator)
+```
+
+Validate a member value through a dictionary-shaped view.
+
+``AsDictViewValidator`` handles a member whose runtime value may be either
+a real ``dict`` or one application-defined object type that can be
+projected to a ``dict``. The same dictionary validators and dictionary
+rules are applied to both representations, so application code can define
+one validation policy for the dictionary-shaped data.
+
+The class is a convenience adapter for the common case where dictionary
+validation mainly consists of a list of ``DictRule`` objects. Conceptually
+it branches on the member value type, uses ``to_dict`` only for the
+non-dict representation, applies the optional whole-dict validators, and
+finally applies a ``DictForEachValidator`` built from ``rules``.
+
+The member value must be either an actual ``dict`` or an instance of
+``non_dict_type``. Other mapping implementations are not accepted by this
+validator. Keeping the contract limited to ``dict`` avoids ambiguity
+about how replacement values from validators should be stored.
+
+If the member value is a ``dict``, validators and rules are applied to the
+dictionary value. Replacement values returned by validators and rules are
+returned from ``validate_member`` and are therefore stored back into the
+configuration member by ``MemberValidationStep``.
+
+If the member value is an instance of ``non_dict_type``, ``to_dict`` is
+called to produce a dictionary view, and validators and rules are applied
+to that view. Replacement values returned while validating the projected
+view are used only inside this validation chain. The original object is
+returned from ``validate_member`` and remains the stored configuration
+member. In-place mutation may still affect shared mutable objects if the
+projector exposes them.
+
+<a id="config_as_json.as_dict_view_validator.AsDictViewValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(non_dict_type: type[object],
+             rules: Sequence[DictRule],
+             to_dict: Callable[['Config', str, object, TextIO], dict[Hashable,
+                                                                     object]],
+             validators: Optional[Sequence[MemberValidator]] = None) -> None
+```
+
+Initialize the as-dict-view validator.
+
+**Arguments**:
+
+- `non_dict_type` - The accepted application-defined object type when
+  the member value is not a ``dict``. This type may not be
+  ``dict`` or a subclass of ``dict``.
+- `rules` - Dictionary rules applied to the dictionary view after
+  ``validators`` have run. This keeps the common
+  ``DictForEachValidator`` use case concise.
+- `to_dict` - Callable that receives the complete config object, the
+  member name, the non-dict member value, and the diagnostic
+  stream. It returns the dictionary view to validate.
+  ``public_attrs_to_dict`` is a candidate when the view should
+  be the object's public instance attributes.
+- `validators` - Optional sequence of whole-dict validators to apply
+  to the dictionary view before applying ``rules``. Each
+  validator receives the value returned by the previous
+  validator.
+
+
+**Raises**:
+
+- `TypeError` - If ``non_dict_type`` is not a type, is ``dict`` or a
+  subclass of ``dict``, if ``to_dict`` is not callable, or if
+  any validator is not a ``MemberValidator``.
+- `ValueError` - If both ``rules`` is empty and ``validators`` is None
+  or empty.
+
+<a id="config_as_json.as_dict_view_validator.AsDictViewValidator._validate_dict_view"></a>
+
+#### \_validate\_dict\_view
+
+```python
+def _validate_dict_view(config: 'Config', member_name: str,
+                        dict_view: dict[Hashable, object],
+                        stderr_file: TextIO) -> Optional[object]
+```
+
+Validate one dictionary view and return its normalized value.
+
+<a id="config_as_json.as_dict_view_validator.AsDictViewValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one member through a dictionary-shaped view.
+
+**Arguments**:
+
+- `config` - The configuration object that owns ``member_name``.
+- `member_name` - The name of the member to validate.
+- `member_value` - The member value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The normalized dictionary if ``member_value`` is a ``dict``.
+  The original ``member_value`` if it is an instance of
+  ``non_dict_type`` and its dictionary view validates.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If ``member_value`` is neither a ``dict``
+  nor an instance of ``non_dict_type``, if projection fails, if
+  the projector does not return a ``dict``, or if a validator
+  rejects the dictionary view.
+- `InvalidConfigurationValue` - If an inner validator rejects a value
+  because it is not one of its allowed values.
 

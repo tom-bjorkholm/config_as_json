@@ -38,6 +38,8 @@ from config_as_json.dict_validators import DictKeysValidator, DictRule, \
 from config_as_json.discriminated_dict_validators import DictVariant, \
     DiscriminatedDictValidator
 from config_as_json.projected_validators import ProjectedMemberValidator
+from config_as_json.as_dict_view_validator import AsDictViewValidator, \
+    public_attrs_to_dict
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.assert_dict_equal import assert_dict_equal
 
@@ -92,4 +94,6 @@ __all__ = ['Config',
            'DictVariant',
            'DiscriminatedDictValidator',
            'ProjectedMemberValidator',
+           'AsDictViewValidator',
+           'public_attrs_to_dict',
            'assert_dict_equal']
