@@ -12,10 +12,12 @@ from config_as_json.config import Config
 from config_as_json.dict_validators import DictKeysValidator
 from config_as_json.list_validators import ListIsOrderedValidator, \
     ListSizeValidator
-from config_as_json.projected_validators import ProjectedMemberValidator
+from config_as_json.projected_validators import ProjectedMemberValidator, \
+    ProjectedWholeConfigValidator
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue, MemberValidationStep, MemberValidator, \
-    StrValidator, ValidationPlan
+    StrValidator, ValidationPlan, WholeConfigValidationStep, \
+    WholeConfigValidator
 from .validator_test_helpers import EmptyValidationConfig, \
     assert_validate_member_failure, assert_validate_member_ok
 
@@ -33,6 +35,21 @@ class _RecordingProjector:
                  stderr_file: TextIO) -> object:
         """Record one projector call and return the stored value."""
         self.calls.append((config, member_name, member_value, stderr_file))
+        return self.projected_value
+
+
+# pylint: disable-next=too-few-public-methods
+class _RecordingWholeProjector:
+    """Whole-config projector that records the context it received."""
+
+    def __init__(self, projected_value: object) -> None:
+        """Store the value returned by the projector."""
+        self.projected_value: object = projected_value
+        self.calls: list[tuple[Config, TextIO]] = []
+
+    def __call__(self, config: Config, stderr_file: TextIO) -> object:
+        """Record one projector call and return the stored value."""
+        self.calls.append((config, stderr_file))
         return self.projected_value
 
 
@@ -115,6 +132,31 @@ class ProjectedValidationConfig(Config):
         ]
 
 
+class WholeProjectedValidationConfig(Config):
+    """Config class used to test whole-config projected validators."""
+
+    def __init__(self, validator: Optional[WholeConfigValidator],
+                 from_json_data_text: Optional[str] = None) -> None:
+        """Construct one config object with route data."""
+        self._validator = validator
+        self.routes: list[dict[str, object]] = [{
+            'name': 'api',
+            'port': 8080
+        }, {
+            'name': 'admin',
+            'port': 9090
+        }]
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=None, stderr_file=sys.stderr)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        if self._validator is None:
+            return []
+        return [WholeConfigValidationStep(validator=self._validator)]
+
+
 def project_names(config: Config, member_name: str, member_value: object,
                   stderr_file: TextIO) -> object:
     """Project a list of route dictionaries to their route names."""
@@ -152,6 +194,27 @@ def failing_projector(config: Config, member_name: str, member_value: object,
     _ = config, member_value
     msg = 'Invalid configuration: cannot project '
     msg += f'{member_name}.'
+    print(msg, file=stderr_file)
+    raise InvalidConfiguration(msg)
+
+
+def project_whole_route_names(config: Config, stderr_file: TextIO) -> object:
+    """Project a whole config to the names of its routes."""
+    _ = stderr_file
+    route_config = cast(WholeProjectedValidationConfig, config)
+    return [route['name'] for route in route_config.routes]
+
+
+def project_whole_mode(config: Config, stderr_file: TextIO) -> object:
+    """Return a scalar projected value from the whole config."""
+    _ = config, stderr_file
+    return 'slow'
+
+
+def failing_whole_projector(config: Config, stderr_file: TextIO) -> object:
+    """Raise ``InvalidConfiguration`` during whole-config projection."""
+    _ = config
+    msg = 'Invalid configuration: cannot project whole config.'
     print(msg, file=stderr_file)
     raise InvalidConfiguration(msg)
 
@@ -374,3 +437,180 @@ def test_projected_member_validator_integration_uses_parsed_json(
                              {'name': 'admin', 'port': 9090}]
     assert out == ''
     assert err == ''
+
+
+@pytest.mark.parametrize(
+    'projector, pseudo_member_name, validators, exc_type, message',
+    [(object(), 'projected', [ListSizeValidator(0, 1)], TypeError,
+      'projector must be callable'),
+     (project_whole_route_names, object(), [ListSizeValidator(0, 1)],
+      TypeError, 'pseudo_member_name must be a str'),
+     (project_whole_route_names, '', [ListSizeValidator(0, 1)], ValueError,
+      'pseudo_member_name must be non-empty'),
+     (project_whole_route_names, 'projected', None, TypeError,
+      'validators must be a sequence'),
+     (project_whole_route_names, 'projected', [], ValueError,
+      'validators must be non-empty'),
+     (project_whole_route_names, 'projected', [object()], TypeError,
+      'validators[0] must be a MemberValidator')])
+def test_whole_proj_rejects_bad_init(
+        projector: object, pseudo_member_name: object, validators: object,
+        exc_type: type[Exception], message: str) -> None:
+    """Test whole-config projected validator constructor validation."""
+    with pytest.raises(exc_type) as exc:
+        ProjectedWholeConfigValidator(
+            projector=cast(Callable[[Config, TextIO], object], projector),
+            pseudo_member_name=cast(str, pseudo_member_name),
+            validators=cast(Any, validators))
+    assert message in str(exc.value)
+
+
+def test_whole_proj_stores_args() -> None:
+    """Test that constructor arguments are exposed on the validator."""
+    validator = ListSizeValidator(0, 2)
+    projected = ProjectedWholeConfigValidator(
+        projector=project_whole_route_names, pseudo_member_name='route_names',
+        validators=[validator])
+    assert projected.projector is project_whole_route_names
+    assert projected.pseudo_member_name == 'route_names'
+    assert projected.validators == [validator]
+
+
+def test_whole_proj_validates_list(capsys: pytest.CaptureFixture[str]) -> None:
+    """Validate a whole-config projection through member validators."""
+    validator = ProjectedWholeConfigValidator(
+        projector=project_whole_route_names, pseudo_member_name='route_names',
+        validators=[ListSizeValidator(1, 3)])
+    config = WholeProjectedValidationConfig(validator=None)
+    validator.validate(config, sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+
+
+def test_whole_proj_chains_values(capsys: pytest.CaptureFixture[str]) -> None:
+    """Pass each normalized projected value to the next validator."""
+    recording: list[tuple[str, str, object]] = []
+    validator = ProjectedWholeConfigValidator(
+        projector=_RecordingWholeProjector('zero'),
+        pseudo_member_name='whole_view',
+        validators=[
+            _RecordingValidator('first', recording, 'one'),
+            _RecordingValidator('second', recording, 'two')])
+    config = WholeProjectedValidationConfig(validator=None)
+    validator.validate(config, sys.stderr)
+    out, err = capsys.readouterr()
+    assert recording == [('first', 'whole_view', 'zero'),
+                         ('second', 'whole_view', 'one')]
+    assert out == ''
+    assert err == ''
+
+
+def test_whole_proj_passes_context(capsys: pytest.CaptureFixture[str]) -> None:
+    """Pass config and stderr to the whole-config projector."""
+    projector = _RecordingWholeProjector(['projected'])
+    validator = ProjectedWholeConfigValidator(
+        projector=projector, pseudo_member_name='whole_view',
+        validators=[ListSizeValidator(1, 1)])
+    config = WholeProjectedValidationConfig(validator=None)
+    validator.validate(config=config, stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert projector.calls == [(config, sys.stderr)]
+    assert out == ''
+    assert err == ''
+
+
+def test_whole_proj_projector_fails(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """Propagate an invalid configuration raised by the projector."""
+    validator = ProjectedWholeConfigValidator(
+        projector=failing_whole_projector, pseudo_member_name='whole_view',
+        validators=[ListSizeValidator(1, 1)])
+    config = WholeProjectedValidationConfig(validator=None)
+    with pytest.raises(InvalidConfiguration) as exc:
+        validator.validate(config, sys.stderr)
+    out, err = capsys.readouterr()
+    assert 'cannot project whole config' in str(exc.value)
+    assert out == ''
+    assert 'cannot project whole config' in err
+
+
+def test_whole_proj_inner_fails(capsys: pytest.CaptureFixture[str]) -> None:
+    """Propagate an invalid configuration raised by an inner validator."""
+    validator = ProjectedWholeConfigValidator(
+        projector=_RecordingWholeProjector(['projected']),
+        pseudo_member_name='whole_view', validators=[_FailingValidator()])
+    config = WholeProjectedValidationConfig(validator=None)
+    with pytest.raises(InvalidConfiguration) as exc:
+        validator.validate(config, sys.stderr)
+    out, err = capsys.readouterr()
+    assert 'projected value failed for whole_view' in str(exc.value)
+    assert out == ''
+    assert 'projected value failed for whole_view' in err
+
+
+def test_whole_proj_value_fails(capsys: pytest.CaptureFixture[str]) -> None:
+    """Propagate ``InvalidConfigurationValue`` from an inner validator."""
+    validator = ProjectedWholeConfigValidator(
+        projector=project_whole_mode, pseudo_member_name='mode',
+        validators=[StrValidator(allowed_values=['fast'], ignore_case=False)])
+    config = WholeProjectedValidationConfig(validator=None)
+    with pytest.raises(InvalidConfigurationValue) as exc:
+        validator.validate(config, sys.stderr)
+    out, err = capsys.readouterr()
+    assert 'Value slow for mode is not one of the allowed values' in \
+        str(exc.value)
+    assert out == ''
+    assert 'Value slow for mode is not one of the allowed values' in err
+
+
+def test_whole_proj_exposes_mutation(
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """Document that shared projected objects are not defensively copied."""
+    projected_value = ['original']
+    validator = ProjectedWholeConfigValidator(
+        projector=_RecordingWholeProjector(projected_value),
+        pseudo_member_name='whole_view',
+        validators=[_AppendValidator('mutated')])
+    config = WholeProjectedValidationConfig(validator=None)
+    validator.validate(config, sys.stderr)
+    out, err = capsys.readouterr()
+    assert projected_value == ['original', 'mutated']
+    assert out == ''
+    assert err == ''
+
+
+def test_whole_proj_uses_json(capsys: pytest.CaptureFixture[str]) -> None:
+    """Test whole-config projected validation through ``Config``."""
+    validator = ProjectedWholeConfigValidator(
+        projector=project_whole_route_names, pseudo_member_name='route_names',
+        validators=[ListIsOrderedValidator(str, is_ordered=False,
+                                           unique_values=True)])
+    config = WholeProjectedValidationConfig(
+        validator=validator,
+        from_json_data_text='{"routes": ['
+        '{"name": "api", "port": 8080}, '
+        '{"name": "admin", "port": 9090}]}')
+    out, err = capsys.readouterr()
+    assert config.routes == [{'name': 'api', 'port': 8080},
+                             {'name': 'admin', 'port': 9090}]
+    assert out == ''
+    assert err == ''
+
+
+def test_whole_proj_rejects_json(capsys: pytest.CaptureFixture[str]) -> None:
+    """Reject an invalid whole-config projection during config parsing."""
+    validator = ProjectedWholeConfigValidator(
+        projector=project_whole_route_names, pseudo_member_name='route_names',
+        validators=[ListIsOrderedValidator(str, is_ordered=False,
+                                           unique_values=True)])
+    with pytest.raises(InvalidConfiguration) as exc:
+        WholeProjectedValidationConfig(
+            validator=validator,
+            from_json_data_text='{"routes": ['
+            '{"name": "api", "port": 8080}, '
+            '{"name": "api", "port": 9090}]}')
+    out, err = capsys.readouterr()
+    assert 'duplicates the value at index 0' in str(exc.value)
+    assert out == ''
+    assert 'duplicates the value at index 0' in err

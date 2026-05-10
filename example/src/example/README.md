@@ -705,6 +705,74 @@ The command line uses the simplest shape for each member:
 
 `--service-ports http=8080 metrics=9090 --sample-weights '{"fast":[0.1,0.9]}'`
 
+## e23_projected_whole_config_validator.py
+
+[Source code for e23_projected_whole_config_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e23_projected_whole_config_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e23_projected_whole_config_validator.py)
+
+This example teaches `ProjectedWholeConfigValidator`. Use it when a rule is
+best expressed against a value calculated from the complete configuration
+object, but that calculated value should not become a stored configuration
+member.
+
+The configuration has 2 members:
+
+- `primary_region`
+- `replica_regions`
+
+Each member has its own ordinary validation. The primary region is validated
+and normalized with `StrValidator`, and the replica list is checked with
+`ListValueValidator`.
+
+The cross-member rule is that the primary region and all replica regions must
+be distinct. The validation plan projects the complete config to this
+temporary list:
+
+`[primary_region, *replica_regions]`
+
+Then `ProjectedWholeConfigValidator` applies a normal
+`ListIsOrderedValidator` to that projected list with `unique_values=True`.
+The pseudo-member name `all_regions` exists only for diagnostics; it is not
+written to JSON and it does not become an attribute on the configuration
+object.
+
+This is the whole-config counterpart to e15. Use
+`ProjectedMemberValidator` when the calculated validation view comes from one
+stored member. Use `ProjectedWholeConfigValidator` when the validation view
+depends on several members or on the whole object.
+
+## e24_list_relation_validator.py
+
+[Source code for e24_list_relation_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e24_list_relation_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e24_list_relation_validator.py)
+
+This example teaches `ListRelationValidator`. Use it when two list-like
+values must have a declared relation, such as equal order, equal multisets,
+equal distinct values, subset, or disjointness.
+
+The configuration has 2 members:
+
+- `declared_routes` is a list of routes the application should expose
+- `route_handlers` is a dictionary from route name to handler name
+
+The rule is that the distinct route names must match on both sides. Every
+declared route needs one handler, and every handler key must correspond to a
+declared route.
+
+The first side of the relation is the stored `declared_routes` member. The
+second side is projected from the keys of `route_handlers`:
+
+`tuple(route_handlers.keys())`
+
+The example uses `ListRelationKind.SET_EQUAL`, so order and duplicates are
+ignored by the relation itself. Because duplicate route declarations should
+still be rejected, the validation plan keeps that as a separate, explicit
+`ListIsOrderedValidator(..., unique_values=True)` step before the relation
+check.
+
+This split is intentional. `ListRelationValidator` describes how two
+sequences relate to each other. Other list validators should still own
+single-list rules such as element type, allowed values, size, order, or
+uniqueness.
+
 ## e30_optional_user_preference.py
 
 [Source code for e30_optional_user_preference.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py)

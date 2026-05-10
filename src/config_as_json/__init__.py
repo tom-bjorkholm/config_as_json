@@ -37,7 +37,10 @@ from config_as_json.dict_validators import DictKeysValidator, DictRule, \
     DictForEachValidator, DictKeyValueTypesValidator, accept_all_keys
 from config_as_json.discriminated_dict_validators import DictVariant, \
     DiscriminatedDictValidator
-from config_as_json.projected_validators import ProjectedMemberValidator
+from config_as_json.projected_validators import ProjectedMemberValidator, \
+    ProjectedWholeConfigValidator, WholeConfigProjector, MemberProjector
+from config_as_json.list_relation_validator import ListRelationKind, \
+    ListRelationValidator
 from config_as_json.as_dict_view_validator import AsDictViewValidator, \
     public_attrs_to_dict
 from config_as_json.str_to_enum import string_to_enum_best_match
@@ -95,6 +98,11 @@ __all__ = ['Config',
            'DictVariant',
            'DiscriminatedDictValidator',
            'ProjectedMemberValidator',
+           'ProjectedWholeConfigValidator',
+           'WholeConfigProjector',
+           'MemberProjector',
+           'ListRelationKind',
+           'ListRelationValidator',
            'AsDictViewValidator',
            'public_attrs_to_dict',
            'assert_dict_equal']

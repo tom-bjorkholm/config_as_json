@@ -12,8 +12,7 @@ if TYPE_CHECKING:
     from config_as_json.config import Config
 
 
-def _validate_projector(
-        projector: Callable[['Config', str, object, TextIO], object]) -> None:
+def _validate_projector(projector: object) -> None:
     """Validate the projector argument.
 
     Args:
@@ -24,6 +23,26 @@ def _validate_projector(
     """
     if not callable(projector):
         raise TypeError('projector must be callable.')
+
+
+def _validate_pseudo_member_name(pseudo_member_name: object) -> str:
+    """Validate and return one pseudo-member name.
+
+    Args:
+        pseudo_member_name: Name used when inner validators report errors.
+
+    Returns:
+        ``pseudo_member_name`` after it has been proven to be non-empty str.
+
+    Raises:
+        TypeError: If ``pseudo_member_name`` is not a str.
+        ValueError: If ``pseudo_member_name`` is empty.
+    """
+    if not isinstance(pseudo_member_name, str):
+        raise TypeError('pseudo_member_name must be a str.')
+    if pseudo_member_name == '':
+        raise ValueError('pseudo_member_name must be non-empty.')
+    return pseudo_member_name
 
 
 def _validate_optional_source_validator(
@@ -237,7 +256,12 @@ class ProjectedWholeConfigValidator(WholeConfigValidator):
             TypeError: If ``projector`` is not callable or any validator is
                 not a ``MemberValidator``.
         """
-        # to be implemented here: check the arguments and initialize instance
+        _validate_projector(projector)
+        self.pseudo_member_name: str = \
+            _validate_pseudo_member_name(pseudo_member_name)
+        _validate_projected_validators(validators)
+        self.projector: WholeConfigProjector = projector
+        self.validators: list[MemberValidator] = list(validators)
 
     def validate(self, config: 'Config',
                  stderr_file: TextIO = sys.stderr) -> None:
@@ -271,4 +295,8 @@ class ProjectedWholeConfigValidator(WholeConfigValidator):
             None if the validation check passes, otherwise the exception
             is raised.
         """
-        # to be implemented here: validate the projected value
+        current = self.projector(config, stderr_file)
+        for validator in self.validators:
+            current = validator.validate_member(
+                config=config, member_name=self.pseudo_member_name,
+                member_value=current, stderr_file=stderr_file)

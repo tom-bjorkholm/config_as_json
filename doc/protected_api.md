@@ -133,13 +133,41 @@
   * [\_normalized\_csv\_dialect\_config](#config_as_json.csv_dialect._normalized_csv_dialect_config)
   * [CsvDialectValidator](#config_as_json.csv_dialect.CsvDialectValidator)
     * [validate\_member](#config_as_json.csv_dialect.CsvDialectValidator.validate_member)
+* [config\_as\_json.list\_relation\_validator](#config_as_json.list_relation_validator)
+  * [\_validate\_relation\_kind](#config_as_json.list_relation_validator._validate_relation_kind)
+  * [\_validate\_member\_name](#config_as_json.list_relation_validator._validate_member_name)
+  * [\_validate\_optional\_projector](#config_as_json.list_relation_validator._validate_optional_projector)
+  * [\_validate\_comparator](#config_as_json.list_relation_validator._validate_comparator)
+  * [\_print\_and\_raise\_type\_error](#config_as_json.list_relation_validator._print_and_raise_type_error)
+  * [\_print\_and\_raise\_key\_error](#config_as_json.list_relation_validator._print_and_raise_key_error)
+  * [\_print\_and\_raise\_invalid](#config_as_json.list_relation_validator._print_and_raise_invalid)
+  * [\_materialized\_sequence](#config_as_json.list_relation_validator._materialized_sequence)
+  * [\_contains\_equal](#config_as_json.list_relation_validator._contains_equal)
+  * [\_is\_distinct\_subset](#config_as_json.list_relation_validator._is_distinct_subset)
+  * [\_is\_multiset\_equal](#config_as_json.list_relation_validator._is_multiset_equal)
+  * [\_is\_disjoint](#config_as_json.list_relation_validator._is_disjoint)
+  * [ListRelationKind](#config_as_json.list_relation_validator.ListRelationKind)
+    * [EQUAL](#config_as_json.list_relation_validator.ListRelationKind.EQUAL)
+    * [MULTISET\_EQUAL](#config_as_json.list_relation_validator.ListRelationKind.MULTISET_EQUAL)
+    * [SET\_EQUAL](#config_as_json.list_relation_validator.ListRelationKind.SET_EQUAL)
+    * [SUBSET](#config_as_json.list_relation_validator.ListRelationKind.SUBSET)
+    * [DISJOINT](#config_as_json.list_relation_validator.ListRelationKind.DISJOINT)
+  * [ListRelationValidator](#config_as_json.list_relation_validator.ListRelationValidator)
+    * [\_\_init\_\_](#config_as_json.list_relation_validator.ListRelationValidator.__init__)
+    * [\_relation\_value](#config_as_json.list_relation_validator.ListRelationValidator._relation_value)
+    * [\_relation\_holds](#config_as_json.list_relation_validator.ListRelationValidator._relation_holds)
+    * [validate](#config_as_json.list_relation_validator.ListRelationValidator.validate)
 * [config\_as\_json.projected\_validators](#config_as_json.projected_validators)
   * [\_validate\_projector](#config_as_json.projected_validators._validate_projector)
+  * [\_validate\_pseudo\_member\_name](#config_as_json.projected_validators._validate_pseudo_member_name)
   * [\_validate\_optional\_source\_validator](#config_as_json.projected_validators._validate_optional_source_validator)
   * [\_validate\_projected\_validators](#config_as_json.projected_validators._validate_projected_validators)
   * [ProjectedMemberValidator](#config_as_json.projected_validators.ProjectedMemberValidator)
     * [\_\_init\_\_](#config_as_json.projected_validators.ProjectedMemberValidator.__init__)
     * [validate\_member](#config_as_json.projected_validators.ProjectedMemberValidator.validate_member)
+  * [ProjectedWholeConfigValidator](#config_as_json.projected_validators.ProjectedWholeConfigValidator)
+    * [\_\_init\_\_](#config_as_json.projected_validators.ProjectedWholeConfigValidator.__init__)
+    * [validate](#config_as_json.projected_validators.ProjectedWholeConfigValidator.validate)
 * [config\_as\_json.dict\_validators](#config_as_json.dict_validators)
   * [\_validate\_dict\_member\_value](#config_as_json.dict_validators._validate_dict_member_value)
   * [\_validate\_string\_keys](#config_as_json.dict_validators._validate_string_keys)
@@ -2876,6 +2904,514 @@ Validate one CSV dialect member and return a normalized dict.
 - `InvalidConfiguration` - If the member is not a valid CSV dialect
   configuration dictionary.
 
+<a id="config_as_json.list_relation_validator"></a>
+
+# config\_as\_json.list\_relation\_validator
+
+Validate that one list-like value has a relation to another.
+
+The validator is used to validate that a list-like value (which may be
+a projected value) has the specified relation to another list-like value
+(which might also be a projected value).
+
+<a id="config_as_json.list_relation_validator._validate_relation_kind"></a>
+
+#### \_validate\_relation\_kind
+
+```python
+def _validate_relation_kind(kind: object) -> 'ListRelationKind'
+```
+
+Validate and return one list relation kind.
+
+**Arguments**:
+
+- `kind` - Relation kind supplied to the constructor.
+
+
+**Returns**:
+
+  ``kind`` after it has been proven to be a ``ListRelationKind``.
+
+
+**Raises**:
+
+- `TypeError` - If ``kind`` is not a ``ListRelationKind``.
+
+<a id="config_as_json.list_relation_validator._validate_member_name"></a>
+
+#### \_validate\_member\_name
+
+```python
+def _validate_member_name(member_name: object, parameter_name: str) -> str
+```
+
+Validate and return one relation member or pseudo-member name.
+
+**Arguments**:
+
+- `member_name` - Name supplied to the constructor.
+- `parameter_name` - Parameter name used in error messages.
+
+
+**Returns**:
+
+  ``member_name`` after it has been proven to be non-empty str.
+
+
+**Raises**:
+
+- `TypeError` - If ``member_name`` is not a str.
+- `ValueError` - If ``member_name`` is empty.
+
+<a id="config_as_json.list_relation_validator._validate_optional_projector"></a>
+
+#### \_validate\_optional\_projector
+
+```python
+def _validate_optional_projector(
+        projector: Optional[WholeConfigProjector],
+        parameter_name: str) -> Optional[WholeConfigProjector]
+```
+
+Validate and return an optional whole-config projector.
+
+**Arguments**:
+
+- `projector` - Optional projector supplied to the constructor.
+- `parameter_name` - Parameter name used in error messages.
+
+
+**Returns**:
+
+  ``projector`` after it has been proven to be ``None`` or callable.
+
+
+**Raises**:
+
+- `TypeError` - If ``projector`` is not ``None`` and not callable.
+
+<a id="config_as_json.list_relation_validator._validate_comparator"></a>
+
+#### \_validate\_comparator
+
+```python
+def _validate_comparator(
+        comparator: object,
+        parameter_name: str) -> Callable[[object, object], bool]
+```
+
+Validate and return one relation element comparator.
+
+**Arguments**:
+
+- `comparator` - Comparator supplied to the constructor.
+- `parameter_name` - Parameter name used in error messages.
+
+
+**Returns**:
+
+  ``comparator`` after it has been proven to be callable.
+
+
+**Raises**:
+
+- `TypeError` - If ``comparator`` is not callable.
+
+<a id="config_as_json.list_relation_validator._print_and_raise_type_error"></a>
+
+#### \_print\_and\_raise\_type\_error
+
+```python
+def _print_and_raise_type_error(message: str, stderr_file: TextIO) -> None
+```
+
+Print one type error message and raise ``TypeError``.
+
+**Arguments**:
+
+- `message` - Message to print and raise.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Raises**:
+
+- `TypeError` - Always raised with ``message``.
+
+<a id="config_as_json.list_relation_validator._print_and_raise_key_error"></a>
+
+#### \_print\_and\_raise\_key\_error
+
+```python
+def _print_and_raise_key_error(message: str, stderr_file: TextIO) -> None
+```
+
+Print one key error message and raise ``KeyError``.
+
+**Arguments**:
+
+- `message` - Message to print and raise.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Raises**:
+
+- `KeyError` - Always raised with ``message``.
+
+<a id="config_as_json.list_relation_validator._print_and_raise_invalid"></a>
+
+#### \_print\_and\_raise\_invalid
+
+```python
+def _print_and_raise_invalid(message: str, stderr_file: TextIO) -> None
+```
+
+Print one invalid-configuration message and raise it.
+
+**Arguments**:
+
+- `message` - Message to print and raise.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - Always raised with ``message``.
+
+<a id="config_as_json.list_relation_validator._materialized_sequence"></a>
+
+#### \_materialized\_sequence
+
+```python
+def _materialized_sequence(member_name: str, value: object,
+                           stderr_file: TextIO) -> list[object]
+```
+
+Validate and materialize one relation value as a list.
+
+**Arguments**:
+
+- `member_name` - Name used in diagnostics.
+- `value` - Value to validate and materialize.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  The relation value as a newly materialized list.
+
+
+**Raises**:
+
+- `TypeError` - If ``value`` is not a sequence, or if it is ``str``,
+  ``bytes``, or ``bytearray``.
+
+<a id="config_as_json.list_relation_validator._contains_equal"></a>
+
+#### \_contains\_equal
+
+```python
+def _contains_equal(values: list[object], value: object,
+                    eq_comparator: Callable[[object, object], bool]) -> bool
+```
+
+Return whether ``values`` contains an equal value.
+
+**Arguments**:
+
+- `values` - Values to search.
+- `value` - Value to find.
+- `eq_comparator` - Function used to compare values.
+
+
+**Returns**:
+
+  ``True`` if an equal value was found.
+
+<a id="config_as_json.list_relation_validator._is_distinct_subset"></a>
+
+#### \_is\_distinct\_subset
+
+```python
+def _is_distinct_subset(
+        values_a: list[object], values_b: list[object],
+        eq_comparator: Callable[[object, object], bool]) -> bool
+```
+
+Return whether distinct values in A are found in B.
+
+**Arguments**:
+
+- `values_a` - Candidate subset values.
+- `values_b` - Candidate superset values.
+- `eq_comparator` - Function used to compare values.
+
+
+**Returns**:
+
+  ``True`` if every distinct value in ``values_a`` occurs in
+  ``values_b``.
+
+<a id="config_as_json.list_relation_validator._is_multiset_equal"></a>
+
+#### \_is\_multiset\_equal
+
+```python
+def _is_multiset_equal(
+        values_a: list[object], values_b: list[object],
+        eq_comparator: Callable[[object, object], bool]) -> bool
+```
+
+Return whether two values contain equal values with equal counts.
+
+**Arguments**:
+
+- `values_a` - First value sequence.
+- `values_b` - Second value sequence.
+- `eq_comparator` - Function used to compare values.
+
+
+**Returns**:
+
+  ``True`` if every value in ``values_a`` can be paired with exactly
+  one equal value in ``values_b``.
+
+<a id="config_as_json.list_relation_validator._is_disjoint"></a>
+
+#### \_is\_disjoint
+
+```python
+def _is_disjoint(values_a: list[object], values_b: list[object],
+                 eq_comparator: Callable[[object, object], bool]) -> bool
+```
+
+Return whether no value from A occurs in B.
+
+**Arguments**:
+
+- `values_a` - First value sequence.
+- `values_b` - Second value sequence.
+- `eq_comparator` - Function used to compare values.
+
+
+**Returns**:
+
+  ``True`` if no value in one sequence is equal to a value in the
+  other sequence.
+
+<a id="config_as_json.list_relation_validator.ListRelationKind"></a>
+
+## ListRelationKind Objects
+
+```python
+class ListRelationKind(Enum)
+```
+
+Relation to require between two list-like values.
+
+<a id="config_as_json.list_relation_validator.ListRelationKind.EQUAL"></a>
+
+#### EQUAL
+
+The two values must be equal as ordered sequences.
+
+The sequences must have the same length. For each position, the value in
+sequence A must be equal to the value in the same position in sequence B
+according to the supplied equality comparator.
+
+<a id="config_as_json.list_relation_validator.ListRelationKind.MULTISET_EQUAL"></a>
+
+#### MULTISET\_EQUAL
+
+The two values must contain the same elements with the same counts.
+
+Order is ignored, but duplicates are significant. For example,
+``['a', 'a', 'b']`` and ``['a', 'b', 'a']`` satisfy this relation, while
+``['a', 'b']`` and ``['a', 'a', 'b']`` do not.
+
+<a id="config_as_json.list_relation_validator.ListRelationKind.SET_EQUAL"></a>
+
+#### SET\_EQUAL
+
+Each distinct value in either sequence must occur in the other.
+
+Order and duplicates are ignored. For example, ``['a', 'a']`` and
+``['a']`` satisfy this relation.
+
+<a id="config_as_json.list_relation_validator.ListRelationKind.SUBSET"></a>
+
+#### SUBSET
+
+Each distinct value in sequence A must occur in sequence B.
+
+Order and duplicates are ignored. Sequence B may contain additional
+values. For example, ``['a', 'a']`` is a subset of ``['a', 'b']``.
+
+<a id="config_as_json.list_relation_validator.ListRelationKind.DISJOINT"></a>
+
+#### DISJOINT
+
+No value in sequence A may also occur in sequence B.
+
+Order and duplicates inside either sequence are ignored. The relation
+fails if any value in one sequence is equal to a value in the other
+sequence.
+
+<a id="config_as_json.list_relation_validator.ListRelationValidator"></a>
+
+## ListRelationValidator Objects
+
+```python
+class ListRelationValidator(WholeConfigValidator)
+```
+
+Validate that one list-like value has a relation to another.
+
+Each side of the relation is either read from a named ``Config`` member or
+computed by a projector. A value read from a config member is expected to
+be a finite sequence represented by that member, but not a ``str``,
+``bytes``, or ``bytearray``. A projected value may be any finite
+sequence except ``str``, ``bytes``, or ``bytearray``. The validator
+conceptually materializes both values as lists before applying the
+relation.
+
+All element comparisons use ``eq_comparator``. ``lt_comparator`` is
+used for relation kinds or diagnostics that need a stable ordering
+of values.
+
+<a id="config_as_json.list_relation_validator.ListRelationValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    kind: ListRelationKind,
+    member_a_name: str,
+    member_b_name: str,
+    *,
+    a_projector: Optional[WholeConfigProjector] = None,
+    b_projector: Optional[WholeConfigProjector] = None,
+    eq_comparator: Callable[[object, object], bool] = eq,
+    lt_comparator: Callable[[object, object], bool] = _DEFAULT_LT_COMPARATOR
+) -> None
+```
+
+Initialize a list relation validator.
+
+**Arguments**:
+
+- `kind` - Relation to require between the two values.
+- `member_a_name` - Name of the first member to compare.
+  If ``a_projector`` is not supplied, this is the name of a
+  member in the ``Config`` object whose value is sequence A.
+  If ``a_projector`` is supplied, this is the pseudo-member
+  name of the projected value. The name is used for error
+  messages.
+- `member_b_name` - Name of the second member to compare.
+  If ``b_projector`` is not supplied, this is the name of a
+  member in the ``Config`` object whose value is sequence B.
+  If ``b_projector`` is supplied, this is the pseudo-member
+  name of the projected value. The name is used for error
+  messages.
+- `a_projector` - Optional projector for sequence A.
+- `b_projector` - Optional projector for sequence B.
+- `eq_comparator` - Function used to decide whether two element values
+  are equal. The default is the equality operator.
+- `lt_comparator` - Function used when a relation or diagnostic needs
+  to order element values. The default is the less-than
+  operator.
+
+
+**Raises**:
+
+- `TypeError` - If a constructor argument has an invalid type.
+- `ValueError` - If a member name is empty.
+
+<a id="config_as_json.list_relation_validator.ListRelationValidator._relation_value"></a>
+
+#### \_relation\_value
+
+```python
+def _relation_value(config: 'Config', member_name: str,
+                    projector: Optional[WholeConfigProjector],
+                    stderr_file: TextIO) -> list[object]
+```
+
+Return one materialized relation value.
+
+**Arguments**:
+
+- `config` - The Config object to validate.
+- `member_name` - Real member name or pseudo-member name.
+- `projector` - Optional projector for the relation value.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  The relation value as a list.
+
+
+**Raises**:
+
+- `KeyError` - The member is missing and no projector was supplied.
+- `TypeError` - The relation value is not a sequence, or it is
+  ``str``, ``bytes``, or ``bytearray``.
+
+<a id="config_as_json.list_relation_validator.ListRelationValidator._relation_holds"></a>
+
+#### \_relation\_holds
+
+```python
+def _relation_holds(values_a: list[object], values_b: list[object]) -> bool
+```
+
+Return whether the configured relation holds.
+
+**Arguments**:
+
+- `values_a` - Sequence A materialized as a list.
+- `values_b` - Sequence B materialized as a list.
+
+
+**Returns**:
+
+  ``True`` if the configured relation holds.
+
+<a id="config_as_json.list_relation_validator.ListRelationValidator.validate"></a>
+
+#### validate
+
+```python
+def validate(config: 'Config', stderr_file: TextIO = sys.stderr) -> None
+```
+
+Validate the configured relation between two list-like values.
+
+If no projector is supplied for a side, that side is read from the
+named ``Config`` member. If a projector is supplied, the projector
+receives the complete ``Config`` object and the diagnostic stream, and
+its returned value is used as that side of the relation.
+
+Both relation values must be finite sequences, but not ``str``,
+``bytes``, or ``bytearray``. Rejecting those scalar text and binary
+types keeps accidental character-by-character comparison from being
+treated as a valid configuration relation.
+
+**Arguments**:
+
+- `config` - The Config object to validate.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Raises**:
+
+- `KeyError` - A side has no projector and the named member is not
+  present in ``config``.
+- `TypeError` - One relation value is not a sequence, or it is
+  ``str``, ``bytes``, or ``bytearray``.
+- `InvalidConfiguration` - The relation does not hold.
+
 <a id="config_as_json.projected_validators"></a>
 
 # config\_as\_json.projected\_validators
@@ -2887,8 +3423,7 @@ Define validators that validate projected member values.
 #### \_validate\_projector
 
 ```python
-def _validate_projector(
-        projector: Callable[['Config', str, object, TextIO], object]) -> None
+def _validate_projector(projector: object) -> None
 ```
 
 Validate the projector argument.
@@ -2901,6 +3436,31 @@ Validate the projector argument.
 **Raises**:
 
 - `TypeError` - If ``projector`` is not callable.
+
+<a id="config_as_json.projected_validators._validate_pseudo_member_name"></a>
+
+#### \_validate\_pseudo\_member\_name
+
+```python
+def _validate_pseudo_member_name(pseudo_member_name: object) -> str
+```
+
+Validate and return one pseudo-member name.
+
+**Arguments**:
+
+- `pseudo_member_name` - Name used when inner validators report errors.
+
+
+**Returns**:
+
+  ``pseudo_member_name`` after it has been proven to be non-empty str.
+
+
+**Raises**:
+
+- `TypeError` - If ``pseudo_member_name`` is not a str.
+- `ValueError` - If ``pseudo_member_name`` is empty.
 
 <a id="config_as_json.projected_validators._validate_optional_source_validator"></a>
 
@@ -2984,7 +3544,7 @@ work on detached values.
 #### \_\_init\_\_
 
 ```python
-def __init__(projector: Callable[['Config', str, object, TextIO], object],
+def __init__(projector: MemberProjector,
              validators: Sequence[MemberValidator],
              source_validator: Optional[MemberValidator] = None) -> None
 ```
@@ -3044,6 +3604,113 @@ Validate one member through a projected value.
   detects an invalid configuration.
 - `InvalidConfigurationValue` - If an inner validator rejects a value
   because it is not one of its allowed values.
+
+<a id="config_as_json.projected_validators.ProjectedWholeConfigValidator"></a>
+
+## ProjectedWholeConfigValidator Objects
+
+```python
+class ProjectedWholeConfigValidator(WholeConfigValidator)
+```
+
+Validate a projected value that is computed from the entire config.
+
+This validator is intended for configuration aspects whose natural
+validation view is not the stored values themselves. A projector function
+computes that validation view from the original member values, and a
+sequence of inner validators is then applied to the projected value.
+
+The projector function receives the complete Config object and the
+diagnostic stream. It returns the projected value to validate,
+and the returned value will be given a pseudo-member name,
+and will be validated by the inner validators that are of type
+MemberValidator.
+
+Projected validators are applied in order. If one projected validator
+returns a normalized or replacement projected value, that returned value
+is passed to the next projected validator. The final projected value is
+discarded when validation succeeds.
+
+Returned replacement values from the projector and projected
+validators affect only this validation chain. They do not replace the
+stored Config object. The validator does not copy the Config object or
+projected value, though. In-place mutation done by the
+projector, or by a projected validator can still affect shared mutable
+objects. Validators and projectors that need isolation should return or
+work on detached values.
+
+<a id="config_as_json.projected_validators.ProjectedWholeConfigValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(projector: WholeConfigProjector, pseudo_member_name: str,
+             validators: Sequence[MemberValidator]) -> None
+```
+
+Initialize the projected whole-config validator.
+
+**Arguments**:
+
+- `projector` - Callable that receives the complete config object,
+  and the diagnostic stream. It returns the projected value to
+  validate.
+- `pseudo_member_name` - The name of the pseudo-member to validate.
+  This name will be used to identify the pseudo-member
+  (that is the projected value) in the error messages.
+- `validators` - Validators to apply to the projected value. They are
+  applied in declaration order, and each validator receives the
+  value returned by the previous validator.
+
+
+**Raises**:
+
+- `ValueError` - If ``validators`` is empty.
+- `TypeError` - If ``projector`` is not callable or any validator is
+  not a ``MemberValidator``.
+
+<a id="config_as_json.projected_validators.ProjectedWholeConfigValidator.validate"></a>
+
+#### validate
+
+```python
+def validate(config: 'Config', stderr_file: TextIO = sys.stderr) -> None
+```
+
+Validate an aspect of the entire Config object.
+
+The validator computes the projected value from the entire Config
+object, and then validates the projected value using the inner
+validators that are of type MemberValidator in order. If one
+projected validator returns a normalized or replacement projected
+value, that returned value is passed to the next projected validator.
+The final projected value is discarded when validation succeeds.
+
+The inner validators are called with these arguments:
+- config: The Config object to validate.
+- member_name: The name (which is the pseudo-member name) of the
+member to validate (which is the projected value).
+- member_value: The projected value to validate.
+- stderr_file: The file to write error messages to.
+
+**Raises**:
+
+- `InvalidConfiguration` - If the projector or an inner validator
+  detects an invalid configuration.
+- `InvalidConfigurationValue` - If an inner validator rejects a value
+  because it is not one of its allowed values.
+
+
+**Arguments**:
+
+- `config` - The Config object to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  None if the validation check passes, otherwise the exception
+  is raised.
 
 <a id="config_as_json.dict_validators"></a>
 
