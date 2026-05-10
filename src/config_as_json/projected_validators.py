@@ -7,7 +7,7 @@
 import sys
 from collections.abc import Callable, Sequence
 from typing import Optional, TextIO, TYPE_CHECKING
-from config_as_json.validator import MemberValidator
+from config_as_json.validator import MemberValidator, WholeConfigValidator
 if TYPE_CHECKING:
     from config_as_json.config import Config
 
@@ -66,6 +66,20 @@ def _validate_projected_validators(
             raise TypeError(msg)
 
 
+type MemberProjector = Callable[['Config', str, object, TextIO], object]
+"""Callable that computer the projected member value to validate.
+
+    Args:
+        config: The Config object that owns the member.
+        member_name: The name of the member to project.
+        member_value: The original member value.
+        stderr_file: The file to write error messages to.
+
+    Returns:
+        The projected member value to validate.
+    """
+
+
 # pylint: disable-next=too-few-public-methods
 class ProjectedMemberValidator(MemberValidator):
     """Validate a projected value while keeping the original member value.
@@ -95,8 +109,7 @@ class ProjectedMemberValidator(MemberValidator):
     work on detached values.
     """
 
-    def __init__(self,
-                 projector: Callable[['Config', str, object, TextIO], object],
+    def __init__(self, projector: MemberProjector,
                  validators: Sequence[MemberValidator],
                  source_validator: Optional[MemberValidator] = None) -> None:
         """Initialize the projected member validator.
@@ -160,3 +173,103 @@ class ProjectedMemberValidator(MemberValidator):
                                                 member_value=current,
                                                 stderr_file=stderr_file)
         return member_value
+
+
+type WholeConfigProjector = Callable[['Config', TextIO], object]
+"""Callable that computer the projected member value to validate.
+
+    Args:
+        config: The Config object that owns the member.
+        stderr_file: The file to write error messages to.
+
+    Returns:
+        The projected value (as a pseudo-member value) to validate.
+    """
+
+
+# pylint: disable-next=too-few-public-methods
+class ProjectedWholeConfigValidator(WholeConfigValidator):
+    """Validate a projected value that is computed from the entire config.
+
+    This validator is intended for configuration aspects whose natural
+    validation view is not the stored values themselves. A projector function
+    computes that validation view from the original member values, and a
+    sequence of inner validators is then applied to the projected value.
+
+    The projector function receives the complete Config object and the
+    diagnostic stream. It returns the projected value to validate,
+    and the returned value will be given a pseudo-member name,
+    and will be validated by the inner validators that are of type
+    MemberValidator.
+
+    Projected validators are applied in order. If one projected validator
+    returns a normalized or replacement projected value, that returned value
+    is passed to the next projected validator. The final projected value is
+    discarded when validation succeeds, and the original member value is
+    returned.
+
+    Returned replacement values from the projector and projected
+    validators affect only this validation chain. They do not replace the
+    stored cofiguration object. The validator does not copy the source or
+    projected value, though. In-place mutation done by the
+    projector, or by a projected validator can still affect shared mutable
+    objects. Validators and projectors that need isolation should return or
+    work on detached values.
+    """
+
+    def __init__(self, projector: WholeConfigProjector,
+                 pseudo_member_name: str,
+                 validators: Sequence[MemberValidator]) -> None:
+        """Initialize the projected member validator.
+
+        Args:
+            projector: Callable that receives the complete config object,
+                and the diagnostic stream. It returns the projected value to
+                validate.
+            pseudo_member_name: The name of the pseudo-member to validate.
+                This name will be used to identify the pseudo-member
+                (that is the projected value) in the error messages.
+            validators: Validators to apply to the projected value. They are
+                applied in declaration order, and each validator receives the
+                value returned by the previous validator.
+
+        Raises:
+            ValueError: If ``validators`` is empty.
+            TypeError: If ``projector`` is not callable or any validator is
+                not a ``MemberValidator``.
+        """
+        # to be implemented here: check the arguments and initialize instance
+
+    def validate(self, config: 'Config',
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Validate an aspect of the entire Config object.
+
+        The validator computes the projected value from the entire Config
+        object, and then validates the projected value using the inner
+        validators that are of type MemberValidator in order. If one
+        projected validator returns a normalized or replacement projected
+        value, that returned value is passed to the next projected validator.
+        The final projected value is discarded when validation succeeds.
+
+        The inner validators are called with these arguments:
+        - config: The Config object to validate.
+        - member_name: The name (which is the pseudo-member name) of the
+            member to validate (which is the projected value).
+        - member_value: The projected value to validate.
+        - stderr_file: The file to write error messages to.
+
+        Raises:
+            InvalidConfiguration: If the projector or an inner validator
+                detects an invalid configuration.
+            InvalidConfigurationValue: If an inner validator rejects a value
+                because it is not one of its allowed values.
+
+        Args:
+            config: The Config object to validate.
+            stderr_file: The file to write error messages to.
+
+        Returns:
+            None if the validation check passes, otherwise the exception
+            is raised.
+        """
+        # to be implemented here: validate the projected value
