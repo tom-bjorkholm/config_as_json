@@ -67,7 +67,7 @@ def _validate_projected_validators(
 
 
 type MemberProjector = Callable[['Config', str, object, TextIO], object]
-"""Callable that computer the projected member value to validate.
+"""Callable that computes the projected member value to validate.
 
     Args:
         config: The Config object that owns the member.
@@ -176,14 +176,14 @@ class ProjectedMemberValidator(MemberValidator):
 
 
 type WholeConfigProjector = Callable[['Config', TextIO], object]
-"""Callable that computer the projected member value to validate.
+"""Callable that computes a projected value from the whole config.
 
     Args:
-        config: The Config object that owns the member.
+        config: The Config object to project from.
         stderr_file: The file to write error messages to.
 
     Returns:
-        The projected value (as a pseudo-member value) to validate.
+        The projected value to validate as a pseudo-member value.
     """
 
 
@@ -205,12 +205,11 @@ class ProjectedWholeConfigValidator(WholeConfigValidator):
     Projected validators are applied in order. If one projected validator
     returns a normalized or replacement projected value, that returned value
     is passed to the next projected validator. The final projected value is
-    discarded when validation succeeds, and the original member value is
-    returned.
+    discarded when validation succeeds.
 
     Returned replacement values from the projector and projected
     validators affect only this validation chain. They do not replace the
-    stored cofiguration object. The validator does not copy the source or
+    stored Config object. The validator does not copy the Config object or
     projected value, though. In-place mutation done by the
     projector, or by a projected validator can still affect shared mutable
     objects. Validators and projectors that need isolation should return or
@@ -220,7 +219,7 @@ class ProjectedWholeConfigValidator(WholeConfigValidator):
     def __init__(self, projector: WholeConfigProjector,
                  pseudo_member_name: str,
                  validators: Sequence[MemberValidator]) -> None:
-        """Initialize the projected member validator.
+        """Initialize the projected whole-config validator.
 
         Args:
             projector: Callable that receives the complete config object,

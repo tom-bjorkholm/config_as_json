@@ -1,133 +1,148 @@
 #! /usr/local/bin/python3
-"""Validate that a list of values compares to a reference list of values.
+"""Validate that one list-like value has a relation to another.
 
-The validator is used to validate that a list of values (which may be
-a projected value) compares in the specified way to another list of
-values (which might also be a projected value).
+The validator is used to validate that a list-like value (which may be
+a projected value) has the specified relation to another list-like value
+(which might also be a projected value).
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from typing import Callable, Optional, TextIO, TYPE_CHECKING
+import sys
 from enum import Enum, auto
 from operator import eq, lt
-import sys
+from typing import Callable, Optional, TextIO, TYPE_CHECKING, cast
 from config_as_json.validator import WholeConfigValidator
 from config_as_json.projected_validators import WholeConfigProjector
 if TYPE_CHECKING:
     from config_as_json.config import Config
 
 
-class ListComparisonKind(Enum):
-    """Kind of list comparison."""
+_DEFAULT_LT_COMPARATOR: Callable[[object, object], bool] = \
+    cast(Callable[[object, object], bool], lt)
+
+
+class ListRelationKind(Enum):
+    """Relation to require between two list-like values."""
 
     EQUAL = auto()
-    """The list of values must be equal to the other list of values.
+    """The two values must be equal as ordered sequences.
 
-    For each position in the list of values, the value must be equal to the
-    value in the same position in the other list of values, using the
-    supplied equality comparison function (which is typically ==).
+    The sequences must have the same length. For each position, the value in
+    sequence A must be equal to the value in the same position in sequence B
+    according to the supplied equality comparator.
     """
 
-    EQUAL_IF_SORTED = auto()
-    """The sorted list of values must be equal to another sorted list.
+    MULTISET_EQUAL = auto()
+    """The two values must contain the same elements with the same counts.
 
-    After sorting the lists, using the supplied comparison function, the
-    lists must be equal according to the EQUAL rule:
-    For each position in the first list of values, the value must be equal
-    to the value in the same position in the second list of values, using the
-    supplied equality comparison function (which is typically ==).
+    Order is ignored, but duplicates are significant. For example,
+    ``['a', 'a', 'b']`` and ``['a', 'b', 'a']`` satisfy this relation, while
+    ``['a', 'b']`` and ``['a', 'a', 'b']`` do not.
     """
 
     SET_EQUAL = auto()
-    """All values in one list must also be in the other list.
+    """Each distinct value in either sequence must occur in the other.
 
-    The lists must have the same values, regardless of order or multiplicity.
+    Order and duplicates are ignored. For example, ``['a', 'a']`` and
+    ``['a']`` satisfy this relation.
     """
 
     SUBSET = auto()
-    """All values in list A must also be in list B.
+    """Each distinct value in sequence A must occur in sequence B.
 
-    The values in list A must be a subset of the values in list B,
-    regardless of order or multiplicity.
+    Order and duplicates are ignored. Sequence B may contain additional
+    values. For example, ``['a', 'a']`` is a subset of ``['a', 'b']``.
     """
 
     DISJOINT = auto()
-    """No values in list A must also be in list B, and vice versa.
+    """No value in sequence A may also occur in sequence B.
 
-    The values in list A must be disjoint from the values in list B,
-    regardless of order or multiplicity. No value in either list may appear
-    in the other list.
+    Order and duplicates inside either sequence are ignored. The relation
+    fails if any value in one sequence is equal to a value in the other
+    sequence.
     """
 
 
 # pylint: disable-next=too-few-public-methods
-class ListComparisonValidator(WholeConfigValidator):
-    """Validate that a list of values compares to another list of values.
+class ListRelationValidator(WholeConfigValidator):
+    """Validate that one list-like value has a relation to another.
 
-    The validator is used to validate that a list of values (which may be
-    a projected value) compares in the specified way to another list of
-    values (which might also be a projected value).
+    Each side of the relation is either read from a named ``Config`` member or
+    computed by a projector. A value read from a config member is expected to
+    be a finite sequence represented by that member, but not a ``str``,
+    ``bytes``, or ``bytearray``. A projected value may be any finite
+    sequence except ``str``, ``bytes``, or ``bytearray``. The validator
+    conceptually materializes both values as lists before applying the
+    relation.
+
+    All element comparisons use ``eq_comparator``. ``lt_comparator`` is
+    used for relation kinds or diagnostics that need a stable ordering
+    of values.
     """
 
-    # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-    def __init__(self, kind: ListComparisonKind, member_a_name: str,
-                 member_b_name: str,
+    # pylint: disable-next=too-many-arguments
+    def __init__(self, kind: ListRelationKind, member_a_name: str,
+                 member_b_name: str, *,
                  a_projector: Optional[WholeConfigProjector] = None,
                  b_projector: Optional[WholeConfigProjector] = None,
-                 eq_function: Callable[[object, object], bool] = eq,
-                 lt_function: Callable[[object, object], bool] = lt,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Initialize a list comparison validator.
+                 eq_comparator: Callable[[object, object], bool] = eq,
+                 lt_comparator: Callable[[object, object], bool] =
+                 _DEFAULT_LT_COMPARATOR) -> None:
+        """Initialize a list relation validator.
 
         Args:
-            kind: Kind of list comparison.
+            kind: Relation to require between the two values.
             member_a_name: Name of the first member to compare.
-                           If a_projector is not supplied, this is the name of
-                           a member in the Config object, whose value is the
-                           list A to compare.
-                           If a_projector is supplied, this is the
-                           pseudo-member name of the projected value and the
-                           name must not be a name of a member in the Config
-                           object.
-                           The name is used for error messages.
+                If ``a_projector`` is not supplied, this is the name of a
+                member in the ``Config`` object whose value is sequence A.
+                If ``a_projector`` is supplied, this is the pseudo-member
+                name of the projected value. The name is used for error
+                messages.
             member_b_name: Name of the second member to compare.
-                           If b_projector is not supplied, this is the name of
-                           a member in the Config object, whose value is the
-                           list B to compare.
-                           If b_projector is supplied, this is the
-                           pseudo-member name of the projected value and the
-                           name must not be a name of a member in the Config
-                           object.
-                           The name is used for error messages.
-            a_projector: Optional projector for the first member (A).
-            b_projector: Optional projector for the second member (B).
-            eq_function: Function to compare values for equality, which is
-                         used to compare the values in the lists. The default
-                         is the equality operator.
-            lt_function: Function to compare values for less than, which is
-                         used to sort the lists in comparisons that work on
-                         sorted lists. The default is the less than operator.
-            stderr_file: Stream used for user-facing diagnostics.
+                If ``b_projector`` is not supplied, this is the name of a
+                member in the ``Config`` object whose value is sequence B.
+                If ``b_projector`` is supplied, this is the pseudo-member
+                name of the projected value. The name is used for error
+                messages.
+            a_projector: Optional projector for sequence A.
+            b_projector: Optional projector for sequence B.
+            eq_comparator: Function used to decide whether two element values
+                are equal. The default is the equality operator.
+            lt_comparator: Function used when a relation or diagnostic needs
+                to order element values. The default is the less-than
+                operator.
+
+        Raises:
+            TypeError: If a constructor argument has an invalid type.
+            ValueError: If a member name is empty.
         """
         # to be implemented here: check the arguments
         # and initialize the instance
 
     def validate(self, config: 'Config',
                  stderr_file: TextIO = sys.stderr) -> None:
-        """Validate how two lists of values compare.
+        """Validate the configured relation between two list-like values.
 
-        The validator is used to validate that a list of values (which may be
-        a projected value) compares in the specified way to a another list of
-        values (which might also be a projected value).
+        If no projector is supplied for a side, that side is read from the
+        named ``Config`` member. If a projector is supplied, the projector
+        receives the complete ``Config`` object and the diagnostic stream, and
+        its returned value is used as that side of the relation.
+
+        Both relation values must be finite sequences, but not ``str``,
+        ``bytes``, or ``bytearray``. Rejecting those scalar text and binary
+        types keeps accidental character-by-character comparison from being
+        treated as a valid configuration relation.
 
         Args:
             config: The Config object to validate.
             stderr_file: Stream used for user-facing diagnostics.
 
         Raises:
-            InvalidConfiguration: The configuration is invalid.
+            KeyError: A side has no projector and the named member is not
+                present in ``config``.
+            TypeError: One relation value is not a non-string sequence.
+            InvalidConfiguration: The relation does not hold.
         """
-        # to be implemented here: validate the list of values
-        # and the reference list of values
+        # to be implemented here: validate the relation values
