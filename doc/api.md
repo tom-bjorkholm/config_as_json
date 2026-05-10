@@ -101,6 +101,9 @@
   * [DictForEachValidator](#config_as_json.dict_validators.DictForEachValidator)
     * [\_\_init\_\_](#config_as_json.dict_validators.DictForEachValidator.__init__)
     * [validate\_member](#config_as_json.dict_validators.DictForEachValidator.validate_member)
+  * [DictKeyValueTypesValidator](#config_as_json.dict_validators.DictKeyValueTypesValidator)
+    * [\_\_init\_\_](#config_as_json.dict_validators.DictKeyValueTypesValidator.__init__)
+    * [validate\_member](#config_as_json.dict_validators.DictKeyValueTypesValidator.validate_member)
 * [config\_as\_json.file\_extension](#config_as_json.file_extension)
   * [fix\_file\_extension](#config_as_json.file_extension.fix_file_extension)
 * [config\_as\_json.char\_encoding](#config_as_json.char_encoding)
@@ -2368,6 +2371,107 @@ Validate one dict member by delegating to per-key validators.
 
 - `InvalidConfiguration` - If the member is not a dict, or a
   supplied validator raised ``InvalidConfiguration``.
+- `InvalidConfigurationValue` - If a supplied validator raised
+  ``InvalidConfigurationValue``.
+
+<a id="config_as_json.dict_validators.DictKeyValueTypesValidator"></a>
+
+## DictKeyValueTypesValidator Objects
+
+```python
+class DictKeyValueTypesValidator(MemberValidator)
+```
+
+Validate the key and value runtime types of a uniform dict.
+
+This validator is a compact way to validate dicts whose keys all have
+one type and whose values all have one type, such as ``dict[str, int]``
+or ``dict[str, list[float]]``. It cannot describe non-uniform dicts
+such as a ``TypedDict``-like shape where different keys have different
+value policies. For those cases, use ``DictKeysValidator`` together
+with ``DictForEachValidator`` and one or more ``DictRule`` objects.
+
+The outer member must be a dict. Every key is checked with
+``isinstance(key, key_type)`` and every value is checked with
+``isinstance(value, value_type)``. If ``value_validator`` is supplied,
+it is then applied to each value through ``DictForEachValidator``.
+That hook is intended for validating the inside of composite values,
+for example ``dict[str, list[float]]``. A validator that performs
+unrelated value checks is allowed, but it makes application code harder
+to understand; prefer ``DictForEachValidator`` for those richer rules.
+
+An empty dict is considered valid.
+
+<a id="config_as_json.dict_validators.DictKeyValueTypesValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(key_type: type[Hashable],
+             value_type: type[object],
+             value_validator: Optional[MemberValidator] = None) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `key_type` - The type of the keys. The type is checked using
+  isinstance.
+- `value_type` - The type of the values. The type is checked using
+  isinstance.
+- `value_validator` - The validator to apply to each value. This
+  validator is not needed for simple value types such as
+  int, float, str, bool, etc. It is needed for when the
+  value is a dict, list, or other type that needs to be
+  traversed to be validated.
+
+
+**Raises**:
+
+- `TypeError` - If ``key_type`` is not a hashable type,
+  ``value_type`` is not a type, or ``value_validator`` is not
+  a ``MemberValidator`` or ``None``.
+
+<a id="config_as_json.dict_validators.DictKeyValueTypesValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one dict member against the configured value types.
+
+The type of the member itself is checked to be a dict using isinstance.
+Then the types of all keys and values are checked using isinstance.
+Optionally, the types inside the value are checked using the
+value_validator. An empty dict is considered valid.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The dict value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The original dict value if validation succeeds without
+  ``value_validator``. When ``value_validator`` is supplied, a new
+  dict is returned with any value normalizations from that inner
+  validator.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a dict, or the types of
+  the keys or values are not as expected, or a supplied
+  validator raised ``InvalidConfiguration``.
 - `InvalidConfigurationValue` - If a supplied validator raised
   ``InvalidConfigurationValue``.
 

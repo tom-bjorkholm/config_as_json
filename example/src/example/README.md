@@ -321,6 +321,11 @@ Values are not validated in this example. The lesson is that the
 *key set* is the schema and that `DictKeysValidator` never inspects
 values.
 
+For the common simple case where an open-ended dict should validate both
+the key type and the value type, continue with `e22_dict_key_value_types.py`
+after this example. It teaches the compact `DictKeyValueTypesValidator`
+form for shapes such as `dict[str, int]`.
+
 For dict-valued members, the `Config` base class already checks the
 parsed JSON key set against the default (unknown keys are rejected). That
 built-in check is enough for many fixed dict shapes and does not require
@@ -666,6 +671,39 @@ object remains the member value.
 The command line accepts the retry policy as one JSON value. For example:
 
 `--retry-policy '{"mode":"EXPONENTIAL","max_attempts":5,"backoff_seconds":60}'`
+
+## e22_dict_key_value_types.py
+
+[Source code for e22_dict_key_value_types.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e22_dict_key_value_types.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e22_dict_key_value_types.py)
+
+This example teaches `DictKeyValueTypesValidator`, the compact validator for
+uniform dictionaries. Use it when every key has one runtime type and every
+value has one runtime type, such as `dict[str, int]` or
+`dict[str, list[float]]`.
+
+The configuration has 2 open dict members:
+
+- `service_ports` is a `dict[str, int]`
+- `sample_weights` is a `dict[str, list[float]]`
+
+Both members are listed in `_unchecked_dicts` because their keys are
+application data, not a closed schema from the defaults. The validators own
+the whole policy instead:
+
+- `DictKeyValueTypesValidator(str, int)` checks the flat `service_ports`
+  dictionary
+- `DictKeyValueTypesValidator(str, list, ListValueTypeValidator(float))`
+  checks that `sample_weights` is a dictionary from strings to lists, and
+  then checks the float items inside each list
+
+The nested `value_validator` is deliberately used only to check inside each
+list value. If different keys need different business rules, use
+`DictForEachValidator` instead; that makes the per-key intent visible at the
+call site.
+
+The command line uses the simplest shape for each member:
+
+`--service-ports http=8080 metrics=9090 --sample-weights '{"fast":[0.1,0.9]}'`
 
 ## e30_optional_user_preference.py
 

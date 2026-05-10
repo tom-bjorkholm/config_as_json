@@ -15,7 +15,8 @@ from collections.abc import Hashable, Sequence as SequenceABC
 from dataclasses import dataclass
 from typing import Callable, Optional, Sequence, TextIO
 from config_as_json.config import Config
-from config_as_json.validator import InvalidConfiguration, MemberValidator
+from config_as_json.validator import InvalidConfiguration, MemberValidator, \
+    _validate_type_argument
 
 
 def _validate_dict_member_value(member_name: str, member_value: object,
@@ -100,6 +101,26 @@ def _validate_bool_argument(value: bool, parameter_name: str) -> None:
     """
     if not isinstance(value, bool):
         raise TypeError(f'{parameter_name} must be a bool.')
+
+
+def _validate_hashable_type(value_type: object,
+                            parameter_name: str) -> type[Hashable]:
+    """Validate and return one runtime type for dict keys.
+
+    Args:
+        value_type: Value supplied as a runtime type argument.
+        parameter_name: Name used in the error message.
+
+    Returns:
+        ``value_type`` after it has been proven to be a hashable type.
+
+    Raises:
+        TypeError: If ``value_type`` is not a type or is not hashable.
+    """
+    result = _validate_type_argument(value_type, parameter_name)
+    if not issubclass(result, Hashable):
+        raise TypeError(f'{parameter_name} must be a hashable type.')
+    return result
 
 
 def _inner_member_name(outer: str, key: Hashable) -> str:
@@ -446,3 +467,113 @@ class DictForEachValidator(MemberValidator):
                         rule=rule, config=config, member_name=member_name,
                         member_value=result, key=key, stderr_file=stderr_file)
         return result
+
+
+# pylint: disable-next=too-few-public-methods
+class DictKeyValueTypesValidator(MemberValidator):
+    """Validate the key and value runtime types of a uniform dict.
+
+    This validator is a compact way to validate dicts whose keys all have
+    one type and whose values all have one type, such as ``dict[str, int]``
+    or ``dict[str, list[float]]``. It cannot describe non-uniform dicts
+    such as a ``TypedDict``-like shape where different keys have different
+    value policies. For those cases, use ``DictKeysValidator`` together
+    with ``DictForEachValidator`` and one or more ``DictRule`` objects.
+
+    The outer member must be a dict. Every key is checked with
+    ``isinstance(key, key_type)`` and every value is checked with
+    ``isinstance(value, value_type)``. If ``value_validator`` is supplied,
+    it is then applied to each value through ``DictForEachValidator``.
+    That hook is intended for validating the inside of composite values,
+    for example ``dict[str, list[float]]``. A validator that performs
+    unrelated value checks is allowed, but it makes application code harder
+    to understand; prefer ``DictForEachValidator`` for those richer rules.
+
+    An empty dict is considered valid.
+    """
+
+    def __init__(self, key_type: type[Hashable], value_type: type[object],
+                 value_validator: Optional[MemberValidator] = None) -> None:
+        """Initialize the validator.
+
+        Args:
+            key_type: The type of the keys. The type is checked using
+                      isinstance.
+            value_type: The type of the values. The type is checked using
+                      isinstance.
+            value_validator: The validator to apply to each value. This
+                      validator is not needed for simple value types such as
+                      int, float, str, bool, etc. It is needed for when the
+                      value is a dict, list, or other type that needs to be
+                      traversed to be validated.
+
+        Raises:
+            TypeError: If ``key_type`` is not a hashable type,
+                ``value_type`` is not a type, or ``value_validator`` is not
+                a ``MemberValidator`` or ``None``.
+        """
+        self.key_type: type[Hashable] = _validate_hashable_type(
+            key_type, 'key_type')
+        self.value_type: type[object] = _validate_type_argument(
+            value_type, 'value_type')
+        if value_validator is not None and \
+                not isinstance(value_validator, MemberValidator):
+            raise TypeError('value_validator must be a MemberValidator '
+                            'or None.')
+        self.value_validator: Optional[DictForEachValidator] = None
+        if value_validator is not None:
+            rule = DictRule(keys=accept_all_keys, validators=[value_validator])
+            self.value_validator = DictForEachValidator(rules=[rule])
+
+    def validate_member(self, config: Config, member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Validate one dict member against the configured value types.
+
+        The type of the member itself is checked to be a dict using isinstance.
+        Then the types of all keys and values are checked using isinstance.
+        Optionally, the types inside the value are checked using the
+        value_validator. An empty dict is considered valid.
+
+        Args:
+            config: The Config object that owns the member.
+            member_name: The name of the member to validate.
+            member_value: The dict value to validate.
+            stderr_file: The file to write error messages to.
+
+        Returns:
+            The original dict value if validation succeeds without
+            ``value_validator``. When ``value_validator`` is supplied, a new
+            dict is returned with any value normalizations from that inner
+            validator.
+
+        Raises:
+            InvalidConfiguration: If the member is not a dict, or the types of
+                the keys or values are not as expected, or a supplied
+                validator raised ``InvalidConfiguration``.
+            InvalidConfigurationValue: If a supplied validator raised
+                ``InvalidConfigurationValue``.
+        """
+        _ = config
+        validated_dict = _validate_dict_member_value(
+            member_name=member_name, member_value=member_value,
+            stderr_file=stderr_file)
+        for key, value in validated_dict.items():
+            if not isinstance(key, self.key_type):
+                msg = 'Invalid configuration: '
+                msg += f'Key {key!r} in {member_name} '
+                msg += f'is not of type {self.key_type.__name__}.'
+                print(msg, file=stderr_file)
+                raise InvalidConfiguration(msg)
+            if not isinstance(value, self.value_type):
+                inner_name = _inner_member_name(member_name, key)
+                msg = 'Invalid configuration: '
+                msg += f'Value {value} for {inner_name} '
+                msg += f'is not of type {self.value_type.__name__}.'
+                print(msg, file=stderr_file)
+                raise InvalidConfiguration(msg)
+        if self.value_validator is None:
+            return member_value
+        return self.value_validator.validate_member(
+            config=config, member_name=member_name,
+            member_value=validated_dict, stderr_file=stderr_file)

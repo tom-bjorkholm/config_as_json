@@ -7,6 +7,11 @@ only the validator that checks the key set of a dict, and by keeping
 the values inside the dicts so simple that no value validation is
 needed.
 
+For the common simple case where every key and every value should have a
+simple runtime type, read ``e22_dict_key_value_types.py`` after this
+example. It teaches the compact ``DictKeyValueTypesValidator`` form for
+``dict[str, int]`` and ``dict[str, list[float]]`` shapes.
+
 The example introduces 2 modes of ``DictKeysValidator``, applied to 2
 independent dict members so that the reader can see them side by side:
 
@@ -89,6 +94,8 @@ class ExampleConfig10(Config):
         # JSON shape: here the values are already ``bool`` and ``int``
         # by the time JSON parsing has finished, and that is good enough
         # for this example.
+        # For uniform key/value type checks, see
+        # ``e22_dict_key_value_types.py``.
         #
         # First mode: mandatory keys plus a few optional ones.
         # ``allowed_keys`` lists the *additional* keys that are allowed
