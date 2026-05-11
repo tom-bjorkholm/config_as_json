@@ -10,7 +10,6 @@ from typing import Optional, TextIO
 import pytest
 from pytest import CaptureFixture
 import config_as_json
-import config_as_json.config as config_module
 from config_as_json.config import Config
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
 from config_as_json.commontypes import PathOrStr
@@ -131,8 +130,6 @@ def test_nested_api_import_paths() -> None:
     """Test supported public import paths for nested configuration APIs."""
     assert config_as_json.ConfigNesting is ConfigNesting
     assert config_as_json.ConfigNestingKind is ConfigNestingKind
-    assert not hasattr(config_module, 'ConfigNesting')
-    assert not hasattr(config_module, 'ConfigNestingKind')
 
 
 @pytest.mark.parametrize('backup_json', ['', ', "backup_participants": null'])

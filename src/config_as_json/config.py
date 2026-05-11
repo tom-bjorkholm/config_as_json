@@ -26,9 +26,6 @@ from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
 from config_as_json.validator import ValidationPlan
 
 
-__all__ = ['Config', 'ConfigBadJson', 'ParseConverter', 'RocfKeyRename']
-
-
 RocfKeyRename = NamedTuple('RocfKeyRename', [('old', str), ('new', str)])
 """Describe a configuration key rename from an old name to a new name.
 
