@@ -15,6 +15,7 @@ The intended usage model is:
   configuration.
 - Use the library to write those defaults as JSON and to read JSON back into
   the derived configuration object.
+- Use the included validators to validate the configuration.
 
 The library is designed to support evolving configuration formats by letting
 applications define:
@@ -70,5 +71,5 @@ MIT
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.
-- Built version(s): 0.4.1
+- Built version(s): 0.5
 - Build and test using Python 3.14.4

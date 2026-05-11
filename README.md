@@ -21,6 +21,7 @@ The intended library model is:
 - The library writes those values as JSON, reads JSON back into the object,
   and helps users with clear diagnostics when configuration data is missing,
   misspelled, outdated, or of the wrong type.
+- The library has a collection of validators for use by application programmer.
 
 The source docstrings are used to generate the API reference in `doc/`, and
 the examples in `example/src/example/` are the main worked documentation for
@@ -136,5 +137,5 @@ After a build, the generated reports can be browsed through
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.
-- Built version(s): 0.4.1
+- Built version(s): 0.5
 - Build and test using Python 3.14.4
