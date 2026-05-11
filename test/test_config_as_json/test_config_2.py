@@ -11,10 +11,13 @@ import sys
 from typing import Any, Optional, cast, TextIO
 import pytest
 from pytest import CaptureFixture
-from config_as_json.config import Config, RocfKeyRename, ParseConverter
+from config_as_json.config import Config, ConfigNesting, \
+    ConfigNestingKind, RocfKeyRename, ParseConverter
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import JsonType
-from config_as_json.validator import ValidationPlan
+from config_as_json.validator import InvalidConfiguration, \
+    MemberValidationStep, StrValidator, ValidationPlan, \
+    WholeConfigValidationStep, WholeConfigValidator
 
 
 class AbcConfig(Config):
@@ -115,6 +118,114 @@ class OmitNoneBadReturnConfig(OmitNoneConfig):
     def _omit_none_from_json(self) -> list[str]:
         """Return the configured invalid omit-None hook value."""
         return cast(list[str], self._omitted_keys)
+
+
+class NestedOutputConfig(Config):
+    """Nested configuration class used by nested Config tests."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct the nested output configuration."""
+        self.output_format = 'CSV'
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        return [
+            MemberValidationStep(
+                member_names=['output_format'],
+                validator=StrValidator(['CSV', 'TXT'], ignore_case=True,
+                                       normalize=True))
+        ]
+
+
+# pylint: disable-next=too-few-public-methods
+class NestedParentValidator(WholeConfigValidator):
+    """Validate that the parent sees normalized nested values."""
+
+    def validate(self, config: Config,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Validate the parent against the nested output format."""
+        assert isinstance(config, NestedParentConfig)
+        if config.output.output_format == config.expected_format:
+            return
+        msg = 'Nested output format was not normalized before parent'
+        print(msg, file=stderr_file)
+        raise InvalidConfiguration(msg)
+
+
+class NestedParentConfig(Config):
+    """Parent configuration with one direct nested Config member."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a parent configuration with one nested child."""
+        self.output = NestedOutputConfig(None, None, stderr_file=stderr_file)
+        self.expected_format = 'CSV'
+        self._nested_configs = {
+            'output': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                    config_type=NestedOutputConfig)
+        }
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        return [
+            WholeConfigValidationStep(validator=NestedParentValidator())
+        ]
+
+
+class OptionalNestedParentConfig(Config):
+    """Parent configuration with an optional nested Config member."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a parent configuration with an optional child."""
+        self.required_name = 'default'
+        self.optional_output: Optional[NestedOutputConfig] = None
+        self._nested_configs = {
+            'optional_output': ConfigNesting(
+                kind=ConfigNestingKind.OPTIONAL_MEMBER,
+                config_type=NestedOutputConfig)
+        }
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    def _omit_none_from_json(self) -> list[str]:
+        """Return the keys omitted while their value is None."""
+        return ['optional_output']
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        return []
+
+
+class BadNestedParentConfig(Config):
+    """Parent configuration with injected nested Config metadata."""
+
+    def __init__(self, nesting: ConfigNesting,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a parent configuration using the supplied metadata."""
+        self.child = NestedOutputConfig(None, None, stderr_file=stderr_file)
+        self._nested_configs = {'child': nesting}
+        super().__init__(from_json_data_text=None, from_json_filename=None,
+                         stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        return []
 
 
 class RocfRemoveAutoChangeHook(ConfigAutoChangeHook):
@@ -291,6 +402,100 @@ def test_omit_none_rejects_bad_hook(capsys: CaptureFixture[str],
     assert '' == out
     assert '' == err
     assert message in str(exc.value)
+
+
+def test_nested_member_parse_write(capsys: CaptureFixture[str]) -> None:
+    """Test parsing and writing one direct nested Config member."""
+    cfg = NestedParentConfig(
+        from_json_data_text='{"expected_format": "TXT", '
+        '"output": {"output_format": "txt"}}',
+        stderr_file=sys.stderr)
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert isinstance(cfg.output, NestedOutputConfig)
+    assert cfg.output.output_format == 'TXT'
+    assert json_data == {
+        'expected_format': 'TXT',
+        'output': {
+            'output_format': 'TXT'
+        }
+    }
+
+
+def test_nested_validation_order(capsys: CaptureFixture[str]) -> None:
+    """Test that nested validation runs before parent validation."""
+    cfg = NestedParentConfig(stderr_file=sys.stderr)
+    cfg.output.output_format = 'txt'
+    cfg.expected_format = 'TXT'
+    cfg.validate(stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert cfg.output.output_format == 'TXT'
+
+
+def test_nested_optional_omit_none(capsys: CaptureFixture[str]) -> None:
+    """Test omitted, null, and present optional nested Config values."""
+    default_cfg = OptionalNestedParentConfig(stderr_file=sys.stderr)
+    default_json = json.loads(default_cfg.as_json_string(
+        stderr_file=sys.stderr))
+    missing_cfg = OptionalNestedParentConfig(
+        from_json_data_text='{"required_name": "read"}',
+        stderr_file=sys.stderr)
+    null_cfg = OptionalNestedParentConfig(
+        from_json_data_text='{"required_name": "read", '
+        '"optional_output": null}', stderr_file=sys.stderr)
+    value_cfg = OptionalNestedParentConfig(
+        from_json_data_text='{"required_name": "read", '
+        '"optional_output": {"output_format": "txt"}}',
+        stderr_file=sys.stderr)
+    value_json = json.loads(value_cfg.as_json_string(stderr_file=sys.stderr))
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert default_json == {'required_name': 'default'}
+    assert missing_cfg.optional_output is None
+    assert null_cfg.optional_output is None
+    assert isinstance(value_cfg.optional_output, NestedOutputConfig)
+    assert value_cfg.optional_output.output_format == 'TXT'
+    assert value_json == {
+        'optional_output': {
+            'output_format': 'TXT'
+        },
+        'required_name': 'read'
+    }
+
+
+@pytest.mark.parametrize(
+    'kind',
+    [ConfigNestingKind.LIST_ELEMENT, ConfigNestingKind.DICT_VALUE,
+     ConfigNestingKind.DICT_VALUE_BY_KEY])
+def test_nested_future_kind_fail(capsys: CaptureFixture[str],
+                                 kind: ConfigNestingKind) -> None:
+    """Test that future nested Config kinds fail visibly."""
+    nesting = ConfigNesting(kind=kind, config_type=NestedOutputConfig)
+    with pytest.raises(NotImplementedError) as exc:
+        _ = BadNestedParentConfig(nesting, stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert 'unsupported nesting kind' in str(exc.value)
+
+
+def test_nested_discriminator_kind(capsys: CaptureFixture[str]) -> None:
+    """Test that discriminator_key is only accepted for its future kind."""
+    nesting = ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                            config_type=NestedOutputConfig,
+                            discriminator_key='file_format')
+    with pytest.raises(ValueError) as exc:
+        _ = BadNestedParentConfig(nesting, stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+    assert 'discriminator_key is reserved for DICT_VALUE_BY_KEY' in \
+        str(exc.value)
 
 
 @pytest.mark.parametrize(

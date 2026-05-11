@@ -70,6 +70,8 @@
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [\_over\_ride\_needed](#config_as_json.config._over_ride_needed)
   * [ParseConverter](#config_as_json.config.ParseConverter)
+  * [ConfigNestingKind](#config_as_json.config.ConfigNestingKind)
+  * [ConfigNesting](#config_as_json.config.ConfigNesting)
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [parse\_converters](#config_as_json.config.Config.parse_converters)
@@ -78,6 +80,8 @@
     * [\_json\_parse\_obj\_hook](#config_as_json.config.Config._json_parse_obj_hook)
     * [\_omit\_none\_from\_json](#config_as_json.config.Config._omit_none_from_json)
     * [\_checked\_omit\_none\_from\_json](#config_as_json.config.Config._checked_omit_none_from_json)
+    * [\_check\_config\_nesting](#config_as_json.config.Config._check_config_nesting)
+    * [\_checked\_nested\_configs](#config_as_json.config.Config._checked_nested_configs)
     * [\_rocf\_get\_keys\_to\_remove](#config_as_json.config.Config._rocf_get_keys_to_remove)
     * [\_rocf\_remove\_json\_key\_in\_dict](#config_as_json.config.Config._rocf_remove_json_key_in_dict)
     * [\_rocf\_remove\_json\_key\_in\_list](#config_as_json.config.Config._rocf_remove_json_key_in_list)
@@ -88,6 +92,10 @@
     * [\_rocf\_rename\_json\_key\_in\_dict](#config_as_json.config.Config._rocf_rename_json_key_in_dict)
     * [\_rocf\_rename\_json\_key\_in\_list](#config_as_json.config.Config._rocf_rename_json_key_in_list)
     * [\_rocf\_rename\_json\_keys](#config_as_json.config.Config._rocf_rename_json_keys)
+    * [\_nested\_config\_from\_json](#config_as_json.config.Config._nested_config_from_json)
+    * [\_nested\_config\_json\_data](#config_as_json.config.Config._nested_config_json_data)
+    * [\_validate\_nested\_config\_member](#config_as_json.config.Config._validate_nested_config_member)
+    * [\_validate\_nested\_configs](#config_as_json.config.Config._validate_nested_configs)
     * [parse\_json](#config_as_json.config.Config.parse_json)
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
     * [read](#config_as_json.config.Config.read)
@@ -1578,6 +1586,36 @@ real conversion recipes.
 
 Describe how one parsed JSON value should be converted after loading.
 
+<a id="config_as_json.config.ConfigNestingKind"></a>
+
+## ConfigNestingKind Objects
+
+```python
+class ConfigNestingKind(Enum)
+```
+
+Describe where a nested Config object is stored.
+
+``LIST_ELEMENT`` and ``DICT_VALUE`` are declared for future support.
+``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
+value support. All three raise ``NotImplementedError`` in this increment.
+
+<a id="config_as_json.config.ConfigNesting"></a>
+
+## ConfigNesting Objects
+
+```python
+class ConfigNesting(NamedTuple)
+```
+
+Describe one nested Config declaration.
+
+**Attributes**:
+
+- `kind` - Where the nested configuration object is stored.
+- `config_type` - Config-derived type to construct for JSON objects.
+- `discriminator_key` - Reserved for future ``DICT_VALUE_BY_KEY`` support.
+
 <a id="config_as_json.config.Config"></a>
 
 ## Config Objects
@@ -1604,6 +1642,11 @@ such as ``DictKeysValidator`` and ``DictForEachValidator`` define more
 flexible or more complex key and value policy instead. See
 ``DictKeysValidator`` in ``dict_validators`` for how that interacts with
 this check.
+
+A derived class can also declare direct nested configuration sections in
+``_nested_configs``. The first increment supports direct ``MEMBER`` and
+``OPTIONAL_MEMBER`` entries; other declared nesting kinds are reserved for
+later use and fail visibly.
 
 <a id="config_as_json.config.Config.__init__"></a>
 
@@ -1800,6 +1843,58 @@ Return validated omit-when-None member names.
 - `TypeError` - The hook returned a value with the wrong type.
 - `KeyError` - The hook listed an unknown public member.
 - `ValueError` - A listed member did not default to ``None``.
+
+<a id="config_as_json.config.Config._check_config_nesting"></a>
+
+#### \_check\_config\_nesting
+
+```python
+@staticmethod
+def _check_config_nesting(key: str, nesting: ConfigNesting) -> None
+```
+
+Validate one nested Config declaration.
+
+**Arguments**:
+
+- `key` - Public member name described by ``nesting``.
+- `nesting` - Nested configuration declaration to validate.
+
+
+**Raises**:
+
+- `TypeError` - The declaration has the wrong runtime type.
+- `ValueError` - ``discriminator_key`` is used with the wrong kind.
+- `NotImplementedError` - The declaration uses a future nesting kind.
+
+<a id="config_as_json.config.Config._checked_nested_configs"></a>
+
+#### \_checked\_nested\_configs
+
+```python
+def _checked_nested_configs(self_keys: list[str]) -> dict[str, ConfigNesting]
+```
+
+Return validated nested Config declarations.
+
+**Arguments**:
+
+- `self_keys` - Public configuration member names on this object.
+
+
+**Returns**:
+
+  The declarations stored in ``_nested_configs``, or an empty dict.
+
+
+**Raises**:
+
+- `TypeError` - ``_nested_configs`` or one of its entries has the wrong
+  runtime type.
+- `KeyError` - A declaration names an unknown public member.
+- `ValueError` - A future-only discriminator is used with the wrong
+  kind.
+- `NotImplementedError` - A declaration uses a future nesting kind.
 
 <a id="config_as_json.config.Config._rocf_get_keys_to_remove"></a>
 
@@ -2013,6 +2108,105 @@ This method applies all declared ROCF key renames in place.
 **Arguments**:
 
 - `json_data` - Parsed JSON object to normalize before validation.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+<a id="config_as_json.config.Config._nested_config_from_json"></a>
+
+#### \_nested\_config\_from\_json
+
+```python
+@staticmethod
+def _nested_config_from_json(member_name: str, json_data: object,
+                             nesting: ConfigNesting,
+                             stderr_file: TextIO) -> Optional['Config']
+```
+
+Construct one direct nested Config from parsed JSON data.
+
+**Arguments**:
+
+- `member_name` - Public parent member receiving the nested Config.
+- `json_data` - Parsed JSON value for the member.
+- `nesting` - Nested Config declaration for the member.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  A new nested Config instance, or ``None`` for optional JSON null.
+
+
+**Raises**:
+
+- `KeyError` - JSON data is not a dictionary for a nested Config.
+
+<a id="config_as_json.config.Config._nested_config_json_data"></a>
+
+#### \_nested\_config\_json\_data
+
+```python
+@staticmethod
+def _nested_config_json_data(
+        member_name: str, member_value: object, nesting: ConfigNesting,
+        stderr_file: TextIO) -> Optional[dict[str, JsonType]]
+```
+
+Return JSON data for one direct nested Config member.
+
+**Arguments**:
+
+- `member_name` - Public parent member being serialized.
+- `member_value` - Current value of that member.
+- `nesting` - Nested Config declaration for the member.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  A JSON-compatible dictionary, or ``None`` for optional members.
+
+
+**Raises**:
+
+- `TypeError` - The member value is not a valid nested Config object.
+
+<a id="config_as_json.config.Config._validate_nested_config_member"></a>
+
+#### \_validate\_nested\_config\_member
+
+```python
+@staticmethod
+def _validate_nested_config_member(member_name: str, member_value: object,
+                                   nesting: ConfigNesting,
+                                   stderr_file: TextIO) -> None
+```
+
+Validate one direct nested Config member.
+
+**Arguments**:
+
+- `member_name` - Public parent member containing the nested Config.
+- `member_value` - Current value of that member.
+- `nesting` - Nested Config declaration for the member.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Raises**:
+
+- `TypeError` - The member value is not a valid nested Config object.
+
+<a id="config_as_json.config.Config._validate_nested_configs"></a>
+
+#### \_validate\_nested\_configs
+
+```python
+def _validate_nested_configs(stderr_file: TextIO) -> None
+```
+
+Validate all direct nested Config members before this object.
+
+**Arguments**:
+
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 <a id="config_as_json.config.Config.parse_json"></a>

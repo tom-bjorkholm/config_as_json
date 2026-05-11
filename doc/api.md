@@ -54,6 +54,8 @@
   * [RocfKeyRename](#config_as_json.config.RocfKeyRename)
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [ParseConverter](#config_as_json.config.ParseConverter)
+  * [ConfigNestingKind](#config_as_json.config.ConfigNestingKind)
+  * [ConfigNesting](#config_as_json.config.ConfigNesting)
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [parse\_converters](#config_as_json.config.Config.parse_converters)
@@ -1201,6 +1203,36 @@ Report JSON input that could not be interpreted as configuration.
 
 Describe how one parsed JSON value should be converted after loading.
 
+<a id="config_as_json.config.ConfigNestingKind"></a>
+
+## ConfigNestingKind Objects
+
+```python
+class ConfigNestingKind(Enum)
+```
+
+Describe where a nested Config object is stored.
+
+``LIST_ELEMENT`` and ``DICT_VALUE`` are declared for future support.
+``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
+value support. All three raise ``NotImplementedError`` in this increment.
+
+<a id="config_as_json.config.ConfigNesting"></a>
+
+## ConfigNesting Objects
+
+```python
+class ConfigNesting(NamedTuple)
+```
+
+Describe one nested Config declaration.
+
+**Attributes**:
+
+- `kind` - Where the nested configuration object is stored.
+- `config_type` - Config-derived type to construct for JSON objects.
+- `discriminator_key` - Reserved for future ``DICT_VALUE_BY_KEY`` support.
+
 <a id="config_as_json.config.Config"></a>
 
 ## Config Objects
@@ -1227,6 +1259,11 @@ such as ``DictKeysValidator`` and ``DictForEachValidator`` define more
 flexible or more complex key and value policy instead. See
 ``DictKeysValidator`` in ``dict_validators`` for how that interacts with
 this check.
+
+A derived class can also declare direct nested configuration sections in
+``_nested_configs``. The first increment supports direct ``MEMBER`` and
+``OPTIONAL_MEMBER`` entries; other declared nesting kinds are reserved for
+later use and fail visibly.
 
 <a id="config_as_json.config.Config.__init__"></a>
 

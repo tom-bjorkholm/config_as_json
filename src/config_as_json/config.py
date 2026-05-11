@@ -17,7 +17,7 @@ from copy import deepcopy
 import json
 import sys
 from typing import Any, Optional, Type, NamedTuple, Callable, TextIO
-from enum import Enum, IntEnum
+from enum import Enum, IntEnum, auto
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
 from config_as_json.commontypes import JsonType, PathOrStr
@@ -91,6 +91,36 @@ ParseConverter = NamedTuple('ParseConverter', [('result_type', type),
 """Describe how one parsed JSON value should be converted after loading."""
 
 
+class ConfigNestingKind(Enum):
+    """Describe where a nested Config object is stored.
+
+    ``LIST_ELEMENT`` and ``DICT_VALUE`` are declared for future support.
+    ``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
+    value support. All three raise ``NotImplementedError`` in this increment.
+    """
+
+    MEMBER = auto()
+    OPTIONAL_MEMBER = auto()
+    LIST_ELEMENT = auto()
+    DICT_VALUE = auto()
+    # Reserved for future discriminated dictionary-value nesting support.
+    DICT_VALUE_BY_KEY = auto()
+
+
+class ConfigNesting(NamedTuple):
+    """Describe one nested Config declaration.
+
+    Attributes:
+        kind: Where the nested configuration object is stored.
+        config_type: Config-derived type to construct for JSON objects.
+        discriminator_key: Reserved for future ``DICT_VALUE_BY_KEY`` support.
+    """
+
+    kind: ConfigNestingKind
+    config_type: Type['Config']
+    discriminator_key: Optional[str] = None
+
+
 class Config():
     """Base class for application-specific JSON-backed configuration models.
 
@@ -110,6 +140,11 @@ class Config():
     flexible or more complex key and value policy instead. See
     ``DictKeysValidator`` in ``dict_validators`` for how that interacts with
     this check.
+
+    A derived class can also declare direct nested configuration sections in
+    ``_nested_configs``. The first increment supports direct ``MEMBER`` and
+    ``OPTIONAL_MEMBER`` entries; other declared nesting kinds are reserved for
+    later use and fail visibly.
     """
 
     def __init__(self, from_json_data_text: Optional[str],
@@ -160,6 +195,7 @@ class Config():
             msg += 'calling super().__init__().)'
             raise AttributeError(msg)
         self._checked_omit_none_from_json(self_keys, check_default_values=True)
+        self._checked_nested_configs(self_keys)
         unchecked = getattr(self, '_unchecked_dicts', None)
         if unchecked is None:
             self._unchecked_dicts: list[str] = []
@@ -340,6 +376,85 @@ class Config():
                 msg = f'_omit_none_from_json() key {key} must default to None'
                 raise ValueError(msg)
         return omit_none_keys
+
+    @staticmethod
+    def _check_config_nesting(key: str, nesting: ConfigNesting) -> None:
+        """Validate one nested Config declaration.
+
+        Args:
+            key: Public member name described by ``nesting``.
+            nesting: Nested configuration declaration to validate.
+
+        Raises:
+            TypeError: The declaration has the wrong runtime type.
+            ValueError: ``discriminator_key`` is used with the wrong kind.
+            NotImplementedError: The declaration uses a future nesting kind.
+        """
+        if not isinstance(nesting.kind, ConfigNestingKind):
+            msg = f'_nested_configs[{key}].kind must be ConfigNestingKind'
+            raise TypeError(msg)
+        if not isinstance(nesting.config_type, type):
+            msg = f'_nested_configs[{key}].config_type must be a type'
+            raise TypeError(msg)
+        if not issubclass(nesting.config_type, Config):
+            msg = f'_nested_configs[{key}].config_type must derive from Config'
+            raise TypeError(msg)
+        discriminator = nesting.discriminator_key
+        if discriminator is not None and not isinstance(discriminator, str):
+            msg = f'_nested_configs[{key}].discriminator_key must be a string'
+            raise TypeError(msg)
+        if discriminator is not None and \
+                nesting.kind != ConfigNestingKind.DICT_VALUE_BY_KEY:
+            msg = '_nested_configs discriminator_key is reserved for '
+            msg += 'DICT_VALUE_BY_KEY'
+            raise ValueError(msg)
+        if nesting.kind in (ConfigNestingKind.LIST_ELEMENT,
+                            ConfigNestingKind.DICT_VALUE,
+                            ConfigNestingKind.DICT_VALUE_BY_KEY):
+            msg = f'_nested_configs[{key}] uses unsupported nesting kind '
+            msg += f'{nesting.kind.name}'
+            raise NotImplementedError(msg)
+
+    def _checked_nested_configs(self, self_keys: list[str]) \
+            -> dict[str, ConfigNesting]:
+        """Return validated nested Config declarations.
+
+        Args:
+            self_keys: Public configuration member names on this object.
+
+        Returns:
+            The declarations stored in ``_nested_configs``, or an empty dict.
+
+        Raises:
+            TypeError: ``_nested_configs`` or one of its entries has the wrong
+                runtime type.
+            KeyError: A declaration names an unknown public member.
+            ValueError: A future-only discriminator is used with the wrong
+                kind.
+            NotImplementedError: A declaration uses a future nesting kind.
+        """
+        nested_raw: object = getattr(self, '_nested_configs', None)
+        if nested_raw is None:
+            self._nested_configs: dict[str, ConfigNesting] = {}
+            return {}
+        if not isinstance(nested_raw, dict):
+            msg = '_nested_configs must be a dict'
+            raise TypeError(msg)
+        nested_configs: dict[str, ConfigNesting] = {}
+        for key, nesting in nested_raw.items():
+            if not isinstance(key, str):
+                msg = '_nested_configs keys must be strings'
+                raise TypeError(msg)
+            if key not in self_keys:
+                msg = f'_nested_configs returned unknown key {key}'
+                raise KeyError(msg)
+            if not isinstance(nesting, ConfigNesting):
+                msg = f'_nested_configs[{key}] must be ConfigNesting'
+                raise TypeError(msg)
+            self._check_config_nesting(key=key, nesting=nesting)
+            nested_configs[key] = nesting
+        self._nested_configs = nested_configs
+        return nested_configs
 
     def _rocf_get_keys_to_remove(self) -> list[str]:
         """Return old JSON keys to remove while reading old files.
@@ -563,6 +678,106 @@ class Config():
                                                   stderr_file=stderr_file):
                 self._hook_cfg_autochange.old_key_handled(old_key=name.old)
 
+    @staticmethod
+    def _nested_config_from_json(member_name: str, json_data: object,
+                                 nesting: ConfigNesting,
+                                 stderr_file: TextIO) -> Optional['Config']:
+        """Construct one direct nested Config from parsed JSON data.
+
+        Args:
+            member_name: Public parent member receiving the nested Config.
+            json_data: Parsed JSON value for the member.
+            nesting: Nested Config declaration for the member.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Returns:
+            A new nested Config instance, or ``None`` for optional JSON null.
+
+        Raises:
+            KeyError: JSON data is not a dictionary for a nested Config.
+        """
+        if json_data is None and \
+                nesting.kind == ConfigNestingKind.OPTIONAL_MEMBER:
+            return None
+        if not isinstance(json_data, dict):
+            msg = f'Nested Config member {member_name} must be a JSON object'
+            print(msg, file=stderr_file)
+            raise KeyError(msg)
+        json_text = json.dumps(json_data, cls=_ConfigEncoder)
+        return nesting.config_type(from_json_data_text=json_text,
+                                   from_json_filename=None,
+                                   stderr_file=stderr_file)
+
+    @staticmethod
+    def _nested_config_json_data(member_name: str, member_value: object,
+                                 nesting: ConfigNesting, stderr_file: TextIO) \
+            -> Optional[dict[str, JsonType]]:
+        """Return JSON data for one direct nested Config member.
+
+        Args:
+            member_name: Public parent member being serialized.
+            member_value: Current value of that member.
+            nesting: Nested Config declaration for the member.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Returns:
+            A JSON-compatible dictionary, or ``None`` for optional members.
+
+        Raises:
+            TypeError: The member value is not a valid nested Config object.
+        """
+        if member_value is None and \
+                nesting.kind == ConfigNestingKind.OPTIONAL_MEMBER:
+            return None
+        if not isinstance(member_value, nesting.config_type):
+            msg = f'Nested Config member {member_name} must be '
+            msg += nesting.config_type.__name__
+            raise TypeError(msg)
+        json_data = json.loads(member_value.as_json_string(
+            stderr_file=stderr_file))
+        assert isinstance(json_data, dict)
+        return json_data
+
+    @staticmethod
+    def _validate_nested_config_member(member_name: str, member_value: object,
+                                       nesting: ConfigNesting,
+                                       stderr_file: TextIO) -> None:
+        """Validate one direct nested Config member.
+
+        Args:
+            member_name: Public parent member containing the nested Config.
+            member_value: Current value of that member.
+            nesting: Nested Config declaration for the member.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Raises:
+            TypeError: The member value is not a valid nested Config object.
+        """
+        if member_value is None and \
+                nesting.kind == ConfigNestingKind.OPTIONAL_MEMBER:
+            return
+        if not isinstance(member_value, nesting.config_type):
+            msg = f'Nested Config member {member_name} must be '
+            msg += nesting.config_type.__name__
+            print(msg, file=stderr_file)
+            raise TypeError(msg)
+        member_value.validate(stderr_file=stderr_file)
+
+    def _validate_nested_configs(self, stderr_file: TextIO) -> None:
+        """Validate all direct nested Config members before this object.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+        """
+        self_keys = [i for i in vars(self).keys() if not
+                     callable(getattr(self, i)) and not i.startswith('_')]
+        nested_configs = self._checked_nested_configs(self_keys)
+        for member_name, nesting in nested_configs.items():
+            member_value = getattr(self, member_name)
+            self._validate_nested_config_member(
+                member_name=member_name, member_value=member_value,
+                nesting=nesting, stderr_file=stderr_file)
+
     def parse_json(self, from_json_text: str, ok_to_use_defaults: bool = False,
                    stderr_file: TextIO = sys.stderr) -> None:
         """Parse JSON text and apply it to the configuration object.
@@ -606,14 +821,21 @@ class Config():
                      callable(getattr(self, i)) and not i.startswith('_')]
         omit_none_keys = self._checked_omit_none_from_json(
             self_keys, check_default_values=False)
+        nested_configs = self._checked_nested_configs(self_keys)
         self.check_key_match(self_keys, data.keys(), ok_to_use_defaults,
                              stderr_file, omit_none_keys)
         for i in self_keys:
             if i in data.keys():
-                self.check_dict_parse(getattr(self, i), data[i], i,
-                                      ok_to_use_defaults,
-                                      self._unchecked_dicts, stderr_file)
-                setattr(self, i, data[i])
+                if i in nested_configs:
+                    nested_value = self._nested_config_from_json(
+                        member_name=i, json_data=data[i],
+                        nesting=nested_configs[i], stderr_file=stderr_file)
+                    setattr(self, i, nested_value)
+                else:
+                    self.check_dict_parse(getattr(self, i), data[i], i,
+                                          ok_to_use_defaults,
+                                          self._unchecked_dicts, stderr_file)
+                    setattr(self, i, data[i])
 
     def as_json_string(self, stderr_file: TextIO) -> str:
         """Serialize the current configuration object to formatted JSON.
@@ -634,10 +856,16 @@ class Config():
                      callable(getattr(self, i)) and not i.startswith('_')]
         omit_none_keys = self._checked_omit_none_from_json(
             self_keys, check_default_values=False)
+        nested_configs = self._checked_nested_configs(self_keys)
         for i in self_keys:
             if i in omit_none_keys and getattr(self, i) is None:
                 continue
-            data[i] = getattr(self, i)
+            if i in nested_configs:
+                data[i] = self._nested_config_json_data(
+                    member_name=i, member_value=getattr(self, i),
+                    nesting=nested_configs[i], stderr_file=stderr_file)
+            else:
+                data[i] = getattr(self, i)
         return json.dumps(data, sort_keys=True, indent=4, cls=_ConfigEncoder)
 
     def read(self, from_json_filename: PathOrStr,
@@ -757,6 +985,7 @@ class Config():
         Args:
             stderr_file: Stream used for user-facing diagnostics.
         """
+        self._validate_nested_configs(stderr_file=stderr_file)
         validation_plan = self.get_validation_plan(stderr_file=stderr_file)
         for validation_step in validation_plan:
             validation_step.apply(self, stderr_file)
