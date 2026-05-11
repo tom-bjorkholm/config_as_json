@@ -11,9 +11,9 @@ import sys
 from typing import Any, Optional, cast, TextIO
 import pytest
 from pytest import CaptureFixture
-from config_as_json.config import Config, ConfigNesting, \
-    ConfigNestingKind, RocfKeyRename, ParseConverter
+from config_as_json.config import Config, RocfKeyRename, ParseConverter
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
 from config_as_json.commontypes import JsonType
 from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
     WholeConfigValidationStep, WholeConfigValidator

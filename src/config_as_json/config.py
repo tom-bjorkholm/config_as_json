@@ -22,13 +22,11 @@ from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
 from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.config_nesting import ConfigFactory, ConfigNesting, \
-    ConfigNestingKind
+from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
 from config_as_json.validator import ValidationPlan
 
 
-__all__ = ['Config', 'ConfigBadJson', 'ConfigFactory', 'ConfigNesting',
-           'ConfigNestingKind', 'ParseConverter', 'RocfKeyRename']
+__all__ = ['Config', 'ConfigBadJson', 'ParseConverter', 'RocfKeyRename']
 
 
 RocfKeyRename = NamedTuple('RocfKeyRename', [('old', str), ('new', str)])
