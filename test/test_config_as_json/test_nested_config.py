@@ -164,6 +164,37 @@ def test_multi_nested_optional_omit(capsys: CaptureFixture[str],
     }
 
 
+def test_multi_nested_roundtrip_file(capsys: CaptureFixture[str]) -> None:
+    """Test writing and reading direct and optional nested members."""
+    cfg = MultiSectionConfig(stderr_file=sys.stderr)
+    cfg.course_name = 'math'
+    cfg.participants.file_name = 'participants.txt'
+    cfg.participants.columns = ['email']
+    cfg.audit_log.file_name = 'audit.txt'
+    cfg.audit_log.include_actor = False
+    cfg.backup_participants = ParticipantSection(stderr_file=sys.stderr)
+    cfg.backup_participants.file_name = 'backup.txt'
+    cfg.backup_participants.columns = ['name']
+    with TemporaryDirectory() as dirname:
+        filename = dirname + '/multi_nested_config.cfg'
+        cfg.write(to_json_filename=filename, stderr_file=sys.stderr)
+        read_cfg = MultiSectionConfig(from_json_filename=filename,
+                                      stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert read_cfg.course_name == 'math'
+    assert isinstance(read_cfg.participants, ParticipantSection)
+    assert isinstance(read_cfg.audit_log, AuditSection)
+    assert isinstance(read_cfg.backup_participants, ParticipantSection)
+    assert read_cfg.participants.file_name == 'participants.txt'
+    assert read_cfg.participants.columns == ['email']
+    assert read_cfg.audit_log.file_name == 'audit.txt'
+    assert read_cfg.audit_log.include_actor is False
+    assert read_cfg.backup_participants.file_name == 'backup.txt'
+    assert read_cfg.backup_participants.columns == ['name']
+
+
 class ReportSection(Config):
     """Nested configuration for one report output."""
 
@@ -292,6 +323,44 @@ def test_list_nested_parse_write(capsys: CaptureFixture[str]) -> None:
             'output_format': 'CSV'
         }]
     }
+
+
+def _changed_reports(stderr_file: TextIO) \
+        -> tuple[ReportSection, ReportSection]:
+    """Return two non-default report sections."""
+    participants = ReportSection(stderr_file=stderr_file)
+    participants.name = 'participants'
+    participants.file_name = 'participants.txt'
+    participants.output_format = 'txt'
+    audit = ReportSection(stderr_file=stderr_file)
+    audit.name = 'audit'
+    audit.file_name = 'audit.csv'
+    audit.output_format = 'csv'
+    return participants, audit
+
+
+def test_list_nested_file_round_trip(capsys: CaptureFixture[str]) -> None:
+    """Test writing and reading non-default nested list values."""
+    participants, audit = _changed_reports(sys.stderr)
+    cfg = ReportListConfig(default_reports=[participants, audit],
+                           stderr_file=sys.stderr)
+    cfg.course_name = 'math'
+    with TemporaryDirectory() as dirname:
+        filename = dirname + '/list_nested_config.cfg'
+        cfg.write(to_json_filename=filename, stderr_file=sys.stderr)
+        read_cfg = ReportListConfig(from_json_filename=filename,
+                                    stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    assert read_cfg.course_name == 'math'
+    assert len(read_cfg.reports) == 2
+    assert isinstance(read_cfg.reports[0], ReportSection)
+    assert isinstance(read_cfg.reports[1], ReportSection)
+    assert read_cfg.reports[0].file_name == 'participants.txt'
+    assert read_cfg.reports[0].output_format == 'TXT'
+    assert read_cfg.reports[1].file_name == 'audit.csv'
+    assert read_cfg.reports[1].output_format == 'CSV'
 
 
 def test_list_nested_order(capsys: CaptureFixture[str]) -> None:
@@ -476,14 +545,7 @@ def test_dict_nested_parse_write(capsys: CaptureFixture[str]) -> None:
 
 def test_dict_nested_file_round_trip(capsys: CaptureFixture[str]) -> None:
     """Test writing and reading non-default nested dict values."""
-    participants = ReportSection(stderr_file=sys.stderr)
-    participants.name = 'participants'
-    participants.file_name = 'participants.txt'
-    participants.output_format = 'txt'
-    audit = ReportSection(stderr_file=sys.stderr)
-    audit.name = 'audit'
-    audit.file_name = 'audit.csv'
-    audit.output_format = 'csv'
+    participants, audit = _changed_reports(sys.stderr)
     cfg = ReportDictConfig(
         default_reports={'participants': participants, 'audit': audit},
         stderr_file=sys.stderr)
