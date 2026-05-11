@@ -1227,6 +1227,11 @@ class ConfigNesting(NamedTuple)
 
 Describe one nested Config declaration.
 
+The nested class must derive from :class:`Config` and must be
+constructible with keyword arguments ``from_json_data_text``,
+``from_json_filename``, and ``stderr_file``. This is the constructor
+shape used by the base class when it reads a nested JSON object.
+
 **Attributes**:
 
 - `kind` - Where the nested configuration object is stored.
@@ -1263,7 +1268,10 @@ this check.
 A derived class can also declare direct nested configuration sections in
 ``_nested_configs``. The first increment supports direct ``MEMBER`` and
 ``OPTIONAL_MEMBER`` entries; other declared nesting kinds are reserved for
-later use and fail visibly.
+later use and fail visibly. Nested config classes must accept the
+constructor keyword arguments ``from_json_data_text``,
+``from_json_filename``, and ``stderr_file`` because those are used when
+nested JSON objects are parsed.
 
 <a id="config_as_json.config.Config.__init__"></a>
 

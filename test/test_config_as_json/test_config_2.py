@@ -15,8 +15,7 @@ from config_as_json.config import Config, ConfigNesting, \
     ConfigNestingKind, RocfKeyRename, ParseConverter
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import JsonType
-from config_as_json.validator import InvalidConfiguration, \
-    MemberValidationStep, StrValidator, ValidationPlan, \
+from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
     WholeConfigValidationStep, WholeConfigValidator
 
 
@@ -120,6 +119,23 @@ class OmitNoneBadReturnConfig(OmitNoneConfig):
         return cast(list[str], self._omitted_keys)
 
 
+# pylint: disable-next=too-few-public-methods
+class NestedOutputValidator(WholeConfigValidator):
+    """Normalize the output format in nested Config tests."""
+
+    def validate(self, config: Config,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Validate and normalize one nested output configuration."""
+        assert isinstance(config, NestedOutputConfig)
+        value = config.output_format.lower()
+        if value in ('csv', 'txt'):
+            config.output_format = value.upper()
+            return
+        msg = 'Nested output format must be CSV or TXT'
+        print(msg, file=stderr_file)
+        raise InvalidConfiguration(msg)
+
+
 class NestedOutputConfig(Config):
     """Nested configuration class used by nested Config tests."""
 
@@ -127,20 +143,25 @@ class NestedOutputConfig(Config):
                  from_json_filename: Optional[str] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
         """Construct the nested output configuration."""
-        self.output_format = 'CSV'
+        self.output_format = self._default_format()
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
+    @staticmethod
+    def _default_format() -> str:
+        """Return the default output format for nested Config tests."""
+        return 'CSV'
+
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
         _ = stderr_file
-        return [
-            MemberValidationStep(
-                member_names=['output_format'],
-                validator=StrValidator(['CSV', 'TXT'], ignore_case=True,
-                                       normalize=True))
-        ]
+        return [self._output_format_step()]
+
+    @staticmethod
+    def _output_format_step() -> WholeConfigValidationStep:
+        """Return the validation step for the nested output format."""
+        return WholeConfigValidationStep(validator=NestedOutputValidator())
 
 
 # pylint: disable-next=too-few-public-methods
@@ -178,9 +199,12 @@ class NestedParentConfig(Config):
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
         _ = stderr_file
-        return [
-            WholeConfigValidationStep(validator=NestedParentValidator())
-        ]
+        return [self._parent_step()]
+
+    @staticmethod
+    def _parent_step() -> WholeConfigValidationStep:
+        """Return the validation step for parent validation order tests."""
+        return WholeConfigValidationStep(validator=NestedParentValidator())
 
 
 class OptionalNestedParentConfig(Config):

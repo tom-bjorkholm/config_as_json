@@ -907,3 +907,40 @@ The `set` command is only there to write small files for the example. It uses
 the same command-line helper as most earlier examples and accepts `--mode`,
 `--project-name`, and `--grid-size-mm`. The mode argument is optional and
 defaults to `2D`.
+
+## e33_nested_configs.py
+
+[Source code for e33_nested_configs.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e33_nested_configs.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e33_nested_configs.py)
+
+This example shows how to put a repeated group of related settings in its
+own `Config` class and then use that class as a nested section inside a
+larger configuration.
+
+The teaching story is a course registration export. The main configuration
+has:
+
+- `course_name`
+- `participant_output`, a mandatory nested `TableOutputConfig`
+- `audit_output`, an optional nested `TableOutputConfig`
+
+`TableOutputConfig` is an ordinary `Config` class with its own defaults and
+validators. It contains:
+
+- `file_name`
+- `output_format`
+- `encoding`
+
+The main configuration declares the nested members in `_nested_configs`:
+
+- `participant_output` uses `ConfigNestingKind.MEMBER`
+- `audit_output` uses `ConfigNestingKind.OPTIONAL_MEMBER`
+
+The optional member also appears in `_omit_none_from_json()`. That makes
+`audit_output` behave like other optional members: it may be absent from JSON,
+explicit JSON `null` is read as `None`, and it is omitted again while its
+value remains `None`.
+
+Nested config classes must derive from `Config` and must be constructible
+with the standard keyword arguments `from_json_data_text`,
+`from_json_filename`, and `stderr_file`. This is the constructor shape the
+base class uses when it parses a nested JSON object.

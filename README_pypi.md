@@ -26,6 +26,38 @@ applications define:
 - hooks that can warn or report when automatic compatibility changes were
   needed
 
+## Nested config sections
+
+For a repeated group of related settings, an application can put that group
+in its own class derived from `config_as_json.Config`, and then declare a
+member of the main configuration as a nested config section with
+`ConfigNesting`.
+
+The first supported nested shapes are:
+
+- `ConfigNestingKind.MEMBER`
+  The member is a mandatory nested `Config` object.
+- `ConfigNestingKind.OPTIONAL_MEMBER`
+  The member is either `None` or a nested `Config` object. To make omission
+  from JSON behave like other optional members, also list that member in
+  `_omit_none_from_json()`.
+
+Nested config classes must derive from `Config` and must be constructible
+with these keyword arguments:
+
+```python
+def __init__(self, from_json_data_text: Optional[str] = None,
+             from_json_filename: Optional[PathOrStr] = None,
+             stderr_file: TextIO = sys.stderr) -> None:
+```
+
+They may have additional optional arguments, but the base class constructs
+nested objects from JSON using the three keyword names shown above.
+
+`ConfigNestingKind.LIST_ELEMENT`, `ConfigNestingKind.DICT_VALUE`, and
+`ConfigNestingKind.DICT_VALUE_BY_KEY` are reserved for future nested-shape
+support and currently raise `NotImplementedError`.
+
 ## Installation
 
 `config-as-json` requires Python 3.12 or newer.
@@ -67,7 +99,7 @@ MIT
 
 ## Test summary
 
-- Test result: 3864 passed in 12s
+- Test result: 3875 passed in 12s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.
