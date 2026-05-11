@@ -12,7 +12,9 @@ write JSON configuration files.
 
 
 from config_as_json.config import Config, RocfKeyRename, ConfigBadJson, \
-    ParseConverter, ConfigNestingKind, ConfigNesting
+    ParseConverter
+from config_as_json.config_nesting import ConfigNestingKind, ConfigNesting, \
+    ConfigFactory
 from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_factory import config_factory_from_json, \
     MatchConfig, MatchConfigSeq, JsonValueMatcher
@@ -52,6 +54,7 @@ __all__ = ['Config',
            'ConfigBadJson',
            'ConfigNestingKind',
            'ConfigNesting',
+           'ConfigFactory',
            'JsonType',
            'PathOrStr',
            'ParseConverter',

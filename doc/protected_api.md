@@ -70,8 +70,6 @@
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [\_over\_ride\_needed](#config_as_json.config._over_ride_needed)
   * [ParseConverter](#config_as_json.config.ParseConverter)
-  * [ConfigNestingKind](#config_as_json.config.ConfigNestingKind)
-  * [ConfigNesting](#config_as_json.config.ConfigNesting)
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [parse\_converters](#config_as_json.config.Config.parse_converters)
@@ -270,6 +268,11 @@
     * [\_\_init\_\_](#config_as_json.as_dict_view_validator.AsDictViewValidator.__init__)
     * [\_validate\_dict\_view](#config_as_json.as_dict_view_validator.AsDictViewValidator._validate_dict_view)
     * [validate\_member](#config_as_json.as_dict_view_validator.AsDictViewValidator.validate_member)
+* [config\_as\_json.config\_nesting](#config_as_json.config_nesting)
+  * [ConfigNestingKind](#config_as_json.config_nesting.ConfigNestingKind)
+  * [ConfigFactory](#config_as_json.config_nesting.ConfigFactory)
+    * [\_\_call\_\_](#config_as_json.config_nesting.ConfigFactory.__call__)
+  * [ConfigNesting](#config_as_json.config_nesting.ConfigNesting)
 
 <a id="config_as_json.validator"></a>
 
@@ -1586,41 +1589,6 @@ real conversion recipes.
 
 Describe how one parsed JSON value should be converted after loading.
 
-<a id="config_as_json.config.ConfigNestingKind"></a>
-
-## ConfigNestingKind Objects
-
-```python
-class ConfigNestingKind(Enum)
-```
-
-Describe where a nested Config object is stored.
-
-``LIST_ELEMENT`` and ``DICT_VALUE`` are declared for future support.
-``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
-value support. All three raise ``NotImplementedError`` in this increment.
-
-<a id="config_as_json.config.ConfigNesting"></a>
-
-## ConfigNesting Objects
-
-```python
-class ConfigNesting(NamedTuple)
-```
-
-Describe one nested Config declaration.
-
-The nested class must derive from :class:`Config` and must be
-constructible with keyword arguments ``from_json_data_text``,
-``from_json_filename``, and ``stderr_file``. This is the constructor
-shape used by the base class when it reads a nested JSON object.
-
-**Attributes**:
-
-- `kind` - Where the nested configuration object is stored.
-- `config_type` - Config-derived type to construct for JSON objects.
-- `discriminator_key` - Reserved for future ``DICT_VALUE_BY_KEY`` support.
-
 <a id="config_as_json.config.Config"></a>
 
 ## Config Objects
@@ -1654,7 +1622,10 @@ A derived class can also declare direct nested configuration sections in
 later use and fail visibly. Nested config classes must accept the
 constructor keyword arguments ``from_json_data_text``,
 ``from_json_filename``, and ``stderr_file`` because those are used when
-nested JSON objects are parsed.
+nested JSON objects are parsed. As an alternative construction path, a
+``ConfigNesting`` declaration may provide ``factory_function`` with the
+same keyword-argument contract. The returned object must be an instance of
+the declared ``config_type``.
 
 <a id="config_as_json.config.Config.__init__"></a>
 
@@ -6072,4 +6043,83 @@ Validate one member through a dictionary-shaped view.
   rejects the dictionary view.
 - `InvalidConfigurationValue` - If an inner validator rejects a value
   because it is not one of its allowed values.
+
+<a id="config_as_json.config_nesting"></a>
+
+# config\_as\_json.config\_nesting
+
+Describe nested Config declarations.
+
+<a id="config_as_json.config_nesting.ConfigNestingKind"></a>
+
+## ConfigNestingKind Objects
+
+```python
+class ConfigNestingKind(Enum)
+```
+
+Describe where a nested Config object is stored.
+
+``LIST_ELEMENT`` and ``DICT_VALUE`` are declared for future support.
+``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
+value support. All three raise ``NotImplementedError`` in this increment.
+
+<a id="config_as_json.config_nesting.ConfigFactory"></a>
+
+## ConfigFactory Objects
+
+```python
+class ConfigFactory(Protocol)
+```
+
+Construct one nested Config object from JSON input.
+
+<a id="config_as_json.config_nesting.ConfigFactory.__call__"></a>
+
+#### \_\_call\_\_
+
+```python
+def __call__(*,
+             from_json_data_text: Optional[str] = None,
+             from_json_filename: Optional[PathOrStr] = None,
+             stderr_file: TextIO = sys.stderr) -> 'Config'
+```
+
+Construct one nested Config object.
+
+**Arguments**:
+
+- `from_json_data_text` - Optional JSON text to parse directly.
+- `from_json_filename` - Optional path to a JSON file to read.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  The constructed nested Config object.
+
+<a id="config_as_json.config_nesting.ConfigNesting"></a>
+
+## ConfigNesting Objects
+
+```python
+class ConfigNesting(NamedTuple)
+```
+
+Describe one nested Config declaration.
+
+The nested class must derive from :class:`Config` and must be
+constructible with keyword arguments ``from_json_data_text``,
+``from_json_filename``, and ``stderr_file``. This is the constructor
+shape used by the base class when it reads a nested JSON object. If
+``factory_function`` is set, that callable is used instead of the
+``config_type`` constructor. The factory must accept the same keyword
+arguments and must return an instance of ``config_type`` or a subclass.
+
+**Attributes**:
+
+- `kind` - Where the nested configuration object is stored.
+- `config_type` - Config-derived type expected for this member.
+- `discriminator_key` - Reserved for future ``DICT_VALUE_BY_KEY`` support.
+- `factory_function` - Optional callable used to construct JSON objects.
 

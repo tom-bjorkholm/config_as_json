@@ -54,6 +54,17 @@ def __init__(self, from_json_data_text: Optional[str] = None,
 They may have additional optional arguments, but the base class constructs
 nested objects from JSON using the three keyword names shown above.
 
+If construction needs application-specific logic, keep `config_type` as the
+expected runtime type and add `factory_function` to the `ConfigNesting`
+declaration. The factory must accept the same keyword arguments and must
+return an instance of `config_type` or a subclass:
+
+```python
+ConfigNesting(kind=ConfigNestingKind.MEMBER,
+              config_type=OutputConfig,
+              factory_function=create_output_config)
+```
+
 `ConfigNestingKind.LIST_ELEMENT`, `ConfigNestingKind.DICT_VALUE`, and
 `ConfigNestingKind.DICT_VALUE_BY_KEY` are reserved for future nested-shape
 support and currently raise `NotImplementedError`.
@@ -70,6 +81,8 @@ pip install --upgrade config-as-json
 
 - `config_as_json.Config`
   Base class for JSON-backed configuration objects.
+- `config_as_json.ConfigFactory`
+  Protocol for optional nested-config factory functions.
 - `config_as_json.config_factory_from_json`
   Select the correct configuration class by inspecting JSON input.
 - `config_as_json.ConfigAutoChangeHook`
@@ -99,7 +112,7 @@ MIT
 
 ## Test summary
 
-- Test result: 3875 passed in 12s
+- Test result: 3885 passed in 11s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

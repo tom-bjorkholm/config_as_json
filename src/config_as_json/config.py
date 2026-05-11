@@ -17,12 +17,18 @@ from copy import deepcopy
 import json
 import sys
 from typing import Any, Optional, Type, NamedTuple, Callable, TextIO
-from enum import Enum, IntEnum, auto
+from enum import Enum, IntEnum
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
 from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.config_nesting import ConfigFactory, ConfigNesting, \
+    ConfigNestingKind
 from config_as_json.validator import ValidationPlan
+
+
+__all__ = ['Config', 'ConfigBadJson', 'ConfigFactory', 'ConfigNesting',
+           'ConfigNestingKind', 'ParseConverter', 'RocfKeyRename']
 
 
 RocfKeyRename = NamedTuple('RocfKeyRename', [('old', str), ('new', str)])
@@ -91,41 +97,6 @@ ParseConverter = NamedTuple('ParseConverter', [('result_type', type),
 """Describe how one parsed JSON value should be converted after loading."""
 
 
-class ConfigNestingKind(Enum):
-    """Describe where a nested Config object is stored.
-
-    ``LIST_ELEMENT`` and ``DICT_VALUE`` are declared for future support.
-    ``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
-    value support. All three raise ``NotImplementedError`` in this increment.
-    """
-
-    MEMBER = auto()
-    OPTIONAL_MEMBER = auto()
-    LIST_ELEMENT = auto()
-    DICT_VALUE = auto()
-    # Reserved for future discriminated dictionary-value nesting support.
-    DICT_VALUE_BY_KEY = auto()
-
-
-class ConfigNesting(NamedTuple):
-    """Describe one nested Config declaration.
-
-    The nested class must derive from :class:`Config` and must be
-    constructible with keyword arguments ``from_json_data_text``,
-    ``from_json_filename``, and ``stderr_file``. This is the constructor
-    shape used by the base class when it reads a nested JSON object.
-
-    Attributes:
-        kind: Where the nested configuration object is stored.
-        config_type: Config-derived type to construct for JSON objects.
-        discriminator_key: Reserved for future ``DICT_VALUE_BY_KEY`` support.
-    """
-
-    kind: ConfigNestingKind
-    config_type: Type['Config']
-    discriminator_key: Optional[str] = None
-
-
 class Config():
     """Base class for application-specific JSON-backed configuration models.
 
@@ -152,7 +123,10 @@ class Config():
     later use and fail visibly. Nested config classes must accept the
     constructor keyword arguments ``from_json_data_text``,
     ``from_json_filename``, and ``stderr_file`` because those are used when
-    nested JSON objects are parsed.
+    nested JSON objects are parsed. As an alternative construction path, a
+    ``ConfigNesting`` declaration may provide ``factory_function`` with the
+    same keyword-argument contract. The returned object must be an instance of
+    the declared ``config_type``.
     """
 
     def __init__(self, from_json_data_text: Optional[str],
@@ -406,6 +380,10 @@ class Config():
             raise TypeError(msg)
         if not issubclass(nesting.config_type, Config):
             msg = f'_nested_configs[{key}].config_type must derive from Config'
+            raise TypeError(msg)
+        if nesting.factory_function is not None and \
+                not callable(nesting.factory_function):
+            msg = f'_nested_configs[{key}].factory_function must be callable'
             raise TypeError(msg)
         discriminator = nesting.discriminator_key
         if discriminator is not None and not isinstance(discriminator, str):
@@ -712,9 +690,20 @@ class Config():
             print(msg, file=stderr_file)
             raise KeyError(msg)
         json_text = json.dumps(json_data, cls=_ConfigEncoder)
-        return nesting.config_type(from_json_data_text=json_text,
-                                   from_json_filename=None,
-                                   stderr_file=stderr_file)
+        if nesting.factory_function is None:
+            nested_config = nesting.config_type(
+                from_json_data_text=json_text, from_json_filename=None,
+                stderr_file=stderr_file)
+        else:
+            nested_config = nesting.factory_function(
+                from_json_data_text=json_text, from_json_filename=None,
+                stderr_file=stderr_file)
+        if not isinstance(nested_config, nesting.config_type):
+            msg = f'Nested Config factory for {member_name} must return '
+            msg += nesting.config_type.__name__
+            print(msg, file=stderr_file)
+            raise TypeError(msg)
+        return nested_config
 
     @staticmethod
     def _nested_config_json_data(member_name: str, member_value: object,
