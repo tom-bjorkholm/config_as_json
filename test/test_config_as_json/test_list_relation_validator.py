@@ -5,11 +5,13 @@
 # MIT License
 
 import sys
+from collections.abc import Callable
 from typing import Any, Optional, TextIO, cast
 import pytest
 from config_as_json.config import Config
 from config_as_json.list_relation_validator import ListRelationKind, \
-    ListRelationValidator
+    ListRelationValidator, _contains_equal, _is_disjoint, \
+    _is_distinct_subset, _is_multiset_equal
 from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
     WholeConfigValidationStep, WholeConfigValidator
 
@@ -66,6 +68,11 @@ def handler_names_projector(config: Config, stderr_file: TextIO) -> object:
     return tuple(relation_config.handlers.keys())
 
 
+def standard_eq(left: object, right: object) -> bool:
+    """Compare values using normal Python equality."""
+    return left == right
+
+
 def case_insensitive_eq(left: object, right: object) -> bool:
     """Compare strings case-insensitively and other values normally."""
     if isinstance(left, str) and isinstance(right, str):
@@ -94,6 +101,206 @@ def assert_relation_failure(capsys: pytest.CaptureFixture[str],
     assert captured.out == ''
     assert message in captured.err
     assert message in str(exc.value)
+
+
+def relation_holds_for_kind(kind: ListRelationKind, values_a: list[object],
+                            values_b: list[object], eq_comparator: Callable[
+                                [object, object], bool]) -> bool:
+    """Return relation result from the protected relation dispatcher."""
+    validator = ListRelationValidator(
+        kind=kind, member_a_name='a', member_b_name='b',
+        eq_comparator=eq_comparator)
+    # pylint: disable-next=protected-access
+    return validator._relation_holds(values_a, values_b)
+
+
+@pytest.mark.parametrize(
+    'values, value, eq_comparator, expected',
+    [pytest.param([], 'api', standard_eq, False, id='empty-list'),
+     pytest.param(['api'], 'api', standard_eq, True, id='first-item'),
+     pytest.param(['api', 'admin'], 'admin', standard_eq, True,
+                  id='later-item'),
+     pytest.param(['api'], 'admin', standard_eq, False, id='missing-item'),
+     pytest.param(['api', 'api'], 'api', standard_eq, True,
+                  id='duplicate-match'),
+     pytest.param([[1], [2]], [2], standard_eq, True, id='unhashable-match'),
+     pytest.param([[1]], [2], standard_eq, False, id='unhashable-missing'),
+     pytest.param(['API'], 'api', case_insensitive_eq, True,
+                  id='custom-equality-match'),
+     pytest.param(['API'], 'admin', case_insensitive_eq, False,
+                  id='custom-equality-missing')])
+def test_contains_equal(values: list[object], value: object,
+                        eq_comparator: Callable[[object, object], bool],
+                        expected: bool) -> None:
+    """Test protected containment checks with edge-case list values."""
+    assert _contains_equal(values, value, eq_comparator) is expected
+
+
+@pytest.mark.parametrize(
+    'values_a, values_b, eq_comparator, expected',
+    [pytest.param([], [], standard_eq, True, id='empty-is-subset-of-empty'),
+     pytest.param([], ['api'], standard_eq, True,
+                  id='empty-is-subset-of-nonempty'),
+     pytest.param(['api'], [], standard_eq, False,
+                  id='nonempty-is-not-subset-of-empty'),
+     pytest.param(['api'], ['api'], standard_eq, True, id='same-single-value'),
+     pytest.param(['admin', 'api'], ['api', 'admin'], standard_eq, True,
+                  id='order-ignored'),
+     pytest.param(['api'], ['api', 'admin'], standard_eq, True,
+                  id='extra-values-in-superset'),
+     pytest.param(['metrics'], ['api', 'admin'], standard_eq, False,
+                  id='missing-distinct-value'),
+     pytest.param(['api', 'api'], ['api'], standard_eq, True,
+                  id='duplicates-in-subset-ignored'),
+     pytest.param(['api'], ['api', 'api'], standard_eq, True,
+                  id='duplicates-in-superset-ok'),
+     pytest.param(['api', 'api', 'admin'], ['api'], standard_eq, False,
+                  id='missing-one-distinct-value'),
+     pytest.param([[1], [1]], [[1]], standard_eq, True,
+                  id='unhashable-duplicates-ignored'),
+     pytest.param([[1], [2]], [[2], [1]], standard_eq, True,
+                  id='unhashable-order-ignored'),
+     pytest.param([[1], [2]], [[1]], standard_eq, False,
+                  id='unhashable-missing-value'),
+     pytest.param(['API', 'api'], ['api'], case_insensitive_eq, True,
+                  id='custom-equality-duplicates-ignored'),
+     pytest.param(['API', 'admin'], ['api'], case_insensitive_eq, False,
+                  id='custom-equality-missing-value')])
+def test_is_distinct_subset(values_a: list[object], values_b: list[object],
+                            eq_comparator: Callable[[object, object], bool],
+                            expected: bool) -> None:
+    """Test protected distinct-subset checks with duplicates and empties."""
+    assert _is_distinct_subset(values_a, values_b, eq_comparator) is expected
+
+
+@pytest.mark.parametrize(
+    'values_a, values_b, eq_comparator, expected',
+    [pytest.param([], [], standard_eq, True, id='empty-multisets'),
+     pytest.param(['api'], ['api'], standard_eq, True, id='same-single-value'),
+     pytest.param(['api', 'admin'], ['admin', 'api'], standard_eq, True,
+                  id='order-ignored'),
+     pytest.param(['api', 'api', 'admin'], ['api', 'admin', 'api'],
+                  standard_eq, True, id='duplicate-counts-match'),
+     pytest.param(['api', 'api'], ['api', 'admin'], standard_eq, False,
+                  id='same-length-duplicate-count-mismatch'),
+     pytest.param(['api'], ['api', 'api'], standard_eq, False,
+                  id='length-mismatch'),
+     pytest.param(['api', 'admin'], ['api', 'metrics'], standard_eq, False,
+                  id='same-length-different-value'),
+     pytest.param([[1], [2]], [[2], [1]], standard_eq, True,
+                  id='unhashable-order-ignored'),
+     pytest.param([[1], [1]], [[1], [2]], standard_eq, False,
+                  id='unhashable-count-mismatch'),
+     pytest.param(['API', 'a'], ['api', 'A'], case_insensitive_eq, True,
+                  id='custom-equality-match'),
+     pytest.param(['API', 'api'], ['api', 'admin'], case_insensitive_eq, False,
+                  id='custom-equality-count-mismatch')])
+def test_is_multiset_equal(values_a: list[object], values_b: list[object],
+                           eq_comparator: Callable[[object, object], bool],
+                           expected: bool) -> None:
+    """Test protected multiset equality checks with order and counts."""
+    assert _is_multiset_equal(values_a, values_b, eq_comparator) is expected
+
+
+@pytest.mark.parametrize(
+    'values_a, values_b, eq_comparator, expected',
+    [pytest.param([], [], standard_eq, True, id='two-empty-lists'),
+     pytest.param([], ['api'], standard_eq, True, id='empty-left'),
+     pytest.param(['api'], [], standard_eq, True, id='empty-right'),
+     pytest.param(['api'], ['admin'], standard_eq, True, id='no-overlap'),
+     pytest.param(['api'], ['admin', 'api'], standard_eq, False,
+                  id='one-shared-value'),
+     pytest.param(['api', 'api'], ['admin', 'api'], standard_eq, False,
+                  id='duplicate-left-overlap'),
+     pytest.param(['api'], ['admin', 'api', 'api'], standard_eq, False,
+                  id='duplicate-right-overlap'),
+     pytest.param([[1]], [[2]], standard_eq, True, id='unhashable-no-overlap'),
+     pytest.param([[1]], [[2], [1]], standard_eq, False,
+                  id='unhashable-overlap'),
+     pytest.param(['API'], ['api'], case_insensitive_eq, False,
+                  id='custom-equality-overlap'),
+     pytest.param(['API'], ['admin'], case_insensitive_eq, True,
+                  id='custom-equality-no-overlap')])
+def test_is_disjoint(values_a: list[object], values_b: list[object],
+                     eq_comparator: Callable[[object, object], bool],
+                     expected: bool) -> None:
+    """Test protected disjoint checks with empty lists and duplicates."""
+    assert _is_disjoint(values_a, values_b, eq_comparator) is expected
+
+
+@pytest.mark.parametrize(
+    'kind, values_a, values_b, eq_comparator, expected',
+    [pytest.param(ListRelationKind.EQUAL, [], [], standard_eq, True,
+                  id='equal-empty'),
+     pytest.param(ListRelationKind.EQUAL, ['api'], ['api'], standard_eq, True,
+                  id='equal-same-order'),
+     pytest.param(ListRelationKind.EQUAL, ['admin', 'api'], ['api', 'admin'],
+                  standard_eq, False, id='equal-order-matters'),
+     pytest.param(ListRelationKind.EQUAL, ['api'], ['api', 'admin'],
+                  standard_eq, False, id='equal-length-matters'),
+     pytest.param(ListRelationKind.EQUAL, [[1]], [[1]], standard_eq, True,
+                  id='equal-unhashable-values'),
+     pytest.param(ListRelationKind.EQUAL, ['API'], ['api'],
+                  case_insensitive_eq, True, id='equal-custom-equality'),
+     pytest.param(ListRelationKind.MULTISET_EQUAL, [], [], standard_eq, True,
+                  id='multiset-empty'),
+     pytest.param(ListRelationKind.MULTISET_EQUAL, ['api', 'admin'],
+                  ['admin', 'api'], standard_eq, True,
+                  id='multiset-order-ignored'),
+     pytest.param(ListRelationKind.MULTISET_EQUAL, ['api', 'api'],
+                  ['api', 'admin'], standard_eq, False,
+                  id='multiset-counts-matter'),
+     pytest.param(ListRelationKind.MULTISET_EQUAL, ['api'], ['api', 'api'],
+                  standard_eq, False, id='multiset-length-matters'),
+     pytest.param(ListRelationKind.MULTISET_EQUAL, [[1], [2]], [[2], [1]],
+                  standard_eq, True, id='multiset-unhashable-values'),
+     pytest.param(ListRelationKind.MULTISET_EQUAL, ['API', 'admin'],
+                  ['api', 'ADMIN'], case_insensitive_eq, True,
+                  id='multiset-custom-equality'),
+     pytest.param(ListRelationKind.SET_EQUAL, [], [], standard_eq, True,
+                  id='set-empty'),
+     pytest.param(ListRelationKind.SET_EQUAL, ['api', 'api'], ['api'],
+                  standard_eq, True, id='set-duplicates-ignored'),
+     pytest.param(ListRelationKind.SET_EQUAL, ['admin', 'api'],
+                  ['api', 'admin'], standard_eq, True, id='set-order-ignored'),
+     pytest.param(ListRelationKind.SET_EQUAL, ['api'], ['api', 'admin'],
+                  standard_eq, False, id='set-missing-value'),
+     pytest.param(ListRelationKind.SET_EQUAL, [[1], [1]], [[1]], standard_eq,
+                  True, id='set-unhashable-values'),
+     pytest.param(ListRelationKind.SET_EQUAL, ['API'], ['api'],
+                  case_insensitive_eq, True, id='set-custom-equality'),
+     pytest.param(ListRelationKind.SUBSET, [], ['api'], standard_eq, True,
+                  id='subset-empty-left'),
+     pytest.param(ListRelationKind.SUBSET, ['api', 'api'], ['api'],
+                  standard_eq, True, id='subset-duplicates-ignored'),
+     pytest.param(ListRelationKind.SUBSET, ['api'], ['admin', 'api'],
+                  standard_eq, True, id='subset-extra-right-values-ok'),
+     pytest.param(ListRelationKind.SUBSET, ['api', 'admin'], ['api'],
+                  standard_eq, False, id='subset-missing-right-value'),
+     pytest.param(ListRelationKind.SUBSET, [[1]], [[2], [1]], standard_eq,
+                  True, id='subset-unhashable-values'),
+     pytest.param(ListRelationKind.SUBSET, ['API'], ['api'],
+                  case_insensitive_eq, True, id='subset-custom-equality'),
+     pytest.param(ListRelationKind.DISJOINT, [], [], standard_eq, True,
+                  id='disjoint-empty'),
+     pytest.param(ListRelationKind.DISJOINT, ['api'], ['admin'], standard_eq,
+                  True, id='disjoint-no-overlap'),
+     pytest.param(ListRelationKind.DISJOINT, ['api'], ['admin', 'api'],
+                  standard_eq, False, id='disjoint-shared-value'),
+     pytest.param(ListRelationKind.DISJOINT, ['api', 'api'], ['api'],
+                  standard_eq, False, id='disjoint-duplicates-overlap'),
+     pytest.param(ListRelationKind.DISJOINT, [[1]], [[2]], standard_eq, True,
+                  id='disjoint-unhashable-no-overlap'),
+     pytest.param(ListRelationKind.DISJOINT, ['API'], ['api'],
+                  case_insensitive_eq, False,
+                  id='disjoint-custom-equality-overlap')])
+def test_list_rel_relation_holds(
+        kind: ListRelationKind, values_a: list[object], values_b: list[object],
+        eq_comparator: Callable[[object, object], bool],
+        expected: bool) -> None:
+    """Test protected relation dispatch for every relation kind."""
+    assert relation_holds_for_kind(
+        kind, values_a, values_b, eq_comparator) is expected
 
 
 @pytest.mark.parametrize(
