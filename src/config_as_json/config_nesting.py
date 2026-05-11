@@ -17,9 +17,14 @@ if TYPE_CHECKING:
 class ConfigNestingKind(Enum):
     """Describe where a nested Config object is stored.
 
-    ``LIST_ELEMENT`` and ``DICT_VALUE`` are declared for future support.
-    ``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
-    value support. All three raise ``NotImplementedError`` in this increment.
+    ``MEMBER`` describes a mandatory public member containing one nested
+    Config object. ``OPTIONAL_MEMBER`` describes a public member that may be
+    ``None`` or one nested Config object. ``LIST_ELEMENT`` describes a public
+    member that stores a list where every element is a nested Config object.
+    ``DICT_VALUE`` is reserved for future support where every value in a
+    dict is a nested Config object. ``DICT_VALUE_BY_KEY`` is reserved for
+    future discriminated dictionary value support. The dictionary kinds raise
+    ``NotImplementedError`` in this increment.
     """
 
     MEMBER = auto()

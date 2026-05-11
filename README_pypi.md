@@ -33,7 +33,7 @@ in its own class derived from `config_as_json.Config`, and then declare a
 member of the main configuration as a nested config section with
 `ConfigNesting`.
 
-The first supported nested shapes are:
+The supported nested shapes are:
 
 - `ConfigNestingKind.MEMBER`
   The member is a mandatory nested `Config` object.
@@ -41,6 +41,8 @@ The first supported nested shapes are:
   The member is either `None` or a nested `Config` object. To make omission
   from JSON behave like other optional members, also list that member in
   `_omit_none_from_json()`.
+- `ConfigNestingKind.LIST_ELEMENT`
+  The member is a list, and every list element is a nested `Config` object.
 
 Nested config classes must derive from `Config` and must be constructible
 with these keyword arguments:
@@ -65,7 +67,10 @@ ConfigNesting(kind=ConfigNestingKind.MEMBER,
               factory_function=create_output_config)
 ```
 
-`ConfigNestingKind.LIST_ELEMENT`, `ConfigNestingKind.DICT_VALUE`, and
+The same factory form can be used with `ConfigNestingKind.LIST_ELEMENT`;
+the factory is then called once for every JSON object in the list.
+
+`ConfigNestingKind.DICT_VALUE` and
 `ConfigNestingKind.DICT_VALUE_BY_KEY` are reserved for future nested-shape
 support and currently raise `NotImplementedError`.
 
@@ -112,7 +117,7 @@ MIT
 
 ## Test summary
 
-- Test result: 3885 passed in 11s
+- Test result: 3905 passed in 12s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

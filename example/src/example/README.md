@@ -944,3 +944,44 @@ Nested config classes must derive from `Config` and must be constructible
 with the standard keyword arguments `from_json_data_text`,
 `from_json_filename`, and `stderr_file`. This is the constructor shape the
 base class uses when it parses a nested JSON object.
+
+## e34_list_nested_configs.py
+
+[Source code for e34_list_nested_configs.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e34_list_nested_configs.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e34_list_nested_configs.py)
+
+This example shows how to use a list where every element is a nested
+`Config` object.
+
+The teaching story is again a course export tool, but now the course can
+produce any number of report outputs. Each report output has the same
+settings:
+
+- `name`
+- `file_name`
+- `output_format`
+- `encoding`
+
+Those repeated settings live in `ReportOutputConfig`. The top-level
+configuration stores:
+
+- `course_name`
+- `reports`, a `list[ReportOutputConfig]`
+
+The important declaration is:
+
+- `reports` uses `ConfigNestingKind.LIST_ELEMENT`
+
+The member named in `_nested_configs` is the top-level list member. The
+`config_type` is the type of each list element. When JSON is read, the base
+class expects `reports` to be a JSON list, and each element in that list must
+be a JSON object. Each object is parsed by constructing one
+`ReportOutputConfig`, so the normal defaults, converters, and validators for
+that nested class are applied to every element.
+
+When JSON is written, each `ReportOutputConfig` element is serialized back to
+a JSON object. Empty lists are valid, and default lists may also contain one
+or more nested config objects.
+
+The command-line helper accepts the whole `reports` value as JSON. That keeps
+the example focused on the library feature instead of inventing a separate
+command-line syntax for objects inside lists.

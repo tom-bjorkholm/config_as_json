@@ -43,6 +43,10 @@
   * [OptionalMemberValidator](#config_as_json.optional_validator.OptionalMemberValidator)
     * [\_\_init\_\_](#config_as_json.optional_validator.OptionalMemberValidator.__init__)
     * [validate\_member](#config_as_json.optional_validator.OptionalMemberValidator.validate_member)
+* [config\_as\_json.\_config\_nesting\_io](#config_as_json._config_nesting_io)
+  * [nested\_config\_from\_json](#config_as_json._config_nesting_io.nested_config_from_json)
+  * [nested\_config\_json\_data](#config_as_json._config_nesting_io.nested_config_json_data)
+  * [validate\_nested\_config](#config_as_json._config_nesting_io.validate_nested_config)
 * [config\_as\_json.config\_auto\_change\_hook](#config_as_json.config_auto_change_hook)
   * [ConfigAutoChangeHook](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook)
     * [\_\_init\_\_](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.__init__)
@@ -1063,6 +1067,85 @@ Validate one member if it is not None.
 
   The same exceptions as the supplied validator(s).
 
+<a id="config_as_json._config_nesting_io"></a>
+
+# config\_as\_json.\_config\_nesting\_io
+
+Read, write, and validate nested Config declarations.
+
+<a id="config_as_json._config_nesting_io.nested_config_from_json"></a>
+
+#### nested\_config\_from\_json
+
+```python
+def nested_config_from_json(member_name: str, json_data: object,
+                            nesting: ConfigNesting,
+                            stderr_file: TextIO) -> object
+```
+
+Construct nested Config data from parsed JSON data.
+
+**Arguments**:
+
+- `member_name` - Public parent member receiving the nested data.
+- `json_data` - Parsed JSON value for the member.
+- `nesting` - Nested Config declaration for the member.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  A nested Config, ``None`` for optional JSON null, or a list of nested
+  Config objects.
+
+<a id="config_as_json._config_nesting_io.nested_config_json_data"></a>
+
+#### nested\_config\_json\_data
+
+```python
+def nested_config_json_data(member_name: str, member_value: object,
+                            nesting: ConfigNesting,
+                            stderr_file: TextIO) -> JsonType
+```
+
+Return JSON data for one nested Config declaration.
+
+**Arguments**:
+
+- `member_name` - Public parent member being serialized.
+- `member_value` - Current value of that member.
+- `nesting` - Nested Config declaration for the member.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  JSON-compatible data for the configured nesting kind.
+
+<a id="config_as_json._config_nesting_io.validate_nested_config"></a>
+
+#### validate\_nested\_config
+
+```python
+def validate_nested_config(member_name: str, member_value: object,
+                           nesting: ConfigNesting,
+                           stderr_file: TextIO) -> None
+```
+
+Validate one nested Config declaration.
+
+**Arguments**:
+
+- `member_name` - Public parent member containing the nested data.
+- `member_value` - Current value of that member.
+- `nesting` - Nested Config declaration for the member.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Raises**:
+
+- `TypeError` - The member value does not match the nesting kind.
+
 <a id="config_as_json.config_auto_change_hook"></a>
 
 # config\_as\_json.config\_auto\_change\_hook
@@ -1233,10 +1316,11 @@ flexible or more complex key and value policy instead. See
 ``DictKeysValidator`` in ``dict_validators`` for how that interacts with
 this check.
 
-A derived class can also declare direct nested configuration sections in
-``_nested_configs``. The first increment supports direct ``MEMBER`` and
-``OPTIONAL_MEMBER`` entries; other declared nesting kinds are reserved for
-later use and fail visibly. Nested config classes must accept the
+A derived class can also declare nested configuration sections in
+``_nested_configs``. ``MEMBER`` and ``OPTIONAL_MEMBER`` describe direct
+members, and ``LIST_ELEMENT`` describes a list whose elements are nested
+Config objects. Other declared nesting kinds are reserved for later use
+and fail visibly. Nested config classes must accept the
 constructor keyword arguments ``from_json_data_text``,
 ``from_json_filename``, and ``stderr_file`` because those are used when
 nested JSON objects are parsed. As an alternative construction path, a
@@ -3895,9 +3979,14 @@ class ConfigNestingKind(Enum)
 
 Describe where a nested Config object is stored.
 
-``LIST_ELEMENT`` and ``DICT_VALUE`` are declared for future support.
-``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
-value support. All three raise ``NotImplementedError`` in this increment.
+``MEMBER`` describes a mandatory public member containing one nested
+Config object. ``OPTIONAL_MEMBER`` describes a public member that may be
+``None`` or one nested Config object. ``LIST_ELEMENT`` describes a public
+member that stores a list where every element is a nested Config object.
+``DICT_VALUE`` is reserved for future support where every value in a
+dict is a nested Config object. ``DICT_VALUE_BY_KEY`` is reserved for
+future discriminated dictionary value support. The dictionary kinds raise
+``NotImplementedError`` in this increment.
 
 <a id="config_as_json.config_nesting.ConfigFactory"></a>
 

@@ -153,9 +153,37 @@ class OptionalFactoryParentConfig(Config):
         return _empty_plan(stderr_file)
 
 
+class ListFactoryParentConfig(Config):
+    """Parent configuration with factory-enabled nested list elements."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr,
+                 factory_function: Optional[ConfigFactory] = None) -> None:
+        """Construct a parent configuration with nested list elements."""
+        self.outputs: list[FactoryOutputConfig] = []
+        output_nesting = ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
+                                       config_type=FactoryOutputConfig,
+                                       factory_function=factory_function)
+        self._nested_configs = {'outputs': output_nesting}
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return validation steps for this parent configuration."""
+        return _empty_plan(stderr_file)
+
+
 def _json_text() -> str:
     """Return JSON with one nested output configuration."""
     return '{"output": {"format_name": "TXT", "name": "from-json"}}'
+
+
+def _list_json_text() -> str:
+    """Return JSON with two nested output configurations."""
+    return ('{"outputs": [{"format_name": "TXT", "name": "first"}, '
+            '{"format_name": "CSV", "name": "second"}]}')
 
 
 def _expected_json() -> dict[str, object]:
@@ -165,6 +193,19 @@ def _expected_json() -> dict[str, object]:
             'format_name': 'TXT',
             'name': 'from-json'
         }
+    }
+
+
+def _list_expected_json() -> dict[str, object]:
+    """Return expected JSON-compatible data for nested list parsing."""
+    return {
+        'outputs': [{
+            'format_name': 'TXT',
+            'name': 'first'
+        }, {
+            'format_name': 'CSV',
+            'name': 'second'
+        }]
     }
 
 
@@ -239,6 +280,23 @@ def test_optional_factory_constructs(capsys: CaptureFixture[str]) -> None:
     assert json_data == _expected_json()
 
 
+def test_list_factory_constructs(capsys: CaptureFixture[str]) -> None:
+    """Test that a factory constructs every nested list element."""
+    factory = TrackingFactory()
+    cfg = ListFactoryParentConfig(from_json_data_text=_list_json_text(),
+                                  factory_function=factory,
+                                  stderr_file=sys.stderr)
+    json_data = _json_data_from_config(cfg, capsys)
+    json_texts = [text for text in factory.json_texts if text is not None]
+    assert factory.filenames == [None, None]
+    assert factory.stderr_files == [sys.stderr, sys.stderr]
+    assert [json.loads(text) for text in json_texts] == \
+        _list_expected_json()['outputs']
+    assert [output.construction_label() for output in cfg.outputs] == \
+        ['factory', 'factory']
+    assert json_data == _list_expected_json()
+
+
 def test_factory_must_be_callable() -> None:
     """Test that a non-callable factory declaration fails visibly."""
     bad_factory = cast(ConfigFactory, 'not-callable')
@@ -256,6 +314,17 @@ def test_factory_return_type_checked(capsys: CaptureFixture[str]) -> None:
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Nested Config factory for output must return' in err
+
+
+def test_list_factory_bad_return(capsys: CaptureFixture[str]) -> None:
+    """Test that list factory results must match config_type."""
+    with pytest.raises(TypeError, match='outputs\\[0\\] must return'):
+        ListFactoryParentConfig(from_json_data_text=_list_json_text(),
+                                factory_function=WrongTypeFactory(),
+                                stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Nested Config factory for outputs[0] must return' in err
 
 
 def test_factory_checks_member_type(capsys: CaptureFixture[str]) -> None:
