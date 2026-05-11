@@ -21,10 +21,10 @@ class ConfigNestingKind(Enum):
     Config object. ``OPTIONAL_MEMBER`` describes a public member that may be
     ``None`` or one nested Config object. ``LIST_ELEMENT`` describes a public
     member that stores a list where every element is a nested Config object.
-    ``DICT_VALUE`` is reserved for future support where every value in a
-    dict is a nested Config object. ``DICT_VALUE_BY_KEY`` is reserved for
-    future discriminated dictionary value support. The dictionary kinds raise
-    ``NotImplementedError`` in this increment.
+    ``DICT_VALUE`` describes a public member that stores a dict where every
+    value is a nested Config object and every key must be a string.
+    ``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
+    value support and raises ``NotImplementedError`` in this increment.
     """
 
     MEMBER = auto()

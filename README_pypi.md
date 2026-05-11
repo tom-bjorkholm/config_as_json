@@ -43,6 +43,9 @@ The supported nested shapes are:
   `_omit_none_from_json()`.
 - `ConfigNestingKind.LIST_ELEMENT`
   The member is a list, and every list element is a nested `Config` object.
+- `ConfigNestingKind.DICT_VALUE`
+  The member is a dict with string keys, and every dict value is a nested
+  `Config` object.
 
 Nested config classes must derive from `Config` and must be constructible
 with these keyword arguments:
@@ -68,11 +71,12 @@ ConfigNesting(kind=ConfigNestingKind.MEMBER,
 ```
 
 The same factory form can be used with `ConfigNestingKind.LIST_ELEMENT`;
-the factory is then called once for every JSON object in the list.
+the factory is then called once for every JSON object in the list. It can
+also be used with `ConfigNestingKind.DICT_VALUE`; the factory is then called
+once for every JSON object stored as a dict value.
 
-`ConfigNestingKind.DICT_VALUE` and
-`ConfigNestingKind.DICT_VALUE_BY_KEY` are reserved for future nested-shape
-support and currently raise `NotImplementedError`.
+`ConfigNestingKind.DICT_VALUE_BY_KEY` is reserved for future nested-shape
+support and currently raises `NotImplementedError`.
 
 ## Installation
 
@@ -117,7 +121,7 @@ MIT
 
 ## Test summary
 
-- Test result: 3905 passed in 12s
+- Test result: 3925 passed in 12s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

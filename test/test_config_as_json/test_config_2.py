@@ -492,9 +492,7 @@ def test_nested_optional_omit_none(capsys: CaptureFixture[str]) -> None:
     }
 
 
-@pytest.mark.parametrize(
-    'kind',
-    [ConfigNestingKind.DICT_VALUE, ConfigNestingKind.DICT_VALUE_BY_KEY])
+@pytest.mark.parametrize('kind', [ConfigNestingKind.DICT_VALUE_BY_KEY])
 def test_nested_future_kind_fail(capsys: CaptureFixture[str],
                                  kind: ConfigNestingKind) -> None:
     """Test that future nested Config kinds fail visibly."""

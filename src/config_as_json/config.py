@@ -116,9 +116,10 @@ class Config():
 
     A derived class can also declare nested configuration sections in
     ``_nested_configs``. ``MEMBER`` and ``OPTIONAL_MEMBER`` describe direct
-    members, and ``LIST_ELEMENT`` describes a list whose elements are nested
-    Config objects. Other declared nesting kinds are reserved for later use
-    and fail visibly. Nested config classes must accept the
+    members, ``LIST_ELEMENT`` describes a list whose elements are nested
+    Config objects, and ``DICT_VALUE`` describes a dict whose values are
+    nested Config objects. Other declared nesting kinds are reserved for
+    later use and fail visibly. Nested config classes must accept the
     constructor keyword arguments ``from_json_data_text``,
     ``from_json_filename``, and ``stderr_file`` because those are used when
     nested JSON objects are parsed. As an alternative construction path, a
@@ -392,8 +393,7 @@ class Config():
             msg = '_nested_configs discriminator_key is reserved for '
             msg += 'DICT_VALUE_BY_KEY'
             raise ValueError(msg)
-        if nesting.kind in (ConfigNestingKind.DICT_VALUE,
-                            ConfigNestingKind.DICT_VALUE_BY_KEY):
+        if nesting.kind == ConfigNestingKind.DICT_VALUE_BY_KEY:
             msg = f'_nested_configs[{key}] uses unsupported nesting kind '
             msg += f'{nesting.kind.name}'
             raise NotImplementedError(msg)

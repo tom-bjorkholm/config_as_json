@@ -985,3 +985,41 @@ or more nested config objects.
 The command-line helper accepts the whole `reports` value as JSON. That keeps
 the example focused on the library feature instead of inventing a separate
 command-line syntax for objects inside lists.
+
+## e35_dict_nested_configs.py
+
+[Source code for e35_dict_nested_configs.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e35_dict_nested_configs.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e35_dict_nested_configs.py)
+
+This example shows how to use a dictionary where every value is a nested
+`Config` object.
+
+The teaching story is still a course export tool. In example 34 the report
+outputs were stored in a list. Here every report has a stable report id, so
+a dictionary is a better model:
+
+- `participants` identifies the participant report
+- `audit` identifies the audit report
+- each dictionary value is a `ReportOutputConfig`
+
+The top-level configuration stores:
+
+- `course_name`
+- `reports_by_id`, a `dict[str, ReportOutputConfig]`
+
+The important declaration is:
+
+- `reports_by_id` uses `ConfigNestingKind.DICT_VALUE`
+
+The member named in `_nested_configs` is the top-level dictionary member. The
+`config_type` is the type of each dictionary value. When JSON is read, the
+base class expects `reports_by_id` to be a JSON object. Each value in that
+object must also be a JSON object, and each value is parsed by constructing
+one `ReportOutputConfig`.
+
+When JSON is written, every `ReportOutputConfig` value is serialized back to
+a JSON object under its dictionary key. Empty dictionaries are valid, and
+default dictionaries may also contain one or more nested config objects.
+
+The command-line helper accepts the whole `reports_by_id` value as JSON. That
+keeps the example focused on `ConfigNestingKind.DICT_VALUE` instead of
+inventing a separate command-line syntax for fields inside named objects.

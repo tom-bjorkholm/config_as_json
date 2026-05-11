@@ -1095,8 +1095,8 @@ Construct nested Config data from parsed JSON data.
 
 **Returns**:
 
-  A nested Config, ``None`` for optional JSON null, or a list of nested
-  Config objects.
+  A nested Config, ``None`` for optional JSON null, a list of nested
+  Config objects, or a dict of nested Config objects.
 
 <a id="config_as_json._config_nesting_io.nested_config_json_data"></a>
 
@@ -1318,9 +1318,10 @@ this check.
 
 A derived class can also declare nested configuration sections in
 ``_nested_configs``. ``MEMBER`` and ``OPTIONAL_MEMBER`` describe direct
-members, and ``LIST_ELEMENT`` describes a list whose elements are nested
-Config objects. Other declared nesting kinds are reserved for later use
-and fail visibly. Nested config classes must accept the
+members, ``LIST_ELEMENT`` describes a list whose elements are nested
+Config objects, and ``DICT_VALUE`` describes a dict whose values are
+nested Config objects. Other declared nesting kinds are reserved for
+later use and fail visibly. Nested config classes must accept the
 constructor keyword arguments ``from_json_data_text``,
 ``from_json_filename``, and ``stderr_file`` because those are used when
 nested JSON objects are parsed. As an alternative construction path, a
@@ -3983,10 +3984,10 @@ Describe where a nested Config object is stored.
 Config object. ``OPTIONAL_MEMBER`` describes a public member that may be
 ``None`` or one nested Config object. ``LIST_ELEMENT`` describes a public
 member that stores a list where every element is a nested Config object.
-``DICT_VALUE`` is reserved for future support where every value in a
-dict is a nested Config object. ``DICT_VALUE_BY_KEY`` is reserved for
-future discriminated dictionary value support. The dictionary kinds raise
-``NotImplementedError`` in this increment.
+``DICT_VALUE`` describes a public member that stores a dict where every
+value is a nested Config object and every key must be a string.
+``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
+value support and raises ``NotImplementedError`` in this increment.
 
 <a id="config_as_json.config_nesting.ConfigFactory"></a>
 

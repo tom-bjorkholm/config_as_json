@@ -61,12 +61,15 @@
     * [default](#config_as_json._config_nesting_io._NestedConfigEncoder.default)
   * [\_item\_from\_json](#config_as_json._config_nesting_io._item_from_json)
   * [\_list\_from\_json](#config_as_json._config_nesting_io._list_from_json)
+  * [\_dict\_from\_json](#config_as_json._config_nesting_io._dict_from_json)
   * [nested\_config\_from\_json](#config_as_json._config_nesting_io.nested_config_from_json)
   * [\_item\_json\_data](#config_as_json._config_nesting_io._item_json_data)
   * [\_list\_json\_data](#config_as_json._config_nesting_io._list_json_data)
+  * [\_dict\_json\_data](#config_as_json._config_nesting_io._dict_json_data)
   * [nested\_config\_json\_data](#config_as_json._config_nesting_io.nested_config_json_data)
   * [\_validate\_item](#config_as_json._config_nesting_io._validate_item)
   * [\_validate\_list](#config_as_json._config_nesting_io._validate_list)
+  * [\_validate\_dict](#config_as_json._config_nesting_io._validate_dict)
   * [validate\_nested\_config](#config_as_json._config_nesting_io.validate_nested_config)
 * [config\_as\_json.config\_auto\_change\_hook](#config_as_json.config_auto_change_hook)
   * [ConfigAutoChangeHook](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook)
@@ -1473,6 +1476,35 @@ Construct a list of nested Config objects from parsed JSON.
 
 - `KeyError` - JSON data is not a list of dictionaries.
 
+<a id="config_as_json._config_nesting_io._dict_from_json"></a>
+
+#### \_dict\_from\_json
+
+```python
+def _dict_from_json(member_name: str, json_data: object,
+                    nesting: ConfigNesting,
+                    stderr_file: TextIO) -> dict[str, 'Config']
+```
+
+Construct a dict of nested Config objects from parsed JSON.
+
+**Arguments**:
+
+- `member_name` - Public parent member receiving the nested dict.
+- `json_data` - Parsed JSON value for the member.
+- `nesting` - Nested Config declaration for the dict values.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  A dict containing one nested Config for each JSON value.
+
+
+**Raises**:
+
+- `KeyError` - JSON data is not a dict of dictionaries.
+
 <a id="config_as_json._config_nesting_io.nested_config_from_json"></a>
 
 #### nested\_config\_from\_json
@@ -1495,8 +1527,8 @@ Construct nested Config data from parsed JSON data.
 
 **Returns**:
 
-  A nested Config, ``None`` for optional JSON null, or a list of nested
-  Config objects.
+  A nested Config, ``None`` for optional JSON null, a list of nested
+  Config objects, or a dict of nested Config objects.
 
 <a id="config_as_json._config_nesting_io._item_json_data"></a>
 
@@ -1555,6 +1587,35 @@ Return JSON data for a list of nested Config objects.
 **Raises**:
 
 - `TypeError` - The member value is not a list of nested Config objects.
+
+<a id="config_as_json._config_nesting_io._dict_json_data"></a>
+
+#### \_dict\_json\_data
+
+```python
+def _dict_json_data(member_name: str, member_value: object,
+                    nesting: ConfigNesting,
+                    stderr_file: TextIO) -> dict[str, JsonType]
+```
+
+Return JSON data for a dict of nested Config objects.
+
+**Arguments**:
+
+- `member_name` - Public parent member being serialized.
+- `member_value` - Current nested dict value.
+- `nesting` - Nested Config declaration for the dict values.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  A JSON-compatible dict.
+
+
+**Raises**:
+
+- `TypeError` - The member value is not a dict of nested Config objects.
 
 <a id="config_as_json._config_nesting_io.nested_config_json_data"></a>
 
@@ -1625,6 +1686,29 @@ Validate a list of nested Config objects.
 **Raises**:
 
 - `TypeError` - The member value is not a list of nested Config objects.
+
+<a id="config_as_json._config_nesting_io._validate_dict"></a>
+
+#### \_validate\_dict
+
+```python
+def _validate_dict(member_name: str, member_value: object,
+                   nesting: ConfigNesting, stderr_file: TextIO) -> None
+```
+
+Validate a dict of nested Config objects.
+
+**Arguments**:
+
+- `member_name` - Public parent member containing the nested dict.
+- `member_value` - Current nested dict value.
+- `nesting` - Nested Config declaration for the dict values.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Raises**:
+
+- `TypeError` - The member value is not a dict of nested Config objects.
 
 <a id="config_as_json._config_nesting_io.validate_nested_config"></a>
 
@@ -1888,9 +1972,10 @@ this check.
 
 A derived class can also declare nested configuration sections in
 ``_nested_configs``. ``MEMBER`` and ``OPTIONAL_MEMBER`` describe direct
-members, and ``LIST_ELEMENT`` describes a list whose elements are nested
-Config objects. Other declared nesting kinds are reserved for later use
-and fail visibly. Nested config classes must accept the
+members, ``LIST_ELEMENT`` describes a list whose elements are nested
+Config objects, and ``DICT_VALUE`` describes a dict whose values are
+nested Config objects. Other declared nesting kinds are reserved for
+later use and fail visibly. Nested config classes must accept the
 constructor keyword arguments ``from_json_data_text``,
 ``from_json_filename``, and ``stderr_file`` because those are used when
 nested JSON objects are parsed. As an alternative construction path, a
@@ -6250,10 +6335,10 @@ Describe where a nested Config object is stored.
 Config object. ``OPTIONAL_MEMBER`` describes a public member that may be
 ``None`` or one nested Config object. ``LIST_ELEMENT`` describes a public
 member that stores a list where every element is a nested Config object.
-``DICT_VALUE`` is reserved for future support where every value in a
-dict is a nested Config object. ``DICT_VALUE_BY_KEY`` is reserved for
-future discriminated dictionary value support. The dictionary kinds raise
-``NotImplementedError`` in this increment.
+``DICT_VALUE`` describes a public member that stores a dict where every
+value is a nested Config object and every key must be a string.
+``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
+value support and raises ``NotImplementedError`` in this increment.
 
 <a id="config_as_json.config_nesting.ConfigFactory"></a>
 
