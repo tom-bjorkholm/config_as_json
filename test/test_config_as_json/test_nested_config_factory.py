@@ -10,7 +10,7 @@ from typing import Optional, TextIO, Type, cast
 import pytest
 from pytest import CaptureFixture
 from config_as_json import Config, ConfigFactory, ConfigNesting, \
-    ConfigNestingKind, PathOrStr, ValidationPlan
+    ConfigNestingKind, NestedConfigs, PathOrStr, ValidationPlan
 
 
 def _empty_plan(stderr_file: TextIO) -> ValidationPlan:
@@ -117,7 +117,7 @@ class FactoryParentConfig(Config):
         output_nesting = ConfigNesting(kind=ConfigNestingKind.MEMBER,
                                        config_type=FactoryOutputConfig,
                                        factory_function=factory_function)
-        self._nested_configs = {'output': output_nesting}
+        self._nested_configs: NestedConfigs = {'output': output_nesting}
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
@@ -139,7 +139,7 @@ class OptionalFactoryParentConfig(Config):
         output_nesting = ConfigNesting(kind=ConfigNestingKind.OPTIONAL_MEMBER,
                                        config_type=FactoryOutputConfig,
                                        factory_function=factory_function)
-        self._nested_configs = {'output': output_nesting}
+        self._nested_configs: NestedConfigs = {'output': output_nesting}
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
@@ -165,7 +165,7 @@ class ListFactoryParentConfig(Config):
         output_nesting = ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
                                        config_type=FactoryOutputConfig,
                                        factory_function=factory_function)
-        self._nested_configs = {'outputs': output_nesting}
+        self._nested_configs: NestedConfigs = {'outputs': output_nesting}
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
@@ -187,7 +187,39 @@ class DictFactoryParentConfig(Config):
         output_nesting = ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
                                        config_type=FactoryOutputConfig,
                                        factory_function=factory_function)
-        self._nested_configs = {'outputs': output_nesting}
+        self._nested_configs: NestedConfigs = {'outputs': output_nesting}
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return validation steps for this parent configuration."""
+        return _empty_plan(stderr_file)
+
+
+class DictByKeyFactoryParentConfig(Config):
+    """Parent configuration with a factory-enabled keyed dict value."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr,
+                 factory_function: Optional[ConfigFactory] = None) -> None:
+        """Construct a parent config with selected nested dict values."""
+        self.outputs: dict[str, object] = {
+            'typed': FactoryOutputConfig(stderr_file=stderr_file),
+            'factory': FactoryOutputConfig(stderr_file=stderr_file),
+            'plain': 'keep'
+        }
+        typed_nesting = ConfigNesting(
+            kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+            config_type=FactoryOutputConfig, discriminator_key='typed')
+        factory_nesting = ConfigNesting(
+            kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+            config_type=FactoryOutputConfig, discriminator_key='factory',
+            factory_function=factory_function)
+        self._nested_configs: NestedConfigs = {
+            'outputs': [typed_nesting, factory_nesting]
+        }
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
@@ -213,6 +245,13 @@ def _dict_json_text() -> str:
     return ('{"outputs": {"first": {"format_name": "TXT", '
             '"name": "first"}, "second": {"format_name": "CSV", '
             '"name": "second"}}}')
+
+
+def _dict_by_key_json_text() -> str:
+    """Return JSON with selected nested output configurations in a dict."""
+    return ('{"outputs": {"typed": {"format_name": "TXT", '
+            '"name": "typed"}, "factory": {"format_name": "CSV", '
+            '"name": "factory"}, "plain": "keep"}}')
 
 
 def _expected_json() -> dict[str, object]:
@@ -249,6 +288,23 @@ def _dict_expected_json() -> dict[str, object]:
             'second': {
                 'format_name': 'CSV',
                 'name': 'second'
+            }
+        }
+    }
+
+
+def _dict_by_key_expected_json() -> dict[str, object]:
+    """Return expected JSON-compatible data for keyed dict parsing."""
+    return {
+        'outputs': {
+            'factory': {
+                'format_name': 'CSV',
+                'name': 'factory'
+            },
+            'plain': 'keep',
+            'typed': {
+                'format_name': 'TXT',
+                'name': 'typed'
             }
         }
     }
@@ -361,6 +417,28 @@ def test_dict_factory_constructs(capsys: CaptureFixture[str]) -> None:
     assert json_data == _dict_expected_json()
 
 
+def test_by_key_factory_constructs(capsys: CaptureFixture[str]) -> None:
+    """Test that a factory constructs one selected keyed dict value."""
+    factory = TrackingFactory()
+    cfg = DictByKeyFactoryParentConfig(
+        from_json_data_text=_dict_by_key_json_text(), factory_function=factory,
+        stderr_file=sys.stderr)
+    json_data = _json_data_from_config(cfg, capsys)
+    json_texts = [text for text in factory.json_texts if text is not None]
+    typed = cast(FactoryOutputConfig, cfg.outputs['typed'])
+    factory_output = cast(FactoryOutputConfig, cfg.outputs['factory'])
+    expected_outputs = cast(
+        dict[str, object], _dict_by_key_expected_json()['outputs'])
+    assert factory.filenames == [None]
+    assert factory.stderr_files == [sys.stderr]
+    assert [json.loads(text) for text in json_texts] == [
+        expected_outputs['factory']]
+    assert typed.construction_label() == 'type'
+    assert factory_output.construction_label() == 'factory'
+    assert cfg.outputs['plain'] == 'keep'
+    assert json_data == _dict_by_key_expected_json()
+
+
 def test_factory_must_be_callable() -> None:
     """Test that a non-callable factory declaration fails visibly."""
     bad_factory = cast(ConfigFactory, 'not-callable')
@@ -400,6 +478,17 @@ def test_dict_factory_bad_return(capsys: CaptureFixture[str]) -> None:
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Nested Config factory for outputs[first] must return' in err
+
+
+def test_by_key_factory_bad_return(capsys: CaptureFixture[str]) -> None:
+    """Test that keyed dict factory results must match config_type."""
+    with pytest.raises(TypeError, match='outputs\\[factory\\] must return'):
+        DictByKeyFactoryParentConfig(
+            from_json_data_text=_dict_by_key_json_text(),
+            factory_function=WrongTypeFactory(), stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Nested Config factory for outputs[factory] must return' in err
 
 
 def test_factory_checks_member_type(capsys: CaptureFixture[str]) -> None:

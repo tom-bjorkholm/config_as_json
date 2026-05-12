@@ -23,15 +23,16 @@ class ConfigNestingKind(Enum):
     member that stores a list where every element is a nested Config object.
     ``DICT_VALUE`` describes a public member that stores a dict where every
     value is a nested Config object and every key must be a string.
-    ``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
-    value support and raises ``NotImplementedError`` in this increment.
+    ``DICT_VALUE_BY_KEY`` describes one configured key inside a public dict
+    member. The value stored at ``discriminator_key`` is a nested Config
+    object. Other keys in the same public dict keep their ordinary JSON
+    values unless they are declared by another ``DICT_VALUE_BY_KEY`` entry.
     """
 
     MEMBER = auto()
     OPTIONAL_MEMBER = auto()
     LIST_ELEMENT = auto()
     DICT_VALUE = auto()
-    # Reserved for future discriminated dictionary-value nesting support.
     DICT_VALUE_BY_KEY = auto()
 
 
@@ -69,7 +70,7 @@ class ConfigNesting(NamedTuple):
     Attributes:
         kind: Where the nested configuration object is stored.
         config_type: Config-derived type expected for this member.
-        discriminator_key: Reserved for future ``DICT_VALUE_BY_KEY`` support.
+        discriminator_key: Dict key used by ``DICT_VALUE_BY_KEY``.
         factory_function: Optional callable used to construct JSON objects.
     """
 
@@ -77,3 +78,13 @@ class ConfigNesting(NamedTuple):
     config_type: Type['Config']
     discriminator_key: Optional[str] = None
     factory_function: Optional[ConfigFactory] = None
+
+
+type NestedConfigs = dict[str, ConfigNesting | list[ConfigNesting]]
+"""Type of :attr:`Config._nested_configs` declarations.
+
+Use a direct :class:`ConfigNesting` value for one nested declaration. Use
+the list form only when every list element has kind
+``ConfigNestingKind.DICT_VALUE_BY_KEY`` and the entries describe selected
+keys inside the same dictionary member.
+"""

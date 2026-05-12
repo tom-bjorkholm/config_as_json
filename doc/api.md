@@ -1079,7 +1079,7 @@ Read, write, and validate nested Config declarations.
 
 ```python
 def nested_config_from_json(member_name: str, json_data: object,
-                            nesting: ConfigNesting,
+                            nestings: list[ConfigNesting],
                             stderr_file: TextIO) -> object
 ```
 
@@ -1089,7 +1089,7 @@ Construct nested Config data from parsed JSON data.
 
 - `member_name` - Public parent member receiving the nested data.
 - `json_data` - Parsed JSON value for the member.
-- `nesting` - Nested Config declaration for the member.
+- `nestings` - Nested Config declarations for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 
@@ -1104,7 +1104,7 @@ Construct nested Config data from parsed JSON data.
 
 ```python
 def nested_config_json_data(member_name: str, member_value: object,
-                            nesting: ConfigNesting,
+                            nestings: list[ConfigNesting],
                             stderr_file: TextIO) -> JsonType
 ```
 
@@ -1114,7 +1114,7 @@ Return JSON data for one nested Config declaration.
 
 - `member_name` - Public parent member being serialized.
 - `member_value` - Current value of that member.
-- `nesting` - Nested Config declaration for the member.
+- `nestings` - Nested Config declarations for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 
@@ -1128,7 +1128,7 @@ Return JSON data for one nested Config declaration.
 
 ```python
 def validate_nested_config(member_name: str, member_value: object,
-                           nesting: ConfigNesting,
+                           nestings: list[ConfigNesting],
                            stderr_file: TextIO) -> None
 ```
 
@@ -1138,7 +1138,7 @@ Validate one nested Config declaration.
 
 - `member_name` - Public parent member containing the nested data.
 - `member_value` - Current value of that member.
-- `nesting` - Nested Config declaration for the member.
+- `nestings` - Nested Config declarations for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 
@@ -1319,10 +1319,15 @@ this check.
 A derived class can also declare nested configuration sections in
 ``_nested_configs``. ``MEMBER`` and ``OPTIONAL_MEMBER`` describe direct
 members, ``LIST_ELEMENT`` describes a list whose elements are nested
-Config objects, and ``DICT_VALUE`` describes a dict whose values are
-nested Config objects. Other declared nesting kinds are reserved for
-later use and fail visibly. Nested config classes must accept the
-constructor keyword arguments ``from_json_data_text``,
+Config objects, ``DICT_VALUE`` describes a dict whose values are nested
+Config objects, and ``DICT_VALUE_BY_KEY`` describes selected keys inside
+a dict whose values are nested Config objects. The ``_nested_configs``
+member should have type ``NestedConfigs``. Use a direct
+``ConfigNesting`` value for one declaration. Use a list only when every
+list element has kind ``DICT_VALUE_BY_KEY`` and the entries describe
+selected keys inside the same dict member.
+Nested config classes must accept the constructor keyword arguments
+``from_json_data_text``,
 ``from_json_filename``, and ``stderr_file`` because those are used when
 nested JSON objects are parsed. As an alternative construction path, a
 ``ConfigNesting`` declaration may provide ``factory_function`` with the
@@ -3986,8 +3991,10 @@ Config object. ``OPTIONAL_MEMBER`` describes a public member that may be
 member that stores a list where every element is a nested Config object.
 ``DICT_VALUE`` describes a public member that stores a dict where every
 value is a nested Config object and every key must be a string.
-``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
-value support and raises ``NotImplementedError`` in this increment.
+``DICT_VALUE_BY_KEY`` describes one configured key inside a public dict
+member. The value stored at ``discriminator_key`` is a nested Config
+object. Other keys in the same public dict keep their ordinary JSON
+values unless they are declared by another ``DICT_VALUE_BY_KEY`` entry.
 
 <a id="config_as_json.config_nesting.ConfigFactory"></a>
 
@@ -4045,6 +4052,6 @@ arguments and must return an instance of ``config_type`` or a subclass.
 
 - `kind` - Where the nested configuration object is stored.
 - `config_type` - Config-derived type expected for this member.
-- `discriminator_key` - Reserved for future ``DICT_VALUE_BY_KEY`` support.
+- `discriminator_key` - Dict key used by ``DICT_VALUE_BY_KEY``.
 - `factory_function` - Optional callable used to construct JSON objects.
 

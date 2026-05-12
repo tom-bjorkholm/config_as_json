@@ -22,7 +22,7 @@ from typing import Optional, TextIO
 import sys
 from config_as_json import CharEncodingValidator, Config, ConfigNesting, \
     ConfigNestingKind, MemberValidationStep, PathOrStr, StrValidator, \
-    ValidationPlan
+    NestedConfigs, ValidationPlan
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
 
@@ -89,7 +89,7 @@ class ExampleConfig33(Config):
         # OPTIONAL_MEMBER is either None or a nested section. The config_type
         # tells Config which class to construct when JSON contains a nested
         # object for that member.
-        self._nested_configs = {
+        self._nested_configs: NestedConfigs = {
             'participant_output': ConfigNesting(kind=ConfigNestingKind.MEMBER,
                                                 config_type=TableOutputConfig),
             'audit_output': ConfigNesting(

@@ -22,7 +22,8 @@ from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
 from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
+from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
+    NestedConfigs
 from config_as_json._config_nesting_io import nested_config_from_json, \
     nested_config_json_data, validate_nested_config
 from config_as_json.validator import ValidationPlan
@@ -117,10 +118,15 @@ class Config():
     A derived class can also declare nested configuration sections in
     ``_nested_configs``. ``MEMBER`` and ``OPTIONAL_MEMBER`` describe direct
     members, ``LIST_ELEMENT`` describes a list whose elements are nested
-    Config objects, and ``DICT_VALUE`` describes a dict whose values are
-    nested Config objects. Other declared nesting kinds are reserved for
-    later use and fail visibly. Nested config classes must accept the
-    constructor keyword arguments ``from_json_data_text``,
+    Config objects, ``DICT_VALUE`` describes a dict whose values are nested
+    Config objects, and ``DICT_VALUE_BY_KEY`` describes selected keys inside
+    a dict whose values are nested Config objects. The ``_nested_configs``
+    member should have type ``NestedConfigs``. Use a direct
+    ``ConfigNesting`` value for one declaration. Use a list only when every
+    list element has kind ``DICT_VALUE_BY_KEY`` and the entries describe
+    selected keys inside the same dict member.
+    Nested config classes must accept the constructor keyword arguments
+    ``from_json_data_text``,
     ``from_json_filename``, and ``stderr_file`` because those are used when
     nested JSON objects are parsed. As an alternative construction path, a
     ``ConfigNesting`` declaration may provide ``factory_function`` with the
@@ -369,7 +375,6 @@ class Config():
         Raises:
             TypeError: The declaration has the wrong runtime type.
             ValueError: ``discriminator_key`` is used with the wrong kind.
-            NotImplementedError: The declaration uses a future nesting kind.
         """
         if not isinstance(nesting.kind, ConfigNestingKind):
             msg = f'_nested_configs[{key}].kind must be ConfigNestingKind'
@@ -393,13 +398,83 @@ class Config():
             msg = '_nested_configs discriminator_key is reserved for '
             msg += 'DICT_VALUE_BY_KEY'
             raise ValueError(msg)
-        if nesting.kind == ConfigNestingKind.DICT_VALUE_BY_KEY:
-            msg = f'_nested_configs[{key}] uses unsupported nesting kind '
-            msg += f'{nesting.kind.name}'
-            raise NotImplementedError(msg)
+
+    @staticmethod
+    def _checked_config_nesting_list(key: str, nesting_raw: object) \
+            -> list[ConfigNesting]:
+        """Return the checked declaration list for one nested member.
+
+        Args:
+            key: Public member name described by the declarations.
+            nesting_raw: Raw value from ``_nested_configs``.
+
+        Returns:
+            One or more checked ``ConfigNesting`` declarations.
+
+        Raises:
+            TypeError: The raw value or a list entry has the wrong type.
+            ValueError: The list shape is not valid for the declared kinds.
+        """
+        if isinstance(nesting_raw, ConfigNesting):
+            nestings = [nesting_raw]
+        elif isinstance(nesting_raw, list):
+            if not nesting_raw:
+                msg = f'_nested_configs[{key}] list must not be empty'
+                raise ValueError(msg)
+            nestings = []
+            for nesting in nesting_raw:
+                if not isinstance(nesting, ConfigNesting):
+                    msg = f'_nested_configs[{key}] list entries must be '
+                    msg += 'ConfigNesting'
+                    raise TypeError(msg)
+                nestings.append(nesting)
+        else:
+            msg = f'_nested_configs[{key}] must be ConfigNesting or list'
+            raise TypeError(msg)
+        for nesting in nestings:
+            Config._check_config_nesting(key=key, nesting=nesting)
+        list_form = isinstance(nesting_raw, list)
+        Config._check_config_nesting_kinds(key=key, nestings=nestings,
+                                           list_form=list_form)
+        return nestings
+
+    @staticmethod
+    def _check_config_nesting_kinds(key: str, nestings: list[ConfigNesting],
+                                    list_form: bool) -> None:
+        """Validate combinations of nested Config declaration kinds.
+
+        Args:
+            key: Public member name described by the declarations.
+            nestings: Checked declarations for one public member.
+            list_form: Whether the declarations used list syntax.
+
+        Raises:
+            ValueError: The declarations combine incompatible nesting kinds.
+        """
+        by_key_kind = ConfigNestingKind.DICT_VALUE_BY_KEY
+        by_key_nestings = [
+            nesting for nesting in nestings if nesting.kind == by_key_kind]
+        if list_form and len(by_key_nestings) != len(nestings):
+            msg = f'_nested_configs[{key}] list '
+            msg += 'may only contain DICT_VALUE_BY_KEY declarations'
+            raise ValueError(msg)
+        if not by_key_nestings:
+            return
+        used_keys: set[str] = set()
+        for nesting in by_key_nestings:
+            discriminator = nesting.discriminator_key
+            if discriminator is None:
+                msg = f'_nested_configs[{key}] DICT_VALUE_BY_KEY '
+                msg += 'requires discriminator_key'
+                raise ValueError(msg)
+            if discriminator in used_keys:
+                msg = f'_nested_configs[{key}] duplicate '
+                msg += f'discriminator_key {discriminator}'
+                raise ValueError(msg)
+            used_keys.add(discriminator)
 
     def _checked_nested_configs(self, self_keys: list[str]) \
-            -> dict[str, ConfigNesting]:
+            -> dict[str, list[ConfigNesting]]:
         """Return validated nested Config declarations.
 
         Args:
@@ -412,31 +487,26 @@ class Config():
             TypeError: ``_nested_configs`` or one of its entries has the wrong
                 runtime type.
             KeyError: A declaration names an unknown public member.
-            ValueError: A future-only discriminator is used with the wrong
-                kind.
-            NotImplementedError: A declaration uses a future nesting kind.
+            ValueError: A discriminator or declaration list is invalid.
         """
         nested_raw: object = getattr(self, '_nested_configs', None)
         if nested_raw is None:
-            self._nested_configs: dict[str, ConfigNesting] = {}
+            self._nested_configs: NestedConfigs = {}
             return {}
         if not isinstance(nested_raw, dict):
             msg = '_nested_configs must be a dict'
             raise TypeError(msg)
-        nested_configs: dict[str, ConfigNesting] = {}
-        for key, nesting in nested_raw.items():
+        nested_configs: dict[str, list[ConfigNesting]] = {}
+        for key, nesting_raw in nested_raw.items():
             if not isinstance(key, str):
                 msg = '_nested_configs keys must be strings'
                 raise TypeError(msg)
             if key not in self_keys:
                 msg = f'_nested_configs returned unknown key {key}'
                 raise KeyError(msg)
-            if not isinstance(nesting, ConfigNesting):
-                msg = f'_nested_configs[{key}] must be ConfigNesting'
-                raise TypeError(msg)
-            self._check_config_nesting(key=key, nesting=nesting)
-            nested_configs[key] = nesting
-        self._nested_configs = nested_configs
+            nestings = self._checked_config_nesting_list(
+                key=key, nesting_raw=nesting_raw)
+            nested_configs[key] = nestings
         return nested_configs
 
     def _rocf_get_keys_to_remove(self) -> list[str]:
@@ -674,7 +744,7 @@ class Config():
             member_value = getattr(self, member_name)
             validate_nested_config(
                 member_name=member_name, member_value=member_value,
-                nesting=nesting, stderr_file=stderr_file)
+                nestings=nesting, stderr_file=stderr_file)
 
     def parse_json(self, from_json_text: str, ok_to_use_defaults: bool = False,
                    stderr_file: TextIO = sys.stderr) -> None:
@@ -727,7 +797,7 @@ class Config():
                 if i in nested_configs:
                     nested_value = nested_config_from_json(
                         member_name=i, json_data=data[i],
-                        nesting=nested_configs[i], stderr_file=stderr_file)
+                        nestings=nested_configs[i], stderr_file=stderr_file)
                     setattr(self, i, nested_value)
                 else:
                     self.check_dict_parse(getattr(self, i), data[i], i,
@@ -761,7 +831,7 @@ class Config():
             if i in nested_configs:
                 data[i] = nested_config_json_data(
                     member_name=i, member_value=getattr(self, i),
-                    nesting=nested_configs[i], stderr_file=stderr_file)
+                    nestings=nested_configs[i], stderr_file=stderr_file)
             else:
                 data[i] = getattr(self, i)
         return json.dumps(data, sort_keys=True, indent=4, cls=_ConfigEncoder)

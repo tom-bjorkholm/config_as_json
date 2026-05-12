@@ -62,14 +62,21 @@
   * [\_item\_from\_json](#config_as_json._config_nesting_io._item_from_json)
   * [\_list\_from\_json](#config_as_json._config_nesting_io._list_from_json)
   * [\_dict\_from\_json](#config_as_json._config_nesting_io._dict_from_json)
+  * [\_nesting\_by\_key](#config_as_json._config_nesting_io._nesting_by_key)
+  * [\_dict\_by\_key\_from\_json](#config_as_json._config_nesting_io._dict_by_key_from_json)
+  * [\_is\_dict\_value\_by\_key](#config_as_json._config_nesting_io._is_dict_value_by_key)
+  * [\_single\_nesting](#config_as_json._config_nesting_io._single_nesting)
   * [nested\_config\_from\_json](#config_as_json._config_nesting_io.nested_config_from_json)
   * [\_item\_json\_data](#config_as_json._config_nesting_io._item_json_data)
   * [\_list\_json\_data](#config_as_json._config_nesting_io._list_json_data)
   * [\_dict\_json\_data](#config_as_json._config_nesting_io._dict_json_data)
+  * [\_is\_config\_object](#config_as_json._config_nesting_io._is_config_object)
+  * [\_dict\_by\_key\_json\_data](#config_as_json._config_nesting_io._dict_by_key_json_data)
   * [nested\_config\_json\_data](#config_as_json._config_nesting_io.nested_config_json_data)
   * [\_validate\_item](#config_as_json._config_nesting_io._validate_item)
   * [\_validate\_list](#config_as_json._config_nesting_io._validate_list)
   * [\_validate\_dict](#config_as_json._config_nesting_io._validate_dict)
+  * [\_validate\_dict\_by\_key](#config_as_json._config_nesting_io._validate_dict_by_key)
   * [validate\_nested\_config](#config_as_json._config_nesting_io.validate_nested_config)
 * [config\_as\_json.config\_auto\_change\_hook](#config_as_json.config_auto_change_hook)
   * [ConfigAutoChangeHook](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook)
@@ -94,6 +101,8 @@
     * [\_omit\_none\_from\_json](#config_as_json.config.Config._omit_none_from_json)
     * [\_checked\_omit\_none\_from\_json](#config_as_json.config.Config._checked_omit_none_from_json)
     * [\_check\_config\_nesting](#config_as_json.config.Config._check_config_nesting)
+    * [\_checked\_config\_nesting\_list](#config_as_json.config.Config._checked_config_nesting_list)
+    * [\_check\_config\_nesting\_kinds](#config_as_json.config.Config._check_config_nesting_kinds)
     * [\_checked\_nested\_configs](#config_as_json.config.Config._checked_nested_configs)
     * [\_rocf\_get\_keys\_to\_remove](#config_as_json.config.Config._rocf_get_keys_to_remove)
     * [\_rocf\_remove\_json\_key\_in\_dict](#config_as_json.config.Config._rocf_remove_json_key_in_dict)
@@ -1505,13 +1514,74 @@ Construct a dict of nested Config objects from parsed JSON.
 
 - `KeyError` - JSON data is not a dict of dictionaries.
 
+<a id="config_as_json._config_nesting_io._nesting_by_key"></a>
+
+#### \_nesting\_by\_key
+
+```python
+def _nesting_by_key(nestings: list[ConfigNesting]) -> dict[str, ConfigNesting]
+```
+
+Return DICT_VALUE_BY_KEY declarations keyed by discriminator_key.
+
+<a id="config_as_json._config_nesting_io._dict_by_key_from_json"></a>
+
+#### \_dict\_by\_key\_from\_json
+
+```python
+def _dict_by_key_from_json(member_name: str, json_data: object,
+                           nestings: list[ConfigNesting],
+                           stderr_file: TextIO) -> dict[str, object]
+```
+
+Construct selected dict values as nested Config objects.
+
+**Arguments**:
+
+- `member_name` - Public parent member receiving the nested dict.
+- `json_data` - Parsed JSON value for the member.
+- `nestings` - Nested Config declarations for selected dict keys.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  A dictionary where declared keys contain nested Config objects and
+  undeclared keys keep their parsed JSON values.
+
+
+**Raises**:
+
+- `KeyError` - JSON data is not a dictionary or a declared key does not
+  contain a JSON object.
+
+<a id="config_as_json._config_nesting_io._is_dict_value_by_key"></a>
+
+#### \_is\_dict\_value\_by\_key
+
+```python
+def _is_dict_value_by_key(nestings: list[ConfigNesting]) -> bool
+```
+
+Return whether the declarations describe keyed dict values.
+
+<a id="config_as_json._config_nesting_io._single_nesting"></a>
+
+#### \_single\_nesting
+
+```python
+def _single_nesting(nestings: list[ConfigNesting]) -> ConfigNesting
+```
+
+Return the single declaration for non-keyed nesting kinds.
+
 <a id="config_as_json._config_nesting_io.nested_config_from_json"></a>
 
 #### nested\_config\_from\_json
 
 ```python
 def nested_config_from_json(member_name: str, json_data: object,
-                            nesting: ConfigNesting,
+                            nestings: list[ConfigNesting],
                             stderr_file: TextIO) -> object
 ```
 
@@ -1521,7 +1591,7 @@ Construct nested Config data from parsed JSON data.
 
 - `member_name` - Public parent member receiving the nested data.
 - `json_data` - Parsed JSON value for the member.
-- `nesting` - Nested Config declaration for the member.
+- `nestings` - Nested Config declarations for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 
@@ -1617,13 +1687,53 @@ Return JSON data for a dict of nested Config objects.
 
 - `TypeError` - The member value is not a dict of nested Config objects.
 
+<a id="config_as_json._config_nesting_io._is_config_object"></a>
+
+#### \_is\_config\_object
+
+```python
+def _is_config_object(value: object) -> bool
+```
+
+Return whether value is a Config object without import-time cycles.
+
+<a id="config_as_json._config_nesting_io._dict_by_key_json_data"></a>
+
+#### \_dict\_by\_key\_json\_data
+
+```python
+def _dict_by_key_json_data(member_name: str, member_value: object,
+                           nestings: list[ConfigNesting],
+                           stderr_file: TextIO) -> dict[str, JsonType]
+```
+
+Return JSON data for a dict with selected nested Config values.
+
+**Arguments**:
+
+- `member_name` - Public parent member being serialized.
+- `member_value` - Current nested dict value.
+- `nestings` - Nested Config declarations for selected dict keys.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  A JSON-compatible dict.
+
+
+**Raises**:
+
+- `TypeError` - The member value is not a dict, a key is not a string, or
+  an undeclared key stores a Config object.
+
 <a id="config_as_json._config_nesting_io.nested_config_json_data"></a>
 
 #### nested\_config\_json\_data
 
 ```python
 def nested_config_json_data(member_name: str, member_value: object,
-                            nesting: ConfigNesting,
+                            nestings: list[ConfigNesting],
                             stderr_file: TextIO) -> JsonType
 ```
 
@@ -1633,7 +1743,7 @@ Return JSON data for one nested Config declaration.
 
 - `member_name` - Public parent member being serialized.
 - `member_value` - Current value of that member.
-- `nesting` - Nested Config declaration for the member.
+- `nestings` - Nested Config declarations for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 
@@ -1710,13 +1820,39 @@ Validate a dict of nested Config objects.
 
 - `TypeError` - The member value is not a dict of nested Config objects.
 
+<a id="config_as_json._config_nesting_io._validate_dict_by_key"></a>
+
+#### \_validate\_dict\_by\_key
+
+```python
+def _validate_dict_by_key(member_name: str, member_value: object,
+                          nestings: list[ConfigNesting],
+                          stderr_file: TextIO) -> None
+```
+
+Validate a dict with selected nested Config values.
+
+**Arguments**:
+
+- `member_name` - Public parent member containing the nested dict.
+- `member_value` - Current nested dict value.
+- `nestings` - Nested Config declarations for selected dict keys.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Raises**:
+
+- `TypeError` - The member value is not a dict, a key is not a string, an
+  undeclared key stores a Config object, or a declared key has the
+  wrong nested Config type.
+
 <a id="config_as_json._config_nesting_io.validate_nested_config"></a>
 
 #### validate\_nested\_config
 
 ```python
 def validate_nested_config(member_name: str, member_value: object,
-                           nesting: ConfigNesting,
+                           nestings: list[ConfigNesting],
                            stderr_file: TextIO) -> None
 ```
 
@@ -1726,7 +1862,7 @@ Validate one nested Config declaration.
 
 - `member_name` - Public parent member containing the nested data.
 - `member_value` - Current value of that member.
-- `nesting` - Nested Config declaration for the member.
+- `nestings` - Nested Config declarations for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 
@@ -1973,10 +2109,15 @@ this check.
 A derived class can also declare nested configuration sections in
 ``_nested_configs``. ``MEMBER`` and ``OPTIONAL_MEMBER`` describe direct
 members, ``LIST_ELEMENT`` describes a list whose elements are nested
-Config objects, and ``DICT_VALUE`` describes a dict whose values are
-nested Config objects. Other declared nesting kinds are reserved for
-later use and fail visibly. Nested config classes must accept the
-constructor keyword arguments ``from_json_data_text``,
+Config objects, ``DICT_VALUE`` describes a dict whose values are nested
+Config objects, and ``DICT_VALUE_BY_KEY`` describes selected keys inside
+a dict whose values are nested Config objects. The ``_nested_configs``
+member should have type ``NestedConfigs``. Use a direct
+``ConfigNesting`` value for one declaration. Use a list only when every
+list element has kind ``DICT_VALUE_BY_KEY`` and the entries describe
+selected keys inside the same dict member.
+Nested config classes must accept the constructor keyword arguments
+``from_json_data_text``,
 ``from_json_filename``, and ``stderr_file`` because those are used when
 nested JSON objects are parsed. As an alternative construction path, a
 ``ConfigNesting`` declaration may provide ``factory_function`` with the
@@ -2200,14 +2341,65 @@ Validate one nested Config declaration.
 
 - `TypeError` - The declaration has the wrong runtime type.
 - `ValueError` - ``discriminator_key`` is used with the wrong kind.
-- `NotImplementedError` - The declaration uses a future nesting kind.
+
+<a id="config_as_json.config.Config._checked_config_nesting_list"></a>
+
+#### \_checked\_config\_nesting\_list
+
+```python
+@staticmethod
+def _checked_config_nesting_list(key: str,
+                                 nesting_raw: object) -> list[ConfigNesting]
+```
+
+Return the checked declaration list for one nested member.
+
+**Arguments**:
+
+- `key` - Public member name described by the declarations.
+- `nesting_raw` - Raw value from ``_nested_configs``.
+
+
+**Returns**:
+
+  One or more checked ``ConfigNesting`` declarations.
+
+
+**Raises**:
+
+- `TypeError` - The raw value or a list entry has the wrong type.
+- `ValueError` - The list shape is not valid for the declared kinds.
+
+<a id="config_as_json.config.Config._check_config_nesting_kinds"></a>
+
+#### \_check\_config\_nesting\_kinds
+
+```python
+@staticmethod
+def _check_config_nesting_kinds(key: str, nestings: list[ConfigNesting],
+                                list_form: bool) -> None
+```
+
+Validate combinations of nested Config declaration kinds.
+
+**Arguments**:
+
+- `key` - Public member name described by the declarations.
+- `nestings` - Checked declarations for one public member.
+- `list_form` - Whether the declarations used list syntax.
+
+
+**Raises**:
+
+- `ValueError` - The declarations combine incompatible nesting kinds.
 
 <a id="config_as_json.config.Config._checked_nested_configs"></a>
 
 #### \_checked\_nested\_configs
 
 ```python
-def _checked_nested_configs(self_keys: list[str]) -> dict[str, ConfigNesting]
+def _checked_nested_configs(
+        self_keys: list[str]) -> dict[str, list[ConfigNesting]]
 ```
 
 Return validated nested Config declarations.
@@ -2227,9 +2419,7 @@ Return validated nested Config declarations.
 - `TypeError` - ``_nested_configs`` or one of its entries has the wrong
   runtime type.
 - `KeyError` - A declaration names an unknown public member.
-- `ValueError` - A future-only discriminator is used with the wrong
-  kind.
-- `NotImplementedError` - A declaration uses a future nesting kind.
+- `ValueError` - A discriminator or declaration list is invalid.
 
 <a id="config_as_json.config.Config._rocf_get_keys_to_remove"></a>
 
@@ -6337,8 +6527,10 @@ Config object. ``OPTIONAL_MEMBER`` describes a public member that may be
 member that stores a list where every element is a nested Config object.
 ``DICT_VALUE`` describes a public member that stores a dict where every
 value is a nested Config object and every key must be a string.
-``DICT_VALUE_BY_KEY`` is reserved for future discriminated dictionary
-value support and raises ``NotImplementedError`` in this increment.
+``DICT_VALUE_BY_KEY`` describes one configured key inside a public dict
+member. The value stored at ``discriminator_key`` is a nested Config
+object. Other keys in the same public dict keep their ordinary JSON
+values unless they are declared by another ``DICT_VALUE_BY_KEY`` entry.
 
 <a id="config_as_json.config_nesting.ConfigFactory"></a>
 
@@ -6396,6 +6588,6 @@ arguments and must return an instance of ``config_type`` or a subclass.
 
 - `kind` - Where the nested configuration object is stored.
 - `config_type` - Config-derived type expected for this member.
-- `discriminator_key` - Reserved for future ``DICT_VALUE_BY_KEY`` support.
+- `discriminator_key` - Dict key used by ``DICT_VALUE_BY_KEY``.
 - `factory_function` - Optional callable used to construct JSON objects.
 

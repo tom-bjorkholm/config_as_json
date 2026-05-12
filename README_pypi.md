@@ -33,6 +33,13 @@ in its own class derived from `config_as_json.Config`, and then declare a
 member of the main configuration as a nested config section with
 `ConfigNesting`.
 
+Annotate `_nested_configs` as `NestedConfigs` so type checkers can see the
+supported declaration shape:
+
+```python
+from config_as_json import ConfigNesting, ConfigNestingKind, NestedConfigs
+```
+
 The supported nested shapes are:
 
 - `ConfigNestingKind.MEMBER`
@@ -46,6 +53,9 @@ The supported nested shapes are:
 - `ConfigNestingKind.DICT_VALUE`
   The member is a dict with string keys, and every dict value is a nested
   `Config` object.
+- `ConfigNestingKind.DICT_VALUE_BY_KEY`
+  The member is a dict with string keys, and selected dict keys have nested
+  `Config` values. Other keys in the same dict remain ordinary JSON values.
 
 Nested config classes must derive from `Config` and must be constructible
 with these keyword arguments:
@@ -75,8 +85,30 @@ the factory is then called once for every JSON object in the list. It can
 also be used with `ConfigNestingKind.DICT_VALUE`; the factory is then called
 once for every JSON object stored as a dict value.
 
-`ConfigNestingKind.DICT_VALUE_BY_KEY` is reserved for future nested-shape
-support and currently raises `NotImplementedError`.
+For `ConfigNestingKind.DICT_VALUE_BY_KEY`, use a list of `ConfigNesting`
+entries when several keys inside the same dict should be nested configs:
+
+```python
+self._nested_configs: NestedConfigs = {
+    'reports_by_key': [
+        ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+                      config_type=ReportOutputConfig,
+                      discriminator_key='participants'),
+        ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+                      config_type=WebhookOutputConfig,
+                      discriminator_key='audit',
+                      factory_function=create_webhook_output)
+    ]
+}
+```
+
+Here `discriminator_key` is the key inside `reports_by_key`. When JSON is
+read, the value at `participants` becomes a `ReportOutputConfig`, the value
+at `audit` becomes a `WebhookOutputConfig`, and any other keys in
+`reports_by_key` stay plain JSON values. A declaration list with more than
+one entry may only contain `DICT_VALUE_BY_KEY` entries. The list form itself
+is reserved for `DICT_VALUE_BY_KEY`; use a direct `ConfigNesting` value for
+`MEMBER`, `OPTIONAL_MEMBER`, `LIST_ELEMENT`, and `DICT_VALUE`.
 
 ## Installation
 
@@ -121,7 +153,7 @@ MIT
 
 ## Test summary
 
-- Test result: 3927 passed in 12s
+- Test result: 3979 passed in 12s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

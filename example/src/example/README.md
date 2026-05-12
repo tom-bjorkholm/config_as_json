@@ -1023,3 +1023,47 @@ default dictionaries may also contain one or more nested config objects.
 The command-line helper accepts the whole `reports_by_id` value as JSON. That
 keeps the example focused on `ConfigNestingKind.DICT_VALUE` instead of
 inventing a separate command-line syntax for fields inside named objects.
+
+## e36_dict_by_key_nested_configs.py
+
+[Source code for e36_dict_by_key_nested_configs.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e36_dict_by_key_nested_configs.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e36_dict_by_key_nested_configs.py)
+
+This example shows how to use one dictionary where selected keys are nested
+`Config` objects and the remaining keys are plain JSON values.
+
+The teaching story is still a course export tool. The dictionary
+`reports_by_key` contains:
+
+- `participants`, a nested `ReportOutputConfig`
+- `audit`, a nested `WebhookOutputConfig`
+- `owner`, a plain string
+- `max_attempts`, a plain integer
+
+The important declaration is:
+
+- `reports_by_key` uses a list of `ConfigNesting` entries
+- every entry in that list uses `ConfigNestingKind.DICT_VALUE_BY_KEY`
+- `discriminator_key` names the dictionary key handled by that entry
+
+The list form is needed because two keys inside the same dictionary are
+nested Config values. The outer `_nested_configs` key is still only
+`reports_by_key`, because that is the public member on the top-level
+configuration object.
+
+When JSON is read, the base class looks inside the `reports_by_key`
+dictionary. The value at `participants` is constructed as
+`ReportOutputConfig`, and the value at `audit` is constructed as
+`WebhookOutputConfig`. The `audit` declaration also has a `factory_function`,
+so the base class calls the factory instead of calling the class constructor
+directly. The factory has the same keyword arguments as a nested Config
+constructor and must return the declared config type or a subclass.
+
+Keys that are not listed by `discriminator_key`, such as `owner` and
+`max_attempts`, are written to JSON and read from JSON as ordinary JSON
+values. They must not contain `Config` objects in the Python configuration
+object, because the base class has no nested Config declaration for those
+keys.
+
+The command-line helper accepts the whole `reports_by_key` value as JSON.
+That keeps the example focused on `ConfigNestingKind.DICT_VALUE_BY_KEY`
+instead of inventing a separate command-line syntax for a mixed dictionary.

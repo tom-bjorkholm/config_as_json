@@ -29,7 +29,8 @@ import json
 import sys
 from typing import Optional, TextIO, cast
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
-    JsonType, MemberValidationStep, PathOrStr, StrValidator, ValidationPlan
+    JsonType, MemberValidationStep, NestedConfigs, PathOrStr, StrValidator, \
+    ValidationPlan
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 
 
@@ -98,7 +99,7 @@ class ExampleConfig34(Config):
         # This is the key line of the example. The member name is still the
         # public top-level attribute, ``reports``. The ``config_type`` is the
         # type of each element, not the type of the outer list.
-        self._nested_configs = {
+        self._nested_configs: NestedConfigs = {
             'reports': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
                                      config_type=ReportOutputConfig)
         }

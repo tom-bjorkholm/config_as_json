@@ -12,7 +12,8 @@ import pytest
 from pytest import CaptureFixture
 import config_as_json
 from config_as_json.config import Config
-from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
+from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
+    NestedConfigs
 from config_as_json.commontypes import PathOrStr
 from config_as_json.validator import InvalidConfiguration, \
     MemberValidationStep, StrValidator, ValidationPlan, \
@@ -68,7 +69,7 @@ class MultiSectionConfig(Config):
         self.participants = ParticipantSection(stderr_file=stderr_file)
         self.audit_log = AuditSection(stderr_file=stderr_file)
         self.backup_participants: Optional[ParticipantSection] = None
-        self._nested_configs = {
+        self._nested_configs: NestedConfigs = {
             'participants': ConfigNesting(kind=ConfigNestingKind.MEMBER,
                                           config_type=ParticipantSection),
             'audit_log': ConfigNesting(kind=ConfigNestingKind.MEMBER,
@@ -133,6 +134,7 @@ def test_nested_api_import_paths() -> None:
     """Test supported public import paths for nested configuration APIs."""
     assert config_as_json.ConfigNesting is ConfigNesting
     assert config_as_json.ConfigNestingKind is ConfigNestingKind
+    assert config_as_json.NestedConfigs is NestedConfigs
 
 
 @pytest.mark.parametrize('backup_json', ['', ', "backup_participants": null'])
@@ -245,7 +247,7 @@ class ReportListConfig(Config):
         """Construct a parent configuration with nested list elements."""
         self.course_name = 'python-intro'
         self.reports = [] if default_reports is None else default_reports
-        self._nested_configs = {
+        self._nested_configs: NestedConfigs = {
             'reports': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
                                      config_type=ReportSection)
         }
@@ -457,7 +459,7 @@ class ReportDictConfig(Config):
             self.reports_by_id: dict[str, ReportSection] = {}
         else:
             self.reports_by_id = default_reports
-        self._nested_configs = {
+        self._nested_configs: NestedConfigs = {
             'reports_by_id': ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
                                            config_type=ReportSection)
         }
@@ -643,3 +645,238 @@ def test_dict_nested_bad_value(capsys: CaptureFixture[str]) -> None:
     assert out == ''
     assert 'reports_by_id[audit] must be ReportSection' in err
     assert 'reports_by_id[audit]' in str(exc.value)
+
+
+# pylint: disable-next=too-few-public-methods
+class ReportByKeyValidator(WholeConfigValidator):
+    """Validate that keyed nested dict values were normalized first."""
+
+    def validate(self, config: Config,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Validate normalized report formats on the parent object."""
+        assert isinstance(config, ReportByKeyConfig)
+        report = config.reports_by_id.get('participants')
+        if report is None:
+            return
+        if isinstance(report, ReportSection) and \
+                report.output_format in ('CSV', 'TXT'):
+            return
+        msg = 'Participants report format was not normalized'
+        print(msg, file=stderr_file)
+        raise InvalidConfiguration(msg)
+
+
+class ReportByKeyConfig(Config):
+    """Configuration with selected nested Config values in a dict."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr,
+                 default_reports: Optional[dict[str, object]] = None) -> None:
+        """Construct a parent configuration with keyed nested dict values."""
+        self.course_name = 'python-intro'
+        if default_reports is None:
+            self.reports_by_id: dict[str, object] = \
+                self._default_reports(stderr_file)
+        else:
+            self.reports_by_id = default_reports
+        participant_nesting = ConfigNesting(
+            kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+            config_type=ReportSection, discriminator_key='participants')
+        audit_nesting = ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+                                      config_type=self._audit_config_type(),
+                                      discriminator_key='audit')
+        self._nested_configs: NestedConfigs = {
+            'reports_by_id': [participant_nesting, audit_nesting]
+        }
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    @staticmethod
+    def _audit_config_type() -> type[Config]:
+        """Return the nested Config type used for the audit key."""
+        return AuditSection
+
+    @staticmethod
+    def _default_reports(stderr_file: TextIO) -> dict[str, object]:
+        """Return default mixed report data for keyed dict tests."""
+        participants = ReportSection(stderr_file=stderr_file)
+        audit = AuditSection(stderr_file=stderr_file)
+        return {
+            'participants': participants,
+            'audit': audit,
+            'note': 'draft',
+            'retry_count': 3
+        }
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return validation steps for the parent configuration."""
+        _ = stderr_file
+        return [WholeConfigValidationStep(validator=ReportByKeyValidator())]
+
+
+def _report_by_key_json(config: ReportByKeyConfig,
+                        capsys: CaptureFixture[str]) -> dict[str, object]:
+    """Serialize one keyed report-dict config and verify silence."""
+    json_text = config.as_json_string(stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+    loaded = json.loads(json_text)
+    return cast(dict[str, object], loaded)
+
+
+def _report_by_key_json_text() -> str:
+    """Return JSON for a dict with selected nested Config values."""
+    return ('{"course_name": "math", "reports_by_id": {'
+            '"participants": {"name": "participants", '
+            '"file_name": "participants.txt", "output_format": "txt"}, '
+            '"audit": {"file_name": "audit.txt", '
+            '"include_actor": false}, '
+            '"note": "reviewed", "retry_count": 2, '
+            '"plain_dict": {"owner": "ops"}}}')
+
+
+def test_dict_by_key_default_values(capsys: CaptureFixture[str]) -> None:
+    """Test default keyed nested dict values and plain values."""
+    cfg = ReportByKeyConfig(stderr_file=sys.stderr)
+    assert _report_by_key_json(cfg, capsys) == {
+        'course_name': 'python-intro',
+        'reports_by_id': {
+            'audit': {
+                'file_name': 'audit.csv',
+                'include_actor': True
+            },
+            'note': 'draft',
+            'participants': {
+                'file_name': 'participants.csv',
+                'name': 'participants',
+                'output_format': 'CSV'
+            },
+            'retry_count': 3
+        }
+    }
+
+
+def test_dict_by_key_parse_write(capsys: CaptureFixture[str]) -> None:
+    """Test parsing and writing selected nested Config dict values."""
+    cfg = ReportByKeyConfig(from_json_data_text=_report_by_key_json_text(),
+                            stderr_file=sys.stderr)
+    json_data = _report_by_key_json(cfg, capsys)
+    participants = cfg.reports_by_id['participants']
+    audit = cfg.reports_by_id['audit']
+    assert isinstance(participants, ReportSection)
+    assert isinstance(audit, AuditSection)
+    assert cfg.reports_by_id['note'] == 'reviewed'
+    assert cfg.reports_by_id['retry_count'] == 2
+    assert cfg.reports_by_id['plain_dict'] == {'owner': 'ops'}
+    assert participants.output_format == 'TXT'
+    assert audit.include_actor is False
+    assert json_data == {
+        'course_name': 'math',
+        'reports_by_id': {
+            'audit': {
+                'file_name': 'audit.txt',
+                'include_actor': False
+            },
+            'note': 'reviewed',
+            'participants': {
+                'file_name': 'participants.txt',
+                'name': 'participants',
+                'output_format': 'TXT'
+            },
+            'plain_dict': {'owner': 'ops'},
+            'retry_count': 2
+        }
+    }
+
+
+def test_dict_by_key_empty_dict(capsys: CaptureFixture[str]) -> None:
+    """Test that an empty dict is valid for DICT_VALUE_BY_KEY."""
+    cfg = ReportByKeyConfig(
+        from_json_data_text='{"course_name": "math", "reports_by_id": {}}',
+        stderr_file=sys.stderr)
+    assert _report_by_key_json(cfg, capsys) == {
+        'course_name': 'math',
+        'reports_by_id': {}
+    }
+
+
+def test_dict_by_key_bad_json_dict(capsys: CaptureFixture[str]) -> None:
+    """Test that DICT_VALUE_BY_KEY JSON data must be an object."""
+    with pytest.raises(KeyError) as exc:
+        _ = ReportByKeyConfig(
+            from_json_data_text='{"course_name": "math", '
+            '"reports_by_id": [{"name": "bad"}]}',
+            stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Nested Config member reports_by_id must be a JSON object' in err
+    assert 'JSON object' in str(exc.value)
+
+
+@pytest.mark.parametrize('bad_value', [None, 7, ['not-object']])
+def test_dict_by_key_bad_json_value(capsys: CaptureFixture[str],
+                                    bad_value: object) -> None:
+    """Test that declared DICT_VALUE_BY_KEY values must be objects."""
+    json_text = json.dumps({'course_name': 'math',
+                            'reports_by_id': {'participants': bad_value}})
+    with pytest.raises(KeyError) as exc:
+        _ = ReportByKeyConfig(from_json_data_text=json_text,
+                              stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'reports_by_id[participants] must be a JSON object' in err
+    assert 'reports_by_id[participants]' in str(exc.value)
+
+
+def test_dict_by_key_bad_member(capsys: CaptureFixture[str]) -> None:
+    """Test that the runtime DICT_VALUE_BY_KEY member must be a dict."""
+    cfg = ReportByKeyConfig(stderr_file=sys.stderr)
+    cfg.reports_by_id = cast(dict[str, object], 'not-a-dict')
+    with pytest.raises(TypeError) as exc:
+        cfg.validate(stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Nested Config member reports_by_id must be a dict' in err
+    assert 'must be a dict' in str(exc.value)
+
+
+def test_dict_by_key_bad_key(capsys: CaptureFixture[str]) -> None:
+    """Test that runtime DICT_VALUE_BY_KEY keys must be strings."""
+    cfg = ReportByKeyConfig(stderr_file=sys.stderr)
+    cfg.reports_by_id = cast(dict[str, object], {
+        7: 'bad',
+        'participants': ReportSection(stderr_file=sys.stderr)
+    })
+    with pytest.raises(TypeError) as exc:
+        cfg.validate(stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Nested Config member reports_by_id keys must be strings' in err
+    assert 'keys must be strings' in str(exc.value)
+
+
+def test_by_key_bad_declared(capsys: CaptureFixture[str]) -> None:
+    """Test that declared dict keys must contain the configured type."""
+    cfg = ReportByKeyConfig(stderr_file=sys.stderr)
+    cfg.reports_by_id['participants'] = AuditSection(stderr_file=sys.stderr)
+    with pytest.raises(TypeError) as exc:
+        cfg.validate(stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'reports_by_id[participants] must be ReportSection' in err
+    assert 'reports_by_id[participants]' in str(exc.value)
+
+
+def test_by_key_unlisted_config(capsys: CaptureFixture[str]) -> None:
+    """Test that unlisted dict keys may not contain Config objects."""
+    cfg = ReportByKeyConfig(stderr_file=sys.stderr)
+    cfg.reports_by_id['summary'] = ReportSection(stderr_file=sys.stderr)
+    with pytest.raises(TypeError) as exc:
+        cfg.validate(stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'reports_by_id[summary] has no DICT_VALUE_BY_KEY' in err
+    assert 'reports_by_id[summary]' in str(exc.value)

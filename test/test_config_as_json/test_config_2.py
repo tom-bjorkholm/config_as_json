@@ -13,7 +13,8 @@ import pytest
 from pytest import CaptureFixture
 from config_as_json.config import Config, RocfKeyRename, ParseConverter
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
+from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
+    NestedConfigs
 from config_as_json.commontypes import JsonType
 from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
     WholeConfigValidationStep, WholeConfigValidator
@@ -188,7 +189,7 @@ class NestedParentConfig(Config):
         """Construct a parent configuration with one nested child."""
         self.output = NestedOutputConfig(None, None, stderr_file=stderr_file)
         self.expected_format = 'CSV'
-        self._nested_configs = {
+        self._nested_configs: NestedConfigs = {
             'output': ConfigNesting(kind=ConfigNestingKind.MEMBER,
                                     config_type=NestedOutputConfig)
         }
@@ -216,7 +217,7 @@ class OptionalNestedParentConfig(Config):
         """Construct a parent configuration with an optional child."""
         self.required_name = 'default'
         self.optional_output: Optional[NestedOutputConfig] = None
-        self._nested_configs = {
+        self._nested_configs: NestedConfigs = {
             'optional_output': ConfigNesting(
                 kind=ConfigNestingKind.OPTIONAL_MEMBER,
                 config_type=NestedOutputConfig)
@@ -238,11 +239,11 @@ class OptionalNestedParentConfig(Config):
 class BadNestedParentConfig(Config):
     """Parent configuration with injected nested Config metadata."""
 
-    def __init__(self, nesting: ConfigNesting,
+    def __init__(self, nesting: object,
                  stderr_file: TextIO = sys.stderr) -> None:
         """Construct a parent configuration using the supplied metadata."""
         self.child = NestedOutputConfig(None, None, stderr_file=stderr_file)
-        self._nested_configs = {'child': nesting}
+        self._nested_configs = cast(NestedConfigs, {'child': nesting})
         super().__init__(from_json_data_text=None, from_json_filename=None,
                          stderr_file=stderr_file)
 
@@ -490,19 +491,6 @@ def test_nested_optional_omit_none(capsys: CaptureFixture[str]) -> None:
         },
         'required_name': 'read'
     }
-
-
-@pytest.mark.parametrize('kind', [ConfigNestingKind.DICT_VALUE_BY_KEY])
-def test_nested_future_kind_fail(capsys: CaptureFixture[str],
-                                 kind: ConfigNestingKind) -> None:
-    """Test that future nested Config kinds fail visibly."""
-    nesting = ConfigNesting(kind=kind, config_type=NestedOutputConfig)
-    with pytest.raises(NotImplementedError) as exc:
-        _ = BadNestedParentConfig(nesting, stderr_file=sys.stderr)
-    out, err = capsys.readouterr()
-    assert '' == out
-    assert '' == err
-    assert 'unsupported nesting kind' in str(exc.value)
 
 
 def test_nested_discriminator_kind(capsys: CaptureFixture[str]) -> None:

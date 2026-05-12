@@ -26,7 +26,7 @@ import json
 import sys
 from typing import Optional, TextIO, cast
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
-    JsonType, PathOrStr, ValidationPlan
+    JsonType, NestedConfigs, PathOrStr, ValidationPlan
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
 from .e34_list_nested_configs import ReportOutputConfig
 
@@ -78,7 +78,7 @@ class ExampleConfig35(Config):
         # written to JSON and read from JSON as plain strings without
         # conversions. Only the values are constructed as nested Config
         # objects.
-        self._nested_configs = {
+        self._nested_configs: NestedConfigs = {
             'reports_by_id': ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
                                            config_type=ReportOutputConfig)
         }
