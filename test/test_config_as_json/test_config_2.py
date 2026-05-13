@@ -8,7 +8,7 @@ from copy import deepcopy
 from enum import Enum, auto
 import json
 import sys
-from typing import Any, Optional, cast, TextIO
+from typing import Any, Optional, cast, override, TextIO
 import pytest
 from pytest import CaptureFixture
 from config_as_json.config import Config, RocfKeyRename, ParseConverter
@@ -64,6 +64,7 @@ class OmitNoneConfig(Config):
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
+    @override
     def _omit_none_from_json(self) -> list[str]:
         """Return the keys omitted while their value is None."""
         return ['optional_text', 'optional_mode']
@@ -81,6 +82,7 @@ class OmitNoneConfig(Config):
 class OmitNoneUnknownMemberConfig(OmitNoneConfig):
     """Class with an invalid omit-None member name."""
 
+    @override
     def _omit_none_from_json(self) -> list[str]:
         """Return an invalid omit-None member name."""
         return ['missing_member']
@@ -96,6 +98,7 @@ class OmitNoneNonNoneDefaultConfig(Config):
         super().__init__(from_json_data_text=None, from_json_filename=None,
                          stderr_file=stderr_file)
 
+    @override
     def _omit_none_from_json(self) -> list[str]:
         """Return a key whose constructor default is not None."""
         return ['optional_text']
@@ -115,6 +118,7 @@ class OmitNoneBadReturnConfig(OmitNoneConfig):
         self._omitted_keys = omitted_keys
         super().__init__(stderr_file=stderr_file)
 
+    @override
     def _omit_none_from_json(self) -> list[str]:
         """Return the configured invalid omit-None hook value."""
         return cast(list[str], self._omitted_keys)
@@ -189,13 +193,17 @@ class NestedParentConfig(Config):
         """Construct a parent configuration with one nested child."""
         self.output = NestedOutputConfig(None, None, stderr_file=stderr_file)
         self.expected_format = 'CSV'
-        self._nested_configs: NestedConfigs = {
-            'output': ConfigNesting(kind=ConfigNestingKind.MEMBER,
-                                    config_type=NestedOutputConfig)
-        }
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        return {
+            'output': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                    config_type=NestedOutputConfig)
+        }
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
@@ -217,15 +225,20 @@ class OptionalNestedParentConfig(Config):
         """Construct a parent configuration with an optional child."""
         self.required_name = 'default'
         self.optional_output: Optional[NestedOutputConfig] = None
-        self._nested_configs: NestedConfigs = {
-            'optional_output': ConfigNesting(
-                kind=ConfigNestingKind.OPTIONAL_MEMBER,
-                config_type=NestedOutputConfig)
-        }
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        return {
+            'optional_output': ConfigNesting(
+                kind=ConfigNestingKind.OPTIONAL_MEMBER,
+                config_type=NestedOutputConfig)
+        }
+
+    @override
     def _omit_none_from_json(self) -> list[str]:
         """Return the keys omitted while their value is None."""
         return ['optional_output']
@@ -243,9 +256,14 @@ class BadNestedParentConfig(Config):
                  stderr_file: TextIO = sys.stderr) -> None:
         """Construct a parent configuration using the supplied metadata."""
         self.child = NestedOutputConfig(None, None, stderr_file=stderr_file)
-        self._nested_configs = cast(NestedConfigs, {'child': nesting})
+        self._nesting = nesting
         super().__init__(from_json_data_text=None, from_json_filename=None,
                          stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return injected nested Config declarations."""
+        return cast(NestedConfigs, {'child': self._nesting})
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""

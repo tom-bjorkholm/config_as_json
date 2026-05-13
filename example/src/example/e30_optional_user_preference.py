@@ -22,7 +22,7 @@ omitted from output JSON while their value is ``None``.
 # MIT License
 
 from enum import Enum, auto
-from typing import Optional, TextIO
+from typing import Optional, TextIO, override
 import sys
 from config_as_json import Config, PathOrStr, ValidationPlan, \
     ParseConverter
@@ -70,6 +70,7 @@ class ExampleConfig30(Config):
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
+    @override
     def _omit_none_from_json(self) -> list[str]:
         """Return members omitted from JSON while their value is None."""
         return ['author_note', 'palette']

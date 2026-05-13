@@ -115,13 +115,12 @@ class Config():
     ``DictKeysValidator`` in ``dict_validators`` for how that interacts with
     this check.
 
-    A derived class can also declare nested configuration sections in
-    ``_nested_configs``. ``MEMBER`` and ``OPTIONAL_MEMBER`` describe direct
-    members, ``LIST_ELEMENT`` describes a list whose elements are nested
-    Config objects, ``DICT_VALUE`` describes a dict whose values are nested
-    Config objects, and ``DICT_VALUE_BY_KEY`` describes selected keys inside
-    a dict whose values are nested Config objects. The ``_nested_configs``
-    member should have type ``NestedConfigs``. Use a direct
+    A derived class can also declare nested configuration sections by
+    overriding :meth:`nested_configs`. ``MEMBER`` and ``OPTIONAL_MEMBER``
+    describe direct members, ``LIST_ELEMENT`` describes a list whose elements
+    are nested Config objects, ``DICT_VALUE`` describes a dict whose values
+    are nested Config objects, and ``DICT_VALUE_BY_KEY`` describes selected
+    keys inside a dict whose values are nested Config objects. Use a direct
     ``ConfigNesting`` value for one declaration. Use a list only when every
     list element has kind ``DICT_VALUE_BY_KEY`` and the entries describe
     selected keys inside the same dict member.
@@ -161,7 +160,8 @@ class Config():
         Raises:
             AttributeError: The derived class did not declare any public
                 configuration attributes before calling ``super().__init__``.
-            TypeError: ``_unchecked_dicts`` exists but is not a list.
+            TypeError: ``_unchecked_dicts`` exists but is not a list, or
+                ``nested_configs`` returns invalid declarations.
             ValueError: Both JSON text and a JSON file were supplied.
             KeyError: Parsed data is missing required keys or contains
                 unexpected keys.
@@ -174,6 +174,9 @@ class Config():
             auto_ch_hook = ConfigAutoChangeHook()
         self._hook_cfg_autochange: ConfigAutoChangeHook = \
             deepcopy(auto_ch_hook)
+        if '_nested_configs' in vars(self):
+            # Remove this transition check after the API migration.
+            raise TypeError('_nested_configs is no longer supported')
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
         if not self_keys:
@@ -182,7 +185,9 @@ class Config():
             msg += 'calling super().__init__().)'
             raise AttributeError(msg)
         self._checked_omit_none_from_json(self_keys, check_default_values=True)
-        self._checked_nested_configs(self_keys)
+        self._nested_config_decls: dict[str, list[ConfigNesting]] = \
+            self._checked_nested_configs(self_keys)
+        self._check_nested_config_members(self_keys, self._nested_config_decls)
         unchecked = getattr(self, '_unchecked_dicts', None)
         if unchecked is None:
             self._unchecked_dicts: list[str] = []
@@ -214,6 +219,21 @@ class Config():
         """
         return {'in_type': ParseConverter(result_type=int,
                                           func=_over_ride_needed, args={})}
+
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations for this configuration.
+
+        Override this for public members that contain nested :class:`Config`
+        objects. Return :class:`NestedConfigs` mapping member names to
+        :class:`ConfigNesting` declarations. Use ``@override`` so static type
+        checkers can catch a misspelled method name.
+
+        The override should only return stable declarative metadata: no
+        parsing, validation, mutation, diagnostics, or other side effects.
+        Values should be constant from the time ``super().__init__`` is
+        called. Every nested Config object needs a declaration.
+        """
+        return {}
 
     @staticmethod
     def check_key_match(
@@ -377,25 +397,27 @@ class Config():
             ValueError: ``discriminator_key`` is used with the wrong kind.
         """
         if not isinstance(nesting.kind, ConfigNestingKind):
-            msg = f'_nested_configs[{key}].kind must be ConfigNestingKind'
+            msg = f'nested_configs()[{key}].kind must be ConfigNestingKind'
             raise TypeError(msg)
         if not isinstance(nesting.config_type, type):
-            msg = f'_nested_configs[{key}].config_type must be a type'
+            msg = f'nested_configs()[{key}].config_type must be a type'
             raise TypeError(msg)
         if not issubclass(nesting.config_type, Config):
-            msg = f'_nested_configs[{key}].config_type must derive from Config'
+            msg = 'nested_configs()'
+            msg += f'[{key}].config_type must derive from Config'
             raise TypeError(msg)
         if nesting.factory_function is not None and \
                 not callable(nesting.factory_function):
-            msg = f'_nested_configs[{key}].factory_function must be callable'
+            msg = f'nested_configs()[{key}].factory_function must be callable'
             raise TypeError(msg)
         discriminator = nesting.discriminator_key
         if discriminator is not None and not isinstance(discriminator, str):
-            msg = f'_nested_configs[{key}].discriminator_key must be a string'
+            msg = 'nested_configs()'
+            msg += f'[{key}].discriminator_key must be a string'
             raise TypeError(msg)
         if discriminator is not None and \
                 nesting.kind != ConfigNestingKind.DICT_VALUE_BY_KEY:
-            msg = '_nested_configs discriminator_key is reserved for '
+            msg = 'nested_configs() discriminator_key is reserved for '
             msg += 'DICT_VALUE_BY_KEY'
             raise ValueError(msg)
 
@@ -406,7 +428,7 @@ class Config():
 
         Args:
             key: Public member name described by the declarations.
-            nesting_raw: Raw value from ``_nested_configs``.
+            nesting_raw: Raw value from :meth:`nested_configs`.
 
         Returns:
             One or more checked ``ConfigNesting`` declarations.
@@ -419,17 +441,17 @@ class Config():
             nestings = [nesting_raw]
         elif isinstance(nesting_raw, list):
             if not nesting_raw:
-                msg = f'_nested_configs[{key}] list must not be empty'
+                msg = f'nested_configs()[{key}] list must not be empty'
                 raise ValueError(msg)
             nestings = []
             for nesting in nesting_raw:
                 if not isinstance(nesting, ConfigNesting):
-                    msg = f'_nested_configs[{key}] list entries must be '
+                    msg = f'nested_configs()[{key}] list entries must be '
                     msg += 'ConfigNesting'
                     raise TypeError(msg)
                 nestings.append(nesting)
         else:
-            msg = f'_nested_configs[{key}] must be ConfigNesting or list'
+            msg = f'nested_configs()[{key}] must be ConfigNesting or list'
             raise TypeError(msg)
         for nesting in nestings:
             Config._check_config_nesting(key=key, nesting=nesting)
@@ -455,7 +477,7 @@ class Config():
         by_key_nestings = [
             nesting for nesting in nestings if nesting.kind == by_key_kind]
         if list_form and len(by_key_nestings) != len(nestings):
-            msg = f'_nested_configs[{key}] list '
+            msg = f'nested_configs()[{key}] list '
             msg += 'may only contain DICT_VALUE_BY_KEY declarations'
             raise ValueError(msg)
         if not by_key_nestings:
@@ -464,50 +486,57 @@ class Config():
         for nesting in by_key_nestings:
             discriminator = nesting.discriminator_key
             if discriminator is None:
-                msg = f'_nested_configs[{key}] DICT_VALUE_BY_KEY '
+                msg = f'nested_configs()[{key}] DICT_VALUE_BY_KEY '
                 msg += 'requires discriminator_key'
                 raise ValueError(msg)
             if discriminator in used_keys:
-                msg = f'_nested_configs[{key}] duplicate '
+                msg = f'nested_configs()[{key}] duplicate '
                 msg += f'discriminator_key {discriminator}'
                 raise ValueError(msg)
             used_keys.add(discriminator)
 
     def _checked_nested_configs(self, self_keys: list[str]) \
             -> dict[str, list[ConfigNesting]]:
-        """Return validated nested Config declarations.
-
-        Args:
-            self_keys: Public configuration member names on this object.
-
-        Returns:
-            The declarations stored in ``_nested_configs``, or an empty dict.
-
-        Raises:
-            TypeError: ``_nested_configs`` or one of its entries has the wrong
-                runtime type.
-            KeyError: A declaration names an unknown public member.
-            ValueError: A discriminator or declaration list is invalid.
-        """
-        nested_raw: object = getattr(self, '_nested_configs', None)
-        if nested_raw is None:
-            self._nested_configs: NestedConfigs = {}
-            return {}
+        """Return validated and normalized nested Config declarations."""
+        nested_raw: object = self.nested_configs()
         if not isinstance(nested_raw, dict):
-            msg = '_nested_configs must be a dict'
+            msg = 'nested_configs() must return a dict'
             raise TypeError(msg)
         nested_configs: dict[str, list[ConfigNesting]] = {}
         for key, nesting_raw in nested_raw.items():
             if not isinstance(key, str):
-                msg = '_nested_configs keys must be strings'
+                msg = 'nested_configs() keys must be strings'
                 raise TypeError(msg)
             if key not in self_keys:
-                msg = f'_nested_configs returned unknown key {key}'
+                msg = f'nested_configs() returned unknown key {key}'
                 raise KeyError(msg)
             nestings = self._checked_config_nesting_list(
                 key=key, nesting_raw=nesting_raw)
             nested_configs[key] = nestings
         return nested_configs
+
+    @staticmethod
+    def _value_has_config(value: object) -> bool:
+        """Return whether a default value visibly contains a Config object."""
+        if isinstance(value, Config):
+            return True
+        if isinstance(value, list):
+            return any(isinstance(item, Config) for item in value)
+        if isinstance(value, dict):
+            return any(isinstance(item, Config) for item in value.values())
+        return False
+
+    def _check_nested_config_members(
+            self, self_keys: list[str],
+            nested_configs: dict[str, list[ConfigNesting]]) -> None:
+        """Validate that visible nested Config defaults are declared."""
+        for key in self_keys:
+            if key in nested_configs:
+                continue
+            if self._value_has_config(getattr(self, key)):
+                msg = f'Nested Config member {key} is not returned from '
+                msg += 'nested_configs()'
+                raise TypeError(msg)
 
     def _rocf_get_keys_to_remove(self) -> list[str]:
         """Return old JSON keys to remove while reading old files.
@@ -737,9 +766,7 @@ class Config():
         Args:
             stderr_file: Stream used for user-facing diagnostics.
         """
-        self_keys = [i for i in vars(self).keys() if not
-                     callable(getattr(self, i)) and not i.startswith('_')]
-        nested_configs = self._checked_nested_configs(self_keys)
+        nested_configs = self._nested_config_decls
         for member_name, nesting in nested_configs.items():
             member_value = getattr(self, member_name)
             validate_nested_config(
@@ -789,7 +816,7 @@ class Config():
                      callable(getattr(self, i)) and not i.startswith('_')]
         omit_none_keys = self._checked_omit_none_from_json(
             self_keys, check_default_values=False)
-        nested_configs = self._checked_nested_configs(self_keys)
+        nested_configs = self._nested_config_decls
         self.check_key_match(self_keys, data.keys(), ok_to_use_defaults,
                              stderr_file, omit_none_keys)
         for i in self_keys:
@@ -824,7 +851,7 @@ class Config():
                      callable(getattr(self, i)) and not i.startswith('_')]
         omit_none_keys = self._checked_omit_none_from_json(
             self_keys, check_default_values=False)
-        nested_configs = self._checked_nested_configs(self_keys)
+        nested_configs = self._nested_config_decls
         for i in self_keys:
             if i in omit_none_keys and getattr(self, i) is None:
                 continue

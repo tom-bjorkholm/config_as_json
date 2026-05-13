@@ -29,16 +29,21 @@ applications define:
 ## Nested config sections
 
 For a repeated group of related settings, an application can put that group
-in its own class derived from `config_as_json.Config`, and then declare a
-member of the main configuration as a nested config section with
-`ConfigNesting`.
+in its own class derived from `config_as_json.Config`, and then override
+`nested_configs()` in the main configuration to declare nested config
+sections with `ConfigNesting`.
 
-Annotate `_nested_configs` as `NestedConfigs` so type checkers can see the
-supported declaration shape:
+Annotate the override as returning `NestedConfigs`, and use `@override` so
+type checkers can catch a misspelled method name:
 
 ```python
+from typing import override
 from config_as_json import ConfigNesting, ConfigNestingKind, NestedConfigs
 ```
+
+The method should just return declarative metadata. It should be constant, or
+at least constant from the time the derived constructor calls
+`super().__init__()`, and it should have no side effects.
 
 The supported nested shapes are:
 
@@ -89,17 +94,20 @@ For `ConfigNestingKind.DICT_VALUE_BY_KEY`, use a list of `ConfigNesting`
 entries when several keys inside the same dict should be nested configs:
 
 ```python
-self._nested_configs: NestedConfigs = {
-    'reports_by_key': [
-        ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
-                      config_type=ReportOutputConfig,
-                      discriminator_key='participants'),
-        ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
-                      config_type=WebhookOutputConfig,
-                      discriminator_key='audit',
-                      factory_function=create_webhook_output)
-    ]
-}
+@override
+def nested_configs(self) -> NestedConfigs:
+    """Return nested Config declarations."""
+    return {
+        'reports_by_key': [
+            ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+                          config_type=ReportOutputConfig,
+                          discriminator_key='participants'),
+            ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+                          config_type=WebhookOutputConfig,
+                          discriminator_key='audit',
+                          factory_function=create_webhook_output)
+        ]
+    }
 ```
 
 Here `discriminator_key` is the key inside `reports_by_key`. When JSON is
@@ -153,7 +161,7 @@ MIT
 
 ## Test summary
 
-- Test result: 3979 passed in 12s
+- Test result: 3984 passed in 12s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

@@ -6,7 +6,7 @@
 
 import sys
 from tempfile import TemporaryDirectory
-from typing import Optional, TextIO, cast
+from typing import Optional, TextIO, cast, override
 import pytest
 from pytest import CaptureFixture
 from config_as_json.config import Config
@@ -35,9 +35,14 @@ class ShapeParentConfig(Config):
                  stderr_file: TextIO = sys.stderr) -> None:
         """Construct a parent with caller supplied nested declarations."""
         self.child = child_value
-        self._nested_configs: NestedConfigs = nested_configs
+        self._nested_config_data = nested_configs
         super().__init__(from_json_data_text=None, from_json_filename=None,
                          stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return caller supplied nested Config declarations."""
+        return self._nested_config_data
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return no validation steps for declaration-shape tests."""
@@ -52,12 +57,77 @@ class BadShapeParentConfig(Config):
                  stderr_file: TextIO = sys.stderr) -> None:
         """Construct a parent with intentionally unchecked metadata."""
         self.child: dict[str, object] = {}
-        self._nested_configs = cast(NestedConfigs, nested_configs)
+        self._nested_config_data = nested_configs
+        super().__init__(from_json_data_text=None, from_json_filename=None,
+                         stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return intentionally unchecked nested Config declarations."""
+        return cast(NestedConfigs, self._nested_config_data)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return no validation steps for declaration-shape tests."""
+        _ = stderr_file
+        return []
+
+
+class OldNestedConfigsConfig(Config):
+    """Configuration that still uses the removed member-variable API."""
+
+    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a config with old nested declaration metadata."""
+        self.name = 'old-api'
+        self._nested_configs: NestedConfigs = {}
+        super().__init__(from_json_data_text=None, from_json_filename=None,
+                         stderr_file=stderr_file)
+
+
+class UndeclaredDirectConfig(Config):
+    """Configuration with an undeclared direct nested Config default."""
+
+    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a config with an undeclared nested member."""
+        self.child = NestedOutputConfig(stderr_file=stderr_file)
+        super().__init__(from_json_data_text=None, from_json_filename=None,
+                         stderr_file=stderr_file)
+
+
+class UndeclaredListConfig(Config):
+    """Configuration with an undeclared list nested Config default."""
+
+    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a config with an undeclared nested list member."""
+        self.children = [NestedOutputConfig(stderr_file=stderr_file)]
+        super().__init__(from_json_data_text=None, from_json_filename=None,
+                         stderr_file=stderr_file)
+
+
+class UndeclaredDictConfig(Config):
+    """Configuration with an undeclared dict nested Config default."""
+
+    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a config with an undeclared nested dict member."""
+        self.children_by_id = {
+            'one': NestedOutputConfig(stderr_file=stderr_file)
+        }
+        super().__init__(from_json_data_text=None, from_json_filename=None,
+                         stderr_file=stderr_file)
+
+
+class EmptyNestedDefaultsConfig(Config):
+    """Configuration whose nested intent cannot be inferred at runtime."""
+
+    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a config with empty or None nested defaults."""
+        self.optional_child: Optional[NestedOutputConfig] = None
+        self.children: list[NestedOutputConfig] = []
+        self.children_by_id: dict[str, NestedOutputConfig] = {}
         super().__init__(from_json_data_text=None, from_json_filename=None,
                          stderr_file=stderr_file)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Return no validation steps for declaration-shape tests."""
+        """Return no validation steps for empty-default tests."""
         _ = stderr_file
         return []
 
@@ -95,7 +165,7 @@ def _assert_silent(capsys: CaptureFixture[str]) -> None:
 
 def _valid_shape_data(case_name: str, stderr_file: TextIO) \
         -> tuple[NestedConfigs, object]:
-    """Return valid ``_nested_configs`` metadata and matching member data."""
+    """Return valid ``nested_configs`` metadata and matching member data."""
     cases: dict[str, tuple[NestedConfigs, object]] = {
         'member': (
             {'child': _plain_nesting(ConfigNestingKind.MEMBER)},
@@ -133,7 +203,7 @@ def _valid_shape_data(case_name: str, stderr_file: TextIO) \
 ])
 def test_good_nesting_shapes(capsys: CaptureFixture[str],
                              case_name: str) -> None:
-    """Test valid ``_nested_configs`` declaration shapes."""
+    """Test valid ``nested_configs`` declaration shapes."""
     nested_configs, child_value = _valid_shape_data(case_name, sys.stderr)
     _ = ShapeParentConfig(nested_configs=nested_configs,
                           child_value=child_value, stderr_file=sys.stderr)
@@ -247,7 +317,7 @@ def test_by_key_empty_file_io(capsys: CaptureFixture[str]) -> None:
 
 
 def _bad_shape_data(case_name: str) -> tuple[object, type[Exception], str]:
-    """Return bad ``_nested_configs`` metadata and expected diagnostic text."""
+    """Return bad ``nested_configs`` metadata and expected diagnostic text."""
     bad_disc = ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
                              config_type=NestedOutputConfig,
                              discriminator_key=cast(Optional[str], 7))
@@ -262,22 +332,22 @@ def _bad_shape_data(case_name: str) -> tuple[object, type[Exception], str]:
                                     config_type=cast(type[Config], str))
     cases: dict[str, tuple[object, type[Exception], str]] = {
         'not-dict': (
-            'bad', TypeError, '_nested_configs must be a dict'),
+            'bad', TypeError, 'nested_configs() must return a dict'),
         'bad-key': (
             {7: _by_key_nesting('child')}, TypeError,
-            '_nested_configs keys must be strings'),
+            'nested_configs() keys must be strings'),
         'unknown-key': (
             {'missing': _by_key_nesting('child')}, KeyError,
-            '_nested_configs returned unknown key missing'),
+            'nested_configs() returned unknown key missing'),
         'bad-value': (
             {'child': 'bad'}, TypeError,
-            '_nested_configs[child] must be ConfigNesting or list'),
+            'nested_configs()[child] must be ConfigNesting or list'),
         'empty-list': (
             {'child': []}, ValueError,
-            '_nested_configs[child] list must not be empty'),
+            'nested_configs()[child] list must not be empty'),
         'bad-list-entry': (
             {'child': ['bad']}, TypeError,
-            '_nested_configs[child] list entries must be ConfigNesting'),
+            'nested_configs()[child] list entries must be ConfigNesting'),
         'member-list': (
             {'child': [_plain_nesting(ConfigNestingKind.MEMBER)]},
             ValueError, 'list may only contain DICT_VALUE_BY_KEY'),
@@ -294,19 +364,19 @@ def _bad_shape_data(case_name: str) -> tuple[object, type[Exception], str]:
             'requires discriminator_key'),
         'bad-disc-type': (
             {'child': bad_disc}, TypeError,
-            '_nested_configs[child].discriminator_key must be a string'),
+            'nested_configs()[child].discriminator_key must be a string'),
         'reserved-disc': (
             {'child': reserved_disc}, ValueError,
             'discriminator_key is reserved for DICT_VALUE_BY_KEY'),
         'bad-kind': (
             {'child': bad_kind}, TypeError,
-            '_nested_configs[child].kind must be ConfigNestingKind'),
+            'nested_configs()[child].kind must be ConfigNestingKind'),
         'bad-config-type-object': (
             {'child': bad_config_object}, TypeError,
-            '_nested_configs[child].config_type must be a type'),
+            'nested_configs()[child].config_type must be a type'),
         'bad-config-type': (
             {'child': bad_config_type}, TypeError,
-            '_nested_configs[child].config_type must derive from Config')
+            'nested_configs()[child].config_type must derive from Config')
     }
     return cases[case_name]
 
@@ -330,13 +400,47 @@ def _bad_shape_data(case_name: str) -> tuple[object, type[Exception], str]:
 ])
 def test_bad_nesting_shapes(capsys: CaptureFixture[str],
                             case_name: str) -> None:
-    """Test invalid ``_nested_configs`` declaration shapes."""
+    """Test invalid ``nested_configs`` declaration shapes."""
     nested_configs, exception_type, message = _bad_shape_data(case_name)
     with pytest.raises(exception_type) as exc:
         _ = BadShapeParentConfig(nested_configs=nested_configs,
                                  stderr_file=sys.stderr)
     _assert_silent(capsys)
     assert message in str(exc.value)
+
+
+def test_old_nested_member_fails(capsys: CaptureFixture[str]) -> None:
+    """Test that the old member-variable API fails during transition."""
+    with pytest.raises(TypeError) as exc:
+        _ = OldNestedConfigsConfig(stderr_file=sys.stderr)
+    _assert_silent(capsys)
+    assert '_nested_configs is no longer supported' in str(exc.value)
+
+
+@pytest.mark.parametrize('case_name, member_name', [
+    ('direct', 'child'),
+    ('list', 'children'),
+    ('dict', 'children_by_id')
+])
+def test_undeclared_defaults_fail(capsys: CaptureFixture[str], case_name: str,
+                                  member_name: str) -> None:
+    """Test visible nested Config defaults need declarations."""
+    with pytest.raises(TypeError) as exc:
+        if case_name == 'direct':
+            _ = UndeclaredDirectConfig(stderr_file=sys.stderr)
+        elif case_name == 'list':
+            _ = UndeclaredListConfig(stderr_file=sys.stderr)
+        else:
+            _ = UndeclaredDictConfig(stderr_file=sys.stderr)
+    _assert_silent(capsys)
+    assert f'Nested Config member {member_name}' in str(exc.value)
+    assert 'nested_configs()' in str(exc.value)
+
+
+def test_empty_defaults_not_inferred(capsys: CaptureFixture[str]) -> None:
+    """Test that None and empty containers are not nested-default evidence."""
+    _ = EmptyNestedDefaultsConfig(stderr_file=sys.stderr)
+    _assert_silent(capsys)
 
 
 def test_by_key_needs_disc(capsys: CaptureFixture[str]) -> None:

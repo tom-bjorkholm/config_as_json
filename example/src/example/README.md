@@ -913,8 +913,8 @@ defaults to `2D`.
 [Source code for e33_nested_configs.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e33_nested_configs.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e33_nested_configs.py)
 
 This example shows how to put a repeated group of related settings in its
-own `Config` class and then use that class as a nested section inside a
-larger configuration.
+own `Config` class and then use that class as a nested Config object inside
+a larger configuration.
 
 The teaching story is a course registration export. The main configuration
 has:
@@ -930,10 +930,15 @@ validators. It contains:
 - `output_format`
 - `encoding`
 
-The main configuration declares the nested members in `_nested_configs`:
+The main configuration declares the nested members by overriding
+`nested_configs()`. The examples use `@override` on this method so a type
+checker can catch a misspelled method name:
 
 - `participant_output` uses `ConfigNestingKind.MEMBER`
 - `audit_output` uses `ConfigNestingKind.OPTIONAL_MEMBER`
+
+The method should just return stable declaration metadata. It should not
+parse data, validate data, mutate the object, or have other side effects.
 
 The optional member also appears in `_omit_none_from_json()`. That makes
 `audit_output` behave like other optional members: it may be absent from JSON,
@@ -971,7 +976,7 @@ The important declaration is:
 
 - `reports` uses `ConfigNestingKind.LIST_ELEMENT`
 
-The member named in `_nested_configs` is the top-level list member. The
+The key returned by `nested_configs()` is the top-level list member. The
 `config_type` is the type of each list element. When JSON is read, the base
 class expects `reports` to be a JSON list, and each element in that list must
 be a JSON object. Each object is parsed by constructing one
@@ -1010,11 +1015,11 @@ The important declaration is:
 
 - `reports_by_id` uses `ConfigNestingKind.DICT_VALUE`
 
-The member named in `_nested_configs` is the top-level dictionary member. The
-`config_type` is the type of each dictionary value. When JSON is read, the
-base class expects `reports_by_id` to be a JSON object. Each value in that
-object must also be a JSON object, and each value is parsed by constructing
-one `ReportOutputConfig`.
+The key returned by `nested_configs()` is the top-level dictionary member.
+The `config_type` is the type of each dictionary value. When JSON is read,
+the base class expects `reports_by_id` to be a JSON object. Each value in
+that object must also be a JSON object, and each value is parsed by
+constructing one `ReportOutputConfig`.
 
 When JSON is written, every `ReportOutputConfig` value is serialized back to
 a JSON object under its dictionary key. Empty dictionaries are valid, and
@@ -1046,9 +1051,10 @@ The important declaration is:
 - `discriminator_key` names the dictionary key handled by that entry
 
 The list form is needed because two keys inside the same dictionary are
-nested Config values. The outer `_nested_configs` key is still only
+nested Config values. The outer `nested_configs()` key is still only
 `reports_by_key`, because that is the public member on the top-level
-configuration object.
+configuration object. The example uses `@override` on `nested_configs()` so a
+type checker can catch a misspelled method name.
 
 When JSON is read, the base class looks inside the `reports_by_key`
 dictionary. The value at `participants` is constructed as

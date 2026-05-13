@@ -24,7 +24,7 @@ new lesson focused on the dictionary nesting shape:
 
 import json
 import sys
-from typing import Optional, TextIO, cast
+from typing import Optional, TextIO, cast, override
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
     JsonType, NestedConfigs, PathOrStr, ValidationPlan
 from .cmd_line_handling import InputSpec, SetValues, cmd_line_handling
@@ -72,19 +72,24 @@ class ExampleConfig35(Config):
         # generated JSON immediately shows the shape of the dictionary.
         self.reports_by_id: dict[str, ReportOutputConfig] = \
             _default_reports_by_id(stderr_file=stderr_file)
-        # This declaration says that the public member ``reports_by_id`` is
-        # a dictionary and that each value in that dictionary must be a
-        # ReportOutputConfig. The keys are plain strings, and will be
-        # written to JSON and read from JSON as plain strings without
-        # conversions. Only the values are constructed as nested Config
-        # objects.
-        self._nested_configs: NestedConfigs = {
-            'reports_by_id': ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
-                                           config_type=ReportOutputConfig)
-        }
         super().__init__(from_json_data_text=from_json_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        # Use @override on this method so a type checker can catch a
+        # misspelled method name.
+        # This declaration says that the public member ``reports_by_id`` is a
+        # dictionary and that each value in that dictionary must be a
+        # ReportOutputConfig. The keys are plain strings, and will be written
+        # to JSON and read from JSON as plain strings without conversions.
+        # Only the values are constructed as nested Config objects.
+        return {
+            'reports_by_id': ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
+                                           config_type=ReportOutputConfig)
+        }
 
 
 def _cmd_report_from_json_value(report_key: str,

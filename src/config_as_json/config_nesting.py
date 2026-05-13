@@ -81,10 +81,10 @@ class ConfigNesting(NamedTuple):
 
 
 type NestedConfigs = dict[str, ConfigNesting | list[ConfigNesting]]
-"""Type of :attr:`Config._nested_configs` declarations.
+"""Return type of :meth:`Config.nested_configs` declarations.
 
 Use a direct :class:`ConfigNesting` value for one nested declaration. Use
 the list form only when every list element has kind
 ``ConfigNestingKind.DICT_VALUE_BY_KEY`` and the entries describe selected
-keys inside the same dictionary member.
+keys inside the same Config member variable of dict type.
 """

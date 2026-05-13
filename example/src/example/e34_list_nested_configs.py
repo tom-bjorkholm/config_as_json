@@ -27,7 +27,7 @@ top-level ``ExampleConfig34`` class then stores
 
 import json
 import sys
-from typing import Optional, TextIO, cast
+from typing import Optional, TextIO, cast, override
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
     JsonType, MemberValidationStep, NestedConfigs, PathOrStr, StrValidator, \
     ValidationPlan
@@ -96,16 +96,23 @@ class ExampleConfig34(Config):
         audit_report.file_name = 'audit.csv'
         self.reports: list[ReportOutputConfig] = [
             ReportOutputConfig(stderr_file=stderr_file), audit_report]
-        # This is the key line of the example. The member name is still the
-        # public top-level attribute, ``reports``. The ``config_type`` is the
-        # type of each element, not the type of the outer list.
-        self._nested_configs: NestedConfigs = {
-            'reports': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
-                                     config_type=ReportOutputConfig)
-        }
         super().__init__(from_json_data_text=from_json_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        # Use @override on this method so a type checker can catch a
+        # misspelled method name.
+        # The key in this dict is the public Config member variable,
+        # ``reports``. The config_type is ReportOutputConfig because each
+        # list element is one ReportOutputConfig. The outer member itself has
+        # list type.
+        return {
+            'reports': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
+                                     config_type=ReportOutputConfig)
+        }
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for the top-level configuration."""

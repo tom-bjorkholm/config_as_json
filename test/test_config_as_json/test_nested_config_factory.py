@@ -6,7 +6,7 @@
 
 import json
 import sys
-from typing import Optional, TextIO, Type, cast
+from typing import Optional, TextIO, Type, cast, override
 import pytest
 from pytest import CaptureFixture
 from config_as_json import Config, ConfigFactory, ConfigNesting, \
@@ -114,13 +114,18 @@ class FactoryParentConfig(Config):
                  factory_function: Optional[ConfigFactory] = None) -> None:
         """Construct a parent configuration with one nested member."""
         self.output = FactoryOutputConfig(stderr_file=stderr_file)
-        output_nesting = ConfigNesting(kind=ConfigNestingKind.MEMBER,
-                                       config_type=FactoryOutputConfig,
-                                       factory_function=factory_function)
-        self._nested_configs: NestedConfigs = {'output': output_nesting}
+        self._factory_function = factory_function
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        output_nesting = ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                       config_type=FactoryOutputConfig,
+                                       factory_function=self._factory_function)
+        return {'output': output_nesting}
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for this parent configuration."""
@@ -136,14 +141,20 @@ class OptionalFactoryParentConfig(Config):
                  factory_function: Optional[ConfigFactory] = None) -> None:
         """Construct a parent configuration with one optional nested member."""
         self.output: Optional[FactoryOutputConfig] = None
-        output_nesting = ConfigNesting(kind=ConfigNestingKind.OPTIONAL_MEMBER,
-                                       config_type=FactoryOutputConfig,
-                                       factory_function=factory_function)
-        self._nested_configs: NestedConfigs = {'output': output_nesting}
+        self._factory_function = factory_function
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        output_nesting = ConfigNesting(kind=ConfigNestingKind.OPTIONAL_MEMBER,
+                                       config_type=FactoryOutputConfig,
+                                       factory_function=self._factory_function)
+        return {'output': output_nesting}
+
+    @override
     def _omit_none_from_json(self) -> list[str]:
         """Return optional members omitted while their value is None."""
         return ['output']
@@ -162,13 +173,18 @@ class ListFactoryParentConfig(Config):
                  factory_function: Optional[ConfigFactory] = None) -> None:
         """Construct a parent configuration with nested list elements."""
         self.outputs: list[FactoryOutputConfig] = []
-        output_nesting = ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
-                                       config_type=FactoryOutputConfig,
-                                       factory_function=factory_function)
-        self._nested_configs: NestedConfigs = {'outputs': output_nesting}
+        self._factory_function = factory_function
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        output_nesting = ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
+                                       config_type=FactoryOutputConfig,
+                                       factory_function=self._factory_function)
+        return {'outputs': output_nesting}
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for this parent configuration."""
@@ -184,13 +200,18 @@ class DictFactoryParentConfig(Config):
                  factory_function: Optional[ConfigFactory] = None) -> None:
         """Construct a parent configuration with nested dict values."""
         self.outputs: dict[str, FactoryOutputConfig] = {}
-        output_nesting = ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
-                                       config_type=FactoryOutputConfig,
-                                       factory_function=factory_function)
-        self._nested_configs: NestedConfigs = {'outputs': output_nesting}
+        self._factory_function = factory_function
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        output_nesting = ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
+                                       config_type=FactoryOutputConfig,
+                                       factory_function=self._factory_function)
+        return {'outputs': output_nesting}
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for this parent configuration."""
@@ -210,19 +231,24 @@ class DictByKeyFactoryParentConfig(Config):
             'factory': FactoryOutputConfig(stderr_file=stderr_file),
             'plain': 'keep'
         }
+        self._factory_function = factory_function
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
         typed_nesting = ConfigNesting(
             kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
             config_type=FactoryOutputConfig, discriminator_key='typed')
         factory_nesting = ConfigNesting(
             kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
             config_type=FactoryOutputConfig, discriminator_key='factory',
-            factory_function=factory_function)
-        self._nested_configs: NestedConfigs = {
+            factory_function=self._factory_function)
+        return {
             'outputs': [typed_nesting, factory_nesting]
         }
-        super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for this parent configuration."""

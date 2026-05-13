@@ -95,6 +95,7 @@
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [parse\_converters](#config_as_json.config.Config.parse_converters)
+    * [nested\_configs](#config_as_json.config.Config.nested_configs)
     * [check\_key\_match](#config_as_json.config.Config.check_key_match)
     * [check\_dict\_parse](#config_as_json.config.Config.check_dict_parse)
     * [\_json\_parse\_obj\_hook](#config_as_json.config.Config._json_parse_obj_hook)
@@ -104,6 +105,8 @@
     * [\_checked\_config\_nesting\_list](#config_as_json.config.Config._checked_config_nesting_list)
     * [\_check\_config\_nesting\_kinds](#config_as_json.config.Config._check_config_nesting_kinds)
     * [\_checked\_nested\_configs](#config_as_json.config.Config._checked_nested_configs)
+    * [\_value\_has\_config](#config_as_json.config.Config._value_has_config)
+    * [\_check\_nested\_config\_members](#config_as_json.config.Config._check_nested_config_members)
     * [\_rocf\_get\_keys\_to\_remove](#config_as_json.config.Config._rocf_get_keys_to_remove)
     * [\_rocf\_remove\_json\_key\_in\_dict](#config_as_json.config.Config._rocf_remove_json_key_in_dict)
     * [\_rocf\_remove\_json\_key\_in\_list](#config_as_json.config.Config._rocf_remove_json_key_in_list)
@@ -2106,13 +2109,12 @@ flexible or more complex key and value policy instead. See
 ``DictKeysValidator`` in ``dict_validators`` for how that interacts with
 this check.
 
-A derived class can also declare nested configuration sections in
-``_nested_configs``. ``MEMBER`` and ``OPTIONAL_MEMBER`` describe direct
-members, ``LIST_ELEMENT`` describes a list whose elements are nested
-Config objects, ``DICT_VALUE`` describes a dict whose values are nested
-Config objects, and ``DICT_VALUE_BY_KEY`` describes selected keys inside
-a dict whose values are nested Config objects. The ``_nested_configs``
-member should have type ``NestedConfigs``. Use a direct
+A derived class can also declare nested configuration sections by
+overriding :meth:`nested_configs`. ``MEMBER`` and ``OPTIONAL_MEMBER``
+describe direct members, ``LIST_ELEMENT`` describes a list whose elements
+are nested Config objects, ``DICT_VALUE`` describes a dict whose values
+are nested Config objects, and ``DICT_VALUE_BY_KEY`` describes selected
+keys inside a dict whose values are nested Config objects. Use a direct
 ``ConfigNesting`` value for one declaration. Use a list only when every
 list element has kind ``DICT_VALUE_BY_KEY`` and the entries describe
 selected keys inside the same dict member.
@@ -2161,7 +2163,8 @@ parsed data is applied to the same attributes instead.
 
 - `AttributeError` - The derived class did not declare any public
   configuration attributes before calling ``super().__init__``.
-- `TypeError` - ``_unchecked_dicts`` exists but is not a list.
+- `TypeError` - ``_unchecked_dicts`` exists but is not a list, or
+  ``nested_configs`` returns invalid declarations.
 - `ValueError` - Both JSON text and a JSON file were supplied.
 - `KeyError` - Parsed data is missing required keys or contains
   unexpected keys.
@@ -2189,6 +2192,26 @@ for example turning enum names into enum members.
   A mapping from JSON key name to a :class:`ParseConverter`
   describing the expected parsed type, the conversion callable, and
   keyword arguments passed to that callable.
+
+<a id="config_as_json.config.Config.nested_configs"></a>
+
+#### nested\_configs
+
+```python
+def nested_configs() -> NestedConfigs
+```
+
+Return nested Config declarations for this configuration.
+
+Override this for public members that contain nested :class:`Config`
+objects. Return :class:`NestedConfigs` mapping member names to
+:class:`ConfigNesting` declarations. Use ``@override`` so static type
+checkers can catch a misspelled method name.
+
+The override should only return stable declarative metadata: no
+parsing, validation, mutation, diagnostics, or other side effects.
+Values should be constant from the time ``super().__init__`` is
+called. Every nested Config object needs a declaration.
 
 <a id="config_as_json.config.Config.check_key_match"></a>
 
@@ -2357,7 +2380,7 @@ Return the checked declaration list for one nested member.
 **Arguments**:
 
 - `key` - Public member name described by the declarations.
-- `nesting_raw` - Raw value from ``_nested_configs``.
+- `nesting_raw` - Raw value from :meth:`nested_configs`.
 
 
 **Returns**:
@@ -2402,24 +2425,30 @@ def _checked_nested_configs(
         self_keys: list[str]) -> dict[str, list[ConfigNesting]]
 ```
 
-Return validated nested Config declarations.
+Return validated and normalized nested Config declarations.
 
-**Arguments**:
+<a id="config_as_json.config.Config._value_has_config"></a>
 
-- `self_keys` - Public configuration member names on this object.
+#### \_value\_has\_config
 
+```python
+@staticmethod
+def _value_has_config(value: object) -> bool
+```
 
-**Returns**:
+Return whether a default value visibly contains a Config object.
 
-  The declarations stored in ``_nested_configs``, or an empty dict.
+<a id="config_as_json.config.Config._check_nested_config_members"></a>
 
+#### \_check\_nested\_config\_members
 
-**Raises**:
+```python
+def _check_nested_config_members(
+        self_keys: list[str],
+        nested_configs: dict[str, list[ConfigNesting]]) -> None
+```
 
-- `TypeError` - ``_nested_configs`` or one of its entries has the wrong
-  runtime type.
-- `KeyError` - A declaration names an unknown public member.
-- `ValueError` - A discriminator or declaration list is invalid.
+Validate that visible nested Config defaults are declared.
 
 <a id="config_as_json.config.Config._rocf_get_keys_to_remove"></a>
 

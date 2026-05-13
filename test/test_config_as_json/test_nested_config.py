@@ -7,7 +7,7 @@
 import json
 import sys
 from tempfile import TemporaryDirectory
-from typing import Optional, TextIO, cast
+from typing import Optional, TextIO, cast, override
 import pytest
 from pytest import CaptureFixture
 import config_as_json
@@ -69,7 +69,14 @@ class MultiSectionConfig(Config):
         self.participants = ParticipantSection(stderr_file=stderr_file)
         self.audit_log = AuditSection(stderr_file=stderr_file)
         self.backup_participants: Optional[ParticipantSection] = None
-        self._nested_configs: NestedConfigs = {
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        return {
             'participants': ConfigNesting(kind=ConfigNestingKind.MEMBER,
                                           config_type=ParticipantSection),
             'audit_log': ConfigNesting(kind=ConfigNestingKind.MEMBER,
@@ -78,10 +85,8 @@ class MultiSectionConfig(Config):
                 kind=ConfigNestingKind.OPTIONAL_MEMBER,
                 config_type=ParticipantSection)
         }
-        super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
 
+    @override
     def _omit_none_from_json(self) -> list[str]:
         """Return optional members omitted while their value is None."""
         return ['backup_participants']
@@ -247,13 +252,17 @@ class ReportListConfig(Config):
         """Construct a parent configuration with nested list elements."""
         self.course_name = 'python-intro'
         self.reports = [] if default_reports is None else default_reports
-        self._nested_configs: NestedConfigs = {
-            'reports': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
-                                     config_type=ReportSection)
-        }
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        return {
+            'reports': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
+                                     config_type=ReportSection)
+        }
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for the parent configuration."""
@@ -459,13 +468,17 @@ class ReportDictConfig(Config):
             self.reports_by_id: dict[str, ReportSection] = {}
         else:
             self.reports_by_id = default_reports
-        self._nested_configs: NestedConfigs = {
-            'reports_by_id': ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
-                                           config_type=ReportSection)
-        }
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        return {
+            'reports_by_id': ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
+                                           config_type=ReportSection)
+        }
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for the parent configuration."""
@@ -680,18 +693,22 @@ class ReportByKeyConfig(Config):
                 self._default_reports(stderr_file)
         else:
             self.reports_by_id = default_reports
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
         participant_nesting = ConfigNesting(
             kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
             config_type=ReportSection, discriminator_key='participants')
         audit_nesting = ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
                                       config_type=self._audit_config_type(),
                                       discriminator_key='audit')
-        self._nested_configs: NestedConfigs = {
+        return {
             'reports_by_id': [participant_nesting, audit_nesting]
         }
-        super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
 
     @staticmethod
     def _audit_config_type() -> type[Config]:

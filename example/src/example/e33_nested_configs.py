@@ -18,7 +18,7 @@ optional nested instance.
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from typing import Optional, TextIO
+from typing import Optional, TextIO, override
 import sys
 from config_as_json import CharEncodingValidator, Config, ConfigNesting, \
     ConfigNestingKind, MemberValidationStep, PathOrStr, StrValidator, \
@@ -62,7 +62,7 @@ class TableOutputConfig(Config):
 
 
 class ExampleConfig33(Config):
-    """Configuration with one mandatory and one optional nested section."""
+    """Configuration with mandatory and optional nested Config objects."""
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
@@ -83,23 +83,30 @@ class ExampleConfig33(Config):
         # _omit_none_from_json() below tells Config that this member may be
         # absent in JSON and should be omitted while it remains None.
         self.audit_output: Optional[TableOutputConfig] = None
-        # Every nested Config member is listed in _nested_configs. The kind
-        # tells Config how that public member should behave when JSON is read
-        # and written: MEMBER is a mandatory nested section, and
-        # OPTIONAL_MEMBER is either None or a nested section. The config_type
-        # tells Config which class to construct when JSON contains a nested
-        # object for that member.
-        self._nested_configs: NestedConfigs = {
+        super().__init__(from_json_data_text=from_json_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
+        # Use @override on this method so a type checker can catch a
+        # misspelled method name.
+        # Every nested Config member is listed here. The kind tells Config
+        # how that public member should behave when JSON is read and written:
+        # MEMBER is a mandatory nested Config object, and OPTIONAL_MEMBER is
+        # either None or a nested Config object. The config_type tells Config
+        # which class to construct when JSON contains a nested object for that
+        # member.
+        return {
             'participant_output': ConfigNesting(kind=ConfigNestingKind.MEMBER,
                                                 config_type=TableOutputConfig),
             'audit_output': ConfigNesting(
                 kind=ConfigNestingKind.OPTIONAL_MEMBER,
                 config_type=TableOutputConfig)
         }
-        super().__init__(from_json_data_text=from_json_text,
-                         from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
 
+    @override
     def _omit_none_from_json(self) -> list[str]:
         """Return optional members omitted while their value is None."""
         return ['audit_output']

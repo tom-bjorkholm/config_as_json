@@ -23,7 +23,7 @@ logic while the rest of the dictionary still stays simple.
 
 import json
 import sys
-from typing import Optional, TextIO, cast
+from typing import Optional, TextIO, cast, override
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
     JsonType, MemberValidationStep, NestedConfigs, PathOrStr, StrValidator, \
     ValidationPlan
@@ -135,6 +135,13 @@ class ExampleConfig36(Config):
         # meant for.
         self.reports_by_key: dict[str, object] = _default_reports(
             stderr_file=stderr_file)
+        super().__init__(from_json_data_text=from_json_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations."""
         participant_nesting = ConfigNesting(
             kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
             config_type=ReportOutputConfig, discriminator_key='participants')
@@ -142,20 +149,19 @@ class ExampleConfig36(Config):
                                       config_type=WebhookOutputConfig,
                                       discriminator_key='audit',
                                       factory_function=_webhook_output_factory)
-        # The _nested_configs key is still the public member name:
+        # Use @override on this method so a type checker can catch a
+        # misspelled method name.
+        # The nested_configs() key is the public Config member variable:
         # ``reports_by_key``. The value is a list because two different keys
         # inside that one dictionary are nested Config objects.
         #
-        # For DICT_VALUE_BY_KEY, discriminator_key names the dictionary key.
-        # It is not a field inside the nested object. The keys not listed
-        # here, such as ``owner`` and ``max_attempts``, are written and read
-        # as ordinary JSON values.
-        self._nested_configs: NestedConfigs = {
+        # For DICT_VALUE_BY_KEY, discriminator_key is the dictionary key used
+        # to access the nested Config object. It is not a field inside the
+        # nested object. The keys not listed here, such as ``owner`` and
+        # ``max_attempts``, are written and read as ordinary JSON values.
+        return {
             'reports_by_key': [participant_nesting, audit_nesting]
         }
-        super().__init__(from_json_data_text=from_json_text,
-                         from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
 
 
 def _cmd_report_from_json_value(report_data: JsonType) -> ReportOutputConfig:
@@ -312,7 +318,7 @@ def e36_dict_by_key_print(config_file: PathOrStr) -> None:
 INPUT_SPECS = [
     InputSpec(name='course_name', single=True, value_type=str),
     # One JSON value is the clearest command-line representation for this
-    # mixed dictionary. The library feature is the _nested_configs
+    # mixed dictionary. The library feature is the nested_configs()
     # declaration above, not the command-line syntax.
     InputSpec(name='reports_by_key', single=True, value_type=str,
               json_value=True)
