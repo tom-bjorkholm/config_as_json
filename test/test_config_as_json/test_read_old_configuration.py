@@ -153,6 +153,7 @@ def test_move_object_to_list() -> None:
         'format_version': 2
     }
     assert hook.old_paths_moved == [('output', 'outputs[0]')]
+    assert hook.old_keys == ['output -> outputs[0]']
     assert hook.rocf_val_keys == ['format_version']
     assert err == ''
 
@@ -175,6 +176,10 @@ def test_move_key_in_each_list_item() -> None:
         ('outputs[0].encoding', 'outputs[0].char_encoding'),
         ('outputs[1].encoding', 'outputs[1].char_encoding')
     ]
+    assert hook.old_keys == [
+        'outputs[0].encoding -> outputs[0].char_encoding',
+        'outputs[1].encoding -> outputs[1].char_encoding'
+    ]
     assert err == ''
 
 
@@ -190,6 +195,7 @@ def test_move_current_list_wins() -> None:
     hook, err = process_data(rocf, data)
     assert data == {'outputs': [{'encoding': 'utf-8'}]}
     assert hook.old_paths_moved == [('output', 'outputs[0]')]
+    assert hook.old_keys == ['output -> outputs[0]']
     assert err == '\n'.join([
         'Inconsistent configuration:',
         'Both new config parameter outputs[0] and old output present.',
@@ -228,6 +234,7 @@ def test_move_descendant_to_ancestor() -> None:
     hook, err = process_data(rocf, data)
     assert data == {'output': 'report.csv'}
     assert hook.old_paths_moved == [('output[file_name]', 'output')]
+    assert hook.old_keys == ['output[file_name] -> output']
     assert err == ''
 
 

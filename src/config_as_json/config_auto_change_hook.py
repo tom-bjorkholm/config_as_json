@@ -37,7 +37,8 @@ class ConfigAutoChangeHook():
         Args:
             old_keys_handled: Old key names that were accepted during Reading
                 an Old Configuration File (ROCF), for example by mapping them
-                onto current names or by removing keys no longer used.
+                onto current names or by removing keys no longer used. Moved
+                paths are reported here as ``old.path -> new.path`` strings.
             rocf_vals_handled: Keys that were filled with default values during
                 parsing during Reading an Old Configuration File (ROCF).
             stderr_file: Stream used for user-facing diagnostics.
@@ -69,6 +70,7 @@ class ConfigAutoChangeHook():
                 already had a current value that won.
         """
         self.old_paths_moved.append((old_path, new_path))
+        self.old_key_handled(f'{old_path} -> {new_path}')
 
     def all_autochanges_done(self, stderr_file: TextIO) -> None:
         """Notify the hook once all automatic changes have been collected.

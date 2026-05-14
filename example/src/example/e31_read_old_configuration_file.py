@@ -54,6 +54,10 @@ class OldExampleConfig31(Config):
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
         """
+        # This class deliberately models the file shape produced by an older
+        # application version. Real applications usually do not need to keep
+        # an old Config class in production code; it is here so the example
+        # can write old files for experimentation.
         self.title: str = 'daily-summary'
         self.output_format: OutputFormat = OutputFormat.HTML
         self.refresh_interval: int = 300
@@ -64,6 +68,8 @@ class OldExampleConfig31(Config):
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
+        # Enum values in JSON are strings. Config uses this converter while
+        # parsing so application code receives OutputFormat members.
         return {'output_format': self.get_converter_dict(OutputFormat)}
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -77,15 +83,22 @@ class Example31ReadOldConfig(ReadOldConfiguration):
 
     def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
         """Return current values for paths missing from old files."""
+        # These keys are mandatory in the current shape, but old files never
+        # contained them. The values are inserted after old names have been
+        # removed or renamed.
         return {('format_version',): CURRENT_FORMAT_VERSION,
                 ('max_items',): 25}
 
     def get_keys_to_remove_recursively(self) -> list[str]:
         """Return old key names that are no longer in current files."""
+        # Recursive removal is useful when an old setting could appear in more
+        # than one place. It removes every matching JSON object member.
         return ['debug_trace']
 
     def get_json_key_renames(self) -> list[RocfKeyRename]:
         """Return old key names that should be mapped to current names."""
+        # Key renames are name-based and recursive. They are best for simple
+        # "same meaning, new name" changes.
         return [RocfKeyRename(old='title', new='report_name'),
                 RocfKeyRename(old='refresh_interval', new='refresh_seconds')]
 
@@ -105,6 +118,9 @@ class ExampleConfig31(Config):
             auto_ch_hook: Hook notified if old-file compatibility was used.
             stderr_file: Stream used for user-facing diagnostics.
         """
+        # The current Config class contains only the current public shape.
+        # Old-file support is kept in Example31ReadOldConfig below, so normal
+        # application code can use current attribute names everywhere.
         self.format_version: int = CURRENT_FORMAT_VERSION
         self.report_name: str = 'daily-summary'
         self.output_format: OutputFormat = OutputFormat.HTML
@@ -116,6 +132,8 @@ class ExampleConfig31(Config):
 
     def _get_read_old_configuration(self) -> ReadOldConfiguration:
         """Return the object that normalizes old e31 files."""
+        # Config.parse_json() calls this hook after JSON has been parsed and
+        # enum strings have been converted, but before required-key checking.
         return Example31ReadOldConfig()
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -125,6 +143,8 @@ class ExampleConfig31(Config):
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
+        # The enum key has the same name in the old and current shape, so only
+        # one converter entry is needed in this simple example.
         return {'output_format': self.get_converter_dict(OutputFormat)}
 
 
@@ -208,6 +228,8 @@ def e31_print_config(config_file: PathOrStr) -> None:
     Args:
         config_file: Path to the configuration file to read.
     """
+    # The caller always receives ExampleConfig31 with current member names.
+    # If an old file was normalized, the hook prints a migration hint.
     config = ExampleConfig31(from_json_filename=config_file,
                              auto_ch_hook=Example31MigrateWarnHook(),
                              stderr_file=sys.stderr)
@@ -226,6 +248,8 @@ def e31_migrate_config(infile: PathOrStr, outfile: PathOrStr) -> None:
         infile: Existing configuration file to read.
         outfile: New file that should receive current-format JSON.
     """
+    # migrate_cfg() simply reads through ExampleConfig31 and writes it back.
+    # That means the same read-old rules are used for printing and migration.
     migrate_cfg(infile=infile, outfile=outfile, config_class=ExampleConfig31,
                 stderr_file=sys.stderr)
     print(f'Configuration migrated to {outfile}')

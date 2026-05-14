@@ -36,7 +36,8 @@ class ConfigAutoChangeHookVer(ConfigAutoChangeHook):
 
 def test_hook_records_moved_paths(capsys: CaptureFixture[str]) -> None:
     """Test that moved paths trigger the backward-compatible callback."""
-    hook = ConfigAutoChangeHookVer(old_key_ver=[], rocf_val_keys_ver=[])
+    hook = ConfigAutoChangeHookVer(
+        old_key_ver=['old.value -> new.value'], rocf_val_keys_ver=[])
     hook.old_path_moved('old.value', 'new.value')
     hook.all_autochanges_done(stderr_file=sys.stderr)
     assert hook.num == 1

@@ -1212,7 +1212,8 @@ when configuration input was normalized.
 
 - `old_keys_handled` - Old key names that were accepted during Reading
   an Old Configuration File (ROCF), for example by mapping them
-  onto current names or by removing keys no longer used.
+  onto current names or by removing keys no longer used. Moved
+  paths are reported here as ``old.path -> new.path`` strings.
 - `rocf_vals_handled` - Keys that were filled with default values during
   parsing during Reading an Old Configuration File (ROCF).
 - `stderr_file` - Stream used for user-facing diagnostics.

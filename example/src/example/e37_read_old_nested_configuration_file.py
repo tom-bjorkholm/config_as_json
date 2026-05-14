@@ -29,16 +29,6 @@ CURRENT_FORMAT_VERSION = 2
 """Current configuration file format version used by this example."""
 
 
-# pylint: disable-next=too-few-public-methods
-class _Subparsers(Protocol):
-    """Small protocol for the subparser object returned by argparse."""
-
-    def add_parser(self, name: str, **kwargs: Any) \
-            -> argparse.ArgumentParser:
-        """Add one subparser and return it."""
-        raise NotImplementedError
-
-
 class OutputFormat(Enum):
     """Select the generated output file format."""
 
@@ -53,6 +43,8 @@ class OldOutputConfig(Config):
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
         """Initialize the old nested output shape."""
+        # The old shape has one direct nested object called ``output``. Its
+        # members are written exactly as old application versions wrote them.
         self.name: str = 'participants'
         self.file_name: str = 'participants.csv'
         # The old nested object used the short key ``format``.
@@ -64,6 +56,9 @@ class OldOutputConfig(Config):
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
+        # This converter is used only when this old teaching class reads an
+        # old output object directly. The current class has its own converter
+        # entries for both old and current key names.
         converter = self.get_converter_dict(OutputFormat)
         return {'format': converter}
 
@@ -81,6 +76,8 @@ class OldExampleConfig37(Config):
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
         """Initialize the old top-level configuration shape."""
+        # The old file had no ``format_version`` and no ``outputs`` list.
+        # Instead, it had one optional ``output`` object.
         self.course_title: str = 'python-intro'
         self.default_format: OutputFormat = OutputFormat.CSV
         self.output: Optional[OldOutputConfig] = None
@@ -92,11 +89,15 @@ class OldExampleConfig37(Config):
     @override
     def _omit_none_from_json(self) -> list[str]:
         """Return optional members omitted while their value is None."""
+        # When ``output`` is None, old files simply did not contain an output
+        # object. The current reader will turn that absence into outputs=[].
         return ['output']
 
     @override
     def nested_configs(self) -> NestedConfigs:
         """Return nested Config declarations for the old shape."""
+        # The old shape uses an optional direct nested Config. This declaration
+        # lets Config read/write that object as JSON when it is present.
         return {
             'output': ConfigNesting(kind=ConfigNestingKind.OPTIONAL_MEMBER,
                                     config_type=OldOutputConfig)
@@ -104,6 +105,8 @@ class OldExampleConfig37(Config):
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
+        # Both enum-valued old keys are listed because JSON stores enum values
+        # as text and Config applies converters while parsing JSON.
         return {'default_format': self.get_converter_dict(OutputFormat),
                 'format': self.get_converter_dict(OutputFormat)}
 
@@ -120,6 +123,8 @@ class ReportOutputConfig(Config):
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
         """Initialize one current report output configuration."""
+        # This is the element type of the current ``outputs`` list. The old
+        # ``format`` key has become the clearer ``output_format`` key here.
         self.name: str = 'participants'
         self.output_format: OutputFormat = OutputFormat.CSV
         self.file_name: str = 'participants.csv'
@@ -130,6 +135,9 @@ class ReportOutputConfig(Config):
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
+        # This converter is used when this nested Config is parsed directly.
+        # The parent current Config also lists ``output_format`` because
+        # parse_converters() run before nested Config objects are created.
         converter = self.get_converter_dict(OutputFormat)
         return {'output_format': converter}
 
@@ -145,10 +153,16 @@ class Example37ReadOldConfig(ReadOldConfiguration):
 
     def get_json_key_renames(self) -> list[RocfKeyRename]:
         """Return old key names that should be mapped to current names."""
+        # A rename keeps the value where it is in the JSON tree and only
+        # changes the member name.
         return [RocfKeyRename(old='course_title', new='course_name')]
 
     def get_json_key_moves(self) -> list[RocfKeyMove]:
         """Return old paths that should be moved to current paths."""
+        # Moves are for structural changes. The first rule moves a top-level
+        # value. The second rule prepares the nested output object by renaming
+        # ``format`` to ``output_format`` inside it. The third rule then wraps
+        # the whole old ``output`` object into the current ``outputs`` list.
         return [
             RocfKeyMove(old_path=('default_format',),
                         new_path=('default_output_format',)),
@@ -159,10 +173,15 @@ class Example37ReadOldConfig(ReadOldConfiguration):
 
     def get_keys_to_remove_recursively(self) -> list[str]:
         """Return old key names that are no longer in current files."""
+        # ``debug_trace`` is accepted when old files contain it, but it is not
+        # part of the current configuration model.
         return ['debug_trace']
 
     def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
         """Return current values for paths missing from old files."""
+        # Missing values run after moves. Therefore an old ``output`` object
+        # can first become ``outputs[0]``. Only if the old optional object is
+        # absent do we need to create an empty current ``outputs`` list.
         # The old ``output`` member was optional. If it is absent, the current
         # ``outputs`` list should exist but be empty.
         return {('format_version',): CURRENT_FORMAT_VERSION,
@@ -177,6 +196,9 @@ class ExampleConfig37(Config):
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr) -> None:
         """Initialize the current top-level configuration shape."""
+        # The current shape is the only shape the rest of the application
+        # should use. Old-file compatibility is isolated in
+        # Example37ReadOldConfig.
         self.format_version: int = CURRENT_FORMAT_VERSION
         self.course_name: str = 'python-intro'
         self.default_output_format: OutputFormat = OutputFormat.CSV
@@ -189,6 +211,9 @@ class ExampleConfig37(Config):
     @override
     def nested_configs(self) -> NestedConfigs:
         """Return nested Config declarations for the current shape."""
+        # The current ``outputs`` member is a list of nested Config objects.
+        # Config uses this declaration after ReadOldConfiguration has finished
+        # normalizing old JSON dictionaries into the current JSON shape.
         return {
             'outputs': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
                                      config_type=ReportOutputConfig)
@@ -196,12 +221,18 @@ class ExampleConfig37(Config):
 
     def _get_read_old_configuration(self) -> ReadOldConfiguration:
         """Return the object that normalizes old e37 files."""
+        # Config.parse_json() calls this hook after JSON parsing and enum
+        # conversion, but before the dictionaries in ``outputs`` become
+        # ReportOutputConfig objects.
         return Example37ReadOldConfig()
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
         # ``default_format`` and ``format`` are old keys. They are listed
         # because converters run before ReadOldConfiguration moves values.
+        # Without these old-key converters, old JSON enum text would be moved
+        # into the current shape as plain strings instead of OutputFormat
+        # members.
         return {'default_output_format': self.get_converter_dict(OutputFormat),
                 'default_format': self.get_converter_dict(OutputFormat),
                 'output_format': self.get_converter_dict(OutputFormat),
@@ -332,6 +363,9 @@ def _print_output(output_index: int, output: ReportOutputConfig) -> None:
 
 def e37_print_config(config_file: PathOrStr) -> None:
     """Read either old or current configuration and print current values."""
+    # The application reads through the current Config class even when the
+    # file on disk is old. If migration rules were used, the hook prints a
+    # migration hint.
     config = ExampleConfig37(from_json_filename=config_file,
                              auto_ch_hook=Example37MigrateWarnHook(),
                              stderr_file=sys.stderr)
@@ -346,14 +380,27 @@ def e37_print_config(config_file: PathOrStr) -> None:
 
 def e37_migrate_config(infile: PathOrStr, outfile: PathOrStr) -> None:
     """Migrate an old or current file to the current file shape."""
+    # Migration is just "read with compatibility rules, write current JSON".
+    # The same Example37ReadOldConfig rules are therefore tested by both the
+    # print and migrate subcommands.
     migrate_cfg(infile=infile, outfile=outfile, config_class=ExampleConfig37,
                 stderr_file=sys.stderr)
     print(f'Configuration migrated to {outfile}')
 
 
 # ----------------------------------------------------------------------------
-# Only command line handling follows
+# Command line handling only below
 # ----------------------------------------------------------------------------
+
+
+# pylint: disable-next=too-few-public-methods
+class _Subparsers(Protocol):
+    """Small protocol for the subparser object returned by argparse."""
+
+    def add_parser(self, name: str, **kwargs: Any) \
+            -> argparse.ArgumentParser:
+        """Add one subparser and return it."""
+        raise NotImplementedError
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:
