@@ -20,23 +20,17 @@ from typing import Any, Optional, Type, NamedTuple, Callable, TextIO
 from enum import Enum, IntEnum
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
-from config_as_json.commontypes import JsonType, PathOrStr
+from config_as_json.commontypes import PathOrStr
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
     NestedConfigs
 from config_as_json._config_nesting_io import nested_config_from_json, \
     nested_config_json_data, validate_nested_config
+from config_as_json.read_old_configuration import ReadOldConfiguration
 from config_as_json.validator import ValidationPlan
 
 
-RocfKeyRename = NamedTuple('RocfKeyRename', [('old', str), ('new', str)])
-"""Describe a configuration key rename from an old name to a new name.
-
-    Renaming rule for Reading Old Configuration File (ROCF).
-    Used by derived classes to describe key names in old configuration files
-    that should be mapped onto their current names during parsing of an old
-    configuration file.
-    """
+type _ObjectOrDict = dict[str, Any] | object
 
 
 class _ConfigEncoder(json.JSONEncoder):
@@ -235,6 +229,15 @@ class Config():
         """
         return {}
 
+    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+        """Return the object that normalizes old configuration data.
+
+        Derived classes override this method when they need to accept old
+        configuration file shapes. The default object leaves parsed data
+        unchanged.
+        """
+        return ReadOldConfiguration()
+
     @staticmethod
     def check_key_match(
             expected_keys: list[str], j_keys: list[str],
@@ -271,7 +274,7 @@ class Config():
 
     @staticmethod
     # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-    def check_dict_parse(self_data: dict[str, Any], json_data: dict[str, Any],
+    def check_dict_parse(self_data: _ObjectOrDict, json_data: _ObjectOrDict,
                          key: str, ok_to_use_defaults: bool,
                          unchecked_dicts: list[str],
                          stderr_file: TextIO) -> None:
@@ -305,6 +308,8 @@ class Config():
             raise KeyError(errmsg)
         if key in unchecked_dicts:
             return
+        assert isinstance(self_data, dict)
+        assert isinstance(json_data, dict)
         Config.check_key_match(list(self_data.keys()), list(json_data.keys()),
                                ok_to_use_defaults, stderr_file)
         for i in self_data.keys():
@@ -538,228 +543,6 @@ class Config():
                 msg += 'nested_configs()'
                 raise TypeError(msg)
 
-    def _rocf_get_keys_to_remove(self) -> list[str]:
-        """Return old JSON keys to remove while reading old files.
-
-        When Reading an Old Configuration File (ROCF), the old configuration
-        version in the file might have keys that no longer exist in the
-        current configuration. This method returns those old key names.
-        Derived classes should override this method as needed.
-
-        Returns:
-            A list of old keys that should be removed from the JSON input.
-        """
-        return []
-
-    @staticmethod
-    def _rocf_remove_json_key_in_dict(key: str,
-                                      json_data: dict[str, JsonType]) \
-            -> bool:
-        """Remove one ROCF key from a nested dictionary.
-
-        Args:
-            key: Old JSON key to remove.
-            json_data: Parsed JSON dictionary to update in place.
-
-        Returns:
-            ``True`` if the key was found and removed anywhere in
-            ``json_data``, otherwise ``False``.
-        """
-        assert key is not None
-        ret = key in json_data
-        if ret:
-            del json_data[key]
-        for value in json_data.values():
-            if isinstance(value, dict):
-                assert isinstance(value, dict)
-                ret |= Config._rocf_remove_json_key_in_dict(key=key,
-                                                            json_data=value)
-            if isinstance(value, list):
-                assert isinstance(value, list)
-                ret |= Config._rocf_remove_json_key_in_list(key=key,
-                                                            json_data=value)
-        return ret
-
-    @staticmethod
-    def _rocf_remove_json_key_in_list(key: str, json_data: list[JsonType]) \
-            -> bool:
-        """Remove one ROCF key inside nested lists.
-
-        Args:
-            key: Old JSON key to remove.
-            json_data: Parsed JSON list to walk recursively.
-
-        Returns:
-            ``True`` if the key was found and removed anywhere in
-            ``json_data``, otherwise ``False``.
-        """
-        assert key is not None
-        ret = False
-        for value in json_data:
-            if isinstance(value, dict):
-                assert isinstance(value, dict)
-                ret |= Config._rocf_remove_json_key_in_dict(key=key,
-                                                            json_data=value)
-            if isinstance(value, list):
-                assert isinstance(value, list)
-                ret |= Config._rocf_remove_json_key_in_list(key=key,
-                                                            json_data=value)
-        return ret
-
-    def _rocf_remove_json_keys(self, json_data: dict[str, JsonType]) -> None:
-        """Apply all declared ROCF key removals in place.
-
-        When Reading an Old Configuration File (ROCF), some key names in the
-        JSON input from the old configuration file may no longer exist in the
-        current configuration. This method removes all declared old keys
-        before normal schema checks are applied.
-
-        Args:
-            json_data: Parsed JSON object to normalize before validation.
-        """
-        for key in self._rocf_get_keys_to_remove():
-            if self._rocf_remove_json_key_in_dict(key=key,
-                                                  json_data=json_data):
-                self._hook_cfg_autochange.old_key_handled(old_key=key)
-
-    def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
-        """Return values for missing JSON keys.
-
-        When Reading an Old Configuration File (ROCF), some now existing
-        and mandatory keys may be missing in the JSON input from the
-        old configuration file. This method returns the values that should
-        be supplied for these missing keys.
-        Derived classes should override this method as needed.
-
-        Returns:
-            A mapping from missing key name to the value that should
-            be supplied when the key is absent from JSON input.
-        """
-        return {}
-
-    def _rocf_apply_missing_values(self,
-                                   json_data: dict[str, JsonType]) -> None:
-        """Apply values for missing JSON keys to the configuration object.
-
-        When Reading an Old Configuration File (ROCF), some now existing
-        and mandatory keys may be missing in the JSON input from the
-        old configuration file. This method applies the values that should
-        be supplied for these missing keys to the configuration object.
-
-        Args:
-            json_data: Parsed JSON object that will be applied to the
-                configuration instance.
-        """
-        rocfval = self._rocf_values_for_missing_json_keys()
-        for key, value in rocfval.items():
-            if key not in json_data:
-                json_data[key] = value
-                self._hook_cfg_autochange.rocf_missing_value_provided(
-                    rocf_val_key=key)
-
-    def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
-        """Return configuration key renames for Reading Old Configuration File.
-
-        Derived classes override this method to describe key names
-        in old configuration files that should be mapped onto their current
-        names during parsing of an old configuration file.
-
-        Returns:
-            A list of ``RocfKeyRename`` entries describing accepted key
-            renames.
-        """
-        return []
-
-    @staticmethod
-    def _rocf_rename_json_key_in_dict(rename: RocfKeyRename,
-                                      json_data: dict[str, JsonType],
-                                      stderr_file: TextIO = sys.stderr) \
-            -> bool:
-        """Apply one ROCF key rename in a nested dictionary.
-
-        Args:
-            rename: ROCT old to new key mapping to apply.
-            json_data: Parsed JSON dictionary to update in place.
-            stderr_file: Stream used for user-facing diagnostics.
-
-        Returns:
-            ``True`` if the old key name was found and replaced anywhere in
-            ``json_data``, otherwise ``False``.
-        """
-        assert rename.old is not None
-        assert rename.new is not None
-        assert rename.old != rename.new
-        ret: bool = False
-        if rename.old in json_data:
-            if rename.new in json_data:
-                print('Inconsistent configuration:', file=stderr_file)
-                print(f'Both new config parameter {rename.new} and '
-                      f'old {rename.old} present.', file=stderr_file)
-                print(f'Ignoring old parameter {rename.old}', file=stderr_file)
-                del json_data[rename.old]
-            else:
-                json_data[rename.new] = json_data[rename.old]
-                del json_data[rename.old]
-                ret = True
-        for _, value in json_data.items():
-            if isinstance(value, dict):
-                assert isinstance(value, dict)
-                ret |= Config._rocf_rename_json_key_in_dict(
-                    rename=rename, json_data=value, stderr_file=stderr_file)
-            if isinstance(value, list):
-                assert isinstance(value, list)
-                ret |= Config._rocf_rename_json_key_in_list(
-                    rename=rename, json_data=value, stderr_file=stderr_file)
-        return ret
-
-    @staticmethod
-    def _rocf_rename_json_key_in_list(rename: RocfKeyRename,
-                                      json_data: list[JsonType],
-                                      stderr_file: TextIO = sys.stderr) \
-            -> bool:
-        """Apply one ROCF key rename inside nested lists.
-
-        Args:
-            rename: ROCF old to new key mapping to apply.
-            json_data: Parsed JSON list to walk recursively.
-            stderr_file: Stream used for user-facing diagnostics.
-
-        Returns:
-            ``True`` if the old key name was found and replaced anywhere in
-            ``json_data``, otherwise ``False``.
-        """
-        ret: bool = False
-        for value in json_data:
-            if isinstance(value, dict):
-                assert isinstance(value, dict)
-                ret |= Config._rocf_rename_json_key_in_dict(
-                    rename=rename, json_data=value, stderr_file=stderr_file)
-            if isinstance(value, list):
-                assert isinstance(value, list)
-                ret |= Config._rocf_rename_json_key_in_list(
-                    rename=rename, json_data=value, stderr_file=stderr_file)
-        return ret
-
-    def _rocf_rename_json_keys(self, json_data: dict[str, JsonType],
-                               stderr_file: TextIO) -> None:
-        """Apply all declared ROCF key renames in place.
-
-        When Reading an Old Configuration File (ROCF), some key names in the
-        JSON input from the old configuration file may need to be mapped onto
-        their current names during parsing of an old configuration file.
-        This method applies all declared ROCF key renames in place.
-
-        Args:
-            json_data: Parsed JSON object to normalize before validation.
-            stderr_file: Stream used for user-facing diagnostics.
-        """
-        bwcompat = self._rocf_get_json_key_renames()
-        for name in bwcompat:
-            if self._rocf_rename_json_key_in_dict(rename=name,
-                                                  json_data=json_data,
-                                                  stderr_file=stderr_file):
-                self._hook_cfg_autochange.old_key_handled(old_key=name.old)
-
     def _validate_nested_configs(self, stderr_file: TextIO) -> None:
         """Validate all direct nested Config members before this object.
 
@@ -794,7 +577,7 @@ class Config():
         self._hook_dict = self.parse_converters()
         hook = self._json_parse_obj_hook if self._hook_dict is not None \
             else None
-        data = None
+        data: Optional[dict[str, object]] = None
         try:
             data = json.loads(from_json_text, object_hook=hook)
         except Exception as exc:
@@ -808,16 +591,25 @@ class Config():
             if isinstance(exc, json.JSONDecodeError):
                 raise ConfigBadJson(msg=msg, doc=exc.doc, pos=exc.pos) from exc
             raise ConfigBadJson(msg=msg, doc='', pos=0) from exc
-        self._rocf_remove_json_keys(data)
-        self._rocf_apply_missing_values(data)
-        self._rocf_rename_json_keys(data, stderr_file=stderr_file)
+        assert data is not None
+        if not isinstance(data, dict):
+            msg = 'Configuration JSON root must be a JSON object.'
+            print(msg, file=stderr_file)
+            raise ConfigBadJson(msg=msg, doc=from_json_text, pos=0)
+        rocf = self._get_read_old_configuration()
+        data_obj = rocf.process_json(json_data=data,
+                                     auto_ch_hook=self._hook_cfg_autochange,
+                                     stderr_file=stderr_file)
         self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
+        assert data_obj is not None
+        assert isinstance(data_obj, dict)
+        data = data_obj
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
         omit_none_keys = self._checked_omit_none_from_json(
             self_keys, check_default_values=False)
         nested_configs = self._nested_config_decls
-        self.check_key_match(self_keys, data.keys(), ok_to_use_defaults,
+        self.check_key_match(self_keys, list(data.keys()), ok_to_use_defaults,
                              stderr_file, omit_none_keys)
         for i in self_keys:
             if i in data.keys():

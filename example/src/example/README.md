@@ -847,12 +847,16 @@ Three kinds of compatibility are shown:
 - old files do not contain `max_items`
 - `debug_trace` only existed in the old format and is removed
 
-The current configuration class handles this by overriding three methods.
-`_rocf_get_json_key_renames()` describes old key names that should be mapped
-to current key names. `_rocf_values_for_missing_json_keys()` supplies values
-for mandatory current keys that old files did not have.
-`_rocf_get_keys_to_remove()` lists old key names that should be accepted and
-dropped because the current configuration no longer has those settings.
+The current configuration class handles this by overriding
+`_get_read_old_configuration()` and returning a small
+`ReadOldConfiguration` subclass. That subclass describes the compatibility
+rules:
+
+- `get_json_key_renames()` maps old key names to current key names
+- `get_values_for_missing_json_keys()` supplies values for mandatory current
+  keys that old files did not have
+- `get_keys_to_remove_recursively()` accepts and drops keys that only existed
+  in the old format
 
 The standard application pattern is important: application code constructs
 the current configuration class even when the file on disk was written by an
@@ -1073,3 +1077,38 @@ keys.
 The command-line helper accepts the whole `reports_by_key` value as JSON.
 That keeps the example focused on `ConfigNestingKind.DICT_VALUE_BY_KEY`
 instead of inventing a separate command-line syntax for a mixed dictionary.
+
+## e37_read_old_nested_configuration_file.py
+
+[Source code for e37_read_old_nested_configuration_file.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e37_read_old_nested_configuration_file.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e37_read_old_nested_configuration_file.py)
+
+This example extends e31 to a structural migration with nested Config
+objects. The old file format has one optional direct `output` object. The
+current file format has `outputs`, a list where each element is a nested
+`ReportOutputConfig`.
+
+The `Example37ReadOldConfig` class shows several `ReadOldConfiguration`
+features together:
+
+- `course_title` is renamed to `course_name`
+- `default_format` is moved to `default_output_format`
+- `output.format` is moved to `output.output_format`
+- the whole old `output` object is moved into `outputs[0]`
+- if the old optional `output` object is absent, `('outputs',): []` supplies
+  the current empty list
+- `debug_trace` is removed recursively
+
+The example also highlights one parse-order detail. `parse_converters()` run
+before `ReadOldConfiguration`, so enum-valued settings need converters for
+both old and current key names when values are moved or renamed. That is why
+the current class lists converters for both `default_output_format` and
+`default_format`, and for both `output_format` and `format`.
+
+The command line mirrors e31:
+
+```
+python3 -m example.e37_read_old_nested_configuration_file write-old --output old.cfg
+python3 -m example.e37_read_old_nested_configuration_file write-new --output new.cfg
+python3 -m example.e37_read_old_nested_configuration_file print --input old.cfg
+python3 -m example.e37_read_old_nested_configuration_file migrate --input old.cfg --output migrated.cfg
+```

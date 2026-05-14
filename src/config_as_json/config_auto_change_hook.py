@@ -24,6 +24,7 @@ class ConfigAutoChangeHook():
         """Initialize empty change tracking state."""
         self.old_keys: list[str] = []
         self.rocf_val_keys: list[str] = []
+        self.old_paths_moved: list[tuple[str, str]] = []
 
     def auto_changed(self, old_keys_handled: list[str],
                      rocf_vals_handled: list[str],
@@ -59,6 +60,16 @@ class ConfigAutoChangeHook():
         """
         self.rocf_val_keys.append(rocf_val_key)
 
+    def old_path_moved(self, old_path: str, new_path: str) -> None:
+        """Record that one old path was moved to a current path.
+
+        Args:
+            old_path: Actual old path that was accepted and removed.
+            new_path: Actual current path that received the old value, or
+                already had a current value that won.
+        """
+        self.old_paths_moved.append((old_path, new_path))
+
     def all_autochanges_done(self, stderr_file: TextIO) -> None:
         """Notify the hook once all automatic changes have been collected.
 
@@ -68,7 +79,7 @@ class ConfigAutoChangeHook():
         Args:
             stderr_file: Stream used for user-facing diagnostics.
         """
-        if self.old_keys or self.rocf_val_keys:
+        if self.old_keys or self.rocf_val_keys or self.old_paths_moved:
             self.auto_changed(old_keys_handled=deepcopy(self.old_keys),
                               rocf_vals_handled=deepcopy(self.rocf_val_keys),
                               stderr_file=stderr_file)

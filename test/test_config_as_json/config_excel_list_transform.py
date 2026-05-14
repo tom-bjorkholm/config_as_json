@@ -11,8 +11,7 @@ from enum import Enum
 from typing import Optional, Callable, TypeVar, NamedTuple, TextIO, \
     Generic, TypedDict
 from csv import Dialect
-from config_as_json.config import Config, ParseConverter, \
-    RocfKeyRename
+from config_as_json.config import Config, ParseConverter
 from config_as_json.char_encoding import check_char_encoding
 from config_as_json.csv_dialect import get_csv_dialect
 from config_as_json.dict_validators import DictForEachValidator, DictRule
@@ -22,9 +21,10 @@ from config_as_json.list_validators import ListForEachValidator, \
     ListIsOrderedValidator, ListOfDictsKeysValidator, ListSizeValidator, \
     ListValueTypeValidator
 from config_as_json.str_to_enum import string_to_enum_best_match
-from config_as_json.commontypes import JsonType
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
+from config_as_json.read_old_configuration import ReadOldConfiguration, \
+    RocfKeyRename, RocfPath
 from config_as_json.validator import ValidationPlan, ValueTypeValidator
 from .config_enums import FileType, SplitWhere, \
     ExcelLib, RewriteKind, CaseSensitivity, ColumnRef
@@ -88,6 +88,33 @@ class ColInfo(NamedTuple, Generic[Column]):
     col_to_use: list[Column]
     col_to_use_row: list[Column]
     tinfo: Column
+
+
+class ExcelListTransformReadOldConfig(ReadOldConfiguration):
+    """Normalize old excel-list-transform test configuration files."""
+
+    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
+        """Provide default values for optional encoding."""
+        return {('in_csv_encoding',): 'utf_8_sig',
+                ('out_csv_encoding',): 'utf-8',
+                ('in_excel_col_name_strip',): False,
+                ('in_excel_values_strip',): False,
+                ('s01_split_rows',): [],
+                ('s02_merge_rows',): []}
+
+    def get_json_key_renames(self) -> list[RocfKeyRename]:
+        """Get names of backward compatible config parameters."""
+        return [
+            RocfKeyRename(old='s1_split_columns', new='s03_split_columns'),
+            RocfKeyRename(old='s2_remove_columns', new='s04_remove_columns'),
+            RocfKeyRename(old='s3_merge_columns', new='s05_merge_columns'),
+            RocfKeyRename(old='s4_place_columns_first',
+                          new='s06_place_columns_first'),
+            RocfKeyRename(old='s5_rename_columns', new='s07_rename_columns'),
+            RocfKeyRename(old='s6_insert_columns', new='s08_insert_columns'),
+            RocfKeyRename(old='s7_rewrite_columns', new='s09_rewrite_columns'),
+            RocfKeyRename(old='s8_column_order', new='s10_column_order')
+        ]
 
 
 # pylint: disable-next=too-many-instance-attributes,line-too-long
@@ -221,28 +248,9 @@ class ConfigExcelListTransform(Config, Generic[Column]):
     def sort_sx_hook(self) -> None:
         """Sort s[0-9]_ as needed (hook)."""
 
-    def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
-        """Provide default values for optional encoding."""
-        return {'in_csv_encoding': 'utf_8_sig',
-                'out_csv_encoding': 'utf-8',
-                'in_excel_col_name_strip': False,
-                'in_excel_values_strip': False,
-                's01_split_rows': [],
-                's02_merge_rows': []}
-
-    def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
-        """Get names of backward compatible config parameters."""
-        return [
-            RocfKeyRename(old='s1_split_columns', new='s03_split_columns'),
-            RocfKeyRename(old='s2_remove_columns', new='s04_remove_columns'),
-            RocfKeyRename(old='s3_merge_columns', new='s05_merge_columns'),
-            RocfKeyRename(old='s4_place_columns_first',
-                          new='s06_place_columns_first'),
-            RocfKeyRename(old='s5_rename_columns', new='s07_rename_columns'),
-            RocfKeyRename(old='s6_insert_columns', new='s08_insert_columns'),
-            RocfKeyRename(old='s7_rewrite_columns', new='s09_rewrite_columns'),
-            RocfKeyRename(old='s8_column_order', new='s10_column_order')
-        ]
+    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+        """Return the object that normalizes old test config files."""
+        return ExcelListTransformReadOldConfig()
 
     @staticmethod
     def get_cols_single(rule: Rule[Column] | RuleSplit[Column] |

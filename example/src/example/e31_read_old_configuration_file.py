@@ -25,9 +25,9 @@ import argparse
 import sys
 from enum import Enum, auto
 from typing import Optional, TextIO, cast
-from config_as_json import Config, ConfigAutoChangeHook, JsonType, \
-    MigrateCfgWarnHook, ParseConverter, PathOrStr, RocfKeyRename, \
-    ValidationPlan, string_to_enum_best_match, migrate_cfg
+from config_as_json import Config, ConfigAutoChangeHook, MigrateCfgWarnHook, \
+    ParseConverter, PathOrStr, ReadOldConfiguration, RocfKeyRename, \
+    RocfPath, ValidationPlan, string_to_enum_best_match, migrate_cfg
 
 
 CURRENT_FORMAT_VERSION = 2
@@ -72,6 +72,24 @@ class OldExampleConfig31(Config):
         return []
 
 
+class Example31ReadOldConfig(ReadOldConfiguration):
+    """Describe how old e31 configuration files are normalized."""
+
+    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
+        """Return current values for paths missing from old files."""
+        return {('format_version',): CURRENT_FORMAT_VERSION,
+                ('max_items',): 25}
+
+    def get_keys_to_remove_recursively(self) -> list[str]:
+        """Return old key names that are no longer in current files."""
+        return ['debug_trace']
+
+    def get_json_key_renames(self) -> list[RocfKeyRename]:
+        """Return old key names that should be mapped to current names."""
+        return [RocfKeyRename(old='title', new='report_name'),
+                RocfKeyRename(old='refresh_interval', new='refresh_seconds')]
+
+
 class ExampleConfig31(Config):
     """Current report configuration shape with old-file compatibility."""
 
@@ -96,19 +114,9 @@ class ExampleConfig31(Config):
                          from_json_filename=from_json_filename,
                          auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
 
-    def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
-        """Return current values for keys missing from old files."""
-        return {'format_version': CURRENT_FORMAT_VERSION,
-                'max_items': 25}
-
-    def _rocf_get_keys_to_remove(self) -> list[str]:
-        """Return old key names that are no longer in current files."""
-        return ['debug_trace']
-
-    def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
-        """Return old key names that should be mapped to current names."""
-        return [RocfKeyRename(old='title', new='report_name'),
-                RocfKeyRename(old='refresh_interval', new='refresh_seconds')]
+    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+        """Return the object that normalizes old e31 files."""
+        return Example31ReadOldConfig()
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return extra validation steps for this example configuration."""

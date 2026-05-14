@@ -11,14 +11,16 @@ write JSON configuration files.
 # MIT License
 
 
-from config_as_json.config import Config, RocfKeyRename, ConfigBadJson, \
-    ParseConverter
+from config_as_json.config import Config, ConfigBadJson, ParseConverter
 from config_as_json.config_nesting import ConfigNestingKind, ConfigNesting, \
     ConfigFactory, NestedConfigs
 from config_as_json.commontypes import JsonType, PathOrStr
 from config_as_json.config_factory import config_factory_from_json, \
     MatchConfig, MatchConfigSeq, JsonValueMatcher
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.read_old_configuration import ReadOldConfiguration, \
+    RocfConflictError, RocfIncompatiblePathError, RocfKeyMove, \
+    RocfKeyRename, RocfPath
 from config_as_json.csv_dialect import CsvDialectConfig, \
     CsvDialectValidator, get_csv_dialect
 from config_as_json.char_encoding import check_char_encoding, \
@@ -51,6 +53,11 @@ from config_as_json.assert_dict_equal import assert_dict_equal
 
 __all__ = ['Config',
            'RocfKeyRename',
+           'RocfPath',
+           'RocfKeyMove',
+           'ReadOldConfiguration',
+           'RocfConflictError',
+           'RocfIncompatiblePathError',
            'ConfigBadJson',
            'ConfigNestingKind',
            'ConfigNesting',

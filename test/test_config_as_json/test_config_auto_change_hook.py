@@ -34,6 +34,18 @@ class ConfigAutoChangeHookVer(ConfigAutoChangeHook):
         assert self._rocf_val_keys_ver == rocf_vals_handled
 
 
+def test_hook_records_moved_paths(capsys: CaptureFixture[str]) -> None:
+    """Test that moved paths trigger the backward-compatible callback."""
+    hook = ConfigAutoChangeHookVer(old_key_ver=[], rocf_val_keys_ver=[])
+    hook.old_path_moved('old.value', 'new.value')
+    hook.all_autochanges_done(stderr_file=sys.stderr)
+    assert hook.num == 1
+    assert hook.old_paths_moved == [('old.value', 'new.value')]
+    out, err = capsys.readouterr()
+    assert '' == out
+    assert '' == err
+
+
 @pytest.mark.parametrize('okv,dkv,num',
                          [([], [], 0),
                           (['a', 'b'], ['c', 'd', 'e'], 1),

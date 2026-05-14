@@ -9,14 +9,14 @@ from collections.abc import Callable
 from copy import deepcopy
 from typing import Generic, Optional, TextIO, cast
 from config_as_json.char_encoding import CharEncodingValidator
-from config_as_json.config import RocfKeyRename, Config
+from config_as_json.config import Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.commontypes import JsonType
 from config_as_json.csv_dialect import CsvDialectValidator
 from config_as_json.list_validators import ListIsOrderedValidator, \
     ListOfDictsKeysValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.projected_validators import ProjectedMemberValidator
+from config_as_json.read_old_configuration import ReadOldConfiguration
 from config_as_json.validator import ValidationPlan, \
     WholeConfigValidationStep, MemberValidationStep, \
     WholeConfigValidator
@@ -239,16 +239,9 @@ class ConfigExcelTransformValidated(Config, Generic[Column]):
         LegacyConfigExcelListTransform.get_converter_dict)
     parse_converters = LegacyConfigExcelListTransform.parse_converters
 
-    def _rocf_values_for_missing_json_keys(self) -> dict[str, JsonType]:
-        """Provide default values for optional encoding."""
+    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+        """Return the object that normalizes old test config files."""
         legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
         # pylint: disable=protected-access
-        return LegacyConfigExcelListTransform._rocf_values_for_missing_json_keys(  # noqa: E501
-            legacy_self)
-
-    def _rocf_get_json_key_renames(self) -> list[RocfKeyRename]:
-        """Get names of backward compatible config parameters."""
-        legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
-        # pylint: disable=protected-access
-        return LegacyConfigExcelListTransform._rocf_get_json_key_renames(
+        return LegacyConfigExcelListTransform._get_read_old_configuration(
             legacy_self)

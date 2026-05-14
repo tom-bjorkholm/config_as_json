@@ -84,9 +84,9 @@
     * [auto\_changed](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.auto_changed)
     * [old\_key\_handled](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_key_handled)
     * [rocf\_missing\_value\_provided](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.rocf_missing_value_provided)
+    * [old\_path\_moved](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_path_moved)
     * [all\_autochanges\_done](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.all_autochanges_done)
 * [config\_as\_json.config](#config_as_json.config)
-  * [RocfKeyRename](#config_as_json.config.RocfKeyRename)
   * [\_ConfigEncoder](#config_as_json.config._ConfigEncoder)
     * [default](#config_as_json.config._ConfigEncoder.default)
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
@@ -96,6 +96,7 @@
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [parse\_converters](#config_as_json.config.Config.parse_converters)
     * [nested\_configs](#config_as_json.config.Config.nested_configs)
+    * [\_get\_read\_old\_configuration](#config_as_json.config.Config._get_read_old_configuration)
     * [check\_key\_match](#config_as_json.config.Config.check_key_match)
     * [check\_dict\_parse](#config_as_json.config.Config.check_dict_parse)
     * [\_json\_parse\_obj\_hook](#config_as_json.config.Config._json_parse_obj_hook)
@@ -107,16 +108,6 @@
     * [\_checked\_nested\_configs](#config_as_json.config.Config._checked_nested_configs)
     * [\_value\_has\_config](#config_as_json.config.Config._value_has_config)
     * [\_check\_nested\_config\_members](#config_as_json.config.Config._check_nested_config_members)
-    * [\_rocf\_get\_keys\_to\_remove](#config_as_json.config.Config._rocf_get_keys_to_remove)
-    * [\_rocf\_remove\_json\_key\_in\_dict](#config_as_json.config.Config._rocf_remove_json_key_in_dict)
-    * [\_rocf\_remove\_json\_key\_in\_list](#config_as_json.config.Config._rocf_remove_json_key_in_list)
-    * [\_rocf\_remove\_json\_keys](#config_as_json.config.Config._rocf_remove_json_keys)
-    * [\_rocf\_values\_for\_missing\_json\_keys](#config_as_json.config.Config._rocf_values_for_missing_json_keys)
-    * [\_rocf\_apply\_missing\_values](#config_as_json.config.Config._rocf_apply_missing_values)
-    * [\_rocf\_get\_json\_key\_renames](#config_as_json.config.Config._rocf_get_json_key_renames)
-    * [\_rocf\_rename\_json\_key\_in\_dict](#config_as_json.config.Config._rocf_rename_json_key_in_dict)
-    * [\_rocf\_rename\_json\_key\_in\_list](#config_as_json.config.Config._rocf_rename_json_key_in_list)
-    * [\_rocf\_rename\_json\_keys](#config_as_json.config.Config._rocf_rename_json_keys)
     * [\_validate\_nested\_configs](#config_as_json.config.Config._validate_nested_configs)
     * [parse\_json](#config_as_json.config.Config.parse_json)
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
@@ -277,6 +268,52 @@
 * [config\_as\_json.assert\_dict\_equal](#config_as_json.assert_dict_equal)
   * [\_print\_dict\_differs](#config_as_json.assert_dict_equal._print_dict_differs)
   * [assert\_dict\_equal](#config_as_json.assert_dict_equal.assert_dict_equal)
+* [config\_as\_json.read\_old\_configuration](#config_as_json.read_old_configuration)
+  * [RocfKeyMove](#config_as_json.read_old_configuration.RocfKeyMove)
+  * [RocfKeyRename](#config_as_json.read_old_configuration.RocfKeyRename)
+  * [RocfConflictError](#config_as_json.read_old_configuration.RocfConflictError)
+  * [RocfIncompatiblePathError](#config_as_json.read_old_configuration.RocfIncompatiblePathError)
+  * [\_MovedValue](#config_as_json.read_old_configuration._MovedValue)
+  * [\_MoveContext](#config_as_json.read_old_configuration._MoveContext)
+  * [\_as\_dict](#config_as_json.read_old_configuration._as_dict)
+  * [\_as\_list](#config_as_json.read_old_configuration._as_list)
+  * [\_path\_text](#config_as_json.read_old_configuration._path_text)
+  * [\_validate\_path](#config_as_json.read_old_configuration._validate_path)
+  * [\_list\_marker\_count](#config_as_json.read_old_configuration._list_marker_count)
+  * [\_validate\_move](#config_as_json.read_old_configuration._validate_move)
+  * [\_conflict\_diag](#config_as_json.read_old_configuration._conflict_diag)
+  * [\_remove\_key\_recursive](#config_as_json.read_old_configuration._remove_key_recursive)
+  * [\_rename\_key\_recursive](#config_as_json.read_old_configuration._rename_key_recursive)
+  * [\_collect\_path\_values](#config_as_json.read_old_configuration._collect_path_values)
+  * [\_target\_path](#config_as_json.read_old_configuration._target_path)
+  * [\_delete\_path](#config_as_json.read_old_configuration._delete_path)
+  * [\_path\_exists](#config_as_json.read_old_configuration._path_exists)
+  * [\_path\_is\_prefix](#config_as_json.read_old_configuration._path_is_prefix)
+  * [\_paths\_overlap](#config_as_json.read_old_configuration._paths_overlap)
+  * [\_wrap\_prefix](#config_as_json.read_old_configuration._wrap_prefix)
+  * [\_get\_existing\_value](#config_as_json.read_old_configuration._get_existing_value)
+  * [\_container\_for](#config_as_json.read_old_configuration._container_for)
+  * [\_require\_dict](#config_as_json.read_old_configuration._require_dict)
+  * [\_require\_list](#config_as_json.read_old_configuration._require_list)
+  * [\_write\_path](#config_as_json.read_old_configuration._write_path)
+  * [\_remove\_path](#config_as_json.read_old_configuration._remove_path)
+  * [\_apply\_missing](#config_as_json.read_old_configuration._apply_missing)
+  * [ReadOldConfiguration](#config_as_json.read_old_configuration.ReadOldConfiguration)
+    * [process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.process_json)
+    * [\_remove\_keys\_recursively](#config_as_json.read_old_configuration.ReadOldConfiguration._remove_keys_recursively)
+    * [\_remove\_keys\_by\_path](#config_as_json.read_old_configuration.ReadOldConfiguration._remove_keys_by_path)
+    * [\_rename\_json\_keys](#config_as_json.read_old_configuration.ReadOldConfiguration._rename_json_keys)
+    * [\_move\_json\_keys](#config_as_json.read_old_configuration.ReadOldConfiguration._move_json_keys)
+    * [\_move\_one\_path](#config_as_json.read_old_configuration.ReadOldConfiguration._move_one_path)
+    * [\_target\_is\_current](#config_as_json.read_old_configuration.ReadOldConfiguration._target_is_current)
+    * [\_apply\_missing\_values](#config_as_json.read_old_configuration.ReadOldConfiguration._apply_missing_values)
+    * [get\_json\_key\_moves](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_moves)
+    * [get\_keys\_to\_remove\_recursively](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove_recursively)
+    * [get\_keys\_to\_remove](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove)
+    * [get\_values\_for\_missing\_json\_keys](#config_as_json.read_old_configuration.ReadOldConfiguration.get_values_for_missing_json_keys)
+    * [get\_json\_key\_renames](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_renames)
+    * [pre\_process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.pre_process_json)
+    * [post\_process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.post_process_json)
 * [config\_as\_json.as\_dict\_view\_validator](#config_as_json.as_dict_view_validator)
   * [public\_attrs\_to\_dict](#config_as_json.as_dict_view_validator.public_attrs_to_dict)
   * [\_validate\_non\_dict\_type](#config_as_json.as_dict_view_validator._validate_non_dict_type)
@@ -1958,6 +1995,22 @@ Record that parsing supplied a default value for one key.
 - `rocf_val_key` - Key that was absent from input and received a default
   value during Reading an Old Configuration File (ROCF).
 
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_path_moved"></a>
+
+#### old\_path\_moved
+
+```python
+def old_path_moved(old_path: str, new_path: str) -> None
+```
+
+Record that one old path was moved to a current path.
+
+**Arguments**:
+
+- `old_path` - Actual old path that was accepted and removed.
+- `new_path` - Actual current path that received the old value, or
+  already had a current value that won.
+
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.all_autochanges_done"></a>
 
 #### all\_autochanges\_done
@@ -1988,17 +2041,6 @@ type of dict or list, or even a nested dict or list.
 The base class then provides JSON serialization, parsing, schema-like key
 checks, omit-when-None handling, old-file migration helpers, and validation
 plan integration.
-
-<a id="config_as_json.config.RocfKeyRename"></a>
-
-#### RocfKeyRename
-
-Describe a configuration key rename from an old name to a new name.
-
-Renaming rule for Reading Old Configuration File (ROCF).
-Used by derived classes to describe key names in old configuration files
-that should be mapped onto their current names during parsing of an old
-configuration file.
 
 <a id="config_as_json.config._ConfigEncoder"></a>
 
@@ -2213,6 +2255,20 @@ parsing, validation, mutation, diagnostics, or other side effects.
 Values should be constant from the time ``super().__init__`` is
 called. Every nested Config object needs a declaration.
 
+<a id="config_as_json.config.Config._get_read_old_configuration"></a>
+
+#### \_get\_read\_old\_configuration
+
+```python
+def _get_read_old_configuration() -> ReadOldConfiguration
+```
+
+Return the object that normalizes old configuration data.
+
+Derived classes override this method when they need to accept old
+configuration file shapes. The default object leaves parsed data
+unchanged.
+
 <a id="config_as_json.config.Config.check_key_match"></a>
 
 #### check\_key\_match
@@ -2250,7 +2306,7 @@ Validate that parsed keys match the declared configuration keys.
 
 ```python
 @staticmethod
-def check_dict_parse(self_data: dict[str, Any], json_data: dict[str, Any],
+def check_dict_parse(self_data: _ObjectOrDict, json_data: _ObjectOrDict,
                      key: str, ok_to_use_defaults: bool,
                      unchecked_dicts: list[str], stderr_file: TextIO) -> None
 ```
@@ -2449,220 +2505,6 @@ def _check_nested_config_members(
 ```
 
 Validate that visible nested Config defaults are declared.
-
-<a id="config_as_json.config.Config._rocf_get_keys_to_remove"></a>
-
-#### \_rocf\_get\_keys\_to\_remove
-
-```python
-def _rocf_get_keys_to_remove() -> list[str]
-```
-
-Return old JSON keys to remove while reading old files.
-
-When Reading an Old Configuration File (ROCF), the old configuration
-version in the file might have keys that no longer exist in the
-current configuration. This method returns those old key names.
-Derived classes should override this method as needed.
-
-**Returns**:
-
-  A list of old keys that should be removed from the JSON input.
-
-<a id="config_as_json.config.Config._rocf_remove_json_key_in_dict"></a>
-
-#### \_rocf\_remove\_json\_key\_in\_dict
-
-```python
-@staticmethod
-def _rocf_remove_json_key_in_dict(key: str, json_data: dict[str,
-                                                            JsonType]) -> bool
-```
-
-Remove one ROCF key from a nested dictionary.
-
-**Arguments**:
-
-- `key` - Old JSON key to remove.
-- `json_data` - Parsed JSON dictionary to update in place.
-
-
-**Returns**:
-
-  ``True`` if the key was found and removed anywhere in
-  ``json_data``, otherwise ``False``.
-
-<a id="config_as_json.config.Config._rocf_remove_json_key_in_list"></a>
-
-#### \_rocf\_remove\_json\_key\_in\_list
-
-```python
-@staticmethod
-def _rocf_remove_json_key_in_list(key: str, json_data: list[JsonType]) -> bool
-```
-
-Remove one ROCF key inside nested lists.
-
-**Arguments**:
-
-- `key` - Old JSON key to remove.
-- `json_data` - Parsed JSON list to walk recursively.
-
-
-**Returns**:
-
-  ``True`` if the key was found and removed anywhere in
-  ``json_data``, otherwise ``False``.
-
-<a id="config_as_json.config.Config._rocf_remove_json_keys"></a>
-
-#### \_rocf\_remove\_json\_keys
-
-```python
-def _rocf_remove_json_keys(json_data: dict[str, JsonType]) -> None
-```
-
-Apply all declared ROCF key removals in place.
-
-When Reading an Old Configuration File (ROCF), some key names in the
-JSON input from the old configuration file may no longer exist in the
-current configuration. This method removes all declared old keys
-before normal schema checks are applied.
-
-**Arguments**:
-
-- `json_data` - Parsed JSON object to normalize before validation.
-
-<a id="config_as_json.config.Config._rocf_values_for_missing_json_keys"></a>
-
-#### \_rocf\_values\_for\_missing\_json\_keys
-
-```python
-def _rocf_values_for_missing_json_keys() -> dict[str, JsonType]
-```
-
-Return values for missing JSON keys.
-
-When Reading an Old Configuration File (ROCF), some now existing
-and mandatory keys may be missing in the JSON input from the
-old configuration file. This method returns the values that should
-be supplied for these missing keys.
-Derived classes should override this method as needed.
-
-**Returns**:
-
-  A mapping from missing key name to the value that should
-  be supplied when the key is absent from JSON input.
-
-<a id="config_as_json.config.Config._rocf_apply_missing_values"></a>
-
-#### \_rocf\_apply\_missing\_values
-
-```python
-def _rocf_apply_missing_values(json_data: dict[str, JsonType]) -> None
-```
-
-Apply values for missing JSON keys to the configuration object.
-
-When Reading an Old Configuration File (ROCF), some now existing
-and mandatory keys may be missing in the JSON input from the
-old configuration file. This method applies the values that should
-be supplied for these missing keys to the configuration object.
-
-**Arguments**:
-
-- `json_data` - Parsed JSON object that will be applied to the
-  configuration instance.
-
-<a id="config_as_json.config.Config._rocf_get_json_key_renames"></a>
-
-#### \_rocf\_get\_json\_key\_renames
-
-```python
-def _rocf_get_json_key_renames() -> list[RocfKeyRename]
-```
-
-Return configuration key renames for Reading Old Configuration File.
-
-Derived classes override this method to describe key names
-in old configuration files that should be mapped onto their current
-names during parsing of an old configuration file.
-
-**Returns**:
-
-  A list of ``RocfKeyRename`` entries describing accepted key
-  renames.
-
-<a id="config_as_json.config.Config._rocf_rename_json_key_in_dict"></a>
-
-#### \_rocf\_rename\_json\_key\_in\_dict
-
-```python
-@staticmethod
-def _rocf_rename_json_key_in_dict(rename: RocfKeyRename,
-                                  json_data: dict[str, JsonType],
-                                  stderr_file: TextIO = sys.stderr) -> bool
-```
-
-Apply one ROCF key rename in a nested dictionary.
-
-**Arguments**:
-
-- `rename` - ROCT old to new key mapping to apply.
-- `json_data` - Parsed JSON dictionary to update in place.
-- `stderr_file` - Stream used for user-facing diagnostics.
-
-
-**Returns**:
-
-  ``True`` if the old key name was found and replaced anywhere in
-  ``json_data``, otherwise ``False``.
-
-<a id="config_as_json.config.Config._rocf_rename_json_key_in_list"></a>
-
-#### \_rocf\_rename\_json\_key\_in\_list
-
-```python
-@staticmethod
-def _rocf_rename_json_key_in_list(rename: RocfKeyRename,
-                                  json_data: list[JsonType],
-                                  stderr_file: TextIO = sys.stderr) -> bool
-```
-
-Apply one ROCF key rename inside nested lists.
-
-**Arguments**:
-
-- `rename` - ROCF old to new key mapping to apply.
-- `json_data` - Parsed JSON list to walk recursively.
-- `stderr_file` - Stream used for user-facing diagnostics.
-
-
-**Returns**:
-
-  ``True`` if the old key name was found and replaced anywhere in
-  ``json_data``, otherwise ``False``.
-
-<a id="config_as_json.config.Config._rocf_rename_json_keys"></a>
-
-#### \_rocf\_rename\_json\_keys
-
-```python
-def _rocf_rename_json_keys(json_data: dict[str, JsonType],
-                           stderr_file: TextIO) -> None
-```
-
-Apply all declared ROCF key renames in place.
-
-When Reading an Old Configuration File (ROCF), some key names in the
-JSON input from the old configuration file may need to be mapped onto
-their current names during parsing of an old configuration file.
-This method applies all declared ROCF key renames in place.
-
-**Arguments**:
-
-- `json_data` - Parsed JSON object to normalize before validation.
-- `stderr_file` - Stream used for user-facing diagnostics.
 
 <a id="config_as_json.config.Config._validate_nested_configs"></a>
 
@@ -6252,6 +6094,734 @@ normal ``assert`` statements.
 
 - `AssertionError` - The mappings do not match after ignored keys have been
   removed.
+
+<a id="config_as_json.read_old_configuration"></a>
+
+# config\_as\_json.read\_old\_configuration
+
+Describe contracts for normalizing old configuration data.
+
+<a id="config_as_json.read_old_configuration.RocfKeyMove"></a>
+
+## RocfKeyMove Objects
+
+```python
+class RocfKeyMove(NamedTuple)
+```
+
+Describe a key move from an old structure to a new structure.
+
+A key move copies a value from an old :class:`RocfPath` to a new
+:class:`RocfPath`.
+
+Empty paths are illegal. ``old_path`` and ``new_path`` must not be equal.
+
+An old path that is missing is a no-op, because the input may already use
+the current schema. If old-path traversal reaches a value with the wrong
+container type, that is also a no-op. Current-schema parsing later decides
+whether that data is valid.
+
+If new-path traversal needs an intermediate dictionary or list and an
+incompatible value already exists, processing should fail with
+:class:`RocfIncompatiblePathError`.
+
+If both the old value and the current-shape target value exist, the
+current-shape value wins. The old value should be discarded, a diagnostic
+should be written through the ``stderr_file`` supplied to
+:meth:`ReadOldConfiguration.process_json`, and the handled old path should
+be reported to the automatic-change hook.
+
+List handling is intentionally narrow:
+
+- A path without ``'['`` uses only dictionary traversal.
+- If old and new paths contain the same number of ``'['`` elements, list
+elements are paired by index. This covers renaming a key in every
+element of a list.
+- If the new path contains one ``'['`` and the old path contains none, the
+old value is wrapped into a single-element list when the current list is
+absent. If the current list already exists, it wins.
+- If the old path contains more ``'['`` elements than the new path, the
+move is undefined in this declarative API. Use pre-processing or
+post-processing for many-to-one migrations.
+- Moving only one selected list element is not supported in this version.
+
+Moving a whole object into a list element is preferred when changing an
+object-valued member into a list-valued member. For example,
+``RocfKeyMove(old_path=('output',), new_path=('outputs', '['))`` turns the
+old ``output`` object into the first and only element of ``outputs``.
+
+Moves whose old and new paths overlap are legal. Implementations should
+read the old value first, remove the old path, and then write the new
+path. Overlapping moves are order-sensitive and should be avoided unless
+the migration really needs them.
+
+**Attributes**:
+
+- `old_path` - Absolute path to the old value in the root configuration
+  data object.
+- `new_path` - Absolute path where the value belongs in the current
+  configuration data object.
+
+<a id="config_as_json.read_old_configuration.RocfKeyRename"></a>
+
+#### RocfKeyRename
+
+Describe a configuration key rename from an old name to a new name.
+
+Renaming rule for Reading Old Configuration File (ROCF). Used by derived
+classes to describe key names in old configuration files that should be
+mapped onto their current names during parsing.
+
+<a id="config_as_json.read_old_configuration.RocfConflictError"></a>
+
+## RocfConflictError Objects
+
+```python
+class RocfConflictError(InvalidConfiguration)
+```
+
+Raised when old-file migration rules produce conflicting writes.
+
+Several :class:`RocfKeyMove` rules may declare the same ``new_path``. This
+is useful when a current configuration version can read files from more
+than one older version. It is a conflict only if more than one rule
+actually writes a value to the same current target while processing one
+input file.
+
+<a id="config_as_json.read_old_configuration.RocfIncompatiblePathError"></a>
+
+## RocfIncompatiblePathError Objects
+
+```python
+class RocfIncompatiblePathError(InvalidConfiguration)
+```
+
+Raised when a current-schema path cannot be created.
+
+Declarative ROCF processing raises this when a target path needs an
+intermediate dictionary or list and an incompatible value already exists
+in the input data.
+
+<a id="config_as_json.read_old_configuration._MovedValue"></a>
+
+## \_MovedValue Objects
+
+```python
+class _MovedValue(NamedTuple)
+```
+
+One actual value found by a move rule.
+
+<a id="config_as_json.read_old_configuration._MoveContext"></a>
+
+## \_MoveContext Objects
+
+```python
+class _MoveContext(NamedTuple)
+```
+
+State shared while applying move rules.
+
+<a id="config_as_json.read_old_configuration._as_dict"></a>
+
+#### \_as\_dict
+
+```python
+def _as_dict(value: object) -> Optional[dict[str, object]]
+```
+
+Return ``value`` as a string-key dictionary if possible.
+
+<a id="config_as_json.read_old_configuration._as_list"></a>
+
+#### \_as\_list
+
+```python
+def _as_list(value: object) -> Optional[list[object]]
+```
+
+Return ``value`` as a list if possible.
+
+<a id="config_as_json.read_old_configuration._path_text"></a>
+
+#### \_path\_text
+
+```python
+def _path_text(path: Sequence[str | int]) -> str
+```
+
+Return a member-validator style text form of one actual path.
+
+<a id="config_as_json.read_old_configuration._validate_path"></a>
+
+#### \_validate\_path
+
+```python
+def _validate_path(path: RocfPath, name: str) -> None
+```
+
+Validate path syntax shared by declarative ROCF methods.
+
+<a id="config_as_json.read_old_configuration._list_marker_count"></a>
+
+#### \_list\_marker\_count
+
+```python
+def _list_marker_count(path: RocfPath) -> int
+```
+
+Return the number of list wildcards in ``path``.
+
+<a id="config_as_json.read_old_configuration._validate_move"></a>
+
+#### \_validate\_move
+
+```python
+def _validate_move(move: RocfKeyMove) -> None
+```
+
+Validate one move rule before applying it.
+
+<a id="config_as_json.read_old_configuration._conflict_diag"></a>
+
+#### \_conflict\_diag
+
+```python
+def _conflict_diag(old_path: str, new_path: str, stderr_file: TextIO) -> None
+```
+
+Write the standard diagnostic for a current value winning.
+
+<a id="config_as_json.read_old_configuration._remove_key_recursive"></a>
+
+#### \_remove\_key\_recursive
+
+```python
+def _remove_key_recursive(data: object, key: str) -> bool
+```
+
+Remove a dictionary key from all dictionaries below ``data``.
+
+<a id="config_as_json.read_old_configuration._rename_key_recursive"></a>
+
+#### \_rename\_key\_recursive
+
+```python
+def _rename_key_recursive(rename: RocfKeyRename, data: object,
+                          stderr_file: TextIO) -> bool
+```
+
+Rename a dictionary key in all dictionaries below ``data``.
+
+<a id="config_as_json.read_old_configuration._collect_path_values"></a>
+
+#### \_collect\_path\_values
+
+```python
+def _collect_path_values(data: object, path: RocfPath, actual: list[str | int],
+                         indexes: list[int]) -> list[_MovedValue]
+```
+
+Collect existing values reached by one declarative path.
+
+<a id="config_as_json.read_old_configuration._target_path"></a>
+
+#### \_target\_path
+
+```python
+def _target_path(new_path: RocfPath, indexes: list[int]) -> list[str | int]
+```
+
+Return the actual target path for one collected old value.
+
+<a id="config_as_json.read_old_configuration._delete_path"></a>
+
+#### \_delete\_path
+
+```python
+def _delete_path(data: object, path: Sequence[str | int]) -> None
+```
+
+Delete an existing actual path if it can still be reached.
+
+<a id="config_as_json.read_old_configuration._path_exists"></a>
+
+#### \_path\_exists
+
+```python
+def _path_exists(data: object, path: Sequence[str | int]) -> bool
+```
+
+Return whether an actual path exists in ``data``.
+
+<a id="config_as_json.read_old_configuration._path_is_prefix"></a>
+
+#### \_path\_is\_prefix
+
+```python
+def _path_is_prefix(first: Sequence[str | int],
+                    second: Sequence[str | int]) -> bool
+```
+
+Return whether ``first`` is a path prefix of ``second``.
+
+<a id="config_as_json.read_old_configuration._paths_overlap"></a>
+
+#### \_paths\_overlap
+
+```python
+def _paths_overlap(first: Sequence[str | int],
+                   second: Sequence[str | int]) -> bool
+```
+
+Return whether either path is an ancestor of the other.
+
+<a id="config_as_json.read_old_configuration._wrap_prefix"></a>
+
+#### \_wrap\_prefix
+
+```python
+def _wrap_prefix(move: RocfKeyMove,
+                 target: list[str | int]) -> Optional[list[str | int]]
+```
+
+Return the current-list path for a wrap move, if any.
+
+<a id="config_as_json.read_old_configuration._get_existing_value"></a>
+
+#### \_get\_existing\_value
+
+```python
+def _get_existing_value(data: object,
+                        path: Sequence[str | int]) -> tuple[bool, object]
+```
+
+Return whether an actual path exists and its value when present.
+
+<a id="config_as_json.read_old_configuration._container_for"></a>
+
+#### \_container\_for
+
+```python
+def _container_for(next_part: str | int) -> object
+```
+
+Return an empty container suitable before ``next_part``.
+
+<a id="config_as_json.read_old_configuration._require_dict"></a>
+
+#### \_require\_dict
+
+```python
+def _require_dict(value: object,
+                  path: Sequence[str | int]) -> dict[str, object]
+```
+
+Return ``value`` as dict or raise an incompatible-path error.
+
+<a id="config_as_json.read_old_configuration._require_list"></a>
+
+#### \_require\_list
+
+```python
+def _require_list(value: object, path: Sequence[str | int]) -> list[object]
+```
+
+Return ``value`` as list or raise an incompatible-path error.
+
+<a id="config_as_json.read_old_configuration._write_path"></a>
+
+#### \_write\_path
+
+```python
+def _write_path(data: object, path: Sequence[str | int],
+                value: object) -> None
+```
+
+Write ``value`` to an actual path, creating containers as needed.
+
+<a id="config_as_json.read_old_configuration._remove_path"></a>
+
+#### \_remove\_path
+
+```python
+def _remove_path(data: object, path: RocfPath,
+                 actual: list[str | int]) -> list[str]
+```
+
+Remove one path rule and return actual removed path texts.
+
+<a id="config_as_json.read_old_configuration._apply_missing"></a>
+
+#### \_apply\_missing
+
+```python
+def _apply_missing(data: object, path: RocfPath, value: object,
+                   actual: list[str | int]) -> list[str]
+```
+
+Apply one missing-value rule and return actual path texts.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration"></a>
+
+## ReadOldConfiguration Objects
+
+```python
+class ReadOldConfiguration()
+```
+
+Normalize possibly old configuration data.
+
+``Config.parse_json()`` should decode JSON text first. It should then use
+a ``ReadOldConfiguration`` object to turn the parsed root object into
+current-schema configuration data. The rest of ``Config`` should only need
+to check and apply the current schema.
+
+This class runs on every read. Therefore, current-format input must pass
+through as a no-op when no old-format data is present.
+
+The input data has already been decoded from JSON. Depending on the
+``Config`` parse flow, scalar leaf values may already have been converted
+by ``parse_converters()`` before this object sees the data. The data has
+not yet been validated, and dictionaries have not yet been converted into
+nested ``Config`` objects.
+
+Application-specific subclasses should normally override only the
+declarative methods:
+
+- :meth:`get_keys_to_remove_recursively`
+- :meth:`get_keys_to_remove`
+- :meth:`get_json_key_renames`
+- :meth:`get_json_key_moves`
+- :meth:`get_values_for_missing_json_keys`
+
+Unusual migrations can override :meth:`pre_process_json` or
+:meth:`post_process_json`.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.process_json"></a>
+
+#### process\_json
+
+```python
+def process_json(json_data: dict[str,
+                                 object], auto_ch_hook: ConfigAutoChangeHook,
+                 stderr_file: TextIO) -> dict[str, object]
+```
+
+Return current-schema data from possibly old configuration data.
+
+The intended default processing order is:
+
+1. :meth:`pre_process_json`
+2. remove keys from :meth:`get_keys_to_remove_recursively`
+3. remove keys from :meth:`get_keys_to_remove`
+4. rename keys from :meth:`get_json_key_renames`
+5. move paths from :meth:`get_json_key_moves`
+6. add values from :meth:`get_values_for_missing_json_keys`
+7. :meth:`post_process_json`
+
+Missing values are intentionally applied after renames and moves so
+old values get a chance to populate the current shape before defaults
+are supplied.
+
+This method may mutate ``json_data`` in place. Callers must use the
+returned object.
+
+Implementations should report actual performed moves, not move rules.
+A wildcard move over three list elements should therefore report three
+individual moves. Moved paths should use the same text style as member
+names used by member validators, for example
+``outputs[2].csv_params[delimiter]``.
+
+Move reporting should use ``ConfigAutoChangeHook.old_path_moved`` with
+the signature ``old_path_moved(old_path: str, new_path: str)``. Adding
+that method to ``ConfigAutoChangeHook`` is backward compatible with
+existing application hook subclasses because their ``auto_changed()``
+signature does not need to change.
+
+**Arguments**:
+
+- `json_data` - Parsed root object to normalize. Depending on the
+  ``Config`` parse flow, ``parse_converters()`` may already have
+  converted scalar values, for example strings to enum members.
+  The data is not yet validated, and dictionaries have not yet
+  been converted to nested ``Config`` objects.
+- `auto_ch_hook` - Hook that records automatic compatibility changes.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  Configuration data matching the current schema.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration._remove_keys_recursively"></a>
+
+#### \_remove\_keys\_recursively
+
+```python
+def _remove_keys_recursively(json_data: dict[str, object],
+                             auto_ch_hook: ConfigAutoChangeHook) -> None
+```
+
+Apply recursive key removals to ``json_data``.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration._remove_keys_by_path"></a>
+
+#### \_remove\_keys\_by\_path
+
+```python
+def _remove_keys_by_path(json_data: dict[str, object],
+                         auto_ch_hook: ConfigAutoChangeHook) -> None
+```
+
+Apply path-based key removals to ``json_data``.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration._rename_json_keys"></a>
+
+#### \_rename\_json\_keys
+
+```python
+def _rename_json_keys(json_data: dict[str, object],
+                      auto_ch_hook: ConfigAutoChangeHook,
+                      stderr_file: TextIO) -> None
+```
+
+Apply recursive key renames to ``json_data``.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration._move_json_keys"></a>
+
+#### \_move\_json\_keys
+
+```python
+def _move_json_keys(json_data: dict[str, object],
+                    auto_ch_hook: ConfigAutoChangeHook,
+                    stderr_file: TextIO) -> None
+```
+
+Apply path moves to ``json_data`` in declaration order.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration._move_one_path"></a>
+
+#### \_move\_one\_path
+
+```python
+def _move_one_path(context: _MoveContext, move: RocfKeyMove,
+                   moved_value: _MovedValue) -> None
+```
+
+Apply one actual move produced by a move rule.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration._target_is_current"></a>
+
+#### \_target\_is\_current
+
+```python
+def _target_is_current(context: _MoveContext, moved_value: _MovedValue,
+                       wrap_prefix: Optional[list[str | int]],
+                       target: list[str | int]) -> bool
+```
+
+Return whether a current target exists and should win.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration._apply_missing_values"></a>
+
+#### \_apply\_missing\_values
+
+```python
+def _apply_missing_values(json_data: dict[str, object],
+                          auto_ch_hook: ConfigAutoChangeHook) -> None
+```
+
+Apply missing-value rules to ``json_data``.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_moves"></a>
+
+#### get\_json\_key\_moves
+
+```python
+def get_json_key_moves() -> list[RocfKeyMove]
+```
+
+Return key moves from old paths to current paths.
+
+Derived classes override this method when an old configuration value
+must move into a different JSON object structure in the current
+schema.
+
+Several rules may declare the same target path, but only one rule may
+actually write that target while processing one input file. Rules that
+overlap by ancestor or descendant paths are legal but order-sensitive.
+
+**Returns**:
+
+  Key moves to apply in list order while reading old configuration
+  files.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove_recursively"></a>
+
+#### get\_keys\_to\_remove\_recursively
+
+```python
+def get_keys_to_remove_recursively() -> list[str]
+```
+
+Return old key names to remove recursively.
+
+When Reading an Old Configuration File (ROCF), the old configuration
+version in the file might have keys that no longer exist in the
+current configuration. This method returns old key names to remove
+anywhere in the configuration data.
+
+Key removal is name-based and recursive through dictionaries and
+lists. New code should prefer :meth:`get_keys_to_remove` for precise
+path-based removal unless recursive name-based behavior is really
+intended.
+
+**Returns**:
+
+  Old key names that should be removed from the input data.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove"></a>
+
+#### get\_keys\_to\_remove
+
+```python
+def get_keys_to_remove() -> list[RocfPath]
+```
+
+Return old paths to remove while reading old files.
+
+When Reading an Old Configuration File (ROCF), the old configuration
+version in the file might have keys that no longer exist in the
+current configuration. This method returns precise old paths to remove
+from the configuration data.
+
+Missing paths are ignored. If traversal reaches a value with the wrong
+container type, the path is ignored because the input may already use
+the current schema.
+
+**Returns**:
+
+  Old paths that should be removed from the input data.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_values_for_missing_json_keys"></a>
+
+#### get\_values\_for\_missing\_json\_keys
+
+```python
+def get_values_for_missing_json_keys() -> dict[RocfPath, object]
+```
+
+Return values for missing current-schema paths.
+
+When Reading an Old Configuration File (ROCF), some now existing
+and mandatory keys may be missing in the JSON input from the
+old configuration file. This method returns the values that should
+be supplied for these missing keys.
+
+Values are supplied after removals, renames and moves. Intermediate
+dictionaries may be created as needed. If the path contains the list
+wildcard ``'['``, the value is supplied inside existing list elements
+only. To supply an empty list that is itself missing, use the path to
+the list member, for example ``{('outputs',): []}``.
+
+If an incompatible value already exists while creating the path,
+processing should raise
+:class:`RocfIncompatiblePathError`.
+
+**Returns**:
+
+  A mapping from missing key path to the value that should be
+  supplied when the path is absent from the input data.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_renames"></a>
+
+#### get\_json\_key\_renames
+
+```python
+def get_json_key_renames() -> list[RocfKeyRename]
+```
+
+Return configuration key renames for Reading Old Configuration File.
+
+Derived classes override this method to describe key names
+in old configuration files that should be mapped onto their current
+names during parsing of an old configuration file.
+
+**Returns**:
+
+  A list of ``RocfKeyRename`` entries describing accepted key
+  renames.
+
+  Key renaming is name-based and recursive through dictionaries and
+  lists. For precise structural migration, use
+  :meth:`get_json_key_moves`.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.pre_process_json"></a>
+
+#### pre\_process\_json
+
+```python
+def pre_process_json(json_data: dict[str, object],
+                     auto_ch_hook: ConfigAutoChangeHook,
+                     stderr_file: TextIO) -> dict[str, object]
+```
+
+Pre-process data before declarative old-file handling.
+
+Derived classes override this method only for migrations that cannot
+be expressed with removals, renames, moves or missing values.
+
+This method may mutate ``json_data`` in place. Its caller must use the
+returned object.
+
+**Arguments**:
+
+- `json_data` - Parsed root object to normalize. Depending on the
+  ``Config`` parse flow, ``parse_converters()`` may already have
+  converted scalar values, for example strings to enum members.
+  The data is not yet validated, and dictionaries have not yet
+  been converted to nested ``Config`` objects.
+- `auto_ch_hook` - Hook that records automatic compatibility changes.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  Data to pass to the declarative old-file processing steps.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.post_process_json"></a>
+
+#### post\_process\_json
+
+```python
+def post_process_json(json_data: dict[str, object],
+                      auto_ch_hook: ConfigAutoChangeHook,
+                      stderr_file: TextIO) -> dict[str, object]
+```
+
+Post-process data after declarative old-file handling.
+
+Derived classes override this method only for migrations that need to
+inspect or adjust the result of the declarative old-file processing.
+
+This method may mutate ``json_data`` in place. Its caller must use the
+returned object.
+
+**Arguments**:
+
+- `json_data` - Current-shape data after declarative processing steps
+  in ReadOldConfiguration. The data is not yet validated, and
+  dictionaries have not yet been converted to nested ``Config``
+  objects.
+- `auto_ch_hook` - Hook that records automatic compatibility changes.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  Data matching the current configuration schema. This data is now
+  ready to be validated and converted to nested Config objects.
 
 <a id="config_as_json.as_dict_view_validator"></a>
 
