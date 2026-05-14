@@ -593,11 +593,12 @@ class Config():
             if isinstance(exc, json.JSONDecodeError):
                 raise ConfigBadJson(msg=msg, doc=exc.doc, pos=exc.pos) from exc
             raise ConfigBadJson(msg=msg, doc='', pos=0) from exc
-        assert data is not None
-        if not isinstance(data, dict):
+        if data is None or not isinstance(data, dict):
             msg = 'Configuration JSON root must be a JSON object.'
             print(msg, file=stderr_file)
             raise ConfigBadJson(msg=msg, doc=from_json_text, pos=0)
+        assert data is not None  # runtime checked above, tell mypy it's ok
+        assert isinstance(data, dict)  # tell mypy it's ok
         rocf = self._get_read_old_configuration()
         data_obj = rocf.process_json(json_data=data,
                                      auto_ch_hook=self._hook_cfg_autochange,

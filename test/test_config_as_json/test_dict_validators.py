@@ -437,6 +437,8 @@ def test_dict_keys_parsed_json(capsys: CaptureFixture[str]) -> None:
 @pytest.mark.parametrize(
     'keys, validators, exc_type, message',
     [([], [ListSizeValidator(0, 1)], ValueError, 'keys must be non-empty'),
+     (object(), [ListSizeValidator(0, 1)], TypeError,
+      'keys must be a sequence of hashable values or a callable'),
      (['a'], [], ValueError, 'validators must be non-empty'),
      (accept_all_keys, [], ValueError, 'validators must be non-empty'),
      ([['a']], [ListSizeValidator(0, 1)

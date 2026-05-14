@@ -473,6 +473,14 @@ def test_factory_must_be_callable() -> None:
                             stderr_file=sys.stderr)
 
 
+def test_factory_base_call_raises() -> None:
+    """Test direct call of the ConfigFactory protocol placeholder."""
+    factory = cast(ConfigFactory, object())
+    with pytest.raises(NotImplementedError):
+        ConfigFactory.__call__(factory, from_json_data_text=None,
+                               from_json_filename=None, stderr_file=sys.stderr)
+
+
 def test_factory_return_type_checked(capsys: CaptureFixture[str]) -> None:
     """Test that factory results must match config_type."""
     with pytest.raises(TypeError, match='factory for output must return'):

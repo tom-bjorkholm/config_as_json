@@ -212,6 +212,8 @@ def test_rename_key_recursive_bad() -> None:
 @pytest.mark.parametrize(
     'data, path, expected',
     [({'old': 1}, ('old',), [(['old'], [], 1)]),
+     ({'items': ['a', 'b']}, ('items', '['),
+      [(['items', 0], [0], 'a'), (['items', 1], [1], 'b')]),
      ({'items': [{'old': 1}, {'old': 2}]}, ('items', '[', 'old'),
       [(['items', 0, 'old'], [0], 1), (['items', 1, 'old'], [1], 2)]),
      ({'items': 'bad'}, ('items', '[', 'old'), []),
@@ -297,6 +299,8 @@ def test_paths_overlap(first: list[str | int], second: list[str | int],
      (rocf_mod.RocfKeyMove(old_path=('items', '[', 'old'),
                            new_path=('items', '[', 'new')),
       ['items', 2, 'new'], None),
+     (rocf_mod.RocfKeyMove(old_path=('old',), new_path=('items', '[')),
+      ['items'], None),
      (rocf_mod.RocfKeyMove(old_path=('old',), new_path=('new',)),
       ['new'], None)])
 def test_wrap_prefix(move: rocf_mod.RocfKeyMove, target: list[str | int],
@@ -397,6 +401,7 @@ def test_remove_path(data: dict[str, object], path: rocf_mod.RocfPath,
       ['meta[owner]']),
      ({'items': [{}, {'name': 'b'}]}, ('items', '[', 'name'), 'a',
       {'items': [{'name': 'a'}, {'name': 'b'}]}, ['items[0].name']),
+     ({'items': [1, 2]}, ('items', '['), 'a', {'items': [1, 2]}, []),
      ({}, ('items', '[', 'name'), 'a', {}, [])])
 def test_apply_missing(
         data: dict[str, object], path: rocf_mod.RocfPath, value: object,

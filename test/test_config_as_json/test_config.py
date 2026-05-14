@@ -471,6 +471,19 @@ def test_config_something_read_bad3(capsys: CaptureFixture[str],
     assert 'failed to load JSON' in err
 
 
+@pytest.mark.parametrize('txt', ['[]', '42', 'null'])
+def test_reject_non_object_root(capsys: CaptureFixture[str], txt: str) -> None:
+    """Test that the JSON root value must be an object."""
+    yst = ConfigSomething(stderr_file=sys.stderr)
+    with pytest.raises(ConfigBadJson) as exc_info:
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert exc_info.type is ConfigBadJson
+    assert 'Configuration JSON root must be a JSON object.' in str(exc_info)
+    assert out == ''
+    assert 'Configuration JSON root must be a JSON object.' in err
+
+
 @pytest.mark.parametrize('txt',
                          [b'\xff\xf8\x00\x00\x00\x00\x00\xff',
                           b'\xff'])
