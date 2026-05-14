@@ -24,8 +24,8 @@ from config_as_json.commontypes import PathOrStr
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
     NestedConfigs
-from config_as_json._config_nesting_io import nested_config_from_json, \
-    nested_config_json_data, validate_nested_config
+from config_as_json._config_nesting_io import _nested_config_from_json, \
+    _nested_config_json_data, _validate_nested_config
 from config_as_json.read_old_configuration import ReadOldConfiguration
 from config_as_json.validator import ValidationPlan
 
@@ -145,7 +145,7 @@ class Config():
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             auto_ch_hook: Hook that is notified about automatic changes such
-                as filled values or renamed keys when reading old
+                as filled, renamed, moved, or removed values when reading old
                 configuration files.
             stderr_file: Stream used for user-facing diagnostics.
 
@@ -554,7 +554,7 @@ class Config():
         nested_configs = self._nested_config_decls
         for member_name, nesting in nested_configs.items():
             member_value = getattr(self, member_name)
-            validate_nested_config(
+            _validate_nested_config(
                 member_name=member_name, member_value=member_value,
                 nestings=nesting, stderr_file=stderr_file)
 
@@ -617,7 +617,7 @@ class Config():
         for i in self_keys:
             if i in data.keys():
                 if i in nested_configs:
-                    nested_value = nested_config_from_json(
+                    nested_value = _nested_config_from_json(
                         member_name=i, json_data=data[i],
                         nestings=nested_configs[i], stderr_file=stderr_file)
                     setattr(self, i, nested_value)
@@ -651,7 +651,7 @@ class Config():
             if i in omit_none_keys and getattr(self, i) is None:
                 continue
             if i in nested_configs:
-                data[i] = nested_config_json_data(
+                data[i] = _nested_config_json_data(
                     member_name=i, member_value=getattr(self, i),
                     nestings=nested_configs[i], stderr_file=stderr_file)
             else:

@@ -40,7 +40,8 @@ The library is intended to:
 - Use the derived class itself as the source of default values.
 - Read and write human-editable JSON configuration files.
 - Support evolution of the configuration format through optional keys,
-  converters, and backward-compatible key renames.
+  converters, backward-compatible key renames, path moves, removals, and
+  missing-value rules.
 - Help end users with actionable error messages instead of silent fallback.
 
 The library is not intended to invent configuration structure dynamically or
@@ -51,6 +52,10 @@ to hide the application's schema behind a large generic framework.
 
 - `config_as_json.Config`
   The base class for derived configuration classes.
+- `config_as_json.ConfigNesting` and `config_as_json.ConfigNestingKind`
+  Declarative metadata for nested configuration objects.
+- `config_as_json.ReadOldConfiguration`
+  Base class for backward-compatible old-file normalization rules.
 - `config_as_json.config_factory_from_json`
   Select among several configuration classes by inspecting JSON input.
 - `config_as_json.ConfigAutoChangeHook`
@@ -133,7 +138,7 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 4142 passed in 13s
+- Test result: 4142 passed in 14s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

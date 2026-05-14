@@ -2,8 +2,8 @@
 """Define callbacks for automatic configuration adjustments.
 
 Hooks let an application learn that configuration input needed help while it
-was parsed, for example because a missing optional key received a default
-value or because an old key name was transparently mapped to a new one.
+was parsed, for example because old-file compatibility renamed a key, moved a
+path, removed an obsolete key, or supplied a missing current value.
 """
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -35,12 +35,14 @@ class ConfigAutoChangeHook():
         when configuration input was normalized.
 
         Args:
-            old_keys_handled: Old key names that were accepted during Reading
-                an Old Configuration File (ROCF), for example by mapping them
-                onto current names or by removing keys no longer used. Moved
-                paths are reported here as ``old.path -> new.path`` strings.
-            rocf_vals_handled: Keys that were filled with default values during
-                parsing during Reading an Old Configuration File (ROCF).
+            old_keys_handled: Old keys or paths that were accepted during
+                Reading an Old Configuration File (ROCF), for example by
+                mapping them onto current names, moving them to current paths,
+                or removing keys no longer used. Moved paths are reported here
+                as ``old.path -> new.path`` strings.
+            rocf_vals_handled: Current paths that received values during
+                Reading an Old Configuration File (ROCF) because old input did
+                not contain them.
             stderr_file: Stream used for user-facing diagnostics.
         """
 
@@ -53,11 +55,11 @@ class ConfigAutoChangeHook():
         self.old_keys.append(old_key)
 
     def rocf_missing_value_provided(self, rocf_val_key: str) -> None:
-        """Record that parsing supplied a default value for one key.
+        """Record that parsing supplied a compatibility value for one key.
 
         Args:
-            rocf_val_key: Key that was absent from input and received a default
-                value during Reading an Old Configuration File (ROCF).
+            rocf_val_key: Key that was absent from input and received a value
+                during Reading an Old Configuration File (ROCF).
         """
         self.rocf_val_keys.append(rocf_val_key)
 

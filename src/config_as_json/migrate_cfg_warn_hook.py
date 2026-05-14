@@ -50,8 +50,8 @@ class MigrateCfgWarnHook(ConfigAutoChangeHook):
 
         Args:
             old_keys_handled: Legacy key names accepted during parsing.
-            def_vals_handled: Keys that were filled with default values during
-                parsing.
+            rocf_vals_handled: Current paths that received values during
+                old-file compatibility processing.
             stderr_file: Stream used for user-facing diagnostics.
         """
         print(self.migrate_warn_msg(), file=stderr_file, end='')

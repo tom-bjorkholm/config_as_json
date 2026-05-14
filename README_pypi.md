@@ -6,7 +6,7 @@ Python class while storing actual configuration data in JSON files.
 The intended usage model is:
 
 - Derive an application-specific class from `config_as_json.Config` (or use
-  multiple inheritance to derive from both a class with your paramaters and
+  multiple inheritance to derive from both a class with your parameters and
   from `config_as_json.Config`).
 - Add one instance attribute per supported configuration parameter. An
   instance attribute can also be a dict or list, optionally with nested
@@ -22,7 +22,8 @@ applications define:
 
 - custom parsers for values that should become richer Python types
 - optional keys that receive default values when omitted
-- backward-compatible key renames for older configuration files
+- backward-compatible key renames, path moves, removals, and missing-value
+  rules for older configuration files
 - hooks that can warn or report when automatic compatibility changes were
   needed
 
@@ -130,8 +131,18 @@ pip install --upgrade config-as-json
 
 - `config_as_json.Config`
   Base class for JSON-backed configuration objects.
+- `config_as_json.ConfigNesting` and `config_as_json.ConfigNestingKind`
+  Declarative metadata for nested configuration objects.
+- `config_as_json.NestedConfigs`
+  Return type for `Config.nested_configs()` declarations.
 - `config_as_json.ConfigFactory`
   Protocol for optional nested-config factory functions.
+- `config_as_json.ReadOldConfiguration`
+  Base class for backward-compatible old-file normalization rules.
+- `config_as_json.RocfKeyRename`, `config_as_json.RocfKeyMove`, and
+  `config_as_json.RocfPath`
+  Rule helpers for old-file key renames, path moves, removals, and missing
+  current values.
 - `config_as_json.config_factory_from_json`
   Select the correct configuration class by inspecting JSON input.
 - `config_as_json.ConfigAutoChangeHook`
@@ -161,7 +172,7 @@ MIT
 
 ## Test summary
 
-- Test result: 4142 passed in 13s
+- Test result: 4142 passed in 14s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

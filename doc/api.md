@@ -43,10 +43,6 @@
   * [OptionalMemberValidator](#config_as_json.optional_validator.OptionalMemberValidator)
     * [\_\_init\_\_](#config_as_json.optional_validator.OptionalMemberValidator.__init__)
     * [validate\_member](#config_as_json.optional_validator.OptionalMemberValidator.validate_member)
-* [config\_as\_json.\_config\_nesting\_io](#config_as_json._config_nesting_io)
-  * [nested\_config\_from\_json](#config_as_json._config_nesting_io.nested_config_from_json)
-  * [nested\_config\_json\_data](#config_as_json._config_nesting_io.nested_config_json_data)
-  * [validate\_nested\_config](#config_as_json._config_nesting_io.validate_nested_config)
 * [config\_as\_json.config\_auto\_change\_hook](#config_as_json.config_auto_change_hook)
   * [ConfigAutoChangeHook](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook)
     * [\_\_init\_\_](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.__init__)
@@ -1082,85 +1078,6 @@ Validate one member if it is not None.
 
   The same exceptions as the supplied validator(s).
 
-<a id="config_as_json._config_nesting_io"></a>
-
-# config\_as\_json.\_config\_nesting\_io
-
-Read, write, and validate nested Config declarations.
-
-<a id="config_as_json._config_nesting_io.nested_config_from_json"></a>
-
-#### nested\_config\_from\_json
-
-```python
-def nested_config_from_json(member_name: str, json_data: object,
-                            nestings: list[ConfigNesting],
-                            stderr_file: TextIO) -> object
-```
-
-Construct nested Config data from parsed JSON data.
-
-**Arguments**:
-
-- `member_name` - Public parent member receiving the nested data.
-- `json_data` - Parsed JSON value for the member.
-- `nestings` - Nested Config declarations for the member.
-- `stderr_file` - Stream used for user-facing diagnostics.
-
-
-**Returns**:
-
-  A nested Config, ``None`` for optional JSON null, a list of nested
-  Config objects, or a dict of nested Config objects.
-
-<a id="config_as_json._config_nesting_io.nested_config_json_data"></a>
-
-#### nested\_config\_json\_data
-
-```python
-def nested_config_json_data(member_name: str, member_value: object,
-                            nestings: list[ConfigNesting],
-                            stderr_file: TextIO) -> JsonType
-```
-
-Return JSON data for one nested Config declaration.
-
-**Arguments**:
-
-- `member_name` - Public parent member being serialized.
-- `member_value` - Current value of that member.
-- `nestings` - Nested Config declarations for the member.
-- `stderr_file` - Stream used for user-facing diagnostics.
-
-
-**Returns**:
-
-  JSON-compatible data for the configured nesting kind.
-
-<a id="config_as_json._config_nesting_io.validate_nested_config"></a>
-
-#### validate\_nested\_config
-
-```python
-def validate_nested_config(member_name: str, member_value: object,
-                           nestings: list[ConfigNesting],
-                           stderr_file: TextIO) -> None
-```
-
-Validate one nested Config declaration.
-
-**Arguments**:
-
-- `member_name` - Public parent member containing the nested data.
-- `member_value` - Current value of that member.
-- `nestings` - Nested Config declarations for the member.
-- `stderr_file` - Stream used for user-facing diagnostics.
-
-
-**Raises**:
-
-- `TypeError` - The member value does not match the nesting kind.
-
 <a id="config_as_json.config_auto_change_hook"></a>
 
 # config\_as\_json.config\_auto\_change\_hook
@@ -1168,8 +1085,8 @@ Validate one nested Config declaration.
 Define callbacks for automatic configuration adjustments.
 
 Hooks let an application learn that configuration input needed help while it
-was parsed, for example because a missing optional key received a default
-value or because an old key name was transparently mapped to a new one.
+was parsed, for example because old-file compatibility renamed a key, moved a
+path, removed an obsolete key, or supplied a missing current value.
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook"></a>
 
@@ -1210,12 +1127,14 @@ when configuration input was normalized.
 
 **Arguments**:
 
-- `old_keys_handled` - Old key names that were accepted during Reading
-  an Old Configuration File (ROCF), for example by mapping them
-  onto current names or by removing keys no longer used. Moved
-  paths are reported here as ``old.path -> new.path`` strings.
-- `rocf_vals_handled` - Keys that were filled with default values during
-  parsing during Reading an Old Configuration File (ROCF).
+- `old_keys_handled` - Old keys or paths that were accepted during
+  Reading an Old Configuration File (ROCF), for example by
+  mapping them onto current names, moving them to current paths,
+  or removing keys no longer used. Moved paths are reported here
+  as ``old.path -> new.path`` strings.
+- `rocf_vals_handled` - Current paths that received values during
+  Reading an Old Configuration File (ROCF) because old input did
+  not contain them.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_key_handled"></a>
@@ -1240,12 +1159,12 @@ Record that one legacy key name was accepted and handled.
 def rocf_missing_value_provided(rocf_val_key: str) -> None
 ```
 
-Record that parsing supplied a default value for one key.
+Record that parsing supplied a compatibility value for one key.
 
 **Arguments**:
 
-- `rocf_val_key` - Key that was absent from input and received a default
-  value during Reading an Old Configuration File (ROCF).
+- `rocf_val_key` - Key that was absent from input and received a value
+  during Reading an Old Configuration File (ROCF).
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_path_moved"></a>
 
@@ -1378,7 +1297,7 @@ parsed data is applied to the same attributes instead.
 - `from_json_data_text` - Optional JSON text to parse directly.
 - `from_json_filename` - Optional path to a JSON file to read.
 - `auto_ch_hook` - Hook that is notified about automatic changes such
-  as filled values or renamed keys when reading old
+  as filled, renamed, moved, or removed values when reading old
   configuration files.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
@@ -1898,8 +1817,8 @@ Print the standard migration warning.
 **Arguments**:
 
 - `old_keys_handled` - Legacy key names accepted during parsing.
-- `def_vals_handled` - Keys that were filled with default values during
-  parsing.
+- `rocf_vals_handled` - Current paths that received values during
+  old-file compatibility processing.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 <a id="config_as_json.discriminated_dict_validators"></a>

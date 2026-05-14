@@ -839,7 +839,7 @@ The current file format has these keys:
 - `refresh_seconds`
 - `max_items`
 
-Three kinds of compatibility are shown:
+The example demonstrates three kinds of compatibility:
 
 - `title` is an old name for `report_name`
 - `refresh_interval` is an old name for `refresh_seconds`

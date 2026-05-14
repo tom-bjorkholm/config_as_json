@@ -189,9 +189,9 @@ def _single_nesting(nestings: list[ConfigNesting]) -> ConfigNesting:
     return nestings[0]
 
 
-def nested_config_from_json(member_name: str, json_data: object,
-                            nestings: list[ConfigNesting],
-                            stderr_file: TextIO) -> object:
+def _nested_config_from_json(member_name: str, json_data: object,
+                             nestings: list[ConfigNesting],
+                             stderr_file: TextIO) -> object:
     """Construct nested Config data from parsed JSON data.
 
     Args:
@@ -357,9 +357,9 @@ def _dict_by_key_json_data(member_name: str, member_value: object,
     return json_data
 
 
-def nested_config_json_data(member_name: str, member_value: object,
-                            nestings: list[ConfigNesting],
-                            stderr_file: TextIO) -> JsonType:
+def _nested_config_json_data(member_name: str, member_value: object,
+                             nestings: list[ConfigNesting],
+                             stderr_file: TextIO) -> JsonType:
     """Return JSON data for one nested Config declaration.
 
     Args:
@@ -500,9 +500,9 @@ def _validate_dict_by_key(member_name: str, member_value: object,
             raise TypeError(msg)
 
 
-def validate_nested_config(member_name: str, member_value: object,
-                           nestings: list[ConfigNesting],
-                           stderr_file: TextIO) -> None:
+def _validate_nested_config(member_name: str, member_value: object,
+                            nestings: list[ConfigNesting],
+                            stderr_file: TextIO) -> None:
     """Validate one nested Config declaration.
 
     Args:
