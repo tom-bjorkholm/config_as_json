@@ -7,7 +7,7 @@
 from abc import ABCMeta
 import sys
 from io import StringIO
-from typing import Any, Callable, Optional, Sequence, TextIO, cast
+from typing import Callable, Optional, Sequence, TextIO
 import pytest
 from pytest import CaptureFixture
 from config_as_json.config import Config
@@ -240,7 +240,7 @@ def test_str_validator_ok(capsys: CaptureFixture[str],
 def test_value_type_init_bad_type(bad_value_type: object) -> None:
     """Test ValueTypeValidator constructor validation."""
     with pytest.raises(TypeError) as exc:
-        ValueTypeValidator(cast(Any, bad_value_type))
+        ValueTypeValidator(bad_value_type)  # type: ignore[arg-type]
     assert 'value_type must be a type' in str(exc.value)
 
 
@@ -346,7 +346,8 @@ def test_allowed_values_no_print(capsys: CaptureFixture[str]) -> None:
 def test_best_match_bad_type(capsys: CaptureFixture[str]) -> None:
     """Test that string_best_match rejects non-string values."""
     with pytest.raises(InvalidConfiguration) as exc:
-        string_best_match(cast(Any, 42), ['red', 'green'], 'value', sys.stderr)
+        string_best_match(42, ['red', 'green'],  # type: ignore[arg-type]
+                          'value', sys.stderr)
     out, err = capsys.readouterr()
     assert 'Value for value is not a string.' in str(exc.value)
     assert out == ''
@@ -355,15 +356,12 @@ def test_best_match_bad_type(capsys: CaptureFixture[str]) -> None:
 
 def test_validation_bases_abstract() -> None:
     """Test that validation role base classes cannot be instantiated."""
-    whole_config_validator_class = cast(Any, WholeConfigValidator)
-    member_validator_class = cast(Any, MemberValidator)
-    validation_step_class = cast(Any, ValidationStep)
     with pytest.raises(TypeError):
-        ABCMeta.__call__(whole_config_validator_class)
+        ABCMeta.__call__(WholeConfigValidator)
     with pytest.raises(TypeError):
-        ABCMeta.__call__(member_validator_class)
+        ABCMeta.__call__(MemberValidator)
     with pytest.raises(TypeError):
-        ABCMeta.__call__(validation_step_class)
+        ABCMeta.__call__(ValidationStep)
 
 
 @pytest.mark.parametrize('call, message', [
@@ -444,7 +442,7 @@ def test_member_seq_init_bad_args(validators: object,
                                   message: str) -> None:
     """Test constructor validation for MemberValidatorSequence."""
     with pytest.raises(exc_type) as exc:
-        MemberValidatorSequence(cast(Any, validators))
+        MemberValidatorSequence(validators)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
@@ -497,10 +495,11 @@ def test_int_float_init_bad_limits(min_value: object, max_value: object,
                                    exc_type: type[Exception],
                                    message: str) -> None:
     """Test IntFloatValidator constructor validation."""
+    allowed = allowed_values
     with pytest.raises(exc_type) as exc:
-        IntFloatValidator(min_value=cast(Any, min_value),
-                          max_value=cast(Any, max_value),
-                          allowed_values=cast(Any, allowed_values))
+        IntFloatValidator(min_value=min_value,  # type: ignore[type-var]
+                          max_value=max_value,
+                          allowed_values=allowed)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
@@ -616,7 +615,8 @@ def test_int_float_later_values(capsys: CaptureFixture[str],
         """Return the parameterized allowed-values sequence."""
         return allowed_values
 
-    validator = IntFloatValidator(1, 5, cast(Any, current_allowed_values))
+    allowed = current_allowed_values
+    validator = IntFloatValidator(1, 5, allowed)  # type: ignore[arg-type]
     cfg = EmptyValidationConfig()
     with pytest.raises(exc_type) as exc:
         validator.validate_member(cfg, 'value', 2, sys.stderr)

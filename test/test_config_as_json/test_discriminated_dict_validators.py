@@ -5,7 +5,7 @@
 # MIT License
 
 import sys
-from typing import Any, Optional, TextIO, cast
+from typing import Optional, TextIO
 import pytest
 from config_as_json.config import Config
 from config_as_json.dict_validators import DictRule
@@ -118,16 +118,17 @@ def test_dict_variant_init_rejects_invalid_arguments(
         rules: object, exc_type: type[Exception], message: str) -> None:
     """Test DictVariant constructor validation."""
     with pytest.raises(exc_type) as exc:
-        DictVariant(mandatory_keys=cast(Any, mandatory_keys),
-                    allowed_keys=cast(Any, allowed_keys),
-                    rules=cast(Any, rules))
+        DictVariant(mandatory_keys=mandatory_keys,  # type: ignore[arg-type]
+                    allowed_keys=allowed_keys,  # type: ignore[arg-type]
+                    rules=rules)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
 def test_dict_variant_init_rejects_non_bool_extra_policy() -> None:
     """allow_extra_dict_keys must be a bool."""
+    allow_extra = 'yes'
     with pytest.raises(TypeError) as exc:
-        DictVariant(mandatory_keys=[], allow_extra_dict_keys=cast(Any, 'yes'))
+        DictVariant([], None, (), allow_extra)  # type: ignore[arg-type]
     assert 'allow_extra_dict_keys must be a bool' in str(exc.value)
 
 
@@ -162,11 +163,14 @@ def test_discriminated_dict_validator_init_rejects_invalid_arguments(
         discriminator_validator: object, exc_type: type[Exception],
         message: str) -> None:
     """Test DiscriminatedDictValidator constructor validation."""
+    key = discriminator_key
+    variant_map = variants
+    validator = discriminator_validator
     with pytest.raises(exc_type) as exc:
         DiscriminatedDictValidator(
-            discriminator_key=cast(Any, discriminator_key),
-            variants=cast(Any, variants),
-            discriminator_validator=cast(Any, discriminator_validator))
+            discriminator_key=key,  # type: ignore[arg-type]
+            variants=variant_map,  # type: ignore[arg-type]
+            discriminator_validator=validator)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 

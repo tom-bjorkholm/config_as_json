@@ -5,8 +5,7 @@
 # MIT License
 
 import sys
-from collections.abc import Callable
-from typing import Any, Optional, TextIO, cast
+from typing import Optional, TextIO
 import pytest
 from config_as_json.config import Config
 from config_as_json.dict_validators import DictKeysValidator
@@ -161,24 +160,28 @@ def project_names(config: Config, member_name: str, member_value: object,
                   stderr_file: TextIO) -> object:
     """Project a list of route dictionaries to their route names."""
     _ = config, member_name, stderr_file
-    routes = cast(list[dict[str, object]], member_value)
-    return [route['name'] for route in routes]
+    assert isinstance(member_value, list)
+    route_names: list[object] = []
+    for route in member_value:
+        assert isinstance(route, dict)
+        route_names.append(route['name'])
+    return route_names
 
 
 def project_mode(config: Config, member_name: str, member_value: object,
                  stderr_file: TextIO) -> object:
     """Project a dict member to its ``mode`` value."""
     _ = config, member_name, stderr_file
-    settings = cast(dict[str, object], member_value)
-    return settings['mode']
+    assert isinstance(member_value, dict)
+    return member_value['mode']
 
 
 def project_limits(config: Config, member_name: str, member_value: object,
                    stderr_file: TextIO) -> object:
     """Project a dict member to its nested ``limits`` dict."""
     _ = config, member_name, stderr_file
-    settings = cast(dict[str, object], member_value)
-    return settings['limits']
+    assert isinstance(member_value, dict)
+    return member_value['limits']
 
 
 def identity_projector(config: Config, member_name: str, member_value: object,
@@ -201,7 +204,8 @@ def failing_projector(config: Config, member_name: str, member_value: object,
 def project_whole_route_names(config: Config, stderr_file: TextIO) -> object:
     """Project a whole config to the names of its routes."""
     _ = stderr_file
-    route_config = cast(WholeProjectedValidationConfig, config)
+    assert isinstance(config, WholeProjectedValidationConfig)
+    route_config = config
     return [route['name'] for route in route_config.routes]
 
 
@@ -246,9 +250,9 @@ def test_projected_member_validator_init_rejects_invalid_arguments(
     """Test constructor validation."""
     with pytest.raises(exc_type) as exc:
         ProjectedMemberValidator(
-            projector=cast(Callable[[Config, str, object, TextIO], object],
-                           projector), validators=cast(Any, validators),
-            source_validator=cast(Optional[MemberValidator], source_validator))
+            projector=projector,  # type: ignore[arg-type]
+            validators=validators,  # type: ignore[arg-type]
+            source_validator=source_validator)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
@@ -459,9 +463,9 @@ def test_whole_proj_rejects_bad_init(
     """Test whole-config projected validator constructor validation."""
     with pytest.raises(exc_type) as exc:
         ProjectedWholeConfigValidator(
-            projector=cast(Callable[[Config, TextIO], object], projector),
-            pseudo_member_name=cast(str, pseudo_member_name),
-            validators=cast(Any, validators))
+            projector=projector,  # type: ignore[arg-type]
+            pseudo_member_name=pseudo_member_name,  # type: ignore[arg-type]
+            validators=validators)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 

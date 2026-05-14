@@ -5,7 +5,7 @@
 # MIT License
 
 import sys
-from typing import Any, cast
+from typing import cast
 import pytest
 from pytest import CaptureFixture
 from config_as_json.char_encoding import CharEncodingValidator, \
@@ -40,7 +40,7 @@ def test_valid_encoding_bad_type(capsys: CaptureFixture[str],
                                  enc: object) -> None:
     """Test direct character encoding lookup with wrong value types."""
     with pytest.raises(TypeError) as exc_info:
-        _ = valid_char_encoding(cast(Any, enc))
+        _ = valid_char_encoding(enc)  # type: ignore[arg-type]
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''

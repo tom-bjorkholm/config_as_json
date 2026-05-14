@@ -16,7 +16,7 @@ plan integration.
 from copy import deepcopy
 import json
 import sys
-from typing import Any, Optional, Type, NamedTuple, Callable, TextIO
+from typing import Optional, Type, NamedTuple, Callable, TextIO, TypeVar
 from enum import Enum, IntEnum
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
@@ -28,9 +28,6 @@ from config_as_json._config_nesting_io import nested_config_from_json, \
     nested_config_json_data, validate_nested_config
 from config_as_json.read_old_configuration import ReadOldConfiguration
 from config_as_json.validator import ValidationPlan
-
-
-type _ObjectOrDict = dict[str, Any] | object
 
 
 class _ConfigEncoder(json.JSONEncoder):
@@ -58,7 +55,7 @@ class ConfigBadJson(json.JSONDecodeError):
     """Report JSON input that could not be interpreted as configuration."""
 
 
-def _over_ride_needed(stri: str) -> Any:
+def _over_ride_needed(value: object) -> int:
     """Act as a placeholder conversion function for incomplete subclasses.
 
     The base :meth:`Config.parse_converters` implementation uses this helper
@@ -67,7 +64,7 @@ def _over_ride_needed(stri: str) -> Any:
     real conversion recipes.
 
     Args:
-        stri: Parsed JSON value that needs conversion.
+        value: Parsed JSON value that needs conversion.
 
     Returns:
         A sentinel value only in the degenerate case where no conversion was
@@ -77,16 +74,21 @@ def _over_ride_needed(stri: str) -> Any:
         NotImplementedError: A subclass relied on the placeholder converter
             for a real conversion.
     """
-    if stri is not None:
+    if value is not None:
         msg = 'Override of Config.parse_converters needed.'
         raise NotImplementedError(msg)
     return 42
 
 
 ParseConverter = NamedTuple('ParseConverter', [('result_type', type),
-                                               ('func', Callable[..., Any]),
-                                               ('args', dict[str, Any])])
+                                               ('func',
+                                                Callable[..., object]),
+                                               ('args',
+                                                dict[str, object])])
 """Describe how one parsed JSON value should be converted after loading."""
+
+
+_T = TypeVar('_T', int, str, bool, float)
 
 
 class Config():
@@ -274,9 +276,8 @@ class Config():
 
     @staticmethod
     # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-    def check_dict_parse(self_data: _ObjectOrDict, json_data: _ObjectOrDict,
-                         key: str, ok_to_use_defaults: bool,
-                         unchecked_dicts: list[str],
+    def check_dict_parse(self_data: object, json_data: object, key: str,
+                         ok_to_use_defaults: bool, unchecked_dicts: list[str],
                          stderr_file: TextIO) -> None:
         """Recursively validate nested dictionaries against default values.
 
@@ -318,7 +319,8 @@ class Config():
                                         ok_to_use_defaults, unchecked_dicts,
                                         stderr_file)
 
-    def _json_parse_obj_hook(self, indict: dict[str, Any]) -> dict[str, Any]:
+    def _json_parse_obj_hook(self, indict: dict[str, object]) \
+            -> dict[str, object]:
         """Apply configured post-load conversions to one decoded JSON object.
 
         Args:
@@ -689,19 +691,23 @@ class Config():
             file.write(text)
 
     @staticmethod
-    def value_of_type(input_value: Any, to_type: Any) -> Any:
+    def value_of_type[_T](input_value: object, to_type: type[_T]) -> _T:  # noqa: D102,E501
         """Return ``input_value`` as an instance of ``to_type``.
 
         Args:
             input_value: Value to normalize.
-            to_type: Target runtime type or constructor.
+            to_type: Target runtime type.
 
         Returns:
             ``input_value`` unchanged when it already has the expected type,
             otherwise the result of calling ``to_type(input_value)``.
         """
+        assert isinstance(to_type, type)
+        assert issubclass(to_type, (int, str, bool, float))
         if isinstance(input_value, to_type):
+            assert isinstance(input_value, to_type)
             return input_value
+        assert isinstance(input_value, (int, str, bool, float))
         return to_type(input_value)
 
     @staticmethod

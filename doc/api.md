@@ -1478,9 +1478,9 @@ Validate that parsed keys match the declared configuration keys.
 
 ```python
 @staticmethod
-def check_dict_parse(self_data: _ObjectOrDict, json_data: _ObjectOrDict,
-                     key: str, ok_to_use_defaults: bool,
-                     unchecked_dicts: list[str], stderr_file: TextIO) -> None
+def check_dict_parse(self_data: object, json_data: object, key: str,
+                     ok_to_use_defaults: bool, unchecked_dicts: list[str],
+                     stderr_file: TextIO) -> None
 ```
 
 Recursively validate nested dictionaries against default values.
@@ -1596,7 +1596,7 @@ Write the current configuration to a JSON file.
 
 ```python
 @staticmethod
-def value_of_type(input_value: Any, to_type: Any) -> Any
+def value_of_type(input_value: object, to_type: type[_T]) -> _T
 ```
 
 Return ``input_value`` as an instance of ``to_type``.
@@ -1604,7 +1604,7 @@ Return ``input_value`` as an instance of ``to_type``.
 **Arguments**:
 
 - `input_value` - Value to normalize.
-- `to_type` - Target runtime type or constructor.
+- `to_type` - Target runtime type.
 
 
 **Returns**:

@@ -5,7 +5,7 @@
 # MIT License
 
 import sys
-from typing import Any, Optional, TextIO, cast
+from typing import Optional, TextIO
 import pytest
 from pytest import CaptureFixture
 from config_as_json.config import Config
@@ -143,7 +143,7 @@ def test_member_call_init_bad_args(kwargs: dict[str, object],
                                    message: str) -> None:
     """Test constructor validation for CallingMemberValidator."""
     with pytest.raises(exc_type) as exc:
-        CallingMemberValidator(**cast(Any, kwargs))
+        CallingMemberValidator(**kwargs)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
@@ -280,7 +280,7 @@ def test_whole_call_init_bad_args(kwargs: dict[str, object],
                                   message: str) -> None:
     """Test constructor validation for CallingWholeConfigValidator."""
     with pytest.raises(exc_type) as exc:
-        CallingWholeConfigValidator(**cast(Any, kwargs))
+        CallingWholeConfigValidator(**kwargs)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 

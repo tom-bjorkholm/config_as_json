@@ -18,7 +18,7 @@ renames those keys.
 import argparse
 import sys
 from enum import Enum, auto
-from typing import Any, Callable, Optional, Protocol, TextIO, cast, override
+from typing import Callable, Optional, TextIO, cast, override
 from config_as_json import Config, ConfigAutoChangeHook, ConfigNesting, \
     ConfigNestingKind, MigrateCfgWarnHook, NestedConfigs, ParseConverter, \
     PathOrStr, ReadOldConfiguration, RocfKeyMove, RocfKeyRename, RocfPath, \
@@ -393,14 +393,8 @@ def e37_migrate_config(infile: PathOrStr, outfile: PathOrStr) -> None:
 # ----------------------------------------------------------------------------
 
 
-# pylint: disable-next=too-few-public-methods
-class _Subparsers(Protocol):
-    """Small protocol for the subparser object returned by argparse."""
-
-    def add_parser(self, name: str, **kwargs: Any) \
-            -> argparse.ArgumentParser:
-        """Add one subparser and return it."""
-        raise NotImplementedError
+# pylint: disable-next=protected-access
+type _Subparsers = argparse._SubParsersAction
 
 
 def _create_argument_parser() -> argparse.ArgumentParser:

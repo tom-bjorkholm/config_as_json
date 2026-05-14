@@ -5,7 +5,6 @@
 # MIT License
 
 from enum import Enum, auto
-from typing import Any, cast
 import pytest
 from config_as_json.str_to_enum import string_to_enum_best_match
 
@@ -69,5 +68,5 @@ def test_enum_best_match_bad(x: str) -> None:
 def test_string_to_enum_bmatch_int() -> None:
     """Test string_to_enum_best_match with int not str input."""
     with pytest.raises(AssertionError) as exc:
-        _ = string_to_enum_best_match(cast(Any, 5), YesNoAsk)
+        _ = string_to_enum_best_match(5, YesNoAsk)  # type: ignore[arg-type]
     assert 'string_to_enum_best_match called with int not str' in str(exc)

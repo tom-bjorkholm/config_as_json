@@ -5,7 +5,7 @@
 # MIT License
 
 from tempfile import TemporaryDirectory
-from typing import Any, Callable, TextIO, cast
+from typing import Callable, TextIO
 import sys
 import pytest
 from pytest import CaptureFixture
@@ -196,7 +196,7 @@ def test_matcher_invalid_utf8(capsys: CaptureFixture[str]) -> None:
     """Stop with a helpful message for invalid UTF-8 byte input."""
     matcher = JsonValueMatcher('column_ref', 'BY_NAME')
     with pytest.raises(SystemExit):
-        matcher(cast(Any, b'\xff'), sys.stderr)
+        matcher(b'\xff', sys.stderr)  # type: ignore[arg-type]
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Invalid UTF-8 in configuration data.' in err
@@ -272,12 +272,11 @@ def test_migrate_multiple_no_match(capsys: CaptureFixture[str]) -> None:
 
 @pytest.mark.parametrize(
     ('config_class', 'msg'),
-    [(cast(Any, []), 'empty MatchConfig'),
-     (cast(Any,
-           [('not a matcher', ConfigXlsListTransfName)]), 'non-MatchConfig'),
-     (cast(Any, 'not a matcher'), 'Config subclass'),
-     (cast(Any, ConfigAutoChangeHook), 'Config subclass')])
-def test_migrate_bad_config_class(config_class: Any, msg: str,
+    [([], 'empty MatchConfig'),
+     ([('not a matcher', ConfigXlsListTransfName)], 'non-MatchConfig'),
+     ('not a matcher', 'Config subclass'),
+     (ConfigAutoChangeHook, 'Config subclass')])
+def test_migrate_bad_config_class(config_class: object, msg: str,
                                   capsys: CaptureFixture[str]) -> None:
     """Reject invalid configuration selector arguments."""
     infilename = 'test/test_config_as_json/bak_compat_0_7_13_name.cfg'
@@ -285,7 +284,8 @@ def test_migrate_bad_config_class(config_class: Any, msg: str,
         outfilename = dirname + '/b.cfg'
         with pytest.raises(TypeError, match=msg):
             migrate_cfg(infile=infilename, outfile=outfilename,
-                        config_class=config_class, stderr_file=sys.stderr)
+                        config_class=config_class,  # type: ignore[arg-type]
+                        stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''

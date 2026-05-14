@@ -10,7 +10,7 @@ from io import StringIO
 from enum import Enum, auto
 import csv
 import sys
-from typing import Any, Optional, TextIO, cast
+from typing import Optional, TextIO, cast
 import pytest
 from pytest import CaptureFixture
 from config_as_json.config import _ConfigEncoder, \
@@ -52,7 +52,7 @@ def test_config_encode_bad(obj: object) -> None:
 
 def test__over_ride_needed_1(capsys: CaptureFixture[str]) -> None:
     """Test _over_ride_needed with None."""
-    ret = _over_ride_needed(cast(Any, None))
+    ret = _over_ride_needed(None)
     out, err = capsys.readouterr()
     assert 42 == ret
     assert '' == err
@@ -479,8 +479,8 @@ def test_config_something_read_bad4(capsys: CaptureFixture[str],
     """Test ConfigSomething read bad 4."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(ConfigBadJson) as exc_info:
-        yst.parse_json(cast(Any, txt), ok_to_use_defaults=True,
-                       stderr_file=sys.stderr)
+        yst.parse_json(txt,  # type: ignore[arg-type]
+                       ok_to_use_defaults=True, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert exc_info.type is ConfigBadJson
     assert 'decode byte 0xff in position 0' in str(exc_info)
@@ -792,7 +792,7 @@ class ConfigSomething5(Config):
                  stderr_file: TextIO = sys.stderr) -> None:
         """Construct configuration for test."""
         self.in_type: EnumInTesting = EnumInTesting.FOOBAR
-        self._unchecked_dicts = cast(Any, 'in_type')
+        self._unchecked_dicts = 'in_type'  # type: ignore[assignment]
         super().__init__(from_json_text, from_json_filename,
                          stderr_file=stderr_file)
 

@@ -6,7 +6,7 @@
 
 import sys
 from collections.abc import Hashable
-from typing import Any, Optional, TextIO, cast
+from typing import Optional, TextIO
 import pytest
 from pytest import CaptureFixture
 from config_as_json import AsDictViewValidator as PublicAsDictViewValidator
@@ -206,13 +206,11 @@ def test_as_dict_view_init_rejects(
         validators: object, exc_type: type[Exception], message: str) -> None:
     """Constructor arguments are validated before use."""
     with pytest.raises(exc_type) as exc:
-        checked_type = cast(type[object], non_dict_type)
-        checked_rules = cast(Any, rules)
-        checked_to_dict = cast(Any, to_dict)
-        checked_validators = cast(Any, validators)
-        AsDictViewValidator(non_dict_type=checked_type, rules=checked_rules,
-                            to_dict=checked_to_dict,
-                            validators=checked_validators)
+        AsDictViewValidator(
+            non_dict_type=non_dict_type,  # type: ignore[arg-type]
+            rules=rules,  # type: ignore[arg-type]
+            to_dict=to_dict,  # type: ignore[arg-type]
+            validators=validators)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
@@ -307,9 +305,10 @@ def test_as_dict_view_rejects_type(capsys: CaptureFixture[str]) -> None:
 
 def test_as_dict_view_rejects_proj(capsys: CaptureFixture[str]) -> None:
     """Reject projector results that are not dictionaries."""
+    proj = _project_to_list
     validator = AsDictViewValidator(non_dict_type=_Settings,
                                     rules=[_mode_rule()],
-                                    to_dict=cast(Any, _project_to_list))
+                                    to_dict=proj)  # type: ignore[arg-type]
     assert_validate_member_failure(capsys, validator, _Settings(),
                                    InvalidConfiguration,
                                    'Dictionary view for value is not a dict')

@@ -5,7 +5,7 @@
 # MIT License
 
 import sys
-from typing import Any, Optional, Sequence, cast
+from typing import Optional, Sequence
 import pytest
 from pytest import CaptureFixture
 from config_as_json.list_validators import ListForEachValidator, \
@@ -33,7 +33,8 @@ def _assert_allowed_values_fail(capsys: CaptureFixture[str],
         """Return the parameterized allowed-values sequence."""
         return values
 
-    validator = ListValueValidator(1, 5, cast(Any, current_allowed_values))
+    allowed = current_allowed_values
+    validator = ListValueValidator(1, 5, allowed)  # type: ignore[arg-type]
     cfg = EmptyValidationConfig()
     with pytest.raises(exc_type) as exc:
         validator.validate_member(cfg, 'value', [2], sys.stderr)
@@ -61,10 +62,11 @@ def test_list_value_init_bad_args(
         min_value: object, max_value: object, allowed_values: object,
         exc_type: type[Exception], message: str) -> None:
     """Test ListValueValidator constructor validation."""
+    allowed = allowed_values
     with pytest.raises(exc_type) as exc:
-        ListValueValidator(min_value=cast(Any, min_value),
-                           max_value=cast(Any, max_value),
-                           allowed_values=cast(Any, allowed_values))
+        ListValueValidator(min_value=min_value,  # type: ignore[type-var]
+                           max_value=max_value,
+                           allowed_values=allowed)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
@@ -244,8 +246,8 @@ def test_list_size_init_bad_bounds(
         message: str) -> None:
     """Test ListSizeValidator constructor validation."""
     with pytest.raises(exc_type) as exc:
-        ListSizeValidator(min_size=cast(Any, min_size),
-                          max_size=cast(Any, max_size))
+        ListSizeValidator(min_size=min_size,  # type: ignore[arg-type]
+                          max_size=max_size)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
@@ -287,7 +289,7 @@ def test_list_size_parsed_json(capsys: CaptureFixture[str]) -> None:
 def test_list_type_init_bad_type(bad_element_type: object) -> None:
     """Test ListValueTypeValidator constructor validation."""
     with pytest.raises(TypeError) as exc:
-        ListValueTypeValidator(cast(Any, bad_element_type))
+        ListValueTypeValidator(bad_element_type)  # type: ignore[arg-type]
     assert 'element_type must be a type' in str(exc.value)
 
 
@@ -341,8 +343,9 @@ def test_list_ordered_init_bad_args(
         element_type: object, is_ordered: bool, is_reversed: bool,
         exc_type: type[Exception], message: str) -> None:
     """Test ListIsOrderedValidator constructor validation."""
+    element = element_type
     with pytest.raises(exc_type) as exc:
-        ListIsOrderedValidator(element_type=cast(Any, element_type),
+        ListIsOrderedValidator(element_type=element,  # type: ignore[arg-type]
                                is_ordered=is_ordered, is_reversed=is_reversed)
     assert message in str(exc.value)
 
@@ -402,8 +405,9 @@ def test_list_ordered_parsed_json(capsys: CaptureFixture[str]) -> None:
     [([], 'element_type must be one of int, float, str, or bool')])
 def test_list_ordering_bad_args(element_type: object, message: str) -> None:
     """Test ListOrderingValidator constructor validation."""
+    element = element_type
     with pytest.raises(TypeError) as exc:
-        ListOrderingValidator(element_type=cast(Any, element_type))
+        ListOrderingValidator(element_type=element)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
@@ -468,16 +472,18 @@ def test_list_each_init_bad_val(bad_entry: object) -> None:
     """Entries in element_validators must be MemberValidator instances."""
     good = ListSizeValidator(0, 10)
     with pytest.raises(TypeError) as exc:
-        ListForEachValidator(element_validators=cast(Any, [good, bad_entry]))
+        ListForEachValidator(
+            element_validators=[good, bad_entry])  # type: ignore[list-item]
     assert 'element_validators[1] must be a MemberValidator' in str(exc.value)
 
 
 @pytest.mark.parametrize('bad_element_type', ['int', 0, [list]])
 def test_list_each_init_bad_type(bad_element_type: object) -> None:
     """element_type must be a type when it is not None."""
+    element = bad_element_type
     with pytest.raises(TypeError) as exc:
         ListForEachValidator(element_validators=[ListSizeValidator(0, 10)],
-                             element_type=cast(Any, bad_element_type))
+                             element_type=element)  # type: ignore[arg-type]
     assert 'element_type must be a type or None' in str(exc.value)
 
 
@@ -599,16 +605,18 @@ def test_list_dict_keys_bad_keys(mandatory_keys: Sequence[object],
                                  message: str) -> None:
     """Test ListOfDictsKeysValidator constructor validation."""
     with pytest.raises(exc_type) as exc:
-        ListOfDictsKeysValidator(mandatory_keys=cast(Any, mandatory_keys),
-                                 allowed_keys=cast(Any, allowed_keys))
+        ListOfDictsKeysValidator(
+            mandatory_keys=mandatory_keys,  # type: ignore[arg-type]
+            allowed_keys=allowed_keys)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
 def test_list_dict_keys_bad_policy() -> None:
     """allow_extra_dict_keys must be a bool."""
+    allow_extra = 'yes'
     with pytest.raises(TypeError) as exc:
-        ListOfDictsKeysValidator(mandatory_keys=['name'],
-                                 allow_extra_dict_keys=cast(Any, 'yes'))
+        ListOfDictsKeysValidator(
+            ['name'], None, allow_extra)  # type: ignore[arg-type]
     assert 'allow_extra_dict_keys must be a bool' in str(exc.value)
 
 

@@ -7,7 +7,7 @@
 import sys
 from collections.abc import Hashable
 from enum import Enum
-from typing import Any, TypeVar, cast
+from typing import TypeVar
 import pytest
 from pytest import CaptureFixture
 from config_as_json import DictKeyValueTypesValidator as public_validator
@@ -61,8 +61,9 @@ def test_kv_init_bad_args(
     """Constructor arguments must be valid runtime types and validators."""
     with pytest.raises(exc_type) as exc:
         DictKeyValueTypesValidator(
-            key_type=cast(Any, key_type), value_type=cast(Any, value_type),
-            value_validator=cast(Any, value_validator))
+            key_type=key_type,  # type: ignore[arg-type]
+            value_type=value_type,  # type: ignore[arg-type]
+            value_validator=value_validator)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 

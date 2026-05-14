@@ -6,7 +6,7 @@
 
 import sys
 from collections.abc import Callable
-from typing import Any, Optional, TextIO, cast
+from typing import Optional, TextIO, cast
 import pytest
 from config_as_json.config import Config
 from config_as_json.list_relation_validator import ListRelationKind, \
@@ -334,7 +334,7 @@ def test_list_rel_rejects_bad_init(
         message: str) -> None:
     """Test constructor validation."""
     with pytest.raises(exc_type, match=message):
-        ListRelationValidator(**cast(Any, kwargs))
+        ListRelationValidator(**kwargs)  # type: ignore[arg-type]
 
 
 def test_list_rel_stores_args() -> None:

@@ -7,12 +7,12 @@
 import sys
 import json
 from io import StringIO
-from typing import Any, cast
 import pytest
 from pytest import CaptureFixture
 from config_as_json.assert_dict_equal import assert_dict_equal
 from config_as_json.config import Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.commontypes import JsonType
 from config_as_json.validator import InvalidConfiguration
 from .config_xls_list_transf_name import ConfigXlsListTransfName
 from .config_xls_list_transf_name_validated import \
@@ -114,10 +114,14 @@ def test_name_cfg_duplicate_columns(capsys: CaptureFixture[str]) -> None:
     """Test validated helper catches duplicate single-column rules."""
     template = ConfigXlsListTransfNameValidated()
     stderr_file = StringIO()
-    json_data = cast(dict[str, Any],
-                     json.loads(template.as_json_string(
-                         stderr_file=stderr_file)))
-    json_data['s07_rename_columns'][0]['column'] = 'last name'
+    json_data: JsonType = json.loads(template.as_json_string(
+        stderr_file=stderr_file))
+    assert isinstance(json_data, dict)
+    rename_columns = json_data['s07_rename_columns']
+    assert isinstance(rename_columns, list)
+    first_column = rename_columns[0]
+    assert isinstance(first_column, dict)
+    first_column['column'] = 'last name'
     with pytest.raises(InvalidConfiguration):
         _ = ConfigXlsListTransfNameValidated(
             from_json_data_text=json.dumps(json_data), stderr_file=stderr_file)
@@ -132,10 +136,14 @@ def test_num_cfg_decreasing_merge(capsys: CaptureFixture[str]) -> None:
     """Test validated helper catches decreasing merge-column rules."""
     template = ConfigXlsListTransfNumValidated()
     stderr_file = StringIO()
-    json_data = cast(dict[str, Any],
-                     json.loads(template.as_json_string(
-                         stderr_file=stderr_file)))
-    json_data['s05_merge_columns'][0]['columns'] = [2, 1]
+    json_data: JsonType = json.loads(template.as_json_string(
+        stderr_file=stderr_file))
+    assert isinstance(json_data, dict)
+    merge_columns = json_data['s05_merge_columns']
+    assert isinstance(merge_columns, list)
+    first_column = merge_columns[0]
+    assert isinstance(first_column, dict)
+    first_column['columns'] = [2, 1]
     with pytest.raises(InvalidConfiguration):
         _ = ConfigXlsListTransfNumValidated(
             from_json_data_text=json.dumps(json_data), stderr_file=stderr_file)

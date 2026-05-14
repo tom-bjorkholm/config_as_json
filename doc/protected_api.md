@@ -2093,7 +2093,7 @@ Report JSON input that could not be interpreted as configuration.
 #### \_over\_ride\_needed
 
 ```python
-def _over_ride_needed(stri: str) -> Any
+def _over_ride_needed(value: object) -> int
 ```
 
 Act as a placeholder conversion function for incomplete subclasses.
@@ -2105,7 +2105,7 @@ real conversion recipes.
 
 **Arguments**:
 
-- `stri` - Parsed JSON value that needs conversion.
+- `value` - Parsed JSON value that needs conversion.
 
 
 **Returns**:
@@ -2307,9 +2307,9 @@ Validate that parsed keys match the declared configuration keys.
 
 ```python
 @staticmethod
-def check_dict_parse(self_data: _ObjectOrDict, json_data: _ObjectOrDict,
-                     key: str, ok_to_use_defaults: bool,
-                     unchecked_dicts: list[str], stderr_file: TextIO) -> None
+def check_dict_parse(self_data: object, json_data: object, key: str,
+                     ok_to_use_defaults: bool, unchecked_dicts: list[str],
+                     stderr_file: TextIO) -> None
 ```
 
 Recursively validate nested dictionaries against default values.
@@ -2336,7 +2336,7 @@ Recursively validate nested dictionaries against default values.
 #### \_json\_parse\_obj\_hook
 
 ```python
-def _json_parse_obj_hook(indict: dict[str, Any]) -> dict[str, Any]
+def _json_parse_obj_hook(indict: dict[str, object]) -> dict[str, object]
 ```
 
 Apply configured post-load conversions to one decoded JSON object.
@@ -2615,7 +2615,7 @@ Write the current configuration to a JSON file.
 
 ```python
 @staticmethod
-def value_of_type(input_value: Any, to_type: Any) -> Any
+def value_of_type(input_value: object, to_type: type[_T]) -> _T
 ```
 
 Return ``input_value`` as an instance of ``to_type``.
@@ -2623,7 +2623,7 @@ Return ``input_value`` as an instance of ``to_type``.
 **Arguments**:
 
 - `input_value` - Value to normalize.
-- `to_type` - Target runtime type or constructor.
+- `to_type` - Target runtime type.
 
 
 **Returns**:

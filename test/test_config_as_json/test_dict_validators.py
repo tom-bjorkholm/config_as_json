@@ -8,7 +8,7 @@ import dataclasses
 import sys
 from collections.abc import Hashable
 from enum import Enum
-from typing import Any, Callable, Optional, Sequence, TextIO, cast
+from typing import Callable, Optional, Sequence, TextIO
 import pytest
 from pytest import CaptureFixture
 from config_as_json import accept_all_keys as public_accept_all_keys
@@ -150,7 +150,8 @@ def test_string_keys_rejects(keys: Sequence[object], exc_type: type[Exception],
                              message: str) -> None:
     """Non-string entries and duplicates must be rejected."""
     with pytest.raises(exc_type) as exc:
-        _validate_string_keys(cast(Any, keys), 'mandatory_keys')
+        _validate_string_keys(keys,  # type: ignore[arg-type]
+                              'mandatory_keys')
     assert message in str(exc.value)
 
 
@@ -208,8 +209,9 @@ def test_rules_reject_empty() -> None:
 def test_rules_reject_non_rule(bad_entry: object) -> None:
     """Entries in rules must all be DictRule instances."""
     good = DictRule(keys=['x'], validators=[ListSizeValidator(0, 1)])
+    rules = [good, bad_entry]
     with pytest.raises(TypeError) as exc:
-        _validate_for_each_rules(cast(Any, [good, bad_entry]))
+        _validate_for_each_rules(rules)  # type: ignore[arg-type]
     assert 'rules[1] must be a DictRule' in str(exc.value)
 
 
@@ -236,8 +238,9 @@ def test_dict_keys_init_bad_args(
         message: str) -> None:
     """Test that DictKeysValidator validates its inputs in __init__."""
     with pytest.raises(exc_type) as exc:
-        DictKeysValidator(mandatory_keys=cast(Any, mandatory_keys),
-                          allowed_keys=cast(Any, allowed_keys))
+        DictKeysValidator(
+            mandatory_keys=mandatory_keys,  # type: ignore[arg-type]
+            allowed_keys=allowed_keys)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
@@ -272,9 +275,9 @@ def test_dict_keys_none_allowed() -> None:
 
 def test_dict_keys_bad_extra_policy() -> None:
     """allow_extra_dict_keys must be a bool."""
+    allow_extra = 'yes'
     with pytest.raises(TypeError) as exc:
-        DictKeysValidator(mandatory_keys=['a'],
-                          allow_extra_dict_keys=cast(Any, 'yes'))
+        DictKeysValidator(['a'], None, allow_extra)  # type: ignore[arg-type]
     assert 'allow_extra_dict_keys must be a bool' in str(exc.value)
 
 
@@ -449,7 +452,8 @@ def test_dict_rule_rejects_bad_args(
         message: str) -> None:
     """Test that DictRule validates its inputs through __post_init__."""
     with pytest.raises(exc_type) as exc:
-        DictRule(keys=cast(Any, keys), validators=cast(Any, validators))
+        DictRule(keys=keys,  # type: ignore[arg-type]
+                 validators=validators)  # type: ignore[arg-type]
     assert message in str(exc.value)
 
 
@@ -509,8 +513,9 @@ def test_dict_each_init_empty() -> None:
 def test_dict_each_init_bad_rule(bad_entry: object) -> None:
     """Each entry in rules must be a DictRule instance."""
     good = DictRule(keys=['x'], validators=[ListSizeValidator(0, 1)])
+    rules = [good, bad_entry]
     with pytest.raises(TypeError) as exc:
-        DictForEachValidator(rules=cast(Any, [good, bad_entry]))
+        DictForEachValidator(rules=rules)  # type: ignore[arg-type]
     assert 'rules[1] must be a DictRule' in str(exc.value)
 
 
