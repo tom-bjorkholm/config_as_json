@@ -1,34 +1,75 @@
 #! /usr/local/bin/python3
-"""Describe how old configuration JSON data is normalized."""
+"""Describe contracts for normalizing old configuration data."""
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
 from typing import NamedTuple, TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.commontypes import JsonType
+from config_as_json.validator import InvalidConfiguration
 
 
 class RocfKeyMove(NamedTuple):
     """Describe a key move from an old structure to a new structure.
 
-    A key move copies one value from an old absolute path in the root JSON
-    object to a new absolute path in the current JSON structure. The path
-    elements are JSON object keys. List indexes are intentionally not part of
-    this first contract.
+    A key move copies a value from an old absolute path in the root
+    configuration data object to a new absolute path in the current
+    configuration data object.
 
-    During processing, an implementation should create missing intermediate
-    dictionaries in the new path. If an intermediate value already exists and
-    is not a JSON object, processing should fail with a clear error.
+    Path elements are dictionary keys unless they use reserved list syntax.
+    The path element ``'['`` means "each list element". Any path element that
+    starts with ``'['`` but is not exactly ``'['`` is reserved for future list
+    syntax and is illegal in this version. A dictionary key that starts with
+    ``'['`` cannot be handled by declarative moves; use
+    :meth:`ReadOldConfiguration.pre_process_json` or
+    :meth:`ReadOldConfiguration.post_process_json` instead.
 
-    If both old and new values exist, the current-shape value should win. The
-    old value should be discarded and a diagnostic should be written through
-    the ``stderr_file`` supplied to :meth:`ReadOldConfiguration.process_json`.
+    Empty paths are illegal. ``old_path`` and ``new_path`` must not be equal.
+
+    An old path that is missing is a no-op, because the input may already use
+    the current schema. If old-path traversal reaches a value with the wrong
+    container type, that is also a no-op. Current-schema parsing later decides
+    whether that data is valid.
+
+    If new-path traversal needs an intermediate dictionary or list and an
+    incompatible value already exists, processing should fail with
+    :class:`InvalidConfiguration` or a more specific subclass.
+
+    If both the old value and the current-shape target value exist, the
+    current-shape value wins. The old value should be discarded, a diagnostic
+    should be written through the ``stderr_file`` supplied to
+    :meth:`ReadOldConfiguration.process_json`, and the handled old path should
+    be reported to the automatic-change hook.
+
+    List handling is intentionally narrow:
+
+    - A path without ``'['`` uses only dictionary traversal.
+    - If old and new paths contain the same number of ``'['`` elements, list
+      elements are paired by index. This covers renaming a key in every
+      element of a list.
+    - If the new path contains one ``'['`` and the old path contains none, the
+      old value is wrapped into a single-element list when the current list is
+      absent. If the current list already exists, it wins.
+    - If the old path contains more ``'['`` elements than the new path, the
+      move is undefined in this declarative API. Use pre-processing or
+      post-processing for many-to-one migrations.
+    - Moving only one selected list element is not supported in this version.
+
+    Moving a whole object into a list element is preferred when changing an
+    object-valued member into a list-valued member. For example,
+    ``RocfKeyMove(old_path=('output',), new_path=('outputs', '['))`` turns the
+    old ``output`` object into the first and only element of ``outputs``.
+
+    Moves whose old and new paths overlap are legal. Implementations should
+    read the old value first, remove the old path, and then write the new
+    path. Overlapping moves are order-sensitive and should be avoided unless
+    the migration really needs them.
 
     Attributes:
-        old_path: Absolute path to the old value in the root JSON object.
-        new_path: Absolute path where the value belongs in the current JSON
-            object.
+        old_path: Absolute path to the old value in the root configuration
+            data object.
+        new_path: Absolute path where the value belongs in the current
+            configuration data object.
     """
 
     old_path: tuple[str, ...]
@@ -44,13 +85,32 @@ mapped onto their current names during parsing.
 """
 
 
+class RocfConflictError(InvalidConfiguration):
+    """Raised when old-file migration rules produce conflicting writes.
+
+    Several :class:`RocfKeyMove` rules may declare the same ``new_path``. This
+    is useful when a current configuration version can read files from more
+    than one older version. It is a conflict only if more than one rule
+    actually writes a value to the same current target while processing one
+    input file.
+    """
+
+
 class ReadOldConfiguration:
-    """Normalize possibly old configuration JSON data.
+    """Normalize possibly old configuration data.
 
     ``Config.parse_json()`` should decode JSON text first. It should then use
-    a ``ReadOldConfiguration`` object to turn the parsed root JSON object into
-    current-schema JSON data. The rest of ``Config`` should only need to check
-    and apply the current schema.
+    a ``ReadOldConfiguration`` object to turn the parsed root object into
+    current-schema configuration data. The rest of ``Config`` should only need
+    to check and apply the current schema.
+
+    This class runs on every read. Therefore, current-format input must pass
+    through as a no-op when no old-format data is present.
+
+    Depending on the ``Config`` parse flow, scalar leaf values may already
+    have been converted by ``parse_converters()`` before this object sees the
+    data. Migration rules should treat leaf values as opaque objects and only
+    reason about dictionary and list containers.
 
     Application-specific subclasses should normally override only the
     declarative methods:
@@ -64,18 +124,18 @@ class ReadOldConfiguration:
     :meth:`post_process_json`.
     """
 
-    def process_json(self, json_data: dict[str, JsonType],
+    def process_json(self, json_data: dict[str, object],
                      auto_ch_hook: ConfigAutoChangeHook,
-                     stderr_file: TextIO) -> dict[str, JsonType]:
-        """Return current-schema JSON data from possibly old JSON data.
+                     stderr_file: TextIO) -> dict[str, object]:
+        """Return current-schema data from possibly old configuration data.
 
         Args:
-            json_data: Parsed root JSON object to normalize.
+            json_data: Parsed root object to normalize.
             auto_ch_hook: Hook that records automatic compatibility changes.
             stderr_file: Stream used for user-facing diagnostics.
 
         Returns:
-            JSON data matching the current configuration schema.
+            Configuration data matching the current schema.
 
         The intended default processing order is:
 
@@ -89,6 +149,21 @@ class ReadOldConfiguration:
         Missing values are intentionally applied after renames and moves so
         old values get a chance to populate the current shape before defaults
         are supplied.
+
+        This method may mutate ``json_data`` in place. Callers must use the
+        returned object.
+
+        Implementations should report actual performed moves, not move rules.
+        A wildcard move over three list elements should therefore report three
+        individual moves. Moved paths should use the same text style as member
+        names used by member validators, for example
+        ``outputs[2].csv_params[delimiter]``.
+
+        Move reporting should use ``ConfigAutoChangeHook.old_path_moved`` with
+        the signature ``old_path_moved(old_path: str, new_path: str)``. Adding
+        that method to ``ConfigAutoChangeHook`` is backward compatible with
+        existing application hook subclasses because their ``auto_changed()``
+        signature does not need to change.
         """
         _ = json_data, auto_ch_hook, stderr_file
         raise NotImplementedError
@@ -101,7 +176,12 @@ class ReadOldConfiguration:
         schema.
 
         Returns:
-            Key moves to apply while reading old configuration files.
+            Key moves to apply in list order while reading old configuration
+            files.
+
+        Several rules may declare the same target path, but only one rule may
+        actually write that target while processing one input file. Rules that
+        overlap by ancestor or descendant paths are legal but order-sensitive.
         """
         return []
 
@@ -115,21 +195,25 @@ class ReadOldConfiguration:
 
         Returns:
             A list of old keys that should be removed from the JSON input.
+
+        Key removal is name-based and recursive through dictionaries and
+        lists. For precise structural migration, use
+        :meth:`get_json_key_moves`.
         """
         return []
 
-    def get_values_for_missing_json_keys(self) -> dict[str, JsonType]:
-        """Return values for missing JSON keys.
+    def get_values_for_missing_json_keys(self) -> dict[str, object]:
+        """Return values for missing root JSON keys.
 
         When Reading an Old Configuration File (ROCF), some now existing
-        and mandatory keys may be missing in the JSON input from the
+        and mandatory root keys may be missing in the JSON input from the
         old configuration file. This method returns the values that should
         be supplied for these missing keys.
         Derived classes should override this method as needed.
 
         Returns:
-            A mapping from missing key name to the value that should
-            be supplied when the key is absent from JSON input.
+            A mapping from missing root key name to the value that should be
+            supplied when the key is absent from JSON input.
         """
         return {}
 
@@ -143,43 +227,53 @@ class ReadOldConfiguration:
         Returns:
             A list of ``RocfKeyRename`` entries describing accepted key
             renames.
+
+        Key renaming is name-based and recursive through dictionaries and
+        lists. For precise structural migration, use
+        :meth:`get_json_key_moves`.
         """
         return []
 
-    def pre_process_json(self, json_data: dict[str, JsonType],
+    def pre_process_json(self, json_data: dict[str, object],
                          auto_ch_hook: ConfigAutoChangeHook,
-                         stderr_file: TextIO) -> dict[str, JsonType]:
-        """Pre-process JSON data before declarative old-file handling.
+                         stderr_file: TextIO) -> dict[str, object]:
+        """Pre-process data before declarative old-file handling.
 
         Derived classes override this method only for migrations that cannot
         be expressed with removals, renames, moves or missing values.
 
         Args:
-            json_data: Parsed root JSON object to normalize.
+            json_data: Parsed root object to normalize.
             auto_ch_hook: Hook that records automatic compatibility changes.
             stderr_file: Stream used for user-facing diagnostics.
 
         Returns:
-            JSON data to pass to the declarative old-file processing steps.
+            Data to pass to the declarative old-file processing steps.
+
+        This method may mutate ``json_data`` in place. Its caller must use the
+        returned object.
         """
         _ = auto_ch_hook, stderr_file
         return json_data
 
-    def post_process_json(self, json_data: dict[str, JsonType],
+    def post_process_json(self, json_data: dict[str, object],
                           auto_ch_hook: ConfigAutoChangeHook,
-                          stderr_file: TextIO) -> dict[str, JsonType]:
-        """Post-process JSON data after declarative old-file handling.
+                          stderr_file: TextIO) -> dict[str, object]:
+        """Post-process data after declarative old-file handling.
 
         Derived classes override this method only for migrations that need to
         inspect or adjust the result of the declarative old-file processing.
 
         Args:
-            json_data: Current-shape JSON data after declarative processing.
+            json_data: Current-shape data after declarative processing.
             auto_ch_hook: Hook that records automatic compatibility changes.
             stderr_file: Stream used for user-facing diagnostics.
 
         Returns:
-            JSON data matching the current configuration schema.
+            Data matching the current configuration schema.
+
+        This method may mutate ``json_data`` in place. Its caller must use the
+        returned object.
         """
         _ = auto_ch_hook, stderr_file
         return json_data
