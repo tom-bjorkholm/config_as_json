@@ -12,24 +12,31 @@ from config_as_json.validator import InvalidConfiguration
 type RocfPath = tuple[str, ...]
 """A path in the old or new configuration data object.
 
-   To do: move the description of path syntax from RocfKeyMove to here.
+RocfPath values are absolute paths from the root configuration data object.
+Path elements are dictionary keys unless they use reserved list syntax.
+
+The path element ``'['`` means "each list element". Any path element that
+starts with ``'['`` but is not exactly ``'['`` is reserved for future list
+syntax and is illegal in this version. A dictionary key that starts with
+``'['`` cannot be handled by declarative ROCF methods; use
+:meth:`ReadOldConfiguration.pre_process_json` or
+:meth:`ReadOldConfiguration.post_process_json` instead.
+
+Declarative ROCF methods require non-empty paths.
+
+The data addressed by a RocfPath has already been decoded from JSON.
+Depending on the ``Config`` parse flow, scalar leaf values may also have
+been converted by ``parse_converters()`` before ROCF processing sees them.
+Migration rules should treat leaf values as opaque and reason only about
+dictionary and list containers.
 """
 
 
 class RocfKeyMove(NamedTuple):
     """Describe a key move from an old structure to a new structure.
 
-    A key move copies a value from an old absolute path in the root
-    configuration data object to a new absolute path in the current
-    configuration data object.
-
-    Path elements are dictionary keys unless they use reserved list syntax.
-    The path element ``'['`` means "each list element". Any path element that
-    starts with ``'['`` but is not exactly ``'['`` is reserved for future list
-    syntax and is illegal in this version. A dictionary key that starts with
-    ``'['`` cannot be handled by declarative moves; use
-    :meth:`ReadOldConfiguration.pre_process_json` or
-    :meth:`ReadOldConfiguration.post_process_json` instead.
+    A key move copies a value from an old :class:`RocfPath` to a new
+    :class:`RocfPath`.
 
     Empty paths are illegal. ``old_path`` and ``new_path`` must not be equal.
 
@@ -40,7 +47,7 @@ class RocfKeyMove(NamedTuple):
 
     If new-path traversal needs an intermediate dictionary or list and an
     incompatible value already exists, processing should fail with
-    :class:`InvalidConfiguration` or a more specific subclass.
+    :class:`RocfIncompatiblePathError`.
 
     If both the old value and the current-shape target value exist, the
     current-shape value wins. The old value should be discarded, a diagnostic
@@ -79,8 +86,8 @@ class RocfKeyMove(NamedTuple):
             configuration data object.
     """
 
-    old_path: tuple[str, ...]
-    new_path: tuple[str, ...]
+    old_path: RocfPath
+    new_path: RocfPath
 
 
 RocfKeyRename = NamedTuple('RocfKeyRename', [('old', str), ('new', str)])
@@ -104,10 +111,11 @@ class RocfConflictError(InvalidConfiguration):
 
 
 class RocfIncompatiblePathError(InvalidConfiguration):
-    """Raised when RocfKeyMove new path is incompatible with existing data.
+    """Raised when a current-schema path cannot be created.
 
-    Raised when processing RocfKeyMove if new-path traversal needs an
-    intermediate dictionary or list and an incompatible value already exists.
+    Declarative ROCF processing raises this when a target path needs an
+    intermediate dictionary or list and an incompatible value already exists
+    in the input data.
     """
 
 
@@ -122,17 +130,18 @@ class ReadOldConfiguration:
     This class runs on every read. Therefore, current-format input must pass
     through as a no-op when no old-format data is present.
 
-    Depending on the ``Config`` parse flow, scalar leaf values may already
-    have been converted by ``parse_converters()`` before this object sees the
-    data. Migration rules should treat leaf values as opaque objects and only
-    reason about dictionary and list containers.
+    The input data has already been decoded from JSON. Depending on the
+    ``Config`` parse flow, scalar leaf values may already have been converted
+    by ``parse_converters()`` before this object sees the data. The data has
+    not yet been validated, and dictionaries have not yet been converted into
+    nested ``Config`` objects.
 
     Application-specific subclasses should normally override only the
     declarative methods:
 
+    - :meth:`get_keys_to_remove_recursively`
     - :meth:`get_keys_to_remove`
     - :meth:`get_json_key_renames`
-    - :meth:`get_keys_to_remove_recursively`
     - :meth:`get_json_key_moves`
     - :meth:`get_values_for_missing_json_keys`
 
@@ -175,12 +184,11 @@ class ReadOldConfiguration:
         signature does not need to change.
 
         Args:
-            json_data: Parsed root object to normalize. In this data the
-                       parse_converters() have have been applied already,
-                       which means that for instance string to enum conversions
-                       have been applied. The data is not yet validated,
-                       and conversion from dict to nested Config objects
-                       has not been applied.
+            json_data: Parsed root object to normalize. Depending on the
+                ``Config`` parse flow, ``parse_converters()`` may already have
+                converted scalar values, for example strings to enum members.
+                The data is not yet validated, and dictionaries have not yet
+                been converted to nested ``Config`` objects.
             auto_ch_hook: Hook that records automatic compatibility changes.
             stderr_file: Stream used for user-facing diagnostics.
 
@@ -198,59 +206,67 @@ class ReadOldConfiguration:
         must move into a different JSON object structure in the current
         schema.
 
-        Returns:
-            Key moves to apply in list order while reading old configuration
-            files.
-
         Several rules may declare the same target path, but only one rule may
         actually write that target while processing one input file. Rules that
         overlap by ancestor or descendant paths are legal but order-sensitive.
+
+        Returns:
+            Key moves to apply in list order while reading old configuration
+            files.
         """
         return []
 
     def get_keys_to_remove_recursively(self) -> list[str]:
-        """Return old JSON keys to remove while reading old files.
+        """Return old key names to remove recursively.
 
         When Reading an Old Configuration File (ROCF), the old configuration
         version in the file might have keys that no longer exist in the
-        current configuration. This method returns those old key names.
-        Derived classes should override this method as needed.
+        current configuration. This method returns old key names to remove
+        anywhere in the configuration data.
 
         Key removal is name-based and recursive through dictionaries and
-        lists. For precise structural migration, use
-        :meth:`get_json_key_moves` or :meth:`get_keys_to_remove`.
+        lists. New code should prefer :meth:`get_keys_to_remove` for precise
+        path-based removal unless recursive name-based behavior is really
+        intended.
 
         Returns:
-            A list of old keys that should be removed from the JSON input.
-
+            Old key names that should be removed from the input data.
         """
         return []
 
     def get_keys_to_remove(self) -> list[RocfPath]:
-        """Return old JSON keys to remove while reading old files.
+        """Return old paths to remove while reading old files.
 
         When Reading an Old Configuration File (ROCF), the old configuration
         version in the file might have keys that no longer exist in the
-        current configuration. This method returns those old key paths.
-        Derived classes should override this method as needed.
+        current configuration. This method returns precise old paths to remove
+        from the configuration data.
+
+        Missing paths are ignored. If traversal reaches a value with the wrong
+        container type, the path is ignored because the input may already use
+        the current schema.
 
         Returns:
-            A list of old key paths that should be removed from the JSON input.
+            Old paths that should be removed from the input data.
         """
         return []
 
     def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
-        """Return values for missing root JSON keys.
+        """Return values for missing current-schema paths.
 
         When Reading an Old Configuration File (ROCF), some now existing
         and mandatory keys may be missing in the JSON input from the
         old configuration file. This method returns the values that should
         be supplied for these missing keys.
-        Derived classes should override this method as needed.
+
+        Values are supplied after removals, renames and moves. Intermediate
+        dictionaries and lists may be created as needed. If an incompatible
+        value already exists while creating the path, processing should raise
+        :class:`RocfIncompatiblePathError`.
 
         Returns:
             A mapping from missing key path to the value that should be
-            supplied when the key is absent from JSON input.
+            supplied when the path is absent from the input data.
         """
         return {}
 
@@ -283,12 +299,11 @@ class ReadOldConfiguration:
         returned object.
 
         Args:
-            json_data: Parsed root object to normalize. In this data the
-                       parse_converters() have have been applied already,
-                       which means that for instance string to enum conversions
-                       have been applied. The data is not yet validated,
-                       and conversion from dict to nested Config objects
-                       has not been applied.
+            json_data: Parsed root object to normalize. Depending on the
+                ``Config`` parse flow, ``parse_converters()`` may already have
+                converted scalar values, for example strings to enum members.
+                The data is not yet validated, and dictionaries have not yet
+                been converted to nested ``Config`` objects.
             auto_ch_hook: Hook that records automatic compatibility changes.
             stderr_file: Stream used for user-facing diagnostics.
 
@@ -312,9 +327,9 @@ class ReadOldConfiguration:
 
         Args:
             json_data: Current-shape data after declarative processing steps
-                       in ReadOldConfiguration. The data is not yet validated,
-                       and conversion from dict to nested Config objects
-                       has not been applied.
+                in ReadOldConfiguration. The data is not yet validated, and
+                dictionaries have not yet been converted to nested ``Config``
+                objects.
             auto_ch_hook: Hook that records automatic compatibility changes.
             stderr_file: Stream used for user-facing diagnostics.
 
