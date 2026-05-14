@@ -9,6 +9,13 @@ from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.validator import InvalidConfiguration
 
 
+type RocfPath = tuple[str, ...]
+"""A path in the old or new configuration data object.
+
+   To do: move the description of path syntax from RocfKeyMove to here.
+"""
+
+
 class RocfKeyMove(NamedTuple):
     """Describe a key move from an old structure to a new structure.
 
@@ -96,6 +103,14 @@ class RocfConflictError(InvalidConfiguration):
     """
 
 
+class RocfIncompatiblePathError(InvalidConfiguration):
+    """Raised when RocfKeyMove new path is incompatible with existing data.
+
+    Raised when processing RocfKeyMove if new-path traversal needs an
+    intermediate dictionary or list and an incompatible value already exists.
+    """
+
+
 class ReadOldConfiguration:
     """Normalize possibly old configuration data.
 
@@ -117,6 +132,7 @@ class ReadOldConfiguration:
 
     - :meth:`get_keys_to_remove`
     - :meth:`get_json_key_renames`
+    - :meth:`get_keys_to_remove_recursively`
     - :meth:`get_json_key_moves`
     - :meth:`get_values_for_missing_json_keys`
 
@@ -129,22 +145,15 @@ class ReadOldConfiguration:
                      stderr_file: TextIO) -> dict[str, object]:
         """Return current-schema data from possibly old configuration data.
 
-        Args:
-            json_data: Parsed root object to normalize.
-            auto_ch_hook: Hook that records automatic compatibility changes.
-            stderr_file: Stream used for user-facing diagnostics.
-
-        Returns:
-            Configuration data matching the current schema.
-
         The intended default processing order is:
 
         1. :meth:`pre_process_json`
-        2. remove keys from :meth:`get_keys_to_remove`
-        3. rename keys from :meth:`get_json_key_renames`
-        4. move paths from :meth:`get_json_key_moves`
-        5. add values from :meth:`get_values_for_missing_json_keys`
-        6. :meth:`post_process_json`
+        2. remove keys from :meth:`get_keys_to_remove_recursively`
+        3. remove keys from :meth:`get_keys_to_remove`
+        4. rename keys from :meth:`get_json_key_renames`
+        5. move paths from :meth:`get_json_key_moves`
+        6. add values from :meth:`get_values_for_missing_json_keys`
+        7. :meth:`post_process_json`
 
         Missing values are intentionally applied after renames and moves so
         old values get a chance to populate the current shape before defaults
@@ -164,6 +173,20 @@ class ReadOldConfiguration:
         that method to ``ConfigAutoChangeHook`` is backward compatible with
         existing application hook subclasses because their ``auto_changed()``
         signature does not need to change.
+
+        Args:
+            json_data: Parsed root object to normalize. In this data the
+                       parse_converters() have have been applied already,
+                       which means that for instance string to enum conversions
+                       have been applied. The data is not yet validated,
+                       and conversion from dict to nested Config objects
+                       has not been applied.
+            auto_ch_hook: Hook that records automatic compatibility changes.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Returns:
+            Configuration data matching the current schema.
+
         """
         _ = json_data, auto_ch_hook, stderr_file
         raise NotImplementedError
@@ -185,7 +208,7 @@ class ReadOldConfiguration:
         """
         return []
 
-    def get_keys_to_remove(self) -> list[str]:
+    def get_keys_to_remove_recursively(self) -> list[str]:
         """Return old JSON keys to remove while reading old files.
 
         When Reading an Old Configuration File (ROCF), the old configuration
@@ -193,26 +216,40 @@ class ReadOldConfiguration:
         current configuration. This method returns those old key names.
         Derived classes should override this method as needed.
 
+        Key removal is name-based and recursive through dictionaries and
+        lists. For precise structural migration, use
+        :meth:`get_json_key_moves` or :meth:`get_keys_to_remove`.
+
         Returns:
             A list of old keys that should be removed from the JSON input.
 
-        Key removal is name-based and recursive through dictionaries and
-        lists. For precise structural migration, use
-        :meth:`get_json_key_moves`.
         """
         return []
 
-    def get_values_for_missing_json_keys(self) -> dict[str, object]:
+    def get_keys_to_remove(self) -> list[RocfPath]:
+        """Return old JSON keys to remove while reading old files.
+
+        When Reading an Old Configuration File (ROCF), the old configuration
+        version in the file might have keys that no longer exist in the
+        current configuration. This method returns those old key paths.
+        Derived classes should override this method as needed.
+
+        Returns:
+            A list of old key paths that should be removed from the JSON input.
+        """
+        return []
+
+    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
         """Return values for missing root JSON keys.
 
         When Reading an Old Configuration File (ROCF), some now existing
-        and mandatory root keys may be missing in the JSON input from the
+        and mandatory keys may be missing in the JSON input from the
         old configuration file. This method returns the values that should
         be supplied for these missing keys.
         Derived classes should override this method as needed.
 
         Returns:
-            A mapping from missing root key name to the value that should be
+            A mapping from missing key path to the value that should be
             supplied when the key is absent from JSON input.
         """
         return {}
@@ -242,16 +279,22 @@ class ReadOldConfiguration:
         Derived classes override this method only for migrations that cannot
         be expressed with removals, renames, moves or missing values.
 
+        This method may mutate ``json_data`` in place. Its caller must use the
+        returned object.
+
         Args:
-            json_data: Parsed root object to normalize.
+            json_data: Parsed root object to normalize. In this data the
+                       parse_converters() have have been applied already,
+                       which means that for instance string to enum conversions
+                       have been applied. The data is not yet validated,
+                       and conversion from dict to nested Config objects
+                       has not been applied.
             auto_ch_hook: Hook that records automatic compatibility changes.
             stderr_file: Stream used for user-facing diagnostics.
 
         Returns:
             Data to pass to the declarative old-file processing steps.
 
-        This method may mutate ``json_data`` in place. Its caller must use the
-        returned object.
         """
         _ = auto_ch_hook, stderr_file
         return json_data
@@ -264,16 +307,20 @@ class ReadOldConfiguration:
         Derived classes override this method only for migrations that need to
         inspect or adjust the result of the declarative old-file processing.
 
+        This method may mutate ``json_data`` in place. Its caller must use the
+        returned object.
+
         Args:
-            json_data: Current-shape data after declarative processing.
+            json_data: Current-shape data after declarative processing steps
+                       in ReadOldConfiguration. The data is not yet validated,
+                       and conversion from dict to nested Config objects
+                       has not been applied.
             auto_ch_hook: Hook that records automatic compatibility changes.
             stderr_file: Stream used for user-facing diagnostics.
 
         Returns:
-            Data matching the current configuration schema.
-
-        This method may mutate ``json_data`` in place. Its caller must use the
-        returned object.
+            Data matching the current configuration schema. This data is now
+            ready to be validated and converted to nested Config objects.
         """
         _ = auto_ch_hook, stderr_file
         return json_data
