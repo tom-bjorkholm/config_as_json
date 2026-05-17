@@ -27,6 +27,178 @@ applications define:
 - hooks that can warn or report when automatic compatibility changes were
   needed
 
+## Simplest usage
+
+The simplest way to use `config_as_json` is to derive from
+`config_as_json.Config` and make each config parameter a normal instance
+attribute. The values assigned in `__init__()` are the default
+configuration.
+
+The fuller
+[e01_simple_config.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e01_simple_config.py)
+explains this pattern more thoroughly.
+
+````python
+from typing import Optional, TextIO
+import sys
+from config_as_json import Config, PathOrStr, ValidationPlan
+
+
+class MyConfig(Config):
+    """Configuration for my application."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct configuration for my application."""
+        self.report_name: str = 'My Report'
+        self.story_points: int = 5
+        self.participants: list[str] = ['Alice', 'Bob']
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return an empty validation plan."""
+        return []
+
+
+def application(config_filename: PathOrStr, update_config: bool) -> None:
+    """Simulate a simple application that uses MyConfig."""
+    # Read configuration from file that already exists
+    config = MyConfig(from_json_filename=config_filename,
+                      stderr_file=sys.stderr)
+    # A lot of application code not shown here
+    print(f'Report name: {config.report_name}')
+    # ...
+    if update_config:
+        config.write(config_filename)
+````
+
+## Using a class from a third party
+
+When another library already provides a configuration class, use multiple
+inheritance to combine that class with `config_as_json.Config`. Initialize
+the third-party class before `Config`, so its attributes are present when
+`Config` reads or writes JSON.
+
+The fuller
+[e04_third_party_class.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py)
+explains this pattern more thoroughly.
+
+````python
+from typing import Optional, TextIO
+from dataclasses import dataclass
+import sys
+from config_as_json import Config, PathOrStr, ValidationPlan
+
+
+@dataclass
+class ThirdPartyConfig:
+    """Configuration for my application."""
+
+    report_name: str = 'My Report'
+    story_points: int = 5
+    is_done: bool = False
+
+
+class MyConfig(ThirdPartyConfig, Config):
+    """Configuration for my application."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct configuration for my application."""
+        # Initialize the third-party configuration before Config
+        ThirdPartyConfig.__init__(self)
+        Config.__init__(self, from_json_data_text=from_json_data_text,
+                        from_json_filename=from_json_filename,
+                        stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return an empty validation plan."""
+        return []
+
+
+def application(config_filename: PathOrStr, update_config: bool) -> None:
+    """Simulate a simple application that uses MyConfig."""
+    # Read configuration from file that already exists
+    config = MyConfig(from_json_filename=config_filename,
+                      stderr_file=sys.stderr)
+    # A lot of application code not shown here
+    print(f'Report name: {config.report_name}')
+    # ...
+    if update_config:
+        config.write(config_filename)
+````
+
+## Adding simple validation
+
+A configuration class can also return a validation plan. This example uses
+one predefined validator to restrict `story_points` to normal story-point
+values. It also shows creating a config with defaults first, then calling
+`read()` only when a file should be read.
+
+The fuller
+[e03_scalar_validators.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e03_scalar_validators.py)
+explains predefined validators more thoroughly. The
+[e04_third_party_class.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py)
+shows the same idea with a third-party class.
+
+````python
+from typing import Optional, TextIO
+from dataclasses import dataclass
+import sys
+from config_as_json import Config, IntFloatValidator, \
+    MemberValidationStep, PathOrStr, ValidationPlan
+
+
+@dataclass
+class ThirdPartyConfig:
+    """Configuration for my application."""
+
+    report_name: str = 'My Report'
+    story_points: int = 5
+    is_done: bool = False
+
+
+class MyConfig(ThirdPartyConfig, Config):
+    """Configuration for my application."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct configuration for my application."""
+        # Initialize the third-party configuration before Config
+        ThirdPartyConfig.__init__(self)
+        Config.__init__(self, from_json_data_text=from_json_data_text,
+                        from_json_filename=from_json_filename,
+                        stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the validation plan for my application."""
+        _ = stderr_file
+        story_point_validator = IntFloatValidator(
+            min_value=None, max_value=None,
+            allowed_values=[0, 1, 2, 3, 5, 8, 13, 20, 40, 100])
+        return [MemberValidationStep(member_names=['story_points'],
+                                     validator=story_point_validator)]
+
+
+def application(config_filename: PathOrStr, update_config: bool,
+                read_file: bool) -> None:
+    """Simulate a simple application that uses MyConfig."""
+    config = MyConfig(stderr_file=sys.stderr)
+    if read_file:
+        config.read(config_filename, stderr_file=sys.stderr)
+        config.validate(stderr_file=sys.stderr)
+    # A lot of application code not shown here
+    print(f'Report name: {config.report_name}')
+    # ...
+    if update_config:
+        config.write(config_filename)
+````
+
 ## Nested configurations
 
 For a repeated group of related settings, an application can put that group
@@ -172,7 +344,7 @@ MIT
 
 ## Test summary
 
-- Test result: 4142 passed in 13s
+- Test result: 4157 passed in 13s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.
