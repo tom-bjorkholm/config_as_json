@@ -199,7 +199,8 @@ class Config():
             self.parse_json(from_json_data_text, stderr_file=stderr_file)
         elif from_json_filename is not None:
             self.read(from_json_filename, stderr_file=stderr_file)
-        self.validate(stderr_file=stderr_file)
+        else:
+            self.validate(stderr_file=stderr_file)
 
     def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
         """Return post-load conversion rules for parsed JSON values.
@@ -626,6 +627,7 @@ class Config():
                                           ok_to_use_defaults,
                                           self._unchecked_dicts, stderr_file)
                     setattr(self, i, data[i])
+        self.validate(stderr_file=stderr_file)
 
     def as_json_string(self, stderr_file: TextIO) -> str:
         """Serialize the current configuration object to formatted JSON.

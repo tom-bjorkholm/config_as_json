@@ -191,7 +191,6 @@ def application(config_filename: PathOrStr, update_config: bool,
     config = MyConfig(stderr_file=sys.stderr)
     if read_file:
         config.read(config_filename, stderr_file=sys.stderr)
-        config.validate(stderr_file=sys.stderr)
     # A lot of application code not shown here
     print(f'Report name: {config.report_name}')
     # ...
@@ -344,7 +343,7 @@ MIT
 
 ## Test summary
 
-- Test result: 4157 passed in 13s
+- Test result: 4163 passed in 13s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

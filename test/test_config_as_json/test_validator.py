@@ -7,10 +7,12 @@
 from abc import ABCMeta
 import sys
 from io import StringIO
+from pathlib import Path
 from typing import Callable, Optional, Sequence, TextIO
 import pytest
 from pytest import CaptureFixture
 from config_as_json.config import Config
+from config_as_json.commontypes import PathOrStr
 from config_as_json.validator import IntFloatValidator, \
     InvalidConfiguration, InvalidConfigurationValue, StrValidator, \
     ValidationPlan, ValidationStep, MemberValidationStep, \
@@ -200,6 +202,51 @@ class PaletteConfig(Config):
 
 
 # pylint: disable-next=too-few-public-methods
+class CountValidation(WholeConfigValidator):
+    """Whole-config validator that records completed validation."""
+
+    def validate(self, config: Config,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Record one validation pass on ``LoadValidationConfig``."""
+        _ = stderr_file
+        assert isinstance(config, LoadValidationConfig)
+        config.mark_validated()
+
+
+class LoadValidationConfig(Config):
+    """Config class used to test validation during JSON loading."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct test config object."""
+        self.value = 'alpha'
+        self._validation_count = 0
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         stderr_file=stderr_file)
+
+    def mark_validated(self) -> None:
+        """Record that validation reached the counting step."""
+        self._validation_count += 1
+
+    def validation_count(self) -> int:
+        """Return how many validation passes reached the counter."""
+        return self._validation_count
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        return [
+            MemberValidationStep(
+                member_names=['value'],
+                validator=StrValidator(['alpha', 'beta'], ignore_case=True,
+                                       normalize=True)),
+            WholeConfigValidationStep(validator=CountValidation())
+        ]
+
+
+# pylint: disable-next=too-few-public-methods
 class AppendTextValidator(MemberValidator):
     """Append text to a string member."""
 
@@ -217,6 +264,11 @@ class AppendTextValidator(MemberValidator):
         _ = stderr_file
         assert isinstance(member_value, str)
         return member_value + self.text
+
+
+def write_json_file(config_file: Path, json_text: str) -> None:
+    """Write JSON text used by load-validation tests."""
+    config_file.write_text(json_text, encoding='UTF-8')
 
 
 @pytest.mark.parametrize(
@@ -428,6 +480,84 @@ def test_palette_parsed_json(capsys: CaptureFixture[str]) -> None:
     out, err = capsys.readouterr()
     assert cfg.shade == 'red'
     assert cfg.accent == 'black'
+    assert out == ''
+    assert err == ''
+
+
+def test_read_validates_file(capsys: CaptureFixture[str],
+                             tmp_path: Path) -> None:
+    """Test that read() validates and normalizes loaded JSON."""
+    cfg = LoadValidationConfig(stderr_file=sys.stderr)
+    config_file = tmp_path / 'config.json'
+    write_json_file(config_file, '{"value": "Beta"}')
+    cfg.read(config_file, stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert cfg.value == 'beta'
+    assert cfg.validation_count() == 2
+    assert out == ''
+    assert err == ''
+
+
+def test_read_rejects_invalid(capsys: CaptureFixture[str],
+                              tmp_path: Path) -> None:
+    """Test that read() raises when loaded JSON fails validation."""
+    cfg = LoadValidationConfig(stderr_file=sys.stderr)
+    config_file = tmp_path / 'config.json'
+    write_json_file(config_file, '{"value": "gamma"}')
+    with pytest.raises(InvalidConfigurationValue) as exc:
+        cfg.read(config_file, stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert 'Value gamma for value' in str(exc.value)
+    assert out == ''
+    assert 'Value gamma for value' in err
+
+
+def test_parse_json_validates(capsys: CaptureFixture[str]) -> None:
+    """Test that explicit parse_json() validates parsed JSON."""
+    cfg = LoadValidationConfig(stderr_file=sys.stderr)
+    cfg.parse_json('{"value": "Beta"}', stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert cfg.value == 'beta'
+    assert cfg.validation_count() == 2
+    assert out == ''
+    assert err == ''
+
+
+def test_init_file_validates_once(capsys: CaptureFixture[str],
+                                  tmp_path: Path) -> None:
+    """Test that from_json_filename validates without a duplicate pass."""
+    config_file = tmp_path / 'config.json'
+    write_json_file(config_file, '{"value": "Beta"}')
+    cfg = LoadValidationConfig(from_json_filename=config_file,
+                               stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert cfg.value == 'beta'
+    assert cfg.validation_count() == 1
+    assert out == ''
+    assert err == ''
+
+
+def test_init_text_validates_once(capsys: CaptureFixture[str]) -> None:
+    """Test that from_json_data_text validates without a duplicate pass."""
+    cfg = LoadValidationConfig(from_json_data_text='{"value": "Beta"}',
+                               stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert cfg.value == 'beta'
+    assert cfg.validation_count() == 1
+    assert out == ''
+    assert err == ''
+
+
+def test_read_defaults_validate(capsys: CaptureFixture[str],
+                                tmp_path: Path) -> None:
+    """Test that read() validates when defaults fill omitted values."""
+    cfg = LoadValidationConfig(stderr_file=sys.stderr)
+    config_file = tmp_path / 'config.json'
+    write_json_file(config_file, '{}')
+    cfg.read(config_file, ok_to_use_defaults=True, stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert cfg.value == 'alpha'
+    assert cfg.validation_count() == 2
     assert out == ''
     assert err == ''
 

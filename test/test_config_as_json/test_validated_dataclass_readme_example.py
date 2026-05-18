@@ -54,7 +54,6 @@ def application(config_filename: PathOrStr, update_config: bool,
     config = MyConfig(stderr_file=sys.stderr)
     if read_file:
         config.read(config_filename, stderr_file=sys.stderr)
-        config.validate(stderr_file=sys.stderr)
     # A lot of application code not shown here
     print(f'Report name: {config.report_name}')
     # ...
