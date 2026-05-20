@@ -2845,9 +2845,11 @@ Return keys omitted from JSON when their value is ``None``.
 
 Derived classes override this method when a top-level public
 configuration member is intentionally optional. Such members may be
-absent from JSON input. They keep their constructor value of ``None``
-when absent, explicit JSON ``null`` is read as ``None``, and writing
-the configuration omits them while their value is still ``None``.
+absent from JSON input. In strict reads, absent listed members become
+``None``; when ``ok_to_use_defaults`` is true, absent members keep
+their constructor defaults. Explicit JSON ``null`` is read as
+``None``, and writing the configuration omits listed members while
+their value is still ``None``.
 
 **Returns**:
 
@@ -2858,8 +2860,7 @@ the configuration omits them while their value is still ``None``.
 #### \_checked\_omit\_none\_from\_json
 
 ```python
-def _checked_omit_none_from_json(self_keys: list[str],
-                                 check_default_values: bool) -> list[str]
+def _checked_omit_none_from_json(self_keys: list[str]) -> list[str]
 ```
 
 Return validated omit-when-None member names.
@@ -2867,8 +2868,6 @@ Return validated omit-when-None member names.
 **Arguments**:
 
 - `self_keys` - Public configuration member names on this object.
-- `check_default_values` - Whether listed members must currently have
-  the value ``None``.
 
 
 **Returns**:
@@ -2880,7 +2879,6 @@ Return validated omit-when-None member names.
 
 - `TypeError` - The hook returned a value with the wrong type.
 - `KeyError` - The hook listed an unknown public member.
-- `ValueError` - A listed member did not default to ``None``.
 
 <a id="config_as_json.config.Config._check_config_nesting"></a>
 

@@ -180,7 +180,7 @@ class Config():
             msg += 'Config. (Create object variables in __init__ before '
             msg += 'calling super().__init__().)'
             raise AttributeError(msg)
-        self._checked_omit_none_from_json(self_keys, check_default_values=True)
+        self._checked_omit_none_from_json(self_keys)
         self._nested_config_decls: dict[str, list[ConfigNesting]] = \
             self._checked_nested_configs(self_keys)
         self._check_nested_config_members(self_keys, self._nested_config_decls)
@@ -350,23 +350,22 @@ class Config():
 
         Derived classes override this method when a top-level public
         configuration member is intentionally optional. Such members may be
-        absent from JSON input. They keep their constructor value of ``None``
-        when absent, explicit JSON ``null`` is read as ``None``, and writing
-        the configuration omits them while their value is still ``None``.
+        absent from JSON input. In strict reads, absent listed members become
+        ``None``; when ``ok_to_use_defaults`` is true, absent members keep
+        their constructor defaults. Explicit JSON ``null`` is read as
+        ``None``, and writing the configuration omits listed members while
+        their value is still ``None``.
 
         Returns:
             A list of public member names that use omit-when-None behavior.
         """
         return []
 
-    def _checked_omit_none_from_json(self, self_keys: list[str],
-                                     check_default_values: bool) -> list[str]:
+    def _checked_omit_none_from_json(self, self_keys: list[str]) -> list[str]:
         """Return validated omit-when-None member names.
 
         Args:
             self_keys: Public configuration member names on this object.
-            check_default_values: Whether listed members must currently have
-                the value ``None``.
 
         Returns:
             The keys returned by :meth:`_omit_none_from_json`.
@@ -374,7 +373,6 @@ class Config():
         Raises:
             TypeError: The hook returned a value with the wrong type.
             KeyError: The hook listed an unknown public member.
-            ValueError: A listed member did not default to ``None``.
         """
         omit_none_keys = self._omit_none_from_json()
         if not isinstance(omit_none_keys, list):
@@ -387,9 +385,6 @@ class Config():
             if key not in self_keys:
                 msg = f'_omit_none_from_json() returned unknown key {key}'
                 raise KeyError(msg)
-            if check_default_values and getattr(self, key) is not None:
-                msg = f'_omit_none_from_json() key {key} must default to None'
-                raise ValueError(msg)
         return omit_none_keys
 
     @staticmethod
@@ -610,11 +605,14 @@ class Config():
         data = data_obj
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
-        omit_none_keys = self._checked_omit_none_from_json(
-            self_keys, check_default_values=False)
+        omit_none_keys = self._checked_omit_none_from_json(self_keys)
         nested_configs = self._nested_config_decls
         self.check_key_match(self_keys, list(data.keys()), ok_to_use_defaults,
                              stderr_file, omit_none_keys)
+        if not ok_to_use_defaults:
+            for i in omit_none_keys:
+                if i not in data:
+                    setattr(self, i, None)
         for i in self_keys:
             if i in data.keys():
                 if i in nested_configs:
@@ -646,8 +644,7 @@ class Config():
         data = {}
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
-        omit_none_keys = self._checked_omit_none_from_json(
-            self_keys, check_default_values=False)
+        omit_none_keys = self._checked_omit_none_from_json(self_keys)
         nested_configs = self._nested_config_decls
         for i in self_keys:
             if i in omit_none_keys and getattr(self, i) is None:
