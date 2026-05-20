@@ -197,6 +197,11 @@
   * [AsDictViewValidator](#config_as_json.as_dict_view_validator.AsDictViewValidator)
     * [\_\_init\_\_](#config_as_json.as_dict_view_validator.AsDictViewValidator.__init__)
     * [validate\_member](#config_as_json.as_dict_view_validator.AsDictViewValidator.validate_member)
+* [config\_as\_json.json\_write\_hooks](#config_as_json.json_write_hooks)
+  * [SerializeConverter](#config_as_json.json_write_hooks.SerializeConverter)
+  * [JsonWriteHookError](#config_as_json.json_write_hooks.JsonWriteHookError)
+  * [JsonWriteHookProvider](#config_as_json.json_write_hooks.JsonWriteHookProvider)
+    * [serialize\_converters](#config_as_json.json_write_hooks.JsonWriteHookProvider.serialize_converters)
 * [config\_as\_json.config\_nesting](#config_as_json.config_nesting)
   * [ConfigNestingKind](#config_as_json.config_nesting.ConfigNestingKind)
   * [ConfigFactory](#config_as_json.config_nesting.ConfigFactory)
@@ -4713,6 +4718,101 @@ Validate one member through a dictionary-shaped view.
   rejects the dictionary view.
 - `InvalidConfigurationValue` - If an inner validator rejects a value
   because it is not one of its allowed values.
+
+<a id="config_as_json.json_write_hooks"></a>
+
+# config\_as\_json.json\_write\_hooks
+
+Sketch the public write-side JSON conversion hook API.
+
+This module records the proposed public names, type signatures and docstrings
+for write-side conversion hooks. It intentionally contains no conversion
+logic yet. The implementation can move these declarations or extend them
+after the API sketch has been reviewed.
+
+<a id="config_as_json.json_write_hooks.SerializeConverter"></a>
+
+## SerializeConverter Objects
+
+```python
+class SerializeConverter(NamedTuple)
+```
+
+Describe one write-side conversion from Python data to JSON data.
+
+A converter is selected by a ``SerializeSelector`` returned from
+``serialize_converters()``. Explicit converters override built-in
+conversions such as enum-name serialization.
+
+``None`` values pass through unchanged. This lets validation and
+omit-when-None handling decide whether ``None`` is allowed or omitted.
+
+If ``value_type`` is not ``None``, a matched non-``None`` value must be an
+instance of that type before ``func`` is called. If the value has another
+type, serialization should raise a path-aware ``JsonWriteHookError``.
+
+If ``value_type`` is ``None``, no pre-conversion type check is performed
+and the conversion function is responsible for accepting the matched
+value.
+
+The conversion result must be recursively JSON-compatible. Valid output is
+``None``, ``int``, ``str``, ``bool``, a list of valid values, or a
+dictionary with string keys and valid values. Invalid output should raise
+a path-aware ``JsonWriteHookError`` before ``json.dumps()`` is called.
+
+**Attributes**:
+
+- `value_type` - Optional expected Python type before conversion.
+- `func` - Callable that converts a Python value to JSON-compatible data.
+- `args` - Keyword arguments passed to ``func``.
+
+<a id="config_as_json.json_write_hooks.JsonWriteHookError"></a>
+
+## JsonWriteHookError Objects
+
+```python
+class JsonWriteHookError(InvalidConfiguration)
+```
+
+Raised when write-side JSON conversion cannot produce valid JSON.
+
+<a id="config_as_json.json_write_hooks.JsonWriteHookProvider"></a>
+
+## JsonWriteHookProvider Objects
+
+```python
+class JsonWriteHookProvider(Protocol)
+```
+
+Describe the write-side hook that ``Config`` classes may provide.
+
+<a id="config_as_json.json_write_hooks.JsonWriteHookProvider.serialize_converters"></a>
+
+#### serialize\_converters
+
+```python
+def serialize_converters(
+) -> Optional[dict[SerializeSelector, SerializeConverter]]
+```
+
+Return conversion rules for rich Python values before JSON write.
+
+The returned dictionary maps selectors to converters. A selector may
+be either a recursive key-name string or an absolute ``ConfigPath``.
+Path selectors use the same rules as ROCF paths.
+
+Converters apply only to data owned by this object. If a member is a
+declared nested ``Config`` object, that object serializes itself and
+applies its own converters.
+
+Explicit converters override built-in fallback conversions. If more
+than one selector matches a value, the most specific path selector
+should win over a recursive key-name selector.
+
+**Returns**:
+
+  Write-side conversion rules, or ``None`` when no explicit
+  conversions are needed.
 
 <a id="config_as_json.config_nesting"></a>
 
