@@ -14,8 +14,8 @@ from pytest import CaptureFixture
 from config_as_json.config import Config
 from config_as_json.commontypes import PathOrStr
 from config_as_json.validator import IntFloatValidator, \
-    InvalidConfiguration, InvalidConfigurationValue, StrValidator, \
-    ValidationPlan, ValidationStep, MemberValidationStep, \
+    InvalidConfiguration, InvalidConfigurationValue, ValidationPlan, \
+    ValidationStep, MemberValidationStep, \
     WholeConfigValidationStep, MemberValidator, WholeConfigValidator, \
     ValueTypeValidator, MemberValidatorSequence, \
     not_one_of_allowed_values, string_best_match
@@ -172,35 +172,6 @@ class NoneWriteBackConfig(Config):
         ]
 
 
-class PaletteConfig(Config):
-    """Config class used for StrValidator integration tests."""
-
-    def __init__(self, from_json_data_text: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Construct test config object."""
-        self.shade = 'GREEN'
-        self.accent = 'blu'
-        super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=stderr_file)
-
-    def accent_names(self) -> Sequence[str]:
-        """Return the allowed accent names."""
-        return ['blue', 'black']
-
-    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
-        """Get validation plan for use when validating the Config object."""
-        return [
-            MemberValidationStep(member_names=['shade'],
-                                 validator=StrValidator(['red', 'green'],
-                                                        ignore_case=True,
-                                                        normalize=True)),
-            MemberValidationStep(member_names=['accent'],
-                                 validator=StrValidator(self.accent_names,
-                                                        ignore_case=False,
-                                                        best_match=True))
-        ]
-
-
 # pylint: disable-next=too-few-public-methods
 class CountValidation(WholeConfigValidator):
     """Whole-config validator that records completed validation."""
@@ -240,8 +211,8 @@ class LoadValidationConfig(Config):
         return [
             MemberValidationStep(
                 member_names=['value'],
-                validator=StrValidator(['alpha', 'beta'], ignore_case=True,
-                                       normalize=True)),
+                validator=MemberValidatorSequence(
+                    [ValueTypeValidator(str), UppercaseValidator()])),
             WholeConfigValidationStep(validator=CountValidation())
         ]
 
@@ -269,23 +240,6 @@ class AppendTextValidator(MemberValidator):
 def write_json_file(config_file: Path, json_text: str) -> None:
     """Write JSON text used by load-validation tests."""
     config_file.write_text(json_text, encoding='UTF-8')
-
-
-@pytest.mark.parametrize(
-    'validator, member_value, expected',
-    [(StrValidator(['red', 'green'], ignore_case=False), 'red', 'red'),
-     (StrValidator(['red', 'green'], ignore_case=True), 'GREEN', 'GREEN'),
-     (StrValidator(['red', 'green'], ignore_case=True,
-                   normalize=True), 'GREEN', 'green'),
-     (StrValidator(['Alpha'], ignore_case=False,
-                   best_match=True), 'alpha', 'Alpha'),
-     (StrValidator(lambda: ['blue', 'black'], ignore_case=False,
-                   best_match=True), 'blu', 'blue')])
-def test_str_validator_ok(capsys: CaptureFixture[str],
-                          validator: MemberValidator, member_value: object,
-                          expected: object) -> None:
-    """Test OK cases of StrValidator."""
-    assert_validate_member_ok(capsys, validator, member_value, expected)
 
 
 @pytest.mark.parametrize('bad_value_type', [None, 'str', [str]])
@@ -439,51 +393,6 @@ def test_validation_base_not_impl(capsys: CaptureFixture[str],
     assert message in err
 
 
-def test_str_rejects_bad_type(capsys: CaptureFixture[str]) -> None:
-    """Test that StrValidator rejects non-string values."""
-    validator = StrValidator(['red', 'green'], ignore_case=False)
-    assert_validate_member_failure(capsys, validator, 42, InvalidConfiguration,
-                                   'Value for value is not a string.')
-
-
-def test_str_rejects_disallowed(capsys: CaptureFixture[str]) -> None:
-    """Test that StrValidator rejects unknown values."""
-    validator = StrValidator(['red', 'green'], ignore_case=False)
-    assert_validate_member_failure(capsys, validator, 'blue',
-                                   InvalidConfigurationValue,
-                                   'Value blue for value')
-
-
-def test_str_rejects_ambiguous(capsys: CaptureFixture[str]) -> None:
-    """Test that best-match validation rejects ambiguous prefixes."""
-    validator = StrValidator(['blue', 'black'], ignore_case=False,
-                             best_match=True)
-    assert_validate_member_failure(capsys, validator, 'bl',
-                                   InvalidConfigurationValue,
-                                   'Value bl for value')
-
-
-def test_palette_default_values(capsys: CaptureFixture[str]) -> None:
-    """Test StrValidator integration in a derived config class."""
-    cfg = PaletteConfig()
-    out, err = capsys.readouterr()
-    assert cfg.shade == 'green'
-    assert cfg.accent == 'blue'
-    assert out == ''
-    assert err == ''
-
-
-def test_palette_parsed_json(capsys: CaptureFixture[str]) -> None:
-    """Test StrValidator integration when values come from parsed JSON."""
-    cfg = PaletteConfig(
-        from_json_data_text='{"shade": "Red", "accent": "black"}')
-    out, err = capsys.readouterr()
-    assert cfg.shade == 'red'
-    assert cfg.accent == 'black'
-    assert out == ''
-    assert err == ''
-
-
 def test_read_validates_file(capsys: CaptureFixture[str],
                              tmp_path: Path) -> None:
     """Test that read() validates and normalizes loaded JSON."""
@@ -492,7 +401,7 @@ def test_read_validates_file(capsys: CaptureFixture[str],
     write_json_file(config_file, '{"value": "Beta"}')
     cfg.read(config_file, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
-    assert cfg.value == 'beta'
+    assert cfg.value == 'BETA'
     assert cfg.validation_count() == 2
     assert out == ''
     assert err == ''
@@ -503,13 +412,13 @@ def test_read_rejects_invalid(capsys: CaptureFixture[str],
     """Test that read() raises when loaded JSON fails validation."""
     cfg = LoadValidationConfig(stderr_file=sys.stderr)
     config_file = tmp_path / 'config.json'
-    write_json_file(config_file, '{"value": "gamma"}')
-    with pytest.raises(InvalidConfigurationValue) as exc:
+    write_json_file(config_file, '{"value": 7}')
+    with pytest.raises(InvalidConfiguration) as exc:
         cfg.read(config_file, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
-    assert 'Value gamma for value' in str(exc.value)
+    assert 'Value for value is not of type str' in str(exc.value)
     assert out == ''
-    assert 'Value gamma for value' in err
+    assert 'Value for value is not of type str' in err
 
 
 def test_parse_json_validates(capsys: CaptureFixture[str]) -> None:
@@ -517,7 +426,7 @@ def test_parse_json_validates(capsys: CaptureFixture[str]) -> None:
     cfg = LoadValidationConfig(stderr_file=sys.stderr)
     cfg.parse_json('{"value": "Beta"}', stderr_file=sys.stderr)
     out, err = capsys.readouterr()
-    assert cfg.value == 'beta'
+    assert cfg.value == 'BETA'
     assert cfg.validation_count() == 2
     assert out == ''
     assert err == ''
@@ -531,7 +440,7 @@ def test_init_file_validates_once(capsys: CaptureFixture[str],
     cfg = LoadValidationConfig(from_json_filename=config_file,
                                stderr_file=sys.stderr)
     out, err = capsys.readouterr()
-    assert cfg.value == 'beta'
+    assert cfg.value == 'BETA'
     assert cfg.validation_count() == 1
     assert out == ''
     assert err == ''
@@ -542,7 +451,7 @@ def test_init_text_validates_once(capsys: CaptureFixture[str]) -> None:
     cfg = LoadValidationConfig(from_json_data_text='{"value": "Beta"}',
                                stderr_file=sys.stderr)
     out, err = capsys.readouterr()
-    assert cfg.value == 'beta'
+    assert cfg.value == 'BETA'
     assert cfg.validation_count() == 1
     assert out == ''
     assert err == ''
@@ -556,7 +465,7 @@ def test_read_defaults_validate(capsys: CaptureFixture[str],
     write_json_file(config_file, '{}')
     cfg.read(config_file, ok_to_use_defaults=True, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
-    assert cfg.value == 'alpha'
+    assert cfg.value == 'ALPHA'
     assert cfg.validation_count() == 2
     assert out == ''
     assert err == ''

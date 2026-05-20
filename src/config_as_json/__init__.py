@@ -30,10 +30,12 @@ from config_as_json.migrate_cfg import migrate_cfg
 from config_as_json.optional_validator import OptionalMemberValidator
 from config_as_json.validator import ValidationPlan, ValidationStep, \
     WholeConfigValidationStep, MemberValidationStep, WholeConfigValidator, \
-    MemberValidator, ValueTypeValidator, StrValidator, IntFloatValidator, \
+    MemberValidator, ValueTypeValidator, IntFloatValidator, \
     CallingMemberValidator, CallingWholeConfigValidator, \
     MemberValidatorSequence, string_best_match, InvalidConfiguration, \
     InvalidConfigurationValue
+from config_as_json.str_validators import StrValidator, StrLenValidator, \
+    StrCaseSpec, StrPositionSpec, StrCaseValidator, StrCaseChangeValidator
 from config_as_json.list_validators import ListValueValidator, \
     ListSizeValidator, ListIsOrderedValidator, ListOrderingValidator, \
     ListValueTypeValidator, ListForEachValidator, ListOfDictsKeysValidator
@@ -87,6 +89,11 @@ __all__ = ['Config',
            'MemberValidator',
            'ValueTypeValidator',
            'StrValidator',
+           'StrLenValidator',
+           'StrCaseSpec',
+           'StrPositionSpec',
+           'StrCaseValidator',
+           'StrCaseChangeValidator',
            'IntFloatValidator',
            'CallingMemberValidator',
            'CallingWholeConfigValidator',

@@ -11,13 +11,14 @@ from typing import Optional, TextIO, cast, override
 import pytest
 from pytest import CaptureFixture
 import config_as_json
+from config_as_json import StrValidator
 from config_as_json.config import Config
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
     NestedConfigs
 from config_as_json.commontypes import PathOrStr
 from config_as_json.validator import InvalidConfiguration, \
-    MemberValidationStep, StrValidator, ValidationPlan, \
-    WholeConfigValidationStep, WholeConfigValidator
+    MemberValidationStep, ValidationPlan, WholeConfigValidationStep, \
+    WholeConfigValidator
 
 
 class ParticipantSection(Config):

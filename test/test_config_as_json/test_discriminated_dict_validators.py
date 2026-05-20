@@ -7,13 +7,14 @@
 import sys
 from typing import Optional, TextIO
 import pytest
+from config_as_json import StrValidator
 from config_as_json.config import Config
 from config_as_json.dict_validators import DictRule
 from config_as_json.discriminated_dict_validators import DictVariant, \
     DiscriminatedDictValidator
 from config_as_json.validator import IntFloatValidator, \
     InvalidConfiguration, InvalidConfigurationValue, MemberValidator, \
-    StrValidator, ValidationPlan, MemberValidationStep
+    ValidationPlan, MemberValidationStep
 from .validator_test_helpers import EmptyValidationConfig, \
     assert_validate_member_failure
 

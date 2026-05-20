@@ -9,6 +9,7 @@ from collections.abc import Hashable
 from typing import Optional, TextIO
 import pytest
 from pytest import CaptureFixture
+from config_as_json import StrValidator
 from config_as_json import AsDictViewValidator as PublicAsDictViewValidator
 from config_as_json import public_attrs_to_dict as public_public_attrs
 from config_as_json.as_dict_view_validator import AsDictViewValidator, \
@@ -18,7 +19,7 @@ from config_as_json.dict_validators import DictForEachValidator, \
     DictKeysValidator, DictRule
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue, MemberValidationStep, MemberValidator, \
-    StrValidator, ValidationPlan
+    ValidationPlan
 from .validator_test_helpers import EmptyValidationConfig, \
     SingleMemberValidationConfig, assert_validate_member_failure, \
     assert_validate_member_ok

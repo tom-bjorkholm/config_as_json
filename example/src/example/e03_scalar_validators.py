@@ -96,6 +96,10 @@ class ExampleConfig(Config):
         # enums have only a predefined set of allowed values, but this is for
         # when you need the type to be a string. (The allowed-values list
         # might be returned from 3rd party code, for example.)
+        # This example keeps strings focused on allowed values. Free-form
+        # strings can use StrLenValidator for length bounds, StrCaseValidator
+        # to reject unwanted case, or StrCaseChangeValidator to normalize
+        # case. They use the same MemberValidationStep pattern shown below.
         issue_type_validator = StrValidator(allowed_values=['Story', 'Task',
                                                             'Bug', 'Epic'],
                                             ignore_case=True, normalize=True)

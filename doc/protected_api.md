@@ -1,5 +1,40 @@
 # Table of Contents
 
+* [config\_as\_json.str\_validators](#config_as_json.str_validators)
+  * [\_validate\_str\_value](#config_as_json.str_validators._validate_str_value)
+  * [\_validate\_static\_len\_bound](#config_as_json.str_validators._validate_static_len_bound)
+  * [\_length\_bound](#config_as_json.str_validators._length_bound)
+  * [\_validate\_len\_bounds](#config_as_json.str_validators._validate_len_bounds)
+  * [StrLenValidator](#config_as_json.str_validators.StrLenValidator)
+    * [\_\_init\_\_](#config_as_json.str_validators.StrLenValidator.__init__)
+    * [validate\_member](#config_as_json.str_validators.StrLenValidator.validate_member)
+  * [StrCaseSpec](#config_as_json.str_validators.StrCaseSpec)
+    * [LOWER](#config_as_json.str_validators.StrCaseSpec.LOWER)
+    * [UPPER](#config_as_json.str_validators.StrCaseSpec.UPPER)
+    * [ORIGINAL](#config_as_json.str_validators.StrCaseSpec.ORIGINAL)
+  * [StrPositionSpec](#config_as_json.str_validators.StrPositionSpec)
+    * [FIRST\_IN\_STRING](#config_as_json.str_validators.StrPositionSpec.FIRST_IN_STRING)
+    * [FIRST\_IN\_WORD](#config_as_json.str_validators.StrPositionSpec.FIRST_IN_WORD)
+    * [FIRST\_IN\_SENTENCE](#config_as_json.str_validators.StrPositionSpec.FIRST_IN_SENTENCE)
+    * [EVERY\_CHARACTER](#config_as_json.str_validators.StrPositionSpec.EVERY_CHARACTER)
+  * [\_validate\_case\_args](#config_as_json.str_validators._validate_case_args)
+  * [\_word\_position\_flags](#config_as_json.str_validators._word_position_flags)
+  * [\_sentence\_position\_flags](#config_as_json.str_validators._sentence_position_flags)
+  * [\_position\_flags](#config_as_json.str_validators._position_flags)
+  * [\_case\_spec\_for\_flag](#config_as_json.str_validators._case_spec_for_flag)
+  * [\_is\_case\_match](#config_as_json.str_validators._is_case_match)
+  * [\_case\_spec\_text](#config_as_json.str_validators._case_spec_text)
+  * [\_raise\_case\_error](#config_as_json.str_validators._raise_case_error)
+  * [\_change\_case](#config_as_json.str_validators._change_case)
+  * [StrCaseValidator](#config_as_json.str_validators.StrCaseValidator)
+    * [\_\_init\_\_](#config_as_json.str_validators.StrCaseValidator.__init__)
+    * [validate\_member](#config_as_json.str_validators.StrCaseValidator.validate_member)
+  * [StrCaseChangeValidator](#config_as_json.str_validators.StrCaseChangeValidator)
+    * [\_\_init\_\_](#config_as_json.str_validators.StrCaseChangeValidator.__init__)
+    * [validate\_member](#config_as_json.str_validators.StrCaseChangeValidator.validate_member)
+  * [StrValidator](#config_as_json.str_validators.StrValidator)
+    * [\_\_init\_\_](#config_as_json.str_validators.StrValidator.__init__)
+    * [validate\_member](#config_as_json.str_validators.StrValidator.validate_member)
 * [config\_as\_json.validator](#config_as_json.validator)
   * [InvalidConfiguration](#config_as_json.validator.InvalidConfiguration)
     * [\_\_init\_\_](#config_as_json.validator.InvalidConfiguration.__init__)
@@ -25,9 +60,6 @@
   * [MemberValidationStep](#config_as_json.validator.MemberValidationStep)
     * [apply](#config_as_json.validator.MemberValidationStep.apply)
   * [string\_best\_match](#config_as_json.validator.string_best_match)
-  * [StrValidator](#config_as_json.validator.StrValidator)
-    * [\_\_init\_\_](#config_as_json.validator.StrValidator.__init__)
-    * [validate\_member](#config_as_json.validator.StrValidator.validate_member)
   * [IntFloat](#config_as_json.validator.IntFloat)
   * [ConstraintValue](#config_as_json.validator.ConstraintValue)
   * [\_validated\_constraint\_vtype](#config_as_json.validator._validated_constraint_vtype)
@@ -334,6 +366,529 @@
   * [ConfigFactory](#config_as_json.config_nesting.ConfigFactory)
     * [\_\_call\_\_](#config_as_json.config_nesting.ConfigFactory.__call__)
   * [ConfigNesting](#config_as_json.config_nesting.ConfigNesting)
+
+<a id="config_as_json.str_validators"></a>
+
+# config\_as\_json.str\_validators
+
+Validate strings.
+
+<a id="config_as_json.str_validators._validate_str_value"></a>
+
+#### \_validate\_str\_value
+
+```python
+def _validate_str_value(member_name: str, member_value: object,
+                        stderr_file: TextIO) -> str
+```
+
+Validate and return one string member value.
+
+<a id="config_as_json.str_validators._validate_static_len_bound"></a>
+
+#### \_validate\_static\_len\_bound
+
+```python
+def _validate_static_len_bound(value: object, parameter_name: str) -> None
+```
+
+Validate one static string length bound or callable placeholder.
+
+<a id="config_as_json.str_validators._length_bound"></a>
+
+#### \_length\_bound
+
+```python
+def _length_bound(value: Optional[int] | Callable[[], Optional[int]],
+                  parameter_name: str) -> Optional[int]
+```
+
+Return one dynamic length bound after runtime validation.
+
+<a id="config_as_json.str_validators._validate_len_bounds"></a>
+
+#### \_validate\_len\_bounds
+
+```python
+def _validate_len_bounds(min_length: Optional[int],
+                         max_length: Optional[int]) -> None
+```
+
+Validate the relationship between two active length bounds.
+
+<a id="config_as_json.str_validators.StrLenValidator"></a>
+
+## StrLenValidator Objects
+
+```python
+class StrLenValidator(MemberValidator)
+```
+
+Validate length of a string member.
+
+<a id="config_as_json.str_validators.StrLenValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(min_length: Optional[int] | Callable[[], Optional[int]],
+             max_length: Optional[int] | Callable[[], Optional[int]]) -> None
+```
+
+Initialize the validator.
+
+A validator that validates the length of a string member.
+
+**Arguments**:
+
+- `min_length` - The minimum length of the string member.
+  If a callable is provided, it will be called
+  at validation time to get the minimum length.
+  A callable may return ``None`` to skip this bound.
+- `max_length` - The maximum length of the string member.
+  If a callable is provided, it will be called
+  at validation time to get the maximum length.
+  A callable may return ``None`` to skip this bound.
+
+
+**Raises**:
+
+- `TypeError` - If a static bound is not an int, None, or callable.
+- `ValueError` - If a static bound is negative, if static bounds are
+  ordered incorrectly, or if both static bounds are None.
+
+<a id="config_as_json.str_validators.StrLenValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate the length of a string member.
+
+**Arguments**:
+
+- `config` - The configuration object to validate.
+- `member_name` - The name of the member to validate.
+- `member_value` - The value of the member to validate, which is a
+  string.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - The configuration is invalid.
+- `InvalidConfiguration` - The member value is not a string.
+
+
+**Returns**:
+
+  The member value unchanged if the validation passes, otherwise
+  an exception is raised.
+
+<a id="config_as_json.str_validators.StrCaseSpec"></a>
+
+## StrCaseSpec Objects
+
+```python
+class StrCaseSpec(Enum)
+```
+
+Specification for string case.
+
+<a id="config_as_json.str_validators.StrCaseSpec.LOWER"></a>
+
+#### LOWER
+
+Character(s) in the position shall be lowercase.
+
+<a id="config_as_json.str_validators.StrCaseSpec.UPPER"></a>
+
+#### UPPER
+
+Character(s) in the position shall be uppercase.
+
+<a id="config_as_json.str_validators.StrCaseSpec.ORIGINAL"></a>
+
+#### ORIGINAL
+
+Character(s) in the position shall be original case.
+
+When converting this means no conversion is performed.
+When validating/checking this means any case is allowed.
+
+<a id="config_as_json.str_validators.StrPositionSpec"></a>
+
+## StrPositionSpec Objects
+
+```python
+class StrPositionSpec(Enum)
+```
+
+Specification for string position.
+
+<a id="config_as_json.str_validators.StrPositionSpec.FIRST_IN_STRING"></a>
+
+#### FIRST\_IN\_STRING
+
+First character in the string.
+
+<a id="config_as_json.str_validators.StrPositionSpec.FIRST_IN_WORD"></a>
+
+#### FIRST\_IN\_WORD
+
+First character in every word.
+
+This is the first non-whitespace character in the string, and the first
+non-whitespace character after a whitespace character.
+
+<a id="config_as_json.str_validators.StrPositionSpec.FIRST_IN_SENTENCE"></a>
+
+#### FIRST\_IN\_SENTENCE
+
+First character in every sentence.
+
+This is the first non-whitespace character in the string, and the first
+non-whitespace character after a period, exclamation mark, or question
+mark.
+
+<a id="config_as_json.str_validators.StrPositionSpec.EVERY_CHARACTER"></a>
+
+#### EVERY\_CHARACTER
+
+Every character in the string.
+
+<a id="config_as_json.str_validators._validate_case_args"></a>
+
+#### \_validate\_case\_args
+
+```python
+def _validate_case_args(special_position: StrPositionSpec,
+                        special_position_case: StrCaseSpec,
+                        other_position_case: StrCaseSpec) -> None
+```
+
+Validate constructor arguments for string case validators.
+
+<a id="config_as_json.str_validators._word_position_flags"></a>
+
+#### \_word\_position\_flags
+
+```python
+def _word_position_flags(value: str) -> list[bool]
+```
+
+Return flags for first non-whitespace characters in words.
+
+<a id="config_as_json.str_validators._sentence_position_flags"></a>
+
+#### \_sentence\_position\_flags
+
+```python
+def _sentence_position_flags(value: str) -> list[bool]
+```
+
+Return flags for first non-whitespace characters in sentences.
+
+<a id="config_as_json.str_validators._position_flags"></a>
+
+#### \_position\_flags
+
+```python
+def _position_flags(value: str,
+                    special_position: StrPositionSpec) -> list[bool]
+```
+
+Return flags for the positions selected by one position spec.
+
+<a id="config_as_json.str_validators._case_spec_for_flag"></a>
+
+#### \_case\_spec\_for\_flag
+
+```python
+def _case_spec_for_flag(is_special: bool, special_position_case: StrCaseSpec,
+                        other_position_case: StrCaseSpec) -> StrCaseSpec
+```
+
+Return the case specification for one position flag.
+
+<a id="config_as_json.str_validators._is_case_match"></a>
+
+#### \_is\_case\_match
+
+```python
+def _is_case_match(character: str, case_spec: StrCaseSpec) -> bool
+```
+
+Return whether one character matches one case specification.
+
+<a id="config_as_json.str_validators._case_spec_text"></a>
+
+#### \_case\_spec\_text
+
+```python
+def _case_spec_text(case_spec: StrCaseSpec) -> str
+```
+
+Return a human-readable name for one case specification.
+
+<a id="config_as_json.str_validators._raise_case_error"></a>
+
+#### \_raise\_case\_error
+
+```python
+def _raise_case_error(member_name: str, character: str, index: int,
+                      case_spec: StrCaseSpec, stderr_file: TextIO) -> None
+```
+
+Raise a validation error for one incorrectly cased character.
+
+<a id="config_as_json.str_validators._change_case"></a>
+
+#### \_change\_case
+
+```python
+def _change_case(character: str, case_spec: StrCaseSpec) -> str
+```
+
+Return one character converted according to a case specification.
+
+<a id="config_as_json.str_validators.StrCaseValidator"></a>
+
+## StrCaseValidator Objects
+
+```python
+class StrCaseValidator(MemberValidator)
+```
+
+Validate (upper/lower) case of a string member.
+
+<a id="config_as_json.str_validators.StrCaseValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(special_position: StrPositionSpec,
+             special_position_case: StrCaseSpec,
+             other_position_case: StrCaseSpec) -> None
+```
+
+Initialize the validator.
+
+A validator that validates the (upper/lower) case of a string member.
+
+**Arguments**:
+
+- `special_position` - The position of the special characters.
+  To what position(s) in the string shall
+  the special_position_case apply?
+- `special_position_case` - The case of the special characters.
+  The case that the character(s) in the special
+  position(s) (as specified by special_position)
+  shall have.
+- `other_position_case` - The case of the other characters.
+  The case that the character(s) in the other
+  position(s) (that is every position not matching
+  the special_position) shall have.
+
+
+**Raises**:
+
+- `TypeError` - If one argument is not the expected enum type.
+
+<a id="config_as_json.str_validators.StrCaseValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate the (upper/lower) case of a string member.
+
+The validation is performed by checking the case of the characters in
+the special position(s) and the other position(s).
+
+**Arguments**:
+
+- `config` - The configuration object to validate.
+- `member_name` - The name of the member to validate.
+- `member_value` - The value of the member to validate, which is a
+  string.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - The configuration is invalid. One or more
+  characters in the string do not match the case specification.
+- `InvalidConfiguration` - The member value is not a string.
+
+
+**Returns**:
+
+  The member value unchanged if the validation passes, otherwise
+  an exception is raised.
+
+<a id="config_as_json.str_validators.StrCaseChangeValidator"></a>
+
+## StrCaseChangeValidator Objects
+
+```python
+class StrCaseChangeValidator(MemberValidator)
+```
+
+Change the (upper/lower) case of a string member.
+
+<a id="config_as_json.str_validators.StrCaseChangeValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(special_position: StrPositionSpec,
+             special_position_case: StrCaseSpec,
+             other_position_case: StrCaseSpec) -> None
+```
+
+Initialize the validator.
+
+A validator that changes the (upper/lower) case of a string member.
+
+**Arguments**:
+
+- `special_position` - The position of the special characters.
+  To what position(s) in the string shall
+  the special_position_case apply?
+- `special_position_case` - The case of the special characters.
+  The case that the character(s) in the special
+  position(s) (as specified by special_position)
+  shall be changed to.
+- `other_position_case` - The case of the other characters.
+  The case that the character(s) in the other
+  position(s) (that is every position not matching
+  the special_position) shall be changed to.
+
+
+**Raises**:
+
+- `TypeError` - If one argument is not the expected enum type.
+
+<a id="config_as_json.str_validators.StrCaseChangeValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Change the (upper/lower) case of a string member.
+
+The change is performed by converting the case of the characters in
+the special position(s) and the other position(s).
+
+**Arguments**:
+
+- `config` - The configuration object to validate.
+- `member_name` - The name of the member to validate.
+- `member_value` - The value of the member to validate, which is a
+  string.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - The member value is not a string.
+
+
+**Returns**:
+
+  The member value changed to the new case if the validation passes,
+  otherwise an exception is raised.
+
+<a id="config_as_json.str_validators.StrValidator"></a>
+
+## StrValidator Objects
+
+```python
+class StrValidator(MemberValidator)
+```
+
+Validate one string member against allowed string values.
+
+<a id="config_as_json.str_validators.StrValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(allowed_values: Sequence[str] | Callable[[], Sequence[str]],
+             ignore_case: bool,
+             best_match: bool = False,
+             normalize: bool = False) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `allowed_values` - The allowed values for the string member.
+- `ignore_case` - Whether to ignore case when validating the
+  string member.
+- `best_match` - Whether to return the best match for the string
+  member if the value is not one of the allowed values.
+  The best match includes a unique prefix match ignoring
+  case. In this case, the returned value from
+  validate_member will be the best match (or an
+  exception if no best match is found).
+- `normalize` - Whether to normalize the string member to one of the
+  allowed values.
+
+<a id="config_as_json.str_validators.StrValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate the aspect of the Config object for a specific str member.
+
+**Raises**:
+
+- `InvalidConfiguration` - The configuration is invalid.
+- `InvalidConfigurationValue` - The value of a configuration member is
+  not one of the allowed values.
+
+
+**Arguments**:
+
+- `config` - The Config object to validate.
+- `member_name` - The name of the member to validate.
+- `member_value` - The value of the member to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  A normalized value if the validation check passes, otherwise
+  an exception is raised.
+  Returns the original value when only validated and does not want
+  to change the value of the member in the Config object.
+  When ``best_match`` is used, the returned value is the matched
+  entry from ``allowed_values``. This can normalize the member value
+  even when ``normalize`` is ``False``.
 
 <a id="config_as_json.validator"></a>
 
@@ -810,81 +1365,6 @@ case.
 
 - `InvalidConfiguration` - The value is not a string.
 - `InvalidConfigurationValue` - The value is not one of the allowed values.
-
-<a id="config_as_json.validator.StrValidator"></a>
-
-## StrValidator Objects
-
-```python
-class StrValidator(MemberValidator)
-```
-
-Validate one string member against allowed string values.
-
-<a id="config_as_json.validator.StrValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(allowed_values: Sequence[str] | Callable[[], Sequence[str]],
-             ignore_case: bool,
-             best_match: bool = False,
-             normalize: bool = False) -> None
-```
-
-Initialize the validator.
-
-**Arguments**:
-
-- `allowed_values` - The allowed values for the string member.
-- `ignore_case` - Whether to ignore case when validating the
-  string member.
-- `best_match` - Whether to return the best match for the string
-  member if the value is not one of the allowed values.
-  The best match includes a unique prefix match ignoring
-  case. In this case, the returned value from
-  validate_member will be the best match (or an
-  exception if no best match is found).
-- `normalize` - Whether to normalize the string member to one of the
-  allowed values.
-
-<a id="config_as_json.validator.StrValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: 'Config',
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate the aspect of the Config object for a specific str member.
-
-**Raises**:
-
-- `InvalidConfiguration` - The configuration is invalid.
-- `InvalidConfigurationValue` - The value of a configuration member is
-  not one of the allowed values.
-
-
-**Arguments**:
-
-- `config` - The Config object to validate.
-- `member_name` - The name of the member to validate.
-- `member_value` - The value of the member to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  A normalized value if the validation check passes, otherwise
-  an exception is raised.
-  Returns the original value when only validated and does not want
-  to change the value of the member in the Config object.
-  When ``best_match`` is used, the returned value is the matched
-  entry from ``allowed_values``. This can normalize the member value
-  even when ``normalize`` is ``False``.
 
 <a id="config_as_json.validator.IntFloat"></a>
 

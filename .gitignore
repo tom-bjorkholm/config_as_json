@@ -32,3 +32,4 @@ non_cursor_AGENTS.md
 *.log
 *.pdf
 example/result/*
+config_in_json_changes.md

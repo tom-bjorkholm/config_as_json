@@ -7,6 +7,7 @@
 import sys
 from typing import Optional, TextIO
 import pytest
+from config_as_json import StrValidator
 from config_as_json.config import Config
 from config_as_json.dict_validators import DictKeysValidator
 from config_as_json.list_validators import ListIsOrderedValidator, \
@@ -15,8 +16,7 @@ from config_as_json.projected_validators import ProjectedMemberValidator, \
     ProjectedWholeConfigValidator
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue, MemberValidationStep, MemberValidator, \
-    StrValidator, ValidationPlan, WholeConfigValidationStep, \
-    WholeConfigValidator
+    ValidationPlan, WholeConfigValidationStep, WholeConfigValidator
 from .validator_test_helpers import EmptyValidationConfig, \
     assert_validate_member_failure, assert_validate_member_ok
 
