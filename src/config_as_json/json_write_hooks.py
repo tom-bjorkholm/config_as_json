@@ -99,12 +99,15 @@ class SerializeSelectorError(ValueError):
     """
 
 
+type SerializeConverters = dict[SerializeSelector, SerializeConverter]
+"""Write-side conversion rules for rich Python values before JSON write."""
+
+
 # pylint: disable-next=too-few-public-methods
 class JsonWriteHookProvider(Protocol):
     """Describe the write-side hook that ``Config`` classes may provide."""
 
-    def serialize_converters(self) -> dict[SerializeSelector,
-                                           SerializeConverter]:
+    def serialize_converters(self) -> SerializeConverters:
         """Return conversion rules for rich Python values before JSON write.
 
         The returned dictionary maps selectors to converters. A selector may
@@ -148,11 +151,11 @@ class JsonWriteHookProvider(Protocol):
         raise NotImplementedError('Sketch only.')
 
 
-def apply_serialize_converters(
-        data: dict[str, object],
-        converters: dict[SerializeSelector, SerializeConverter],
-        stderr_file: TextIO,
-        child_owned_paths: Sequence[ConfigPath] = ()) -> dict[str, JsonType]:
+def apply_serialize_converters(data: dict[str, object],
+                               converters: SerializeConverters,
+                               stderr_file: TextIO,
+                               child_owned_paths: Sequence[ConfigPath] = ()) \
+                                   -> dict[str, JsonType]:
     """Return JSON-compatible data after write-side conversions.
 
     ``Config.as_json_string()`` should call this function after validation and

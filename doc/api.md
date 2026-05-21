@@ -4817,7 +4817,7 @@ Describe the write-side hook that ``Config`` classes may provide.
 #### serialize\_converters
 
 ```python
-def serialize_converters() -> dict[SerializeSelector, SerializeConverter]
+def serialize_converters() -> SerializeConverters
 ```
 
 Return conversion rules for rich Python values before JSON write.
@@ -4868,7 +4868,7 @@ Derived ``Config`` classes should override this method with
 ```python
 def apply_serialize_converters(
     data: dict[str, object],
-    converters: dict[SerializeSelector, SerializeConverter],
+    converters: SerializeConverters,
     stderr_file: TextIO,
     child_owned_paths: Sequence[ConfigPath] = ()
 ) -> dict[str, JsonType]
