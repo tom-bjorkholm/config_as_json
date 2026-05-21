@@ -49,6 +49,8 @@ from config_as_json.list_relation_validator import ListRelationKind, \
     ListRelationValidator
 from config_as_json.as_dict_view_validator import AsDictViewValidator, \
     public_attrs_to_dict
+from config_as_json.json_write_hooks import SerializeConverter, \
+    SerializeSelector, JsonWriteHookError, SerializeSelectorError
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.assert_dict_equal import assert_dict_equal
 
@@ -68,6 +70,10 @@ __all__ = ['Config',
            'JsonType',
            'PathOrStr',
            'ConfigPath',
+           'SerializeSelector',
+           'SerializeConverter',
+           'JsonWriteHookError',
+           'SerializeSelectorError',
            'ParseConverter',
            'ConfigAutoChangeHook',
            'CsvDialectConfig',

@@ -37,6 +37,8 @@ boundaries and use their own paths.
 Ordinary path elements are dictionary keys. The special path element ``'['``
 means "each list element". For example, ``('outputs', '[', 'format')``
 addresses the ``format`` key in every object inside the root ``outputs`` list.
+A path ends with ``'['`` when a rule intentionally targets the list elements
+themselves instead of a dictionary key inside those elements.
 
 Paths must be non-empty and must start with a dictionary key. Any path element
 that starts with ``'['`` but is not exactly ``'['`` is reserved for future list
