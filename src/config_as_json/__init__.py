@@ -14,7 +14,7 @@ write JSON configuration files.
 from config_as_json.config import Config, ConfigBadJson, ParseConverter
 from config_as_json.config_nesting import ConfigNestingKind, ConfigNesting, \
     ConfigFactory, NestedConfigs
-from config_as_json.commontypes import JsonType, PathOrStr
+from config_as_json.commontypes import JsonType, PathOrStr, ConfigPath
 from config_as_json.config_factory import config_factory_from_json, \
     MatchConfig, MatchConfigSeq, JsonValueMatcher
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
@@ -67,6 +67,7 @@ __all__ = ['Config',
            'NestedConfigs',
            'JsonType',
            'PathOrStr',
+           'ConfigPath',
            'ParseConverter',
            'ConfigAutoChangeHook',
            'CsvDialectConfig',

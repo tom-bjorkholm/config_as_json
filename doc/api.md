@@ -4791,8 +4791,7 @@ Describe the write-side hook that ``Config`` classes may provide.
 #### serialize\_converters
 
 ```python
-def serialize_converters(
-) -> Optional[dict[SerializeSelector, SerializeConverter]]
+def serialize_converters() -> dict[SerializeSelector, SerializeConverter]
 ```
 
 Return conversion rules for rich Python values before JSON write.
@@ -4809,10 +4808,14 @@ Explicit converters override built-in fallback conversions. If more
 than one selector matches a value, the most specific path selector
 should win over a recursive key-name selector.
 
+Derived ``Config`` classes should override this method with
+``@override`` when they need explicit write-side converters. The base
+``Config`` implementation should return an empty dictionary.
+
 **Returns**:
 
-  Write-side conversion rules, or ``None`` when no explicit
-  conversions are needed.
+  Write-side conversion rules. Return an empty dictionary when no
+  explicit conversions are needed.
 
 <a id="config_as_json.config_nesting"></a>
 

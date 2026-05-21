@@ -12,33 +12,22 @@ while reading JSON, before validation and nested ``Config`` conversion.
 from copy import deepcopy
 from typing import NamedTuple, Optional, Sequence, TextIO, cast
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.commontypes import ConfigPath
 from config_as_json.validator import InvalidConfiguration
 
 
-type RocfPath = tuple[str, ...]
-"""A path used by read old configuration file (ROCF) rules.
+type RocfPath = ConfigPath
+"""ROCF-specific name for the shared configuration JSON path type.
 
 Application subclasses use ``RocfPath`` values when they return path-based
-remove, move or missing-value rules. Each path is absolute from the root JSON
-configuration object that is being read.
+remove, move or missing-value rules. The path syntax is defined by
+``ConfigPath``. In ROCF rules, each path is interpreted relative to the parsed
+root JSON configuration object that is being normalized.
 
-The library treats ordinary path elements as dictionary keys. The special path
-element ``'['`` means "each list element". For example, the path
-``('outputs', '[', 'encoding')`` addresses the ``encoding`` key in every item
-of the ``outputs`` list.
-
-Any path element that starts with ``'['`` but is not exactly ``'['`` is
-reserved for future list syntax and is illegal in this version. If an old file
-really contains a dictionary key that starts with ``'['``, handle that file in
-:meth:`ReadOldConfiguration.pre_process_json` or
-:meth:`ReadOldConfiguration.post_process_json` instead of a declarative rule.
-
-Declarative ROCF paths must be non-empty and must start with a dictionary key.
-The data has already been decoded from JSON before the library applies these
-paths. Depending on the ``Config`` parse flow, scalar leaf values may also have
-been converted by ``parse_converters()``. Application rules should therefore
-reason about dictionary and list shape, and usually treat leaf values as
-already parsed application values.
+If an old file really contains a dictionary key that starts with ``'['``,
+handle that file in :meth:`ReadOldConfiguration.pre_process_json` or
+:meth:`ReadOldConfiguration.post_process_json` instead of a declarative ROCF
+path rule.
 """
 
 
@@ -189,7 +178,7 @@ def _path_text(path: Sequence[str | int]) -> str:
     return result
 
 
-def _validate_path(path: RocfPath, name: str) -> None:
+def _validate_path(path: ConfigPath, name: str) -> None:
     """Validate a path returned by an application ROCF method."""
     if not path:
         raise ValueError(f'{name} must not be empty')
@@ -202,7 +191,7 @@ def _validate_path(path: RocfPath, name: str) -> None:
             raise ValueError(f'{name} element {part} is reserved')
 
 
-def _list_marker_count(path: RocfPath) -> int:
+def _list_marker_count(path: ConfigPath) -> int:
     """Return the number of each-list wildcards in ``path``."""
     return sum(1 for part in path if part == '[')
 
@@ -279,7 +268,8 @@ def _rename_key_recursive(rename: RocfKeyRename, data: object,
     return False
 
 
-def _collect_path_values(data: object, path: RocfPath, actual: list[str | int],
+def _collect_path_values(data: object, path: ConfigPath,
+                         actual: list[str | int],
                          indexes: list[int]) -> list[_MovedValue]:
     """Collect old values reached by expanding one move-rule path."""
     part = path[0]
@@ -307,7 +297,7 @@ def _collect_path_values(data: object, path: RocfPath, actual: list[str | int],
     return _collect_path_values(dict_data[part], rest, new_actual, indexes)
 
 
-def _target_path(new_path: RocfPath, indexes: list[int]) -> list[str | int]:
+def _target_path(new_path: ConfigPath, indexes: list[int]) -> list[str | int]:
     """Return the current target path for one collected old value."""
     target: list[str | int] = []
     next_index = 0
@@ -463,7 +453,7 @@ def _write_path(data: object, path: Sequence[str | int],
         dict_data[last] = value
 
 
-def _remove_path(data: object, path: RocfPath,
+def _remove_path(data: object, path: ConfigPath,
                  actual: list[str | int]) -> list[str]:
     """Apply one old-path remove rule and return removed path texts."""
     part = path[0]
@@ -491,7 +481,7 @@ def _remove_path(data: object, path: RocfPath,
     return [_path_text(new_actual)]
 
 
-def _apply_missing(data: object, path: RocfPath, value: object,
+def _apply_missing(data: object, path: ConfigPath, value: object,
                    actual: list[str | int]) -> list[str]:
     """Apply one current missing-value rule and return changed paths."""
     part = path[0]

@@ -11,25 +11,8 @@ after the API sketch has been reviewed.
 # MIT License
 
 from typing import Callable, NamedTuple, Optional, Protocol
-from config_as_json.commontypes import JsonType
+from config_as_json.commontypes import ConfigPath, JsonType
 from config_as_json.validator import InvalidConfiguration
-
-
-type ConfigPath = tuple[str, ...]
-"""Absolute path through decoded configuration JSON data.
-
-The path rules are shared with read old configuration file (ROCF) rules. A
-path is absolute from the root object owned by the current ``Config`` object.
-Ordinary path elements are dictionary keys. The special element ``'['`` means
-"each list element".
-
-For example, ``('outputs', '[', 'format')`` addresses the ``format`` key in
-every object inside the root ``outputs`` list.
-
-Paths must be non-empty and must start with a dictionary key. Any path element
-that starts with ``'['`` but is not exactly ``'['`` is reserved for future list
-syntax.
-"""
 
 
 type SerializeSelector = str | ConfigPath
@@ -92,8 +75,8 @@ class JsonWriteHookError(InvalidConfiguration):
 class JsonWriteHookProvider(Protocol):
     """Describe the write-side hook that ``Config`` classes may provide."""
 
-    def serialize_converters(self) -> Optional[
-            dict[SerializeSelector, SerializeConverter]]:
+    def serialize_converters(self) -> dict[SerializeSelector,
+                                           SerializeConverter]:
         """Return conversion rules for rich Python values before JSON write.
 
         The returned dictionary maps selectors to converters. A selector may
@@ -108,8 +91,12 @@ class JsonWriteHookProvider(Protocol):
         than one selector matches a value, the most specific path selector
         should win over a recursive key-name selector.
 
+        Derived ``Config`` classes should override this method with
+        ``@override`` when they need explicit write-side converters. The base
+        ``Config`` implementation should return an empty dictionary.
+
         Returns:
-            Write-side conversion rules, or ``None`` when no explicit
-            conversions are needed.
+            Write-side conversion rules. Return an empty dictionary when no
+            explicit conversions are needed.
         """
         raise NotImplementedError('Sketch only.')
