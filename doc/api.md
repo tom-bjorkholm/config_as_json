@@ -4759,16 +4759,28 @@ If ``value_type`` is ``None``, no pre-conversion type check is performed
 and the conversion function is responsible for accepting the matched
 value.
 
-The conversion function is called with the value, the current path text,
-the current ``stderr_file``, and the keyword arguments from ``args``. The
-path text is a string intended for diagnostics, in the same style as
-member names passed to member validators. Converter functions should not
-parse the path text as a selector.
+The conversion function is called with the matched value, the current
+path text, the current ``stderr_file``, and the keyword arguments from
+``args``. The intended call shape is
+``func(value, path_text=path_text, stderr_file=stderr_file, **args)``.
+
+``path_text`` is for diagnostics and should not be parsed as a selector.
+It uses the same style as member names passed to member validators: list
+indexes and dictionary keys are appended in square brackets, for example
+``matrix[3]`` and ``csv_params[delimiter]``.
 
 The conversion result must be recursively JSON-compatible. Valid output is
 ``None``, ``int``, ``str``, ``bool``, a list of valid values, or a
 dictionary with string keys and valid values. Invalid output should raise
 a path-aware ``JsonWriteHookError`` before ``json.dumps()`` is called.
+Explicit converter output is checked as-is. Built-in fallback conversions
+are not applied to the converter return value, so returning
+``{'mode': SomeEnum.FAST}`` is invalid. Return a JSON-compatible value
+such as ``{'mode': 'FAST'}`` instead.
+
+If ``func`` raises ``JsonWriteHookError``, it should propagate unchanged.
+Other exceptions from ``func`` should be wrapped in ``JsonWriteHookError``
+with selector and path context.
 
 **Attributes**:
 
@@ -4801,6 +4813,11 @@ declarations, such as invalid selector types, invalid ``ConfigPath``
 syntax, or a recursive key selector that conflicts with a path selector
 ending in the same dictionary key. It also reports selectors that would
 cross child-owned nested ``Config`` ownership boundaries.
+
+Selector declarations should be checked before conversion starts as far as
+possible. Data-dependent traversal errors, such as a path selector that
+reaches a list where it needs a dictionary, are detected while traversing
+the actual data and also raise this exception.
 
 <a id="config_as_json.json_write_hooks.JsonWriteHookProvider"></a>
 
@@ -4852,6 +4869,10 @@ Explicit converters override built-in fallback conversions. If more
 than one selector matches a value, the most specific path selector
 should win over a recursive key-name selector.
 
+The initial built-in fallback conversions are intentionally small:
+``Enum`` and ``IntEnum`` members are converted to their member names.
+All other rich Python values need explicit converters.
+
 Derived ``Config`` classes should override this method with
 ``@override`` when they need explicit write-side converters. The base
 ``Config`` implementation should return an empty dictionary.
@@ -4881,6 +4902,24 @@ after nested ``Config`` members have been converted to their own JSON data,
 but before calling ``json.dumps()``. The function owns selector checking,
 converter dispatch, built-in fallback conversions such as enum-name
 serialization, and recursive JSON-compatibility checks.
+
+The function returns a new converted tree when any conversion is needed.
+If no conversion is needed, it may return ``data`` unchanged. It should
+not partially mutate the passed-in data tree while producing a different
+returned tree.
+
+The initial built-in fallback conversions are ``Enum`` and ``IntEnum``
+members to their member names. Everything else outside explicit
+converters must already be JSON-compatible.
+
+A path selector that reaches a missing dictionary key is a no-op. A path
+selector that reaches the wrong container type raises
+``SerializeSelectorError``. For example, expecting a dictionary key where
+the actual data has a list is an error, while an absent key in an existing
+dictionary is not.
+
+A recursive key-name selector walks parent-owned dictionaries and lists.
+It must skip child-owned subtrees.
 
 ``child_owned_paths`` describes nested ``Config`` subtrees that are present
 in ``data`` only because the child object already serialized itself. This
