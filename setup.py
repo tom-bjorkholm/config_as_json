@@ -4,7 +4,7 @@
 from setuptools import setup  # type: ignore[import-untyped]
 
 setup(
-  name='config-as-json', version='0.7.1',
+  name='config-as-json', version='0.8',
   description='Read, write, validate, and migrate JSON-backed config classes.',
   author='Tom Björkholm', author_email='klausuler_linnet0q@icloud.com',
   python_requires='>=3.12', packages=['config_as_json'],
