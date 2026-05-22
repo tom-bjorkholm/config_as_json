@@ -311,7 +311,7 @@ pip install --upgrade config-as-json
 - `config_as_json.ReadOldConfiguration`
   Base class for backward-compatible old-file normalization rules.
 - `config_as_json.RocfKeyRename`, `config_as_json.RocfKeyMove`, and
-  `config_as_json.RocfPath`
+  `config_as_json.ConfigPath`
   Rule helpers for old-file key renames, path moves, removals, and missing
   current values.
 - `config_as_json.config_factory_from_json`
@@ -343,7 +343,7 @@ MIT
 
 ## Test summary
 
-- Test result: 4299 passed in 15s
+- Test result: 4299 passed in 14s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

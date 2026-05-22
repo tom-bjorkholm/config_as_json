@@ -14,9 +14,9 @@ from config_as_json.config import Config, ParseConverter
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
     NestedConfigs
-from config_as_json.commontypes import JsonType
+from config_as_json.commontypes import ConfigPath, JsonType
 from config_as_json.read_old_configuration import ReadOldConfiguration, \
-    RocfKeyRename, RocfPath
+    RocfKeyRename
 from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
     WholeConfigValidationStep, WholeConfigValidator
 
@@ -24,7 +24,7 @@ from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
 class AbcReadOldConfig(ReadOldConfiguration):
     """Provide compatibility defaults for ``AbcConfig``."""
 
-    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
         """Return default values for optional parameters."""
         return {('cd',): 'cd99', ('ef',): 'ef99'}
 
@@ -313,7 +313,7 @@ class RocfRemoveReadOldConfig(ReadOldConfiguration):
         """Return old keys that should be dropped from JSON input."""
         return ['obsolete_top', 'obsolete_nested']
 
-    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
         """Return current values for paths missing from old files."""
         return {('version',): 2}
 

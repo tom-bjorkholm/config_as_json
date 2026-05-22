@@ -12,6 +12,7 @@ from io import StringIO
 from typing import Optional, TextIO, cast
 import pytest
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.commontypes import ConfigPath
 from config_as_json.validator import InvalidConfiguration
 import config_as_json.read_old_configuration as rocf_mod
 from .test_read_old_configuration import RuleReadOldConfig
@@ -104,7 +105,7 @@ def test_path_text_ok(path: list[str | int], expected: str) -> None:
 
 
 @pytest.mark.parametrize('path', [('name',), ('outputs', '[', 'format')])
-def test_validate_path_ok(path: rocf_mod.RocfPath) -> None:
+def test_validate_path_ok(path: ConfigPath) -> None:
     """Test accepted declarative path syntax."""
     rocf_mod._validate_path(path, 'path')
 
@@ -112,8 +113,8 @@ def test_validate_path_ok(path: rocf_mod.RocfPath) -> None:
 @pytest.mark.parametrize(
     'path, error_type',
     [((), ValueError), (('[', 'name'), ValueError), (('[5',), ValueError),
-     (cast(rocf_mod.RocfPath, ('ok', 1)), TypeError)])
-def test_validate_path_bad(path: rocf_mod.RocfPath,
+     (cast(ConfigPath, ('ok', 1)), TypeError)])
+def test_validate_path_bad(path: ConfigPath,
                            error_type: type[Exception]) -> None:
     """Test rejected declarative path syntax."""
     with pytest.raises(error_type):
@@ -124,7 +125,7 @@ def test_validate_path_bad(path: rocf_mod.RocfPath,
     'path, expected',
     [(('name',), 0), (('outputs', '[', 'format'), 1),
      (('a', '[', 'b', '[', 'c'), 2)])
-def test_list_marker_count(path: rocf_mod.RocfPath, expected: int) -> None:
+def test_list_marker_count(path: ConfigPath, expected: int) -> None:
     """Test counting of list wildcards in a declarative path."""
     assert rocf_mod._list_marker_count(path) == expected
 
@@ -221,7 +222,7 @@ def test_rename_key_recursive_bad() -> None:
      ({'items': 'bad'}, ('items', '[', 'old'), []),
      ({'missing': {}}, ('items', '[', 'old'), [])])
 def test_collect_path_values(
-        data: dict[str, object], path: rocf_mod.RocfPath,
+        data: dict[str, object], path: ConfigPath,
         expected: list[tuple[list[str | int], list[int], object]]) -> None:
     """Test collection of actual values for declarative paths."""
     collected = rocf_mod._collect_path_values(data, path, [], [])
@@ -234,7 +235,7 @@ def test_collect_path_values(
     [(('new',), [], ['new']),
      (('outputs', '[', 'name'), [], ['outputs', 0, 'name']),
      (('outputs', '[', 'name'), [3], ['outputs', 3, 'name'])])
-def test_target_path(new_path: rocf_mod.RocfPath, indexes: list[int],
+def test_target_path(new_path: ConfigPath, indexes: list[int],
                      expected: list[str | int]) -> None:
     """Test creation of an actual target path from a move rule."""
     assert rocf_mod._target_path(new_path, indexes) == expected
@@ -387,7 +388,7 @@ def test_write_path_bad(data: dict[str, object],
      ({'items': [1, 2]}, ('items', '['), {'items': []},
       ['items[0]', 'items[1]']),
      ({'items': 'bad'}, ('items', '[', 'old'), {'items': 'bad'}, [])])
-def test_remove_path(data: dict[str, object], path: rocf_mod.RocfPath,
+def test_remove_path(data: dict[str, object], path: ConfigPath,
                      expected_data: dict[str, object],
                      expected_removed: list[str]) -> None:
     """Test path-based removal rules."""
@@ -406,7 +407,7 @@ def test_remove_path(data: dict[str, object], path: rocf_mod.RocfPath,
      ({'items': [1, 2]}, ('items', '['), 'a', {'items': [1, 2]}, []),
      ({}, ('items', '[', 'name'), 'a', {}, [])])
 def test_apply_missing(
-        data: dict[str, object], path: rocf_mod.RocfPath, value: object,
+        data: dict[str, object], path: ConfigPath, value: object,
         expected_data: dict[str, object], expected_applied: list[str]) -> None:
     """Test missing-value application."""
     assert rocf_mod._apply_missing(data, path, value, []) == expected_applied
@@ -417,8 +418,7 @@ def test_apply_missing(
     'data, path',
     [({'items': 'bad'}, ('items', '[', 'name')),
      ({'meta': 'bad'}, ('meta', 'owner'))])
-def test_apply_missing_bad(data: dict[str, object],
-                           path: rocf_mod.RocfPath) -> None:
+def test_apply_missing_bad(data: dict[str, object], path: ConfigPath) -> None:
     """Test missing-value application through incompatible containers."""
     with pytest.raises(rocf_mod.RocfIncompatiblePathError):
         rocf_mod._apply_missing(data, path, 'value', [])

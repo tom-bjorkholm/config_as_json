@@ -22,9 +22,10 @@ from config_as_json.list_validators import ListForEachValidator, \
     ListValueTypeValidator
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.commontypes import ConfigPath
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.read_old_configuration import ReadOldConfiguration, \
-    RocfKeyRename, RocfPath
+    RocfKeyRename
 from config_as_json.validator import ValidationPlan, ValueTypeValidator
 from .config_enums import FileType, SplitWhere, \
     ExcelLib, RewriteKind, CaseSensitivity, ColumnRef
@@ -93,7 +94,7 @@ class ColInfo(NamedTuple, Generic[Column]):
 class ExcelListTransformReadOldConfig(ReadOldConfiguration):
     """Normalize old excel-list-transform test configuration files."""
 
-    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
         """Provide default values for optional encoding."""
         return {('in_csv_encoding',): 'utf_8_sig',
                 ('out_csv_encoding',): 'utf-8',

@@ -8,9 +8,10 @@ from copy import deepcopy
 from io import StringIO
 import pytest
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.commontypes import ConfigPath
 from config_as_json.read_old_configuration import ReadOldConfiguration, \
     RocfConflictError, RocfIncompatiblePathError, RocfKeyMove, \
-    RocfKeyRename, RocfPath
+    RocfKeyRename
 
 
 class RuleReadOldConfig(ReadOldConfiguration):
@@ -20,8 +21,8 @@ class RuleReadOldConfig(ReadOldConfiguration):
         """Store the rules this processor should return."""
         self.moves: list[RocfKeyMove] = []
         self.remove_names: list[str] = []
-        self.remove_paths: list[RocfPath] = []
-        self.missing: dict[RocfPath, object] = {}
+        self.remove_paths: list[ConfigPath] = []
+        self.missing: dict[ConfigPath, object] = {}
         self.renames: list[RocfKeyRename] = []
 
     def get_json_key_moves(self) -> list[RocfKeyMove]:
@@ -32,11 +33,11 @@ class RuleReadOldConfig(ReadOldConfiguration):
         """Return injected recursive remove keys."""
         return self.remove_names
 
-    def get_keys_to_remove(self) -> list[RocfPath]:
+    def get_keys_to_remove(self) -> list[ConfigPath]:
         """Return injected path remove rules."""
         return self.remove_paths
 
-    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
         """Return injected missing-value rules."""
         return self.missing
 

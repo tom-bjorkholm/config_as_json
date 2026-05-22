@@ -26,8 +26,8 @@ import sys
 from enum import Enum, auto
 from typing import Optional, TextIO, cast
 from config_as_json import Config, ConfigAutoChangeHook, MigrateCfgWarnHook, \
-    ParseConverter, PathOrStr, ReadOldConfiguration, RocfKeyRename, \
-    RocfPath, ValidationPlan, string_to_enum_best_match, migrate_cfg
+    ConfigPath, ParseConverter, PathOrStr, ReadOldConfiguration, \
+    RocfKeyRename, ValidationPlan, string_to_enum_best_match, migrate_cfg
 
 
 CURRENT_FORMAT_VERSION = 2
@@ -81,7 +81,7 @@ class OldExampleConfig31(Config):
 class Example31ReadOldConfig(ReadOldConfiguration):
     """Describe how old e31 configuration files are normalized."""
 
-    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
         """Return current values for paths missing from old files."""
         # These keys are mandatory in the current shape, but old files never
         # contained them. The values are inserted after old names have been

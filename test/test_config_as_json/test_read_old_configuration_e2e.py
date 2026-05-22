@@ -10,8 +10,8 @@ from io import StringIO
 from typing import Optional, TextIO, override
 import pytest
 from config_as_json import Config, ConfigAutoChangeHook, ConfigNesting, \
-    ConfigNestingKind, JsonType, NestedConfigs, ParseConverter, \
-    PathOrStr, ReadOldConfiguration, RocfKeyMove, RocfKeyRename, RocfPath, \
+    ConfigNestingKind, ConfigPath, JsonType, NestedConfigs, ParseConverter, \
+    PathOrStr, ReadOldConfiguration, RocfKeyMove, RocfKeyRename, \
     ValidationPlan
 
 
@@ -155,11 +155,11 @@ class E2EReadOldConfig(ReadOldConfiguration):
         """Return old key names removed everywhere in the input."""
         return ['trace_enabled']
 
-    def get_keys_to_remove(self) -> list[RocfPath]:
+    def get_keys_to_remove(self) -> list[ConfigPath]:
         """Return precise old paths removed from the input."""
         return [('legacy_block',), ('sections', '[', 'stale')]
 
-    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
         """Return current values supplied when old data lacks them."""
         return {('schema_version',): 3,
                 ('export_items', '[', 'char_encoding'): 'utf-8',

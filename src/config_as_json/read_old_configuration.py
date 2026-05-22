@@ -17,18 +17,7 @@ from config_as_json.validator import InvalidConfiguration
 
 
 type RocfPath = ConfigPath
-"""ROCF-specific name for the shared configuration JSON path type.
-
-Application subclasses use ``RocfPath`` values when they return path-based
-remove, move or missing-value rules. The path syntax is defined by
-``ConfigPath``. In ROCF rules, each path is interpreted relative to the parsed
-root JSON configuration object that is being normalized.
-
-If an old file really contains a dictionary key that starts with ``'['``,
-handle that file in :meth:`ReadOldConfiguration.pre_process_json` or
-:meth:`ReadOldConfiguration.post_process_json` instead of a declarative ROCF
-path rule.
-"""
+"""Backward-compatible alias for ``ConfigPath``."""
 
 
 class RocfKeyMove(NamedTuple):
@@ -85,6 +74,11 @@ class RocfKeyMove(NamedTuple):
     Overlapping moves are order-sensitive, so application code should avoid
     them unless the migration really needs them.
 
+    If an old file really contains a dictionary key that starts with ``'['``,
+    handle that file in :meth:`ReadOldConfiguration.pre_process_json` or
+    :meth:`ReadOldConfiguration.post_process_json` instead of a declarative
+    ROCF path rule.
+
     Attributes:
         old_path: Absolute path to the old value in the root configuration
             data object.
@@ -92,8 +86,8 @@ class RocfKeyMove(NamedTuple):
             configuration data object.
     """
 
-    old_path: RocfPath
-    new_path: RocfPath
+    old_path: ConfigPath
+    new_path: ConfigPath
 
 
 RocfKeyRename = NamedTuple('RocfKeyRename', [('old', str), ('new', str)])
@@ -740,7 +734,7 @@ class ReadOldConfiguration:
         """
         return []
 
-    def get_keys_to_remove(self) -> list[RocfPath]:
+    def get_keys_to_remove(self) -> list[ConfigPath]:
         """Return old paths to remove while reading old files.
 
         Application subclasses override this when old configuration files may
@@ -761,7 +755,7 @@ class ReadOldConfiguration:
         """
         return []
 
-    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
         """Return values for missing current-schema paths.
 
         Application subclasses override this when old configuration files lack

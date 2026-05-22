@@ -6808,6 +6808,11 @@ value first, removes the old path, and then writes the new path.
 Overlapping moves are order-sensitive, so application code should avoid
 them unless the migration really needs them.
 
+If an old file really contains a dictionary key that starts with ``'['``,
+handle that file in :meth:`ReadOldConfiguration.pre_process_json` or
+:meth:`ReadOldConfiguration.post_process_json` instead of a declarative
+ROCF path rule.
+
 **Attributes**:
 
 - `old_path` - Absolute path to the old value in the root configuration
@@ -7375,7 +7380,7 @@ intended.
 #### get\_keys\_to\_remove
 
 ```python
-def get_keys_to_remove() -> list[RocfPath]
+def get_keys_to_remove() -> list[ConfigPath]
 ```
 
 Return old paths to remove while reading old files.
@@ -7404,7 +7409,7 @@ current schema.
 #### get\_values\_for\_missing\_json\_keys
 
 ```python
-def get_values_for_missing_json_keys() -> dict[RocfPath, object]
+def get_values_for_missing_json_keys() -> dict[ConfigPath, object]
 ```
 
 Return values for missing current-schema paths.

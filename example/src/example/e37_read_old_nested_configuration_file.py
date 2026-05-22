@@ -20,9 +20,9 @@ import sys
 from enum import Enum, auto
 from typing import Callable, Optional, TextIO, cast, override
 from config_as_json import Config, ConfigAutoChangeHook, ConfigNesting, \
-    ConfigNestingKind, MigrateCfgWarnHook, NestedConfigs, ParseConverter, \
-    PathOrStr, ReadOldConfiguration, RocfKeyMove, RocfKeyRename, RocfPath, \
-    ValidationPlan, migrate_cfg, string_to_enum_best_match
+    ConfigNestingKind, ConfigPath, MigrateCfgWarnHook, NestedConfigs, \
+    ParseConverter, PathOrStr, ReadOldConfiguration, RocfKeyMove, \
+    RocfKeyRename, ValidationPlan, migrate_cfg, string_to_enum_best_match
 
 
 CURRENT_FORMAT_VERSION = 2
@@ -177,7 +177,7 @@ class Example37ReadOldConfig(ReadOldConfiguration):
         # part of the current configuration model.
         return ['debug_trace']
 
-    def get_values_for_missing_json_keys(self) -> dict[RocfPath, object]:
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
         """Return current values for paths missing from old files."""
         # Missing values run after moves. Therefore an old ``output`` object
         # can first become ``outputs[0]``. Only if the old optional object is
