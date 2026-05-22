@@ -359,7 +359,11 @@ class DictForEachValidator(MemberValidator):
     Inner validator calls receive ``f'{member_name}[{key}]'`` as the
     ``member_name``, so error messages stay precise about which key
     failed. The same convention is used by ``ListForEachValidator`` with
-    the index in place of the key.
+    the index in place of the key. The ``member_name`` is built as the
+    configuration structure is traversed. The top level member name starts
+    the string as a plain string. When "indexing" into a list or dict the
+    index is appended in square brackets. When going into a class member
+    a dot and the member name is appended.
 
     Order example::
 

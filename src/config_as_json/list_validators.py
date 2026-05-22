@@ -739,7 +739,11 @@ class ListForEachValidator(MemberValidator):
     When an inner validator is invoked, ``member_name`` is the outer member
     name with the element index appended in square brackets, for example
     ``'matrix[3]'``. The validator's error messages therefore stay precise
-    about which element failed.
+    about which element failed. The ``member_name`` is built as the
+    configuration structure is traversed. The top level member name starts
+    the string as a plain string. When "indexing" into a list or dict the
+    index is appended in square brackets. When going into a class member
+    a dot and the member name is appended.
 
     List-level size or ordering checks are intentionally not part of this
     class. Use a separate ``ListSizeValidator`` (or any other list
