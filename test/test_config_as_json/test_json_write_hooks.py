@@ -9,6 +9,8 @@ directly. Integration with :class:`Config` is exercised in
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+# pylint: disable=protected-access
+
 import sys
 from copy import deepcopy
 from enum import Enum
@@ -19,7 +21,7 @@ import pytest
 from config_as_json.commontypes import ConfigPath, JsonType
 from config_as_json.json_write_hooks import (
     JsonWriteHookError, SerializeConverter, SerializeConverters,
-    SerializeSelectorError, apply_serialize_converters)
+    SerializeSelectorError, _is_path_selector, apply_serialize_converters)
 from .write_hook_test_helpers import Priority, Severity, to_enum_value
 
 
@@ -63,6 +65,13 @@ def return_path(value: object, *, path_text: str, stderr_file: TextIO,
     """Return the converter's ``path_text`` for diagnostic inspection."""
     _ = value, stderr_file
     return path_text
+
+
+def dict_with_key(value: object, *, path_text: str, stderr_file: TextIO,
+                  key: object) -> JsonType:
+    """Return a dict with a caller-supplied key for compatibility checks."""
+    _ = value, path_text, stderr_file
+    return cast(JsonType, {key: 'bad'})
 
 
 # Container for the result of running ``apply_serialize_converters`` in tests.
@@ -210,6 +219,15 @@ def test_path_text_brackets() -> None:
                                {'format': 'outputs[1][format]'}]}
 
 
+def test_path_selector_repr_error() -> None:
+    """Tuple selectors are rendered clearly in path-selector diagnostics."""
+    converters = {('items', '[', 'level'): SerializeConverter(
+        value_type=Enum, func=to_enum_value, args={})}
+    with pytest.raises(JsonWriteHookError,
+                       match=r"\('items', '\[', 'level'\).*expected Enum"):
+        _ = run({'items': [{'level': 'not-an-enum'}]}, converters)
+
+
 # ----------------------------------------------------------------------
 # value_type pre-check, converter errors, JSON-compatibility check
 # ----------------------------------------------------------------------
@@ -268,6 +286,17 @@ def test_non_json_output() -> None:
         _ = run({'file': 'x'}, converters)
 
 
+@pytest.mark.parametrize(
+    'key, message',
+    [(1, 'must be a str'), ('[bad', "must not start with '\\['")])
+def test_output_dict_key_rejects(key: object, message: str) -> None:
+    """Converter outputs must use JSON-compatible dictionary keys."""
+    converters = {'payload': SerializeConverter(
+        value_type=str, func=dict_with_key, args={'key': key})}
+    with pytest.raises(JsonWriteHookError, match=message):
+        _ = run({'payload': 'x'}, converters)
+
+
 def test_non_json_no_converter() -> None:
     """A non-JSON value with no converter is rejected with a clear error."""
     with pytest.raises(JsonWriteHookError, match='non-JSON type'):
@@ -279,7 +308,8 @@ def test_non_json_no_converter() -> None:
 # ----------------------------------------------------------------------
 
 
-@pytest.mark.parametrize('selector', ['', '[', ('value', '[bad'), (), (5,), 7])
+@pytest.mark.parametrize('selector',
+                         ['', '[', ('value', '[bad'), ('[',), (), (5,), 7])
 def test_invalid_selector_shape(selector: object) -> None:
     """Bad selector shapes are reported before any conversion runs."""
     converters = {selector: SerializeConverter(
@@ -293,6 +323,12 @@ def test_value_must_be_converter() -> None:
     bad = {'value': object()}
     with pytest.raises(SerializeSelectorError, match='SerializeConverter'):
         _ = run({'value': 'x'}, bad)
+
+
+def test_path_selector_helper() -> None:
+    """The selector helper distinguishes recursive keys from path tuples."""
+    assert not _is_path_selector('level')
+    assert _is_path_selector(('items', '[', 'level'))
 
 
 def test_rec_vs_path_end_conflict() -> None:
@@ -411,9 +447,24 @@ def test_child_dict_wildcard() -> None:
                                 'b': {'level': 'already-b'}}}
 
 
+def test_child_owned_json_check() -> None:
+    """Child-owned data is skipped but still checked for valid JSON."""
+    data: dict[str, object] = {'child': cast(object, {1: 'bad'})}
+    with pytest.raises(JsonWriteHookError,
+                       match='<child-owned>.*must be a str'):
+        _ = run(data, {}, child_owned=(('child',),))
+
+
 # ----------------------------------------------------------------------
 # Dict key restrictions
 # ----------------------------------------------------------------------
+
+
+def test_dict_key_must_be_string() -> None:
+    """Input dicts with non-string keys are rejected before JSON dump."""
+    data = cast(dict[str, object], {1: 'not-json'})
+    with pytest.raises(JsonWriteHookError, match='must be a str; got int'):
+        _ = run(data, {})
 
 
 def test_dict_key_bracket_start() -> None:

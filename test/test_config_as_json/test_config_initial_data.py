@@ -180,6 +180,14 @@ def test_copy_init_from_mapping(capsys: CaptureFixture[str]) -> None:
     assert target.c1 == 'mapped'
 
 
+def test_copy_map_skips_private() -> None:
+    """Private mapping keys are skipped just like private object attributes."""
+    target = MyConfigSimple(stderr_file=sys.stderr)
+    Config.copy_initial_data({'c1': 'mapped', '_private': 'hidden'}, target)
+    assert target.c1 == 'mapped'
+    assert not hasattr(target, '_private')
+
+
 @dataclass
 class DataclassSource:
     """Dataclass form of a flat neutral source."""
@@ -408,8 +416,20 @@ def test_list_keeps_bridges() -> None:
     """Already-bridge list elements are not re-wrapped."""
     section = MySection(stderr_file=sys.stderr)
     section.label = 'kept'
-    cfg = ListBridge(items=[section], stderr_file=sys.stderr)
+    items: list[object] = [section]
+    cfg = ListBridge(items=items, stderr_file=sys.stderr)
+    assert cfg.items is items
     assert cfg.items[0] is section
+
+
+def test_list_bad_default_type(capsys: CaptureFixture[str]) -> None:
+    """Non-list LIST_ELEMENT defaults are left for validation to reject."""
+    with pytest.raises(TypeError, match='must be a list'):
+        _ = ListBridge(items=cast(list[object], 'not-a-list'),
+                       stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Nested Config member items must be a list' in err
 
 
 class DictBridge(Config):
@@ -449,6 +469,26 @@ def test_dict_value_wraps() -> None:
     section_a = cfg.sections['a']
     assert isinstance(section_a, MySection)
     assert section_a.label == 'first'
+
+
+def test_dict_value_keeps_bridges() -> None:
+    """Already-bridge dict values are not re-wrapped or copied."""
+    section = MySection(stderr_file=sys.stderr)
+    section.label = 'kept'
+    sections: dict[str, object] = {'a': section}
+    cfg = DictBridge(sections=sections, stderr_file=sys.stderr)
+    assert cfg.sections is sections
+    assert cfg.sections['a'] is section
+
+
+def test_dict_value_bad_default(capsys: CaptureFixture[str]) -> None:
+    """Non-dict DICT_VALUE defaults are left for validation to reject."""
+    with pytest.raises(TypeError, match='must be a dict'):
+        _ = DictBridge(sections=cast(dict[str, object], ['not-a-dict']),
+                       stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Nested Config member sections must be a dict' in err
 
 
 class DictByKeyBridge(Config):
@@ -491,6 +531,27 @@ def test_dict_by_key_wraps() -> None:
         stderr_file=sys.stderr)
     assert isinstance(cfg.mixed['section'], MySection)
     assert cfg.mixed['note'] == 'plain-string'
+
+
+def test_by_key_keeps_bridge() -> None:
+    """DICT_VALUE_BY_KEY preserves existing bridges and undeclared values."""
+    section = MySection(stderr_file=sys.stderr)
+    section.label = 'typed'
+    mixed: dict[str, object] = {'section': section, 'note': 'plain-string'}
+    cfg = DictByKeyBridge(mixed=mixed, stderr_file=sys.stderr)
+    assert cfg.mixed is mixed
+    assert cfg.mixed['section'] is section
+    assert cfg.mixed['note'] == 'plain-string'
+
+
+def test_by_key_bad_default_type(capsys: CaptureFixture[str]) -> None:
+    """Bad DICT_VALUE_BY_KEY defaults are left for validation to reject."""
+    with pytest.raises(TypeError, match='must be a dict'):
+        _ = DictByKeyBridge(mixed=cast(dict[str, object], ['not-a-dict']),
+                            stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert 'Nested Config member mixed must be a dict' in err
 
 
 def test_wrap_rejects_extra(capsys: CaptureFixture[str]) -> None:

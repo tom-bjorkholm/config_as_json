@@ -4,8 +4,10 @@
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
+# pylint: disable=protected-access
+
 import sys
-from typing import Optional, Sequence, TextIO
+from typing import Optional, Sequence, TextIO, cast
 import pytest
 from pytest import CaptureFixture
 import config_as_json.validator as validator_module
@@ -13,6 +15,8 @@ from config_as_json import Config, InvalidConfiguration, \
     InvalidConfigurationValue, MemberValidationStep, MemberValidator, \
     StrCaseChangeValidator, StrCaseSpec, StrCaseValidator, StrLenValidator, \
     StrPositionSpec, StrValidator, ValidationPlan
+from config_as_json.str_validators import _case_spec_text, _change_case, \
+    _is_case_match, _position_flags
 from .validator_test_helpers import EmptyValidationConfig, \
     SingleMemberValidationConfig, assert_validate_member_failure, \
     assert_validate_member_ok
@@ -247,6 +251,7 @@ def test_str_len_dynamic_values(capsys: CaptureFixture[str]) -> None:
     [(StrCaseValidator(EVERY, LOWER, ORIGINAL), 'abc-123', 'abc-123'),
      (StrCaseValidator(EVERY, UPPER, ORIGINAL), 'ABC-123', 'ABC-123'),
      (StrCaseValidator(FIRST_STRING, UPPER, LOWER), 'Hello', 'Hello'),
+     (StrCaseValidator(FIRST_STRING, ORIGINAL, LOWER), 'Hello', 'Hello'),
      (StrCaseValidator(FIRST_WORD, UPPER, LOWER),
       '  Hello  World', '  Hello  World'),
      (StrCaseValidator(FIRST_SENTENCE, UPPER, LOWER),
@@ -301,12 +306,33 @@ def test_str_case_rejects_values(capsys: CaptureFixture[str],
                                    InvalidConfiguration, message)
 
 
+def test_case_spec_text_original() -> None:
+    """The diagnostic helper names the permissive original-case option."""
+    assert _case_spec_text(ORIGINAL) == 'original case'
+
+
+def test_str_case_helper_guardrails() -> None:
+    """Private case helpers fail loudly for impossible enum values."""
+    bad_position = cast(StrPositionSpec, object())
+    bad_case = cast(StrCaseSpec, object())
+    with pytest.raises(AssertionError, match='Unhandled StrPositionSpec'):
+        _position_flags('abc', bad_position)
+    with pytest.raises(AssertionError, match='Unhandled StrCaseSpec'):
+        _is_case_match('a', bad_case)
+    with pytest.raises(AssertionError, match='Unhandled StrCaseSpec'):
+        _case_spec_text(bad_case)
+    with pytest.raises(AssertionError, match='Unhandled StrCaseSpec'):
+        _change_case('a', bad_case)
+
+
 @pytest.mark.parametrize(
     'validator, member_value, expected',
     [(StrCaseChangeValidator(EVERY, LOWER, ORIGINAL), 'AbC-123',
       'abc-123'),
      (StrCaseChangeValidator(FIRST_STRING, UPPER, ORIGINAL), 'alpha BETA',
       'Alpha BETA'),
+     (StrCaseChangeValidator(FIRST_STRING, ORIGINAL, LOWER), 'HELLO',
+      'Hello'),
      (StrCaseChangeValidator(FIRST_WORD, UPPER, LOWER),
       ' hello WORLD\tAGAIN', ' Hello World\tAgain'),
      (StrCaseChangeValidator(FIRST_SENTENCE, UPPER, LOWER),
