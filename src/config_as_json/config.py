@@ -26,6 +26,8 @@ from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
     NestedConfigs
 from config_as_json._config_nesting_io import _nested_config_from_json, \
     _nested_config_json_data, _validate_nested_config
+from config_as_json._config_initial_data import copy_initial_data_impl, \
+    auto_wrap_nested_defaults_impl
 from config_as_json.json_write_hooks import SerializeConverters, \
     apply_serialize_converters
 from config_as_json.read_old_configuration import ReadOldConfiguration
@@ -164,6 +166,7 @@ class Config():
         self._checked_omit_none_from_json(self_keys)
         self._nested_config_decls: dict[str, list[ConfigNesting]] = \
             self._checked_nested_configs(self_keys)
+        self._auto_wrap_nested_defaults(stderr_file=stderr_file)
         self._check_nested_config_members(self_keys, self._nested_config_decls)
         unchecked = getattr(self, '_unchecked_dicts', None)
         if unchecked is None:
@@ -570,6 +573,64 @@ class Config():
             _validate_nested_config(
                 member_name=member_name, member_value=member_value,
                 nestings=nesting, stderr_file=stderr_file)
+
+    @staticmethod
+    def copy_initial_data(source: object, target: 'Config') -> None:
+        """Copy public attributes from ``source`` onto a Config ``target``.
+
+        Use this helper from a derived Config constructor when the
+        configuration defaults come from a separate framework-neutral data
+        class that the derived class wants to bridge to. The neutral data
+        class can be a plain object, a dataclass instance, or a
+        ``Mapping`` such as a ``dict``. Private names (those starting with
+        ``_``) and bound method-like callables are not copied.
+
+        When ``target`` already exposes at least one public attribute, the
+        helper enforces that every public attribute in ``source`` is also
+        declared on ``target``; an unexpected attribute on ``source``
+        therefore raises immediately with a clear diagnostic message. This
+        covers two practical cases: the common multiple-inheritance
+        pattern where the neutral base class constructor on ``target`` has
+        already established the schema, and the internal wrap path used
+        when nested neutral defaults are turned into bridge instances.
+
+        When ``target`` has not yet had its schema established, the helper
+        simply copies every public attribute from ``source`` onto
+        ``target`` and the source's set of names becomes the bridge's
+        schema. This covers the pattern used when the neutral class
+        constructor takes required arguments that the bridge does not
+        duplicate; the application constructs the neutral instance and
+        hands it to the bridge.
+
+        Args:
+            source: Object, dataclass instance, or mapping whose public
+                attributes describe the desired initial values.
+            target: Config instance whose attributes should be assigned.
+
+        Raises:
+            TypeError: ``source`` cannot be read, a mapping key is not a
+                string, or ``target`` has a declared public schema and
+                ``source`` exposes a public attribute that ``target`` does
+                not declare.
+        """
+        copy_initial_data_impl(source=source, target=target)
+
+    def _auto_wrap_nested_defaults(self, stderr_file: TextIO) -> None:
+        """Wrap nested member defaults that are not yet bridge-typed.
+
+        Scans the validated nested-config declarations and replaces any
+        default value that is not already an instance of the declared
+        ``config_type`` with a freshly constructed bridge instance whose
+        public attributes were copied from the original neutral value.
+        Already-wrapped values are left untouched, and ``None`` is left
+        in place for ``OPTIONAL_MEMBER`` declarations.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+        """
+        auto_wrap_nested_defaults_impl(
+            target=self, nested_decls=self._nested_config_decls,
+            stderr_file=stderr_file)
 
     def parse_json(self, from_json_text: str, ok_to_use_defaults: bool = False,
                    stderr_file: TextIO = sys.stderr) -> None:

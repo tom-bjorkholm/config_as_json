@@ -1428,3 +1428,60 @@ The command line mirrors e30 and e34:
 python3 -m example.e38_write_side_hook set --output config.cfg
 python3 -m example.e38_write_side_hook print --input config.cfg
 ```
+
+## e39_neutral_base_class.py
+
+[Source code for e39_neutral_base_class.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e39_neutral_base_class.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e39_neutral_base_class.py)
+
+This example is for applications that already have a framework-neutral
+data class describing the configuration shape. The neutral class is not
+tied to ``config_as_json``; it could equally well be consumed by another
+serialization library or by application code that has no serialization
+at all. The example shows how to add a thin bridge subclass that
+combines the neutral class with ``Config`` so the same data also reads
+and writes JSON, validates, and supports nested-config plumbing.
+
+The teaching story uses three neutral classes:
+
+- ``NSubA`` is a leaf section with no constructor arguments
+- ``NSubB`` is a leaf section with optional argument-driven defaults
+- ``NConfigEager`` is the top-level neutral class with required
+  constructor arguments and non-``None`` nested defaults
+
+For each one the example defines a 1:1 bridge subclass (``MySubA``,
+``MySubB``, ``MyConfigEager``) that also derives from ``Config``. The
+leaf bridges use the familiar ``e04`` multiple-inheritance pattern. The
+top-level bridge demonstrates the case where the neutral constructor
+requires arguments that the bridge does not want to duplicate.
+
+Two library mechanisms drive the bridge:
+
+- ``Config.copy_initial_data(source, target)`` copies public attributes
+  from a neutral source (plain object, dataclass, or mapping) onto a
+  ``Config`` target. The bridge calls this in its ``__init__`` to seed
+  the bridge's schema from a supplied neutral instance, without having
+  to enumerate every member by hand.
+- ``Config.__init__`` automatically auto-wraps nested member defaults.
+  When the default value of a nested member is a neutral instance
+  (rather than the declared bridge type), the library constructs a
+  fresh bridge object and copies the neutral's public attributes onto
+  it. The auto-wrap pass is recursive and leaves already-wrapped
+  values, ``None`` for ``OPTIONAL_MEMBER``, and unrelated scalar
+  members unchanged.
+
+The application owns the construction of the neutral instance and the
+bridge stays small:
+
+```python
+neutral = NConfigEager(c1='hello', b1p=True, b3p=4)
+config = MyConfigEager(neutral=neutral)
+config.write('example.cfg')
+```
+
+The command line mirrors the earlier examples:
+
+```sh
+python3 -m example.e39_neutral_base_class set --output config.cfg \
+  --c1 hello --b1p true --b3p 4
+python3 -m example.e39_neutral_base_class print --input config.cfg
+```

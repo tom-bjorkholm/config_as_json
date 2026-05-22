@@ -80,6 +80,7 @@
     * [nested\_configs](#config_as_json.config.Config.nested_configs)
     * [check\_key\_match](#config_as_json.config.Config.check_key_match)
     * [check\_dict\_parse](#config_as_json.config.Config.check_dict_parse)
+    * [copy\_initial\_data](#config_as_json.config.Config.copy_initial_data)
     * [parse\_json](#config_as_json.config.Config.parse_json)
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
     * [read](#config_as_json.config.Config.read)
@@ -195,6 +196,9 @@
     * [get\_json\_key\_renames](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_renames)
     * [pre\_process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.pre_process_json)
     * [post\_process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.post_process_json)
+* [config\_as\_json.\_config\_initial\_data](#config_as_json._config_initial_data)
+  * [copy\_initial\_data\_impl](#config_as_json._config_initial_data.copy_initial_data_impl)
+  * [auto\_wrap\_nested\_defaults\_impl](#config_as_json._config_initial_data.auto_wrap_nested_defaults_impl)
 * [config\_as\_json.as\_dict\_view\_validator](#config_as_json.as_dict_view_validator)
   * [public\_attrs\_to\_dict](#config_as_json.as_dict_view_validator.public_attrs_to_dict)
   * [AsDictViewValidator](#config_as_json.as_dict_view_validator.AsDictViewValidator)
@@ -1799,6 +1803,55 @@ Recursively validate nested dictionaries against default values.
 
 - `KeyError` - The JSON structure for the key does not match the
   expected dictionary shape.
+
+<a id="config_as_json.config.Config.copy_initial_data"></a>
+
+#### copy\_initial\_data
+
+```python
+@staticmethod
+def copy_initial_data(source: object, target: 'Config') -> None
+```
+
+Copy public attributes from ``source`` onto a Config ``target``.
+
+Use this helper from a derived Config constructor when the
+configuration defaults come from a separate framework-neutral data
+class that the derived class wants to bridge to. The neutral data
+class can be a plain object, a dataclass instance, or a
+``Mapping`` such as a ``dict``. Private names (those starting with
+``_``) and bound method-like callables are not copied.
+
+When ``target`` already exposes at least one public attribute, the
+helper enforces that every public attribute in ``source`` is also
+declared on ``target``; an unexpected attribute on ``source``
+therefore raises immediately with a clear diagnostic message. This
+covers two practical cases: the common multiple-inheritance
+pattern where the neutral base class constructor on ``target`` has
+already established the schema, and the internal wrap path used
+when nested neutral defaults are turned into bridge instances.
+
+When ``target`` has not yet had its schema established, the helper
+simply copies every public attribute from ``source`` onto
+``target`` and the source's set of names becomes the bridge's
+schema. This covers the pattern used when the neutral class
+constructor takes required arguments that the bridge does not
+duplicate; the application constructs the neutral instance and
+hands it to the bridge.
+
+**Arguments**:
+
+- `source` - Object, dataclass instance, or mapping whose public
+  attributes describe the desired initial values.
+- `target` - Config instance whose attributes should be assigned.
+
+
+**Raises**:
+
+- `TypeError` - ``source`` cannot be read, a mapping key is not a
+  string, or ``target`` has a declared public schema and
+  ``source`` exposes a public attribute that ``target`` does
+  not declare.
 
 <a id="config_as_json.config.Config.parse_json"></a>
 
@@ -4623,6 +4676,82 @@ performs through ``auto_ch_hook`` and write user-facing diagnostics to
 
   Data matching the current configuration schema. This data is now
   ready to be validated and converted to nested Config objects.
+
+<a id="config_as_json._config_initial_data"></a>
+
+# config\_as\_json.\_config\_initial\_data
+
+Copy neutral initial data into Config defaults and auto-wrap nesting.
+
+This private module implements two related operations:
+
+- ``copy_initial_data_impl`` copies public attribute values from a neutral
+  data source (plain object, dataclass instance, or mapping) onto a Config
+  target. It is the workhorse behind ``Config.copy_initial_data``.
+
+- ``auto_wrap_nested_defaults_impl`` is called from ``Config.__init__``
+  after the nested-config declarations have been validated. It walks the
+  declared nested members and replaces any default value that is not yet
+  an instance of its declared bridge ``config_type`` with a freshly
+  constructed bridge-typed value whose public attributes were copied from
+  the original neutral value.
+
+Together these two operations let a derived Config inherit defaults from a
+framework-neutral data class without copying every public attribute by
+hand and without losing the bridge-typed schema for nested sections.
+
+<a id="config_as_json._config_initial_data.copy_initial_data_impl"></a>
+
+#### copy\_initial\_data\_impl
+
+```python
+def copy_initial_data_impl(source: object, target: 'Config') -> None
+```
+
+Copy public attributes from ``source`` onto a Config ``target``.
+
+The check for "extra" source attributes is enforced only when
+``target`` already exposes at least one public attribute. That covers
+the common multiple-inheritance pattern where the neutral base class
+constructor has already created the schema on ``target``, and it also
+covers the internal wrap path where a freshly constructed bridge is
+being populated. When ``target`` has no public attributes yet (the
+pattern used when the neutral constructor takes required arguments
+that the bridge does not duplicate), the source's public attributes
+become the target's schema and no comparison can be made.
+
+**Arguments**:
+
+- `source` - Plain object, mapping, or dataclass instance whose public
+  attributes describe the desired default values.
+- `target` - Config instance whose attributes should be assigned.
+
+
+**Raises**:
+
+- `TypeError` - ``source`` cannot be read, or ``target`` has a known
+  public schema and ``source`` exposes a public attribute that
+  ``target`` does not declare.
+
+<a id="config_as_json._config_initial_data.auto_wrap_nested_defaults_impl"></a>
+
+#### auto\_wrap\_nested\_defaults\_impl
+
+```python
+def auto_wrap_nested_defaults_impl(target: 'Config',
+                                   nested_decls: dict[str,
+                                                      list[ConfigNesting]],
+                                   stderr_file: TextIO) -> None
+```
+
+Wrap any nested member defaults that are not yet bridge-typed.
+
+**Arguments**:
+
+- `target` - Config instance whose declared nested members should be
+  scanned and possibly replaced with bridge-typed wrappers.
+- `nested_decls` - Validated nested-config declarations for ``target``.
+- `stderr_file` - Stream used for user-facing diagnostics.
 
 <a id="config_as_json.as_dict_view_validator"></a>
 

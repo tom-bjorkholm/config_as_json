@@ -140,6 +140,8 @@
     * [\_value\_has\_config](#config_as_json.config.Config._value_has_config)
     * [\_check\_nested\_config\_members](#config_as_json.config.Config._check_nested_config_members)
     * [\_validate\_nested\_configs](#config_as_json.config.Config._validate_nested_configs)
+    * [copy\_initial\_data](#config_as_json.config.Config.copy_initial_data)
+    * [\_auto\_wrap\_nested\_defaults](#config_as_json.config.Config._auto_wrap_nested_defaults)
     * [parse\_json](#config_as_json.config.Config.parse_json)
     * [\_child\_owned\_paths](#config_as_json.config.Config._child_owned_paths)
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
@@ -348,6 +350,19 @@
     * [get\_json\_key\_renames](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_renames)
     * [pre\_process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.pre_process_json)
     * [post\_process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.post_process_json)
+* [config\_as\_json.\_config\_initial\_data](#config_as_json._config_initial_data)
+  * [\_public\_items\_of](#config_as_json._config_initial_data._public_items_of)
+  * [\_public\_items\_of\_mapping](#config_as_json._config_initial_data._public_items_of_mapping)
+  * [\_public\_items\_of\_object](#config_as_json._config_initial_data._public_items_of_object)
+  * [copy\_initial\_data\_impl](#config_as_json._config_initial_data.copy_initial_data_impl)
+  * [\_wrap\_one\_value](#config_as_json._config_initial_data._wrap_one_value)
+  * [\_wrap\_optional\_or\_member](#config_as_json._config_initial_data._wrap_optional_or_member)
+  * [\_wrap\_list\_elements](#config_as_json._config_initial_data._wrap_list_elements)
+  * [\_wrap\_dict\_values](#config_as_json._config_initial_data._wrap_dict_values)
+  * [\_wrap\_dict\_value\_by\_key](#config_as_json._config_initial_data._wrap_dict_value_by_key)
+  * [\_nesting\_by\_key](#config_as_json._config_initial_data._nesting_by_key)
+  * [\_auto\_wrap\_one\_member](#config_as_json._config_initial_data._auto_wrap_one_member)
+  * [auto\_wrap\_nested\_defaults\_impl](#config_as_json._config_initial_data.auto_wrap_nested_defaults_impl)
 * [config\_as\_json.as\_dict\_view\_validator](#config_as_json.as_dict_view_validator)
   * [public\_attrs\_to\_dict](#config_as_json.as_dict_view_validator.public_attrs_to_dict)
   * [\_validate\_non\_dict\_type](#config_as_json.as_dict_view_validator._validate_non_dict_type)
@@ -3028,6 +3043,76 @@ def _validate_nested_configs(stderr_file: TextIO) -> None
 ```
 
 Validate all direct nested Config members before this object.
+
+**Arguments**:
+
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+<a id="config_as_json.config.Config.copy_initial_data"></a>
+
+#### copy\_initial\_data
+
+```python
+@staticmethod
+def copy_initial_data(source: object, target: 'Config') -> None
+```
+
+Copy public attributes from ``source`` onto a Config ``target``.
+
+Use this helper from a derived Config constructor when the
+configuration defaults come from a separate framework-neutral data
+class that the derived class wants to bridge to. The neutral data
+class can be a plain object, a dataclass instance, or a
+``Mapping`` such as a ``dict``. Private names (those starting with
+``_``) and bound method-like callables are not copied.
+
+When ``target`` already exposes at least one public attribute, the
+helper enforces that every public attribute in ``source`` is also
+declared on ``target``; an unexpected attribute on ``source``
+therefore raises immediately with a clear diagnostic message. This
+covers two practical cases: the common multiple-inheritance
+pattern where the neutral base class constructor on ``target`` has
+already established the schema, and the internal wrap path used
+when nested neutral defaults are turned into bridge instances.
+
+When ``target`` has not yet had its schema established, the helper
+simply copies every public attribute from ``source`` onto
+``target`` and the source's set of names becomes the bridge's
+schema. This covers the pattern used when the neutral class
+constructor takes required arguments that the bridge does not
+duplicate; the application constructs the neutral instance and
+hands it to the bridge.
+
+**Arguments**:
+
+- `source` - Object, dataclass instance, or mapping whose public
+  attributes describe the desired initial values.
+- `target` - Config instance whose attributes should be assigned.
+
+
+**Raises**:
+
+- `TypeError` - ``source`` cannot be read, a mapping key is not a
+  string, or ``target`` has a declared public schema and
+  ``source`` exposes a public attribute that ``target`` does
+  not declare.
+
+<a id="config_as_json.config.Config._auto_wrap_nested_defaults"></a>
+
+#### \_auto\_wrap\_nested\_defaults
+
+```python
+def _auto_wrap_nested_defaults(stderr_file: TextIO) -> None
+```
+
+Wrap nested member defaults that are not yet bridge-typed.
+
+Scans the validated nested-config declarations and replaces any
+default value that is not already an instance of the declared
+``config_type`` with a freshly constructed bridge instance whose
+public attributes were copied from the original neutral value.
+Already-wrapped values are left untouched, and ``None`` is left
+in place for ``OPTIONAL_MEMBER`` declarations.
 
 **Arguments**:
 
@@ -7459,6 +7544,233 @@ performs through ``auto_ch_hook`` and write user-facing diagnostics to
 
   Data matching the current configuration schema. This data is now
   ready to be validated and converted to nested Config objects.
+
+<a id="config_as_json._config_initial_data"></a>
+
+# config\_as\_json.\_config\_initial\_data
+
+Copy neutral initial data into Config defaults and auto-wrap nesting.
+
+This private module implements two related operations:
+
+- ``copy_initial_data_impl`` copies public attribute values from a neutral
+  data source (plain object, dataclass instance, or mapping) onto a Config
+  target. It is the workhorse behind ``Config.copy_initial_data``.
+
+- ``auto_wrap_nested_defaults_impl`` is called from ``Config.__init__``
+  after the nested-config declarations have been validated. It walks the
+  declared nested members and replaces any default value that is not yet
+  an instance of its declared bridge ``config_type`` with a freshly
+  constructed bridge-typed value whose public attributes were copied from
+  the original neutral value.
+
+Together these two operations let a derived Config inherit defaults from a
+framework-neutral data class without copying every public attribute by
+hand and without losing the bridge-typed schema for nested sections.
+
+<a id="config_as_json._config_initial_data._public_items_of"></a>
+
+#### \_public\_items\_of
+
+```python
+def _public_items_of(source: object) -> Iterator[tuple[str, object]]
+```
+
+Yield ``(name, value)`` pairs for public attributes of ``source``.
+
+The source may be a :class:`collections.abc.Mapping` (typically a
+:class:`dict`), or any object with a ``__dict__`` (plain object or a
+dataclass instance). Names starting with ``_`` and callable values are
+skipped so that helper methods and private bookkeeping never leak into
+the copy.
+
+**Arguments**:
+
+- `source` - Object or mapping to read public attributes from.
+
+
+**Yields**:
+
+  Tuples of ``(attribute name, attribute value)`` in the source's
+  own iteration order.
+
+
+**Raises**:
+
+- `TypeError` - ``source`` exposes no readable public attributes, or a
+  mapping key is not a string.
+
+<a id="config_as_json._config_initial_data._public_items_of_mapping"></a>
+
+#### \_public\_items\_of\_mapping
+
+```python
+def _public_items_of_mapping(
+        source: Mapping[object, object]) -> Iterator[tuple[str, object]]
+```
+
+Yield public ``(name, value)`` pairs for a Mapping source.
+
+<a id="config_as_json._config_initial_data._public_items_of_object"></a>
+
+#### \_public\_items\_of\_object
+
+```python
+def _public_items_of_object(source: object) -> Iterator[tuple[str, object]]
+```
+
+Yield public ``(name, value)`` pairs for an object source.
+
+<a id="config_as_json._config_initial_data.copy_initial_data_impl"></a>
+
+#### copy\_initial\_data\_impl
+
+```python
+def copy_initial_data_impl(source: object, target: 'Config') -> None
+```
+
+Copy public attributes from ``source`` onto a Config ``target``.
+
+The check for "extra" source attributes is enforced only when
+``target`` already exposes at least one public attribute. That covers
+the common multiple-inheritance pattern where the neutral base class
+constructor has already created the schema on ``target``, and it also
+covers the internal wrap path where a freshly constructed bridge is
+being populated. When ``target`` has no public attributes yet (the
+pattern used when the neutral constructor takes required arguments
+that the bridge does not duplicate), the source's public attributes
+become the target's schema and no comparison can be made.
+
+**Arguments**:
+
+- `source` - Plain object, mapping, or dataclass instance whose public
+  attributes describe the desired default values.
+- `target` - Config instance whose attributes should be assigned.
+
+
+**Raises**:
+
+- `TypeError` - ``source`` cannot be read, or ``target`` has a known
+  public schema and ``source`` exposes a public attribute that
+  ``target`` does not declare.
+
+<a id="config_as_json._config_initial_data._wrap_one_value"></a>
+
+#### \_wrap\_one\_value
+
+```python
+def _wrap_one_value(source: object, config_type: 'type[Config]', name: str,
+                    stderr_file: TextIO) -> 'Config'
+```
+
+Build a bridge Config instance whose values come from ``source``.
+
+**Arguments**:
+
+- `source` - Neutral value (plain object, mapping, or dataclass).
+- `config_type` - Bridge Config-derived class to construct.
+- `name` - Diagnostic member name used in error messages.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  A new bridge Config instance with attributes copied from
+  ``source`` and any further nested neutrals wrapped recursively.
+
+
+**Raises**:
+
+- `TypeError` - ``source`` cannot be read or describes attributes that
+  ``config_type`` does not declare.
+
+<a id="config_as_json._config_initial_data._wrap_optional_or_member"></a>
+
+#### \_wrap\_optional\_or\_member
+
+```python
+def _wrap_optional_or_member(current_value: object,
+                             config_type: 'type[Config]', name: str,
+                             allow_none: bool, stderr_file: TextIO) -> object
+```
+
+Compute the auto-wrapped value for one direct nested member.
+
+<a id="config_as_json._config_initial_data._wrap_list_elements"></a>
+
+#### \_wrap\_list\_elements
+
+```python
+def _wrap_list_elements(current_value: object, config_type: 'type[Config]',
+                        name: str, stderr_file: TextIO) -> object
+```
+
+Compute the auto-wrapped list for a LIST_ELEMENT nested member.
+
+<a id="config_as_json._config_initial_data._wrap_dict_values"></a>
+
+#### \_wrap\_dict\_values
+
+```python
+def _wrap_dict_values(current_value: object, config_type: 'type[Config]',
+                      name: str, stderr_file: TextIO) -> object
+```
+
+Compute the auto-wrapped dict for a DICT_VALUE nested member.
+
+<a id="config_as_json._config_initial_data._wrap_dict_value_by_key"></a>
+
+#### \_wrap\_dict\_value\_by\_key
+
+```python
+def _wrap_dict_value_by_key(current_value: object,
+                            nestings: list[ConfigNesting], name: str,
+                            stderr_file: TextIO) -> object
+```
+
+Compute the auto-wrapped dict for DICT_VALUE_BY_KEY nestings.
+
+<a id="config_as_json._config_initial_data._nesting_by_key"></a>
+
+#### \_nesting\_by\_key
+
+```python
+def _nesting_by_key(nestings: list[ConfigNesting]) -> dict[str, ConfigNesting]
+```
+
+Return DICT_VALUE_BY_KEY declarations keyed by discriminator_key.
+
+<a id="config_as_json._config_initial_data._auto_wrap_one_member"></a>
+
+#### \_auto\_wrap\_one\_member
+
+```python
+def _auto_wrap_one_member(member_name: str, current_value: object,
+                          nestings: list[ConfigNesting],
+                          stderr_file: TextIO) -> object
+```
+
+Compute the auto-wrapped value for one declared nested member.
+
+<a id="config_as_json._config_initial_data.auto_wrap_nested_defaults_impl"></a>
+
+#### auto\_wrap\_nested\_defaults\_impl
+
+```python
+def auto_wrap_nested_defaults_impl(target: 'Config',
+                                   nested_decls: dict[str,
+                                                      list[ConfigNesting]],
+                                   stderr_file: TextIO) -> None
+```
+
+Wrap any nested member defaults that are not yet bridge-typed.
+
+**Arguments**:
+
+- `target` - Config instance whose declared nested members should be
+  scanned and possibly replaced with bridge-typed wrappers.
+- `nested_decls` - Validated nested-config declarations for ``target``.
+- `stderr_file` - Stream used for user-facing diagnostics.
 
 <a id="config_as_json.as_dict_view_validator"></a>
 
