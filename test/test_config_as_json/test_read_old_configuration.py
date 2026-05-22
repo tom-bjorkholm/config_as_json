@@ -120,8 +120,8 @@ def test_missing_existing_lists() -> None:
     }
     assert hook.rocf_val_keys == [
         'meta[owner]',
-        'outputs[0].encoding',
-        'outputs[1].name'
+        'outputs[0][encoding]',
+        'outputs[1][name]'
     ]
     assert err == ''
 
@@ -173,12 +173,12 @@ def test_move_key_in_each_list_item() -> None:
                     {'char_encoding': 'latin-1'}]
     }
     assert hook.old_paths_moved == [
-        ('outputs[0].encoding', 'outputs[0].char_encoding'),
-        ('outputs[1].encoding', 'outputs[1].char_encoding')
+        ('outputs[0][encoding]', 'outputs[0][char_encoding]'),
+        ('outputs[1][encoding]', 'outputs[1][char_encoding]')
     ]
     assert hook.old_keys == [
-        'outputs[0].encoding -> outputs[0].char_encoding',
-        'outputs[1].encoding -> outputs[1].char_encoding'
+        'outputs[0][encoding] -> outputs[0][char_encoding]',
+        'outputs[1][encoding] -> outputs[1][char_encoding]'
     ]
     assert err == ''
 

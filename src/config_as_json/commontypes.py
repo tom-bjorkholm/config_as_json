@@ -9,17 +9,25 @@ input.
 # MIT License
 
 from pathlib import Path
-# imports needed by mypy, but not by python:
-# pylint: disable-next=unused-import,ungrouped-imports
-from typing import Union, List, Dict
+from types import NoneType
 
 
 type PathOrStr = Path | str
 """Path or string representing a file name."""
 
-type JsonType = \
-    'Union[None, int, str, bool, List[JsonType], Dict[str, JsonType]]'
-"""Recursive JSON value accepted by the configuration helpers."""
+type JsonType = None | int | float | str | bool | list[JsonType] | \
+    dict[str, JsonType]
+"""Recursive JSON value accepted by the configuration helpers.
+
+JSON numbers can be either Python ``int`` or ``float``. Both are accepted as
+valid leaves of the recursive type. ``bool`` is included because Python's
+``bool`` is a subclass of ``int`` and ``json.dumps`` writes it as a literal
+``true`` or ``false``.
+"""
+
+json_types = (NoneType, int, float, str, bool, list, dict)
+"""Tuple of all JSON-compatible types for use in isinstance checks."""
+
 
 type ConfigPath = tuple[str, ...]
 """Path through decoded configuration JSON data.

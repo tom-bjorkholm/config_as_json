@@ -13,8 +13,8 @@ import sys
 from typing import Optional, TextIO, cast
 import pytest
 from pytest import CaptureFixture
-from config_as_json.config import _ConfigEncoder, \
-    ConfigBadJson, _over_ride_needed, Config, ParseConverter
+from config_as_json.config import ConfigBadJson, _over_ride_needed, Config, \
+    ParseConverter
 from config_as_json.assert_dict_equal import assert_dict_equal
 from config_as_json.commontypes import PathOrStr
 from config_as_json.csv_dialect import get_csv_dialect, CsvDialectConfig
@@ -27,27 +27,6 @@ class EnumInTesting(Enum):
 
     FOOBAR = auto()
     BARFOO = auto()
-
-
-@pytest.mark.parametrize('obj, res', [(EnumInTesting.FOOBAR, 'FOOBAR'),
-                                      (EnumInTesting.BARFOO, 'BARFOO')])
-def test_config_encode(capsys: CaptureFixture[str], obj: EnumInTesting,
-                       res: str) -> None:
-    """Test ConfigEncoder."""
-    enc = _ConfigEncoder()
-    ret = enc.default(obj)
-    out, err = capsys.readouterr()
-    assert ret == res
-    assert '' == err
-    assert '' == out
-
-
-@pytest.mark.parametrize('obj', [1, 'hello'])
-def test_config_encode_bad(obj: object) -> None:
-    """Test ConfigEncoder with bad arguments."""
-    enc = _ConfigEncoder()
-    with pytest.raises(TypeError):
-        _ = enc.default(obj)
 
 
 def test__over_ride_needed_1(capsys: CaptureFixture[str]) -> None:

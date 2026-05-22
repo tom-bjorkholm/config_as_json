@@ -76,6 +76,7 @@
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [parse\_converters](#config_as_json.config.Config.parse_converters)
+    * [serialize\_converters](#config_as_json.config.Config.serialize_converters)
     * [nested\_configs](#config_as_json.config.Config.nested_configs)
     * [check\_key\_match](#config_as_json.config.Config.check_key_match)
     * [check\_dict\_parse](#config_as_json.config.Config.check_dict_parse)
@@ -125,6 +126,8 @@
   * [ProjectedWholeConfigValidator](#config_as_json.projected_validators.ProjectedWholeConfigValidator)
     * [\_\_init\_\_](#config_as_json.projected_validators.ProjectedWholeConfigValidator.__init__)
     * [validate](#config_as_json.projected_validators.ProjectedWholeConfigValidator.validate)
+* [config\_as\_json.commontypes](#config_as_json.commontypes)
+  * [json\_types](#config_as_json.commontypes.json_types)
 * [config\_as\_json.dict\_validators](#config_as_json.dict_validators)
   * [DictKeysValidator](#config_as_json.dict_validators.DictKeysValidator)
     * [\_\_init\_\_](#config_as_json.dict_validators.DictKeysValidator.__init__)
@@ -201,8 +204,6 @@
   * [SerializeConverter](#config_as_json.json_write_hooks.SerializeConverter)
   * [JsonWriteHookError](#config_as_json.json_write_hooks.JsonWriteHookError)
   * [SerializeSelectorError](#config_as_json.json_write_hooks.SerializeSelectorError)
-  * [JsonWriteHookProvider](#config_as_json.json_write_hooks.JsonWriteHookProvider)
-    * [serialize\_converters](#config_as_json.json_write_hooks.JsonWriteHookProvider.serialize_converters)
   * [apply\_serialize\_converters](#config_as_json.json_write_hooks.apply_serialize_converters)
 * [config\_as\_json.config\_nesting](#config_as_json.config_nesting)
   * [ConfigNestingKind](#config_as_json.config_nesting.ConfigNestingKind)
@@ -1676,6 +1677,48 @@ for example turning enum names into enum members.
   describing the expected parsed type, the conversion callable, and
   keyword arguments passed to that callable.
 
+<a id="config_as_json.config.Config.serialize_converters"></a>
+
+#### serialize\_converters
+
+```python
+def serialize_converters() -> SerializeConverters
+```
+
+Return write-side conversion rules for rich Python values.
+
+Derived classes override this method when some configuration values
+need explicit conversion into JSON-compatible data before
+``json.dumps()`` is called. The motivating case is ``IntEnum``,
+which Python's JSON encoder treats as ``int`` and never offers to
+``default()``; an explicit converter sidesteps that problem.
+
+The returned dictionary maps selectors to converters. A selector
+may be either a recursive key-name string (matches every
+dictionary member with that name in data owned by this object) or
+an absolute ``ConfigPath`` (matches one specific path). Path
+selectors use the same rules as ROCF paths.
+
+Converters apply only to data owned by this object. Declared
+nested ``Config`` objects serialize themselves and apply their own
+converters; the parent's converters never reach into those
+subtrees.
+
+Explicit converters override built-in fallback conversions. The
+initial built-in fallbacks are limited to ``Enum`` and ``IntEnum``
+members, which are converted to their member names.
+
+Returning the same key with both a recursive key selector and a
+path selector that ends in or passes through that key is a
+declaration error; ``apply_serialize_converters`` raises
+``SerializeSelectorError`` in that case.
+
+**Returns**:
+
+  Write-side conversion rules. The base class returns an empty
+  dictionary; override and return non-empty rules when explicit
+  conversions are needed.
+
 <a id="config_as_json.config.Config.nested_configs"></a>
 
 #### nested\_configs
@@ -2793,6 +2836,21 @@ member to validate (which is the projected value).
 
   None if the validation check passes, otherwise the exception
   is raised.
+
+<a id="config_as_json.commontypes"></a>
+
+# config\_as\_json.commontypes
+
+Collect shared type aliases and typing helpers for the package.
+
+The aliases in this module describe JSON-compatible values and path-like
+input.
+
+<a id="config_as_json.commontypes.json_types"></a>
+
+#### json\_types
+
+Tuple of all JSON-compatible types for use in isinstance checks.
 
 <a id="config_as_json.dict_validators"></a>
 
@@ -4301,9 +4359,12 @@ returned object because overrides may return another dictionary.
 
 The library reports actual performed compatibility changes to
 ``auto_ch_hook``. A wildcard move over three list elements is therefore
-reported as three individual moved paths. Moved paths use the same text
-style as member names used by member validators, for example
-``outputs[2].csv_params[delimiter]``.
+reported as three individual moved paths. Moved paths use the same
+text style as member names used by member validators, for example
+``outputs[2][csv_params][delimiter]``. ROCF traverses plain JSON
+dictionaries and lists, so every step after the top-level key is
+rendered with ``[...]``; the ``.member`` dot syntax is reserved for
+paths through class attributes and is not used here.
 
 Current-shape values win over old-shape values if both are present.
 In that case the library removes the old value, writes a diagnostic to
@@ -4733,12 +4794,22 @@ Validate one member through a dictionary-shaped view.
 
 # config\_as\_json.json\_write\_hooks
 
-Sketch the public write-side JSON conversion hook API.
+Implement the public write-side JSON conversion hook API.
 
-This module records the proposed public names, type signatures and docstrings
-for write-side conversion hooks. It intentionally contains no conversion
-logic yet. The implementation can move these declarations or extend them
-after the API sketch has been reviewed.
+A ``Config`` subclass overrides ``serialize_converters()`` to declare how
+selected Python values should be converted into JSON-compatible data before
+``json.dumps()`` is called. ``Config.as_json_string()`` invokes
+:func:`apply_serialize_converters` once the data dictionary owned by the
+current Config object has been assembled and all declared nested Config
+objects have already serialized themselves.
+
+The implementation is intentionally small: built-in fallback conversions
+cover only ``Enum`` and ``IntEnum`` members (converted to their member
+names). Everything else is the responsibility of explicit converters
+declared by the application. The motivating problem case is ``IntEnum``,
+which Python's JSON encoder treats as ``int`` and therefore never offers to
+``default()``; the write-side hook runs before ``json.dumps()`` and
+sidesteps that issue.
 
 <a id="config_as_json.json_write_hooks.SerializeConverter"></a>
 
@@ -4777,17 +4848,17 @@ It uses the same style as member names passed to member validators: list
 indexes and dictionary keys are appended in square brackets, for example
 ``matrix[3]`` and ``csv_params[delimiter]``.
 
-The conversion result must be recursively JSON-compatible. Valid output is
-``None``, ``int``, ``str``, ``bool``, a list of valid values, or a
-dictionary with string keys and valid values. Invalid output should raise
-a path-aware ``JsonWriteHookError`` before ``json.dumps()`` is called.
-Explicit converter output is checked as-is. Built-in fallback conversions
-are not applied to the converter return value, so returning
+The conversion result must be recursively JSON-compatible. Valid output
+is ``None``, ``int``, ``float``, ``str``, ``bool``, a list of valid
+values, or a dictionary with string keys and valid values. Invalid output
+raises a path-aware ``JsonWriteHookError`` before ``json.dumps()`` is
+called. Explicit converter output is checked as-is. Built-in fallback
+conversions are not applied to the converter return value, so returning
 ``{'mode': SomeEnum.FAST}`` is invalid. Return a JSON-compatible value
 such as ``{'mode': 'FAST'}`` instead.
 
-If ``func`` raises ``JsonWriteHookError``, it should propagate unchanged.
-Other exceptions from ``func`` should be wrapped in ``JsonWriteHookError``
+If ``func`` raises ``JsonWriteHookError``, it propagates unchanged.
+Other exceptions from ``func`` are wrapped in ``JsonWriteHookError``
 with selector and path context.
 
 **Attributes**:
@@ -4819,76 +4890,14 @@ Raised when write-side conversion selectors are not valid together.
 This exception reports programming errors in ``serialize_converters()``
 declarations, such as invalid selector types, invalid ``ConfigPath``
 syntax, or a recursive key selector that conflicts with a path selector
-ending in the same dictionary key. It also reports selectors that would
-cross child-owned nested ``Config`` ownership boundaries.
+ending in or passing through the same dictionary key. It also reports
+selectors that would cross child-owned nested ``Config`` ownership
+boundaries.
 
-Selector declarations should be checked before conversion starts as far as
+Selector declarations are checked before conversion starts as far as
 possible. Data-dependent traversal errors, such as a path selector that
 reaches a list where it needs a dictionary, are detected while traversing
 the actual data and also raise this exception.
-
-<a id="config_as_json.json_write_hooks.JsonWriteHookProvider"></a>
-
-## JsonWriteHookProvider Objects
-
-```python
-class JsonWriteHookProvider(Protocol)
-```
-
-Describe the write-side hook that ``Config`` classes may provide.
-
-<a id="config_as_json.json_write_hooks.JsonWriteHookProvider.serialize_converters"></a>
-
-#### serialize\_converters
-
-```python
-def serialize_converters() -> SerializeConverters
-```
-
-Return conversion rules for rich Python values before JSON write.
-
-The returned dictionary maps selectors to converters. A selector may
-be either a recursive key-name string or an absolute ``ConfigPath``.
-Path selectors use the same rules as ROCF paths.
-
-The returned selectors are checked before conversion starts. Returning
-both a recursive key selector and a path selector ending with the same
-dictionary key is a declaration error, even if that path is absent
-from the current configuration data. Such conflicts should raise
-``SerializeSelectorError``.
-
-Converters apply only to data owned by this object. If a member is a
-declared nested ``Config`` object, that object serializes itself and
-applies its own converters.
-
-For ``DICT_VALUE_BY_KEY`` nested declarations, declared nested values
-remain child-owned and use only their own converters. Undeclared plain
-values inside the same dictionary remain parent-owned and may use this
-object's converters.
-
-A parent converter must not target child-owned data. When the current
-object has declared nested ``Config`` values, the write path supplies
-those owned subtrees to ``apply_serialize_converters()`` as
-``child_owned_paths``. Selectors that would convert those child-owned
-subtrees, their descendants, or an ancestor container containing them
-should raise ``SerializeSelectorError``.
-
-Explicit converters override built-in fallback conversions. If more
-than one selector matches a value, the most specific path selector
-should win over a recursive key-name selector.
-
-The initial built-in fallback conversions are intentionally small:
-``Enum`` and ``IntEnum`` members are converted to their member names.
-All other rich Python values need explicit converters.
-
-Derived ``Config`` classes should override this method with
-``@override`` when they need explicit write-side converters. The base
-``Config`` implementation should return an empty dictionary.
-
-**Returns**:
-
-  Write-side conversion rules. Return an empty dictionary when no
-  explicit conversions are needed.
 
 <a id="config_as_json.json_write_hooks.apply_serialize_converters"></a>
 
@@ -4905,34 +4914,41 @@ def apply_serialize_converters(
 
 Return JSON-compatible data after write-side conversions.
 
-``Config.as_json_string()`` should call this function after validation and
-after nested ``Config`` members have been converted to their own JSON data,
-but before calling ``json.dumps()``. The function owns selector checking,
-converter dispatch, built-in fallback conversions such as enum-name
-serialization, and recursive JSON-compatibility checks.
+``Config.as_json_string()`` should call this function after validation
+and after nested ``Config`` members have been converted to their own
+JSON data, but before calling ``json.dumps()``. The function owns
+selector checking, converter dispatch, built-in fallback conversions
+such as enum-name serialization, and recursive JSON-compatibility
+checks.
 
-The function returns a new converted tree when any conversion is needed.
-If no conversion is needed, it may return ``data`` unchanged. It should
-not partially mutate the passed-in data tree while producing a different
-returned tree.
+The function returns a new converted tree. The passed-in tree is never
+mutated.
 
 The initial built-in fallback conversions are ``Enum`` and ``IntEnum``
 members to their member names. Everything else outside explicit
 converters must already be JSON-compatible.
 
-A path selector that reaches a missing dictionary key is a no-op. A path
-selector that reaches the wrong container type raises
-``SerializeSelectorError``. For example, expecting a dictionary key where
-the actual data has a list is an error, while an absent key in an existing
-dictionary is not.
+A path selector that reaches a missing dictionary key is a no-op. A
+path selector that reaches the wrong container type raises
+``SerializeSelectorError``. For example, expecting a dictionary key
+where the actual data has a list is an error, while an absent key in an
+existing dictionary is not.
 
-A recursive key-name selector walks parent-owned dictionaries and lists.
-It must skip child-owned subtrees.
+A recursive key-name selector walks parent-owned dictionaries and
+lists. It skips child-owned subtrees automatically because the walk
+never descends into them.
 
-``child_owned_paths`` describes nested ``Config`` subtrees that are present
-in ``data`` only because the child object already serialized itself. This
-function must not traverse or convert those subtrees while applying the
-current object's converters.
+``child_owned_paths`` describes nested ``Config`` subtrees that are
+present in ``data`` only because the child object already serialized
+itself. The function passes those subtrees through unchanged. In a
+child-owned path the literal ``'['`` step matches either a list
+element or a dictionary value at that point, which lets a parent
+describe ``LIST_ELEMENT`` and ``DICT_VALUE`` nested-config kinds with
+the same notation.
+
+Dictionary keys that start with ``'['`` are rejected. ``'['`` is
+reserved by ``ConfigPath`` for list iteration and is not allowed as a
+literal data key.
 
 **Arguments**:
 
@@ -4940,9 +4956,10 @@ current object's converters.
 - `converters` - Explicit converters returned by
   ``Config.serialize_converters()``.
 - `stderr_file` - Stream passed through to converter functions.
-- `child_owned_paths` - Paths to nested ``Config`` subtrees owned by child
-  objects. Selectors that would convert those subtrees, their
-  descendants, or an ancestor container containing them are invalid.
+- `child_owned_paths` - Paths to nested ``Config`` subtrees owned by
+  child objects. Selectors that would convert those subtrees,
+  their descendants, or an ancestor container containing them
+  are invalid.
 
 
 **Returns**:
@@ -4954,9 +4971,9 @@ current object's converters.
 
 - `SerializeSelectorError` - The selector declarations are invalid or
   ambiguous, or a selector crosses a child-owned path boundary.
-- `JsonWriteHookError` - A matched value has the wrong type, a converter
-  raises an error that should be wrapped with path context, or a
-  conversion result is not JSON-compatible.
+- `JsonWriteHookError` - A matched value has the wrong type, a
+  converter raises an error that should be wrapped with path
+  context, or a conversion result is not JSON-compatible.
 
 <a id="config_as_json.config_nesting"></a>
 

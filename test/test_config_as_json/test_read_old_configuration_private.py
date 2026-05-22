@@ -94,7 +94,9 @@ def test_as_list_bad(value: object) -> None:
     [(['root'], 'root'),
      (['output', 'file_name'], 'output[file_name]'),
      (['outputs', 2, 'csv_params', 'delimiter'],
-      'outputs[2].csv_params[delimiter]'),
+      'outputs[2][csv_params][delimiter]'),
+     (['outputs', 2], 'outputs[2]'),
+     (['outputs', 2, 'name'], 'outputs[2][name]'),
      ([], '')])
 def test_path_text_ok(path: list[str | int], expected: str) -> None:
     """Test path rendering used in diagnostics and hook calls."""
@@ -381,7 +383,7 @@ def test_write_path_bad(data: dict[str, object],
     'data, path, expected_data, expected_removed',
     [({'old': 1}, ('old',), {}, ['old']),
      ({'items': [{'old': 1}, {'old': 2}]}, ('items', '[', 'old'),
-      {'items': [{}, {}]}, ['items[0].old', 'items[1].old']),
+      {'items': [{}, {}]}, ['items[0][old]', 'items[1][old]']),
      ({'items': [1, 2]}, ('items', '['), {'items': []},
       ['items[0]', 'items[1]']),
      ({'items': 'bad'}, ('items', '[', 'old'), {'items': 'bad'}, [])])
@@ -400,7 +402,7 @@ def test_remove_path(data: dict[str, object], path: rocf_mod.RocfPath,
      ({}, ('meta', 'owner'), 'ops', {'meta': {'owner': 'ops'}},
       ['meta[owner]']),
      ({'items': [{}, {'name': 'b'}]}, ('items', '[', 'name'), 'a',
-      {'items': [{'name': 'a'}, {'name': 'b'}]}, ['items[0].name']),
+      {'items': [{'name': 'a'}, {'name': 'b'}]}, ['items[0][name]']),
      ({'items': [1, 2]}, ('items', '['), 'a', {'items': [1, 2]}, []),
      ({}, ('items', '[', 'name'), 'a', {}, [])])
 def test_apply_missing(
@@ -449,7 +451,7 @@ def test_private_remove_paths_ok() -> None:
     rocf.remove_paths = [('items', '[', 'drop')]
     rocf.run_remove_paths(data, hook)
     assert data == {'items': [{}, {}]}
-    assert hook.old_keys == ['items[0].drop', 'items[1].drop']
+    assert hook.old_keys == ['items[0][drop]', 'items[1][drop]']
 
 
 def test_private_remove_paths_bad() -> None:
@@ -577,7 +579,7 @@ def test_private_missing_values_ok() -> None:
     rocf.missing = {('items', '[', 'name'): 'a', ('version',): 2}
     rocf.run_missing_values(data, hook)
     assert data == {'items': [{'name': 'a'}, {'name': 'b'}], 'version': 2}
-    assert hook.rocf_val_keys == ['items[0].name', 'version']
+    assert hook.rocf_val_keys == ['items[0][name]', 'version']
 
 
 def test_private_missing_values_bad() -> None:

@@ -159,22 +159,22 @@ def _as_list(value: object) -> Optional[list[object]]:
 
 
 def _path_text(path: Sequence[str | int]) -> str:
-    """Return the path text used in diagnostics and hook callbacks."""
+    """Return the path text used in diagnostics and hook callbacks.
+
+    The first dictionary key is rendered as a plain string. Every later
+    step (dictionary key or list index) is wrapped in square brackets, so
+    a JSON path renders as ``outputs[2][csv_params][delimiter]``. ROCF
+    only traverses plain JSON dictionaries and lists, so there is no
+    ``.member`` dot syntax here: that style is reserved for cases where a
+    path step is known to address a class attribute (for instance inside
+    a nested ``Config`` object), which ROCF does not do.
+    """
     result = ''
-    previous_was_index = False
     for part in path:
-        if isinstance(part, int):
-            result += f'[{part}]'
-            previous_was_index = True
-        elif not result:
+        if not result and isinstance(part, str):
             result = part
-            previous_was_index = False
-        elif previous_was_index:
-            result += f'.{part}'
-            previous_was_index = False
-        else:
-            result += f'[{part}]'
-            previous_was_index = False
+            continue
+        result += f'[{part}]'
     return result
 
 
@@ -569,9 +569,12 @@ class ReadOldConfiguration:
 
         The library reports actual performed compatibility changes to
         ``auto_ch_hook``. A wildcard move over three list elements is therefore
-        reported as three individual moved paths. Moved paths use the same text
-        style as member names used by member validators, for example
-        ``outputs[2].csv_params[delimiter]``.
+        reported as three individual moved paths. Moved paths use the same
+        text style as member names used by member validators, for example
+        ``outputs[2][csv_params][delimiter]``. ROCF traverses plain JSON
+        dictionaries and lists, so every step after the top-level key is
+        rendered with ``[...]``; the ``.member`` dot syntax is reserved for
+        paths through class attributes and is not used here.
 
         Current-shape values win over old-shape values if both are present.
         In that case the library removes the old value, writes a diagnostic to

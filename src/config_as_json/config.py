@@ -17,38 +17,19 @@ from copy import deepcopy
 import json
 import sys
 from typing import Optional, Type, NamedTuple, Callable, TextIO, TypeVar
-from enum import Enum, IntEnum
+from enum import Enum
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
-from config_as_json.commontypes import PathOrStr
+from config_as_json.commontypes import ConfigPath, PathOrStr
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
     NestedConfigs
 from config_as_json._config_nesting_io import _nested_config_from_json, \
     _nested_config_json_data, _validate_nested_config
+from config_as_json.json_write_hooks import SerializeConverters, \
+    apply_serialize_converters
 from config_as_json.read_old_configuration import ReadOldConfiguration
 from config_as_json.validator import ValidationPlan
-
-
-class _ConfigEncoder(json.JSONEncoder):
-    """Encode configuration objects with enum values stored as names."""
-
-    def default(self, o: object) -> object:
-        """Serialize enum members using their symbolic names.
-
-        Args:
-            o: Object supplied by ``json.dumps`` for custom encoding.
-
-        Returns:
-            The JSON-serializable representation of ``o``.
-
-        Raises:
-            TypeError: The object cannot be serialized by this encoder or its
-                base implementation.
-        """
-        if isinstance(o, (Enum, IntEnum)):
-            return str(o.name)
-        return super().default(o)
 
 
 class ConfigBadJson(json.JSONDecodeError):
@@ -216,6 +197,42 @@ class Config():
         """
         return {'in_type': ParseConverter(result_type=int,
                                           func=_over_ride_needed, args={})}
+
+    def serialize_converters(self) -> SerializeConverters:
+        """Return write-side conversion rules for rich Python values.
+
+        Derived classes override this method when some configuration values
+        need explicit conversion into JSON-compatible data before
+        ``json.dumps()`` is called. The motivating case is ``IntEnum``,
+        which Python's JSON encoder treats as ``int`` and never offers to
+        ``default()``; an explicit converter sidesteps that problem.
+
+        The returned dictionary maps selectors to converters. A selector
+        may be either a recursive key-name string (matches every
+        dictionary member with that name in data owned by this object) or
+        an absolute ``ConfigPath`` (matches one specific path). Path
+        selectors use the same rules as ROCF paths.
+
+        Converters apply only to data owned by this object. Declared
+        nested ``Config`` objects serialize themselves and apply their own
+        converters; the parent's converters never reach into those
+        subtrees.
+
+        Explicit converters override built-in fallback conversions. The
+        initial built-in fallbacks are limited to ``Enum`` and ``IntEnum``
+        members, which are converted to their member names.
+
+        Returning the same key with both a recursive key selector and a
+        path selector that ends in or passes through that key is a
+        declaration error; ``apply_serialize_converters`` raises
+        ``SerializeSelectorError`` in that case.
+
+        Returns:
+            Write-side conversion rules. The base class returns an empty
+            dictionary; override and return non-empty rules when explicit
+            conversions are needed.
+        """
+        return {}
 
     def nested_configs(self) -> NestedConfigs:
         """Return nested Config declarations for this configuration.
@@ -627,6 +644,39 @@ class Config():
                     setattr(self, i, data[i])
         self.validate(stderr_file=stderr_file)
 
+    def _child_owned_paths(self) -> list[ConfigPath]:
+        """Return paths to nested ``Config`` subtrees owned by children.
+
+        Used by :meth:`as_json_string` to tell
+        :func:`apply_serialize_converters` which parts of the assembled
+        JSON data have already been produced by a child ``Config``'s own
+        ``as_json_string()`` and must not be touched by this object's
+        write-side converters.
+
+        The literal ``'['`` step in a returned path means "every list
+        element or every dictionary value at this position", which lets
+        ``LIST_ELEMENT`` and ``DICT_VALUE`` declarations share the same
+        notation.
+        """
+        nested_configs = self._nested_config_decls
+        child_owned: list[ConfigPath] = []
+        for member, nestings in nested_configs.items():
+            first = nestings[0]
+            if first.kind == ConfigNestingKind.LIST_ELEMENT:
+                child_owned.append((member, '['))
+                continue
+            if first.kind == ConfigNestingKind.DICT_VALUE:
+                child_owned.append((member, '['))
+                continue
+            if first.kind == ConfigNestingKind.DICT_VALUE_BY_KEY:
+                for nesting in nestings:
+                    discriminator = nesting.discriminator_key
+                    assert discriminator is not None
+                    child_owned.append((member, discriminator))
+                continue
+            child_owned.append((member,))
+        return child_owned
+
     def as_json_string(self, stderr_file: TextIO) -> str:
         """Serialize the current configuration object to formatted JSON.
 
@@ -641,7 +691,7 @@ class Config():
         # We validate the configuration before writing it to JSON,
         # to make sure that the configuration is valid so it can be read back
         self.validate(stderr_file=stderr_file)
-        data = {}
+        data: dict[str, object] = {}
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
         omit_none_keys = self._checked_omit_none_from_json(self_keys)
@@ -655,7 +705,11 @@ class Config():
                     nestings=nested_configs[i], stderr_file=stderr_file)
             else:
                 data[i] = getattr(self, i)
-        return json.dumps(data, sort_keys=True, indent=4, cls=_ConfigEncoder)
+        converters = self.serialize_converters()
+        converted = apply_serialize_converters(
+            data=data, converters=converters, stderr_file=stderr_file,
+            child_owned_paths=self._child_owned_paths())
+        return json.dumps(converted, sort_keys=True, indent=4)
 
     def read(self, from_json_filename: PathOrStr,
              ok_to_use_defaults: bool = False,

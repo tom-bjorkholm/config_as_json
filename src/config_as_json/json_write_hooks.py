@@ -1,17 +1,29 @@
 #! /usr/local/bin/python3
-"""Sketch the public write-side JSON conversion hook API.
+"""Implement the public write-side JSON conversion hook API.
 
-This module records the proposed public names, type signatures and docstrings
-for write-side conversion hooks. It intentionally contains no conversion
-logic yet. The implementation can move these declarations or extend them
-after the API sketch has been reviewed.
+A ``Config`` subclass overrides ``serialize_converters()`` to declare how
+selected Python values should be converted into JSON-compatible data before
+``json.dumps()`` is called. ``Config.as_json_string()`` invokes
+:func:`apply_serialize_converters` once the data dictionary owned by the
+current Config object has been assembled and all declared nested Config
+objects have already serialized themselves.
+
+The implementation is intentionally small: built-in fallback conversions
+cover only ``Enum`` and ``IntEnum`` members (converted to their member
+names). Everything else is the responsibility of explicit converters
+declared by the application. The motivating problem case is ``IntEnum``,
+which Python's JSON encoder treats as ``int`` and therefore never offers to
+``default()``; the write-side hook runs before ``json.dumps()`` and
+sidesteps that issue.
 """
 
 # Copyright (c) 2026 Tom Björkholm
 # MIT License
 
-from typing import Callable, NamedTuple, Optional, Protocol, Sequence, TextIO
-from config_as_json.commontypes import ConfigPath, JsonType
+from copy import deepcopy
+from enum import Enum
+from typing import Callable, NamedTuple, Optional, Sequence, TextIO
+from config_as_json.commontypes import ConfigPath, JsonType, json_types
 from config_as_json.validator import InvalidConfiguration
 
 
@@ -35,6 +47,12 @@ should detect such conflicts when it checks ``serialize_converters()`` and
 raise ``SerializeSelectorError``. A path ending in ``'['`` targets list
 elements, not a dictionary key, so it does not conflict with a recursive key
 selector.
+
+For symmetry, the implementation also rejects a path selector that passes
+through a key that is itself a recursive key selector. This is conservative;
+future versions may extend write hooks to also describe converters for a
+class-object member that is itself a member of an outer class object, which
+would relax this rule.
 
 Declared nested ``Config`` objects form ownership boundaries. Parent
 converters do not apply inside nested objects; each nested object uses only
@@ -72,17 +90,17 @@ class SerializeConverter(NamedTuple):
     indexes and dictionary keys are appended in square brackets, for example
     ``matrix[3]`` and ``csv_params[delimiter]``.
 
-    The conversion result must be recursively JSON-compatible. Valid output is
-    ``None``, ``int``, ``str``, ``bool``, a list of valid values, or a
-    dictionary with string keys and valid values. Invalid output should raise
-    a path-aware ``JsonWriteHookError`` before ``json.dumps()`` is called.
-    Explicit converter output is checked as-is. Built-in fallback conversions
-    are not applied to the converter return value, so returning
+    The conversion result must be recursively JSON-compatible. Valid output
+    is ``None``, ``int``, ``float``, ``str``, ``bool``, a list of valid
+    values, or a dictionary with string keys and valid values. Invalid output
+    raises a path-aware ``JsonWriteHookError`` before ``json.dumps()`` is
+    called. Explicit converter output is checked as-is. Built-in fallback
+    conversions are not applied to the converter return value, so returning
     ``{'mode': SomeEnum.FAST}`` is invalid. Return a JSON-compatible value
     such as ``{'mode': 'FAST'}`` instead.
 
-    If ``func`` raises ``JsonWriteHookError``, it should propagate unchanged.
-    Other exceptions from ``func`` should be wrapped in ``JsonWriteHookError``
+    If ``func`` raises ``JsonWriteHookError``, it propagates unchanged.
+    Other exceptions from ``func`` are wrapped in ``JsonWriteHookError``
     with selector and path context.
 
     Attributes:
@@ -106,10 +124,11 @@ class SerializeSelectorError(ValueError):
     This exception reports programming errors in ``serialize_converters()``
     declarations, such as invalid selector types, invalid ``ConfigPath``
     syntax, or a recursive key selector that conflicts with a path selector
-    ending in the same dictionary key. It also reports selectors that would
-    cross child-owned nested ``Config`` ownership boundaries.
+    ending in or passing through the same dictionary key. It also reports
+    selectors that would cross child-owned nested ``Config`` ownership
+    boundaries.
 
-    Selector declarations should be checked before conversion starts as far as
+    Selector declarations are checked before conversion starts as far as
     possible. Data-dependent traversal errors, such as a path selector that
     reaches a list where it needs a dictionary, are detected while traversing
     the actual data and also raise this exception.
@@ -120,56 +139,416 @@ type SerializeConverters = dict[SerializeSelector, SerializeConverter]
 """Write-side conversion rules for rich Python values before JSON write."""
 
 
-# pylint: disable-next=too-few-public-methods
-class JsonWriteHookProvider(Protocol):
-    """Describe the write-side hook that ``Config`` classes may provide."""
+# The intermediate selector path used during traversal. Each step is either
+# a dictionary key (any string not starting with '[') or the literal '['
+# marker that stands for "this step descended into a list element".
+type _SelectorPath = tuple[str, ...]
 
-    def serialize_converters(self) -> SerializeConverters:
-        """Return conversion rules for rich Python values before JSON write.
+# Lookups built from the converter mapping. Path converters are keyed by the
+# exact ``_SelectorPath`` they target; recursive key converters are keyed by
+# the dictionary key name.
+type _PathConverters = dict[_SelectorPath, SerializeConverter]
+type _RecKeyConverters = dict[str, SerializeConverter]
 
-        The returned dictionary maps selectors to converters. A selector may
-        be either a recursive key-name string or an absolute ``ConfigPath``.
-        Path selectors use the same rules as ROCF paths.
 
-        The returned selectors are checked before conversion starts. Returning
-        both a recursive key selector and a path selector ending with the same
-        dictionary key is a declaration error, even if that path is absent
-        from the current configuration data. Such conflicts should raise
-        ``SerializeSelectorError``.
+# ----------------------------------------------------------------------
+# Selector validation
+# ----------------------------------------------------------------------
 
-        Converters apply only to data owned by this object. If a member is a
-        declared nested ``Config`` object, that object serializes itself and
-        applies its own converters.
 
-        For ``DICT_VALUE_BY_KEY`` nested declarations, declared nested values
-        remain child-owned and use only their own converters. Undeclared plain
-        values inside the same dictionary remain parent-owned and may use this
-        object's converters.
+def _is_path_selector(selector: SerializeSelector) -> bool:
+    """Return whether ``selector`` is a path (tuple), not a recursive key."""
+    return isinstance(selector, tuple)
 
-        A parent converter must not target child-owned data. When the current
-        object has declared nested ``Config`` values, the write path supplies
-        those owned subtrees to ``apply_serialize_converters()`` as
-        ``child_owned_paths``. Selectors that would convert those child-owned
-        subtrees, their descendants, or an ancestor container containing them
-        should raise ``SerializeSelectorError``.
 
-        Explicit converters override built-in fallback conversions. If more
-        than one selector matches a value, the most specific path selector
-        should win over a recursive key-name selector.
+def _selector_repr(selector: SerializeSelector) -> str:
+    """Return a human-friendly representation of one selector."""
+    if isinstance(selector, str):
+        return repr(selector)
+    return str(selector)
 
-        The initial built-in fallback conversions are intentionally small:
-        ``Enum`` and ``IntEnum`` members are converted to their member names.
-        All other rich Python values need explicit converters.
 
-        Derived ``Config`` classes should override this method with
-        ``@override`` when they need explicit write-side converters. The base
-        ``Config`` implementation should return an empty dictionary.
+def _validate_one_selector(selector: SerializeSelector) -> None:
+    """Validate the shape of one selector returned from the hook.
 
-        Returns:
-            Write-side conversion rules. Return an empty dictionary when no
-            explicit conversions are needed.
-        """
-        raise NotImplementedError('Sketch only.')
+    Recursive key selectors must be non-empty strings that do not start with
+    ``'['``. Path selectors follow the same rules as ROCF paths: non-empty
+    tuple of strings, first element must be a dictionary key, intermediate
+    ``'['`` markers are allowed, and any other element starting with ``'['``
+    is reserved.
+    """
+    if isinstance(selector, str):
+        if not selector:
+            raise SerializeSelectorError(
+                'Recursive key selector must not be the empty string')
+        if selector.startswith('['):
+            raise SerializeSelectorError(
+                f'Recursive key selector {selector!r} must not start with '
+                "'['")
+        return
+    if not isinstance(selector, tuple):
+        raise SerializeSelectorError(
+            'Selector must be a str or a ConfigPath tuple; got '
+            f'{type(selector).__name__}')
+    if not selector:
+        raise SerializeSelectorError('Path selector must not be empty')
+    if selector[0] == '[':
+        raise SerializeSelectorError(
+            f'Path selector {selector} must start with a dictionary key')
+    for part in selector:
+        if not isinstance(part, str):
+            raise SerializeSelectorError(
+                f'Path selector {selector} element must be a str; got '
+                f'{type(part).__name__}')
+        if part.startswith('[') and part != '[':
+            raise SerializeSelectorError(
+                f'Path selector {selector} element {part!r} is reserved')
+
+
+def _split_selectors(converters: SerializeConverters) \
+        -> tuple[_RecKeyConverters, _PathConverters]:
+    """Validate selectors and split them into rec-key and path mappings."""
+    rec_key: _RecKeyConverters = {}
+    paths: _PathConverters = {}
+    for selector, converter in converters.items():
+        if not isinstance(converter, SerializeConverter):
+            raise SerializeSelectorError(
+                f'Converter for {_selector_repr(selector)} must be a '
+                'SerializeConverter')
+        _validate_one_selector(selector)
+        if isinstance(selector, str):
+            rec_key[selector] = converter
+        else:
+            paths[selector] = converter
+    return rec_key, paths
+
+
+def _check_rec_vs_path_conflicts(rec_key: _RecKeyConverters,
+                                 paths: _PathConverters) -> None:
+    """Reject recursive-key vs path selector conflicts.
+
+    A path selector may neither end with a key that is also a recursive-key
+    selector, nor pass through such a key in an intermediate step.
+    """
+    for path in paths.keys():
+        last = path[-1]
+        if last != '[' and last in rec_key:
+            raise SerializeSelectorError(
+                f'Path selector {path} ends in key {last!r} which is also '
+                'a recursive-key selector')
+        # pylint: disable-next=line-too-long
+        # Intermediate steps must not pass through a recursive-key target. A
+        # future relaxation could allow rec-key conversion of a Config
+        # member that contains other rec-key targets, but for now we reject
+        # the combination.
+        for step in path[:-1]:
+            if step != '[' and step in rec_key:
+                raise SerializeSelectorError(
+                    f'Path selector {path} passes through key {step!r} '
+                    'which is also a recursive-key selector')
+
+
+def _path_matches_or_extends(p: _SelectorPath,
+                             reference: _SelectorPath) -> bool:
+    """Return whether ``p`` is equal to or a descendant of ``reference``.
+
+    In ``reference``, the literal ``'['`` step matches either ``'['`` in
+    ``p`` (list iteration) or any non-``'['`` dictionary key in ``p`` (a
+    dictionary value). This extended meaning is only used when matching a
+    traversal selector path against a child-owned-path boundary. Plain
+    path-selector matching uses identical tuple equality.
+    """
+    if len(p) < len(reference):
+        return False
+    for p_step, ref_step in zip(p[:len(reference)], reference):
+        if ref_step == '[':
+            continue
+        if p_step != ref_step:
+            return False
+    return True
+
+
+def _check_child_boundaries(paths: _PathConverters,
+                            child_owned: Sequence[ConfigPath]) -> None:
+    """Reject path selectors that cross child-owned subtree boundaries."""
+    for path in paths.keys():
+        for cop in child_owned:
+            if _path_matches_or_extends(path, cop):
+                raise SerializeSelectorError(
+                    f'Path selector {path} targets or descends into the '
+                    f'child-owned subtree {cop}')
+            if _path_matches_or_extends(cop, path):
+                raise SerializeSelectorError(
+                    f'Path selector {path} is an ancestor of the '
+                    f'child-owned subtree {cop}')
+
+
+# Recursive-key selectors do not need an up-front boundary check against
+# child_owned_paths: the parent-owned walk never descends into child-owned
+# subtrees, so a recursive key whose name happens to also exist deep inside
+# a child-owned subtree is silently ignored.
+
+
+# ----------------------------------------------------------------------
+# Path text helpers
+# ----------------------------------------------------------------------
+
+
+def _append_path_text(prefix: str, step: str | int) -> str:
+    """Append one dict-key or list-index step to a path-text string.
+
+    Returns the top-level name unchanged when ``prefix`` is empty and the
+    step is a string. For all other cases the step is wrapped in square
+    brackets, matching the member-name convention used by the member
+    validators.
+    """
+    if not prefix and isinstance(step, str):
+        return step
+    return f'{prefix}[{step}]'
+
+
+# ----------------------------------------------------------------------
+# JSON compatibility verification
+# ----------------------------------------------------------------------
+
+
+def _check_json_compatible(value: object, path_text: str) -> None:
+    """Recursively verify that a value is JSON-compatible.
+
+    Accepted leaf types are ``None``, ``bool``, ``int``, ``float`` and
+    ``str``. Containers must be a ``list`` of compatible values or a
+    ``dict`` with string keys mapping to compatible values. A
+    ``JsonWriteHookError`` is raised on the first violation.
+
+    ``bool`` is intentionally accepted as a leaf even though it is a
+    subclass of ``int``; ``json.dumps`` writes booleans as ``true``/
+    ``false`` and we treat them as JSON-native.
+    """
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            _check_json_compatible(item, _append_path_text(path_text, index))
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise JsonWriteHookError(
+                    f'Dictionary key at {path_text or "<root>"} must be a '
+                    f'str; got {type(key).__name__}')
+            if key.startswith('['):
+                raise JsonWriteHookError(
+                    f'Dictionary key {key!r} at {path_text or "<root>"} '
+                    "must not start with '['")
+            _check_json_compatible(item, _append_path_text(path_text, key))
+        return
+    raise JsonWriteHookError(
+        f'Value at {path_text or "<root>"} has non-JSON type '
+        f'{type(value).__name__}')
+
+
+# ----------------------------------------------------------------------
+# Converter dispatch
+# ----------------------------------------------------------------------
+
+
+def _apply_one_converter(value: object, converter: SerializeConverter,
+                         path_text: str, selector: SerializeSelector,
+                         stderr_file: TextIO) -> JsonType:
+    """Apply one converter to ``value`` and wrap unexpected errors.
+
+    ``None`` always passes through unchanged. The optional ``value_type``
+    pre-check raises ``JsonWriteHookError`` instead of trusting the user
+    converter to be defensive.
+    """
+    if value is None:
+        return None
+    if converter.value_type is not None and \
+            not isinstance(value, converter.value_type):
+        raise JsonWriteHookError(
+            f'Value at {path_text or "<root>"} for selector '
+            f'{_selector_repr(selector)} has type '
+            f'{type(value).__name__}; expected '
+            f'{converter.value_type.__name__}')
+    try:
+        result = converter.func(value, path_text=path_text,
+                                stderr_file=stderr_file, **converter.args)
+    except JsonWriteHookError:
+        raise
+    except Exception as exc:  # pylint: disable=broad-exception-caught
+        raise JsonWriteHookError(
+            f'Converter for {_selector_repr(selector)} at '
+            f'{path_text or "<root>"} raised {type(exc).__name__}: {exc}'
+        ) from exc
+    _check_json_compatible(result, path_text)
+    return result
+
+
+def _builtin_fallback(value: object) -> object:
+    """Apply the built-in fallback conversion to one value.
+
+    Only Enum/IntEnum members are converted, to their symbolic ``name``.
+    Other values are returned unchanged.
+    """
+    if isinstance(value, Enum):
+        return value.name
+    return value
+
+
+def _is_inside_child_owned(selector_path: _SelectorPath,
+                           child_owned: Sequence[ConfigPath]) -> bool:
+    """Return whether ``selector_path`` is at or below a child-owned path."""
+    for cop in child_owned:
+        if _path_matches_or_extends(selector_path, cop):
+            return True
+    return False
+
+
+def _has_path_inside(selector_path: _SelectorPath,
+                     paths: _PathConverters) -> tuple[bool, bool]:
+    """Return whether any path selector targets inside ``selector_path``.
+
+    The two booleans say whether such a path expects a dict next or a list
+    next at ``selector_path``. They are used to raise
+    ``SerializeSelectorError`` when the actual data has the wrong container
+    type at this point.
+    """
+    expects_dict = False
+    expects_list = False
+    depth = len(selector_path)
+    for path in paths.keys():
+        if len(path) <= depth:
+            continue
+        if path[:depth] != selector_path:
+            continue
+        next_step = path[depth]
+        if next_step == '[':
+            expects_list = True
+        else:
+            expects_dict = True
+    return expects_dict, expects_list
+
+
+class _WalkContext(NamedTuple):
+    """Bundle the read-only walk parameters threaded through traversal."""
+
+    rec_key: _RecKeyConverters
+    paths: _PathConverters
+    child_owned: Sequence[ConfigPath]
+    stderr_file: TextIO
+
+
+def _convert_dict(value: dict[str, object], selector_path: _SelectorPath,
+                  path_text: str, ctx: _WalkContext) -> dict[str, JsonType]:
+    """Convert one parent-owned dictionary value."""
+    result: dict[str, JsonType] = {}
+    for key, item in value.items():
+        if not isinstance(key, str):
+            raise JsonWriteHookError(
+                f'Dictionary key at {path_text or "<root>"} must be a '
+                f'str; got {type(key).__name__}')
+        if key.startswith('['):
+            raise JsonWriteHookError(
+                f'Dictionary key {key!r} at {path_text or "<root>"} '
+                "must not start with '['")
+        child_selector = selector_path + (key,)
+        child_text = _append_path_text(path_text, key)
+        if _is_inside_child_owned(child_selector, ctx.child_owned):
+            result[key] = _passthrough_child(item)
+            continue
+        # An exact path-selector match at the child position takes
+        # precedence over recursive key selectors. Declaration-time checks
+        # prevent both from targeting the same value, but path selectors
+        # may also target the same name as a different key elsewhere; the
+        # exact match wins here.
+        if child_selector in ctx.paths:
+            result[key] = _apply_one_converter(
+                value=item, converter=ctx.paths[child_selector],
+                path_text=child_text, selector=child_selector,
+                stderr_file=ctx.stderr_file)
+            continue
+        if key in ctx.rec_key:
+            result[key] = _apply_one_converter(
+                value=item, converter=ctx.rec_key[key], path_text=child_text,
+                selector=key, stderr_file=ctx.stderr_file)
+            continue
+        result[key] = _convert_value(value=item, selector_path=child_selector,
+                                     path_text=child_text, ctx=ctx)
+    return result
+
+
+def _convert_list(value: list[object], selector_path: _SelectorPath,
+                  path_text: str, ctx: _WalkContext) -> list[JsonType]:
+    """Convert one parent-owned list value."""
+    child_selector = selector_path + ('[',)
+    inside_child = _is_inside_child_owned(child_selector, ctx.child_owned)
+    result: list[JsonType] = []
+    for index, item in enumerate(value):
+        child_text = _append_path_text(path_text, index)
+        if inside_child:
+            result.append(_passthrough_child(item))
+            continue
+        if child_selector in ctx.paths:
+            result.append(_apply_one_converter(
+                value=item, converter=ctx.paths[child_selector],
+                path_text=child_text, selector=child_selector,
+                stderr_file=ctx.stderr_file))
+            continue
+        result.append(_convert_value(value=item, selector_path=child_selector,
+                                     path_text=child_text, ctx=ctx))
+    return result
+
+
+def _passthrough_child(value: object) -> JsonType:
+    """Return a child-owned value as-is after a JSON-compatibility check.
+
+    Child-owned subtrees have already been produced by the child object's
+    own ``as_json_string()``, so they must already be JSON-compatible. The
+    check protects us against programming mistakes and produces a clear
+    error rather than a cryptic ``json.dumps`` failure.
+    """
+    _check_json_compatible(value, '<child-owned>')
+    assert isinstance(value, json_types)
+    return value
+
+
+def _convert_value(value: object, selector_path: _SelectorPath, path_text: str,
+                   ctx: _WalkContext) -> JsonType:
+    """Convert one value, recursing into containers as needed."""
+    expects_dict, expects_list = _has_path_inside(selector_path, ctx.paths)
+    if isinstance(value, dict):
+        if expects_list:
+            raise SerializeSelectorError(
+                f'Path selector expects a list at '
+                f'{path_text or "<root>"} but data has a dict')
+        return _convert_dict(value=value, selector_path=selector_path,
+                             path_text=path_text, ctx=ctx)
+    if isinstance(value, list):
+        if expects_dict:
+            raise SerializeSelectorError(
+                f'Path selector expects a dict at '
+                f'{path_text or "<root>"} but data has a list')
+        return _convert_list(value=value, selector_path=selector_path,
+                             path_text=path_text, ctx=ctx)
+    if expects_dict or expects_list:
+        raise SerializeSelectorError(
+            f'Path selector expects a container at '
+            f'{path_text or "<root>"} but data has '
+            f'{type(value).__name__}')
+    fallback = _builtin_fallback(value)
+    if fallback is not None and \
+            not isinstance(fallback, (bool, int, float, str)):
+        raise JsonWriteHookError(
+            f'Value at {path_text or "<root>"} has non-JSON type '
+            f'{type(value).__name__}; declare a SerializeConverter or use '
+            'a JSON-compatible value')
+    assert isinstance(fallback, json_types)
+    return fallback
+
+
+# ----------------------------------------------------------------------
+# Public entry point
+# ----------------------------------------------------------------------
 
 
 def apply_serialize_converters(data: dict[str, object],
@@ -179,43 +558,51 @@ def apply_serialize_converters(data: dict[str, object],
                                    -> dict[str, JsonType]:
     """Return JSON-compatible data after write-side conversions.
 
-    ``Config.as_json_string()`` should call this function after validation and
-    after nested ``Config`` members have been converted to their own JSON data,
-    but before calling ``json.dumps()``. The function owns selector checking,
-    converter dispatch, built-in fallback conversions such as enum-name
-    serialization, and recursive JSON-compatibility checks.
+    ``Config.as_json_string()`` should call this function after validation
+    and after nested ``Config`` members have been converted to their own
+    JSON data, but before calling ``json.dumps()``. The function owns
+    selector checking, converter dispatch, built-in fallback conversions
+    such as enum-name serialization, and recursive JSON-compatibility
+    checks.
 
-    The function returns a new converted tree when any conversion is needed.
-    If no conversion is needed, it may return ``data`` unchanged. It should
-    not partially mutate the passed-in data tree while producing a different
-    returned tree.
+    The function returns a new converted tree. The passed-in tree is never
+    mutated.
 
     The initial built-in fallback conversions are ``Enum`` and ``IntEnum``
     members to their member names. Everything else outside explicit
     converters must already be JSON-compatible.
 
-    A path selector that reaches a missing dictionary key is a no-op. A path
-    selector that reaches the wrong container type raises
-    ``SerializeSelectorError``. For example, expecting a dictionary key where
-    the actual data has a list is an error, while an absent key in an existing
-    dictionary is not.
+    A path selector that reaches a missing dictionary key is a no-op. A
+    path selector that reaches the wrong container type raises
+    ``SerializeSelectorError``. For example, expecting a dictionary key
+    where the actual data has a list is an error, while an absent key in an
+    existing dictionary is not.
 
-    A recursive key-name selector walks parent-owned dictionaries and lists.
-    It must skip child-owned subtrees.
+    A recursive key-name selector walks parent-owned dictionaries and
+    lists. It skips child-owned subtrees automatically because the walk
+    never descends into them.
 
-    ``child_owned_paths`` describes nested ``Config`` subtrees that are present
-    in ``data`` only because the child object already serialized itself. This
-    function must not traverse or convert those subtrees while applying the
-    current object's converters.
+    ``child_owned_paths`` describes nested ``Config`` subtrees that are
+    present in ``data`` only because the child object already serialized
+    itself. The function passes those subtrees through unchanged. In a
+    child-owned path the literal ``'['`` step matches either a list
+    element or a dictionary value at that point, which lets a parent
+    describe ``LIST_ELEMENT`` and ``DICT_VALUE`` nested-config kinds with
+    the same notation.
+
+    Dictionary keys that start with ``'['`` are rejected. ``'['`` is
+    reserved by ``ConfigPath`` for list iteration and is not allowed as a
+    literal data key.
 
     Args:
         data: Root data dictionary owned by the current ``Config`` object.
         converters: Explicit converters returned by
             ``Config.serialize_converters()``.
         stderr_file: Stream passed through to converter functions.
-        child_owned_paths: Paths to nested ``Config`` subtrees owned by child
-            objects. Selectors that would convert those subtrees, their
-            descendants, or an ancestor container containing them are invalid.
+        child_owned_paths: Paths to nested ``Config`` subtrees owned by
+            child objects. Selectors that would convert those subtrees,
+            their descendants, or an ancestor container containing them
+            are invalid.
 
     Returns:
         A JSON-compatible dictionary ready to pass to ``json.dumps()``.
@@ -223,8 +610,29 @@ def apply_serialize_converters(data: dict[str, object],
     Raises:
         SerializeSelectorError: The selector declarations are invalid or
             ambiguous, or a selector crosses a child-owned path boundary.
-        JsonWriteHookError: A matched value has the wrong type, a converter
-            raises an error that should be wrapped with path context, or a
-            conversion result is not JSON-compatible.
+        JsonWriteHookError: A matched value has the wrong type, a
+            converter raises an error that should be wrapped with path
+            context, or a conversion result is not JSON-compatible.
     """
-    raise NotImplementedError('Sketch only.')
+    if not isinstance(data, dict):
+        raise JsonWriteHookError(
+            f'Root data must be a dict; got {type(data).__name__}')
+    if not isinstance(converters, dict):
+        raise SerializeSelectorError(
+            'serialize_converters() must return a dict mapping selectors '
+            'to SerializeConverter objects')
+    child_owned = tuple(child_owned_paths)
+    for cop in child_owned:
+        _validate_one_selector(cop)
+    rec_key, paths = _split_selectors(converters)
+    _check_rec_vs_path_conflicts(rec_key=rec_key, paths=paths)
+    _check_child_boundaries(paths=paths, child_owned=child_owned)
+    # We always produce a new tree so callers can rely on the input not
+    # being mutated. ``deepcopy`` is conservative but keeps the converter
+    # API simple: converter functions may safely keep references to the
+    # values they receive without worrying about hidden aliasing.
+    working = deepcopy(data)
+    ctx = _WalkContext(rec_key=rec_key, paths=paths, child_owned=child_owned,
+                       stderr_file=stderr_file)
+    return _convert_dict(value=working, selector_path=(), path_text='',
+                         ctx=ctx)

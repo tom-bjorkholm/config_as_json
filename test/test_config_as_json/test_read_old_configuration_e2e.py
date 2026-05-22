@@ -258,27 +258,27 @@ def test_old_shape_read(capsys: pytest.CaptureFixture[str]) -> None:
     assert hook.calls == [([
         'trace_enabled',
         'legacy_block',
-        'sections[0].stale',
-        'sections[1].stale',
+        'sections[0][stale]',
+        'sections[1][stale]',
         'lesson_title',
         'fallback_format -> fallback_export_format',
         'export[format_name] -> export[selected_format]',
         'export -> export_items[0]',
-        'sections[0].duration -> sections[0].minutes',
-        'sections[1].duration -> sections[1].minutes'
+        'sections[0][duration] -> sections[0][minutes]',
+        'sections[1][duration] -> sections[1][minutes]'
     ], [
         'schema_version',
-        'export_items[0].char_encoding',
-        'sections[0].required',
-        'sections[1].required',
+        'export_items[0][char_encoding]',
+        'sections[0][required]',
+        'sections[1][required]',
         'empty_tags'
     ])]
     assert hook.old_paths_moved == [
         ('fallback_format', 'fallback_export_format'),
         ('export[format_name]', 'export[selected_format]'),
         ('export', 'export_items[0]'),
-        ('sections[0].duration', 'sections[0].minutes'),
-        ('sections[1].duration', 'sections[1].minutes')
+        ('sections[0][duration]', 'sections[0][minutes]'),
+        ('sections[1][duration]', 'sections[1][minutes]')
     ]
 
 

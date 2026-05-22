@@ -1375,3 +1375,56 @@ python3 -m example.e37_read_old_nested_configuration_file write-new --output new
 python3 -m example.e37_read_old_nested_configuration_file print --input old.cfg
 python3 -m example.e37_read_old_nested_configuration_file migrate --input old.cfg --output migrated.cfg
 ```
+
+## e38_write_side_hook.py
+
+[Source code for e38_write_side_hook.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e38_write_side_hook.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e38_write_side_hook.py)
+
+This example teaches the write-side JSON conversion hook
+(`serialize_converters`). The hook runs before `json.dumps` and replaces
+rich Python values with JSON-compatible ones, so the file on disk stays
+plain JSON while the Python code keeps working with the original types.
+
+The motivating case is `enum.IntEnum`. Because `IntEnum` is a subclass of
+`int`, `json.dumps` treats it as an integer and never offers it to a
+custom encoder. A pre-serialization hook is the clean way around the
+problem. Plain `enum.Enum` members do not have this problem; the library
+already has a built-in fallback that converts every `Enum` and `IntEnum`
+member to its symbolic `.name`. An explicit converter is only needed
+when the value needs a different shape (for example, the numeric value
+instead of the name) or when the matched type is not an enum at all.
+
+The `TaskConfig` class in this example stores:
+
+- `project`, a plain string.
+- `output_file`, a `pathlib.Path`. `Path` is not a JSON-native type, so
+  an explicit converter writes the portable POSIX form. The matching
+  `parse_converters` rule reads it back as a `Path`.
+- `review_state`, a plain `Enum`. No explicit converter is needed; the
+  built-in fallback writes the `.name`.
+- `priority`, an `IntEnum`. The explicit converter writes the `.name`,
+  which makes the file human-readable and stable across renumbering.
+
+The example demonstrates two selector kinds:
+
+- A *recursive key selector* (a plain string such as `'priority'`)
+  matches every dictionary member with that name in data owned by this
+  Config object.
+- An *absolute path selector* (a `ConfigPath` tuple such as
+  `('output_file',)`) targets one specific location in the tree.
+
+Path selectors also support a literal `'['` step to mean "every list
+element" or "every dictionary value" at that point. This example does
+not use that form because Python lists of plain `Enum` values do not
+round-trip through `parse_converters` (which expects scalar JSON values
+per top-level key). The typical way to model a list of rich Python
+objects is a nested `Config` per element (see `e34_list_nested_configs`),
+where each child object declares its own `serialize_converters` and
+`parse_converters`.
+
+The command line mirrors e30 and e34:
+
+```sh
+python3 -m example.e38_write_side_hook set --output config.cfg
+python3 -m example.e38_write_side_hook print --input config.cfg
+```
