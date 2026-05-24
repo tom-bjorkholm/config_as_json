@@ -8,7 +8,7 @@ import dataclasses
 import sys
 from collections.abc import Hashable
 from enum import Enum
-from typing import Callable, Optional, Sequence, TextIO
+from typing import Callable, Optional, Sequence, TextIO, cast
 import pytest
 from pytest import CaptureFixture
 from config_as_json import accept_all_keys as public_accept_all_keys
@@ -237,10 +237,11 @@ def test_dict_keys_init_bad_args(
             Sequence[object]], exc_type: type[Exception],
         message: str) -> None:
     """Test that DictKeysValidator validates its inputs in __init__."""
+    bad_mandatory = cast(Sequence[str], mandatory_keys)
+    bad_allowed = cast(Optional[Sequence[str]], allowed_keys)
     with pytest.raises(exc_type) as exc:
-        DictKeysValidator(
-            mandatory_keys=mandatory_keys,  # type: ignore[arg-type]
-            allowed_keys=allowed_keys)  # type: ignore[arg-type]
+        DictKeysValidator(mandatory_keys=bad_mandatory,
+                          allowed_keys=bad_allowed)
     assert message in str(exc.value)
 
 
@@ -449,9 +450,9 @@ def test_dict_keys_parsed_json(capsys: CaptureFixture[str]) -> None:
               ], TypeError, 'validators[1] must be a MemberValidator'),
      (accept_all_keys, [ListSizeValidator(0, 1), 'not-a-validator'], TypeError,
       'validators[1] must be a MemberValidator')])
-def test_dict_rule_rejects_bad_args(
-        keys: object, validators: object, exc_type: type[Exception],
-        message: str) -> None:
+def test_dict_rule_rejects_bad_args(keys: object, validators: object,
+                                    exc_type: type[Exception],
+                                    message: str) -> None:
     """Test that DictRule validates its inputs through __post_init__."""
     with pytest.raises(exc_type) as exc:
         DictRule(keys=keys,  # type: ignore[arg-type]

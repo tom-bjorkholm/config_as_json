@@ -55,8 +55,8 @@ class ConfigXlsListTransfNumValidated(ConfigExcelTransformValidated[int]):
             MemberValidationStep(
                 member_names=['s04_remove_columns',
                               's06_place_columns_first'],
-                validator=ListIsOrderedValidator(
-                    int, is_ordered=False, unique_values=True)),
+                validator=ListIsOrderedValidator(int, is_ordered=False,
+                                                 unique_values=True)),
             MemberValidationStep(member_names=['s05_merge_columns'],
                                  validator=increasing_merge_columns_validator(
                     self._columntype))])

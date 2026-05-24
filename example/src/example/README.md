@@ -944,6 +944,47 @@ sequences relate to each other. Other list validators should still own
 single-list rules such as element type, allowed values, size, order, or
 uniqueness.
 
+## e25_value_as_type_validator.py
+
+[Source code for e25_value_as_type_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e25_value_as_type_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e25_value_as_type_validator.py)
+
+This example teaches `ValueAsTypeValidator`. Use it when configuration input
+may arrive in a friendly or old representation, but application code should
+see one normalized Python type after validation.
+
+The configuration has 2 members:
+
+- `retry_count` is used as an `int`
+- `story_points` is also used as an `int`
+
+`retry_count` demonstrates direct conversion. The validation plan accepts
+strings and normalizes them with the target constructor:
+
+`int("5")`
+
+That means command line text or JSON text can become the integer `5` before
+the application uses the value. The example then applies
+`ValueTypeValidator(int, not_allowed_type=bool)` as a second step. This is
+intentional because Python treats `bool` as a subclass of `int`; the
+normalizing validator keeps an existing boolean unchanged, and the explicit
+type validator documents that booleans are not valid retry counts.
+
+`story_points` demonstrates callable conversion. Current configuration files
+store story points as integers, but older files may still contain T-shirt
+sizes. The validator receives a conversion function, so `"XS"`, `"S"`, `"M"`,
+`"L"`, and `"XL"` can become `1`, `2`, `3`, `5`, and `8`.
+
+This is intentionally not an enum example. Normal `Enum` and `IntEnum`
+reading has better built-in support through `Config` parse converters; see
+`e38_write_side_hook.py` for that pattern.
+
+The command line accepts both values as text:
+
+`--retry-count 5 --story-points XL`
+
+The file written by the example contains the normalized forms: an integer
+retry count and integer story points.
+
 ## e30_optional_user_preference.py
 
 [Source code for e30_optional_user_preference.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py)

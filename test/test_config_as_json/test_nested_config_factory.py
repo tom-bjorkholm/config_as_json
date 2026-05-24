@@ -432,8 +432,8 @@ def test_dict_factory_constructs(capsys: CaptureFixture[str]) -> None:
                                   stderr_file=sys.stderr)
     json_data = _json_data_from_config(cfg, capsys)
     json_texts = [text for text in factory.json_texts if text is not None]
-    expected_outputs = cast(
-        dict[str, object], _dict_expected_json()['outputs'])
+    expected_outputs = cast(dict[str, object],
+                            _dict_expected_json()['outputs'])
     assert factory.filenames == [None, None]
     assert factory.stderr_files == [sys.stderr, sys.stderr]
     assert [json.loads(text) for text in json_texts] == [
@@ -453,8 +453,8 @@ def test_by_key_factory_constructs(capsys: CaptureFixture[str]) -> None:
     json_texts = [text for text in factory.json_texts if text is not None]
     typed = cast(FactoryOutputConfig, cfg.outputs['typed'])
     factory_output = cast(FactoryOutputConfig, cfg.outputs['factory'])
-    expected_outputs = cast(
-        dict[str, object], _dict_by_key_expected_json()['outputs'])
+    expected_outputs = cast(dict[str, object],
+                            _dict_by_key_expected_json()['outputs'])
     assert factory.filenames == [None]
     assert factory.stderr_files == [sys.stderr]
     assert [json.loads(text) for text in json_texts] == [

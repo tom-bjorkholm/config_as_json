@@ -516,10 +516,10 @@ class DictKeyValueTypesValidator(MemberValidator):
                 ``value_type`` is not a type, or ``value_validator`` is not
                 a ``MemberValidator`` or ``None``.
         """
-        self.key_type: type[Hashable] = _validate_hashable_type(
-            key_type, 'key_type')
-        self.value_type: type[object] = _validate_type_argument(
-            value_type, 'value_type')
+        self.key_type: type[Hashable] = _validate_hashable_type(key_type,
+                                                                'key_type')
+        self.value_type: type[object] = _validate_type_argument(value_type,
+                                                                'value_type')
         if value_validator is not None and \
                 not isinstance(value_validator, MemberValidator):
             raise TypeError('value_validator must be a MemberValidator '
@@ -559,9 +559,9 @@ class DictKeyValueTypesValidator(MemberValidator):
                 ``InvalidConfigurationValue``.
         """
         _ = config
-        validated_dict = _validate_dict_member_value(
-            member_name=member_name, member_value=member_value,
-            stderr_file=stderr_file)
+        validated_dict = _validate_dict_member_value(member_name=member_name,
+                                                     member_value=member_value,
+                                                     stderr_file=stderr_file)
         for key, value in validated_dict.items():
             if not isinstance(key, self.key_type):
                 msg = 'Invalid configuration: '

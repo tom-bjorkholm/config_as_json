@@ -50,9 +50,6 @@
     * [validate\_member](#config_as_json.validator.MemberValidator.validate_member)
   * [\_validate\_type\_argument](#config_as_json.validator._validate_type_argument)
   * [\_validate\_non\_empty\_str\_argument](#config_as_json.validator._validate_non_empty_str_argument)
-  * [ValueTypeValidator](#config_as_json.validator.ValueTypeValidator)
-    * [\_\_init\_\_](#config_as_json.validator.ValueTypeValidator.__init__)
-    * [validate\_member](#config_as_json.validator.ValueTypeValidator.validate_member)
   * [ValidationStep](#config_as_json.validator.ValidationStep)
     * [apply](#config_as_json.validator.ValidationStep.apply)
   * [WholeConfigValidationStep](#config_as_json.validator.WholeConfigValidationStep)
@@ -223,6 +220,33 @@
   * [ProjectedWholeConfigValidator](#config_as_json.projected_validators.ProjectedWholeConfigValidator)
     * [\_\_init\_\_](#config_as_json.projected_validators.ProjectedWholeConfigValidator.__init__)
     * [validate](#config_as_json.projected_validators.ProjectedWholeConfigValidator.validate)
+* [config\_as\_json.type\_validators](#config_as_json.type_validators)
+  * [\_validate\_type\_spec](#config_as_json.type_validators._validate_type_spec)
+  * [\_copy\_type\_spec](#config_as_json.type_validators._copy_type_spec)
+  * [\_format\_type\_names](#config_as_json.type_validators._format_type_names)
+  * [\_matches\_type\_spec](#config_as_json.type_validators._matches_type_spec)
+  * [\_validate\_strict](#config_as_json.type_validators._validate_strict)
+  * [\_validate\_allowed\_denied](#config_as_json.type_validators._validate_allowed_denied)
+  * [\_type\_is\_denied](#config_as_json.type_validators._type_is_denied)
+  * [\_raise\_type\_error](#config_as_json.type_validators._raise_type_error)
+  * [\_raise\_denied\_error](#config_as_json.type_validators._raise_denied_error)
+  * [\_matching\_type](#config_as_json.type_validators._matching_type)
+  * [\_type\_rank](#config_as_json.type_validators._type_rank)
+  * [\_validate\_convert\_map](#config_as_json.type_validators._validate_convert_map)
+  * [\_validate\_no\_overlap](#config_as_json.type_validators._validate_no_overlap)
+  * [\_raise\_conversion\_error](#config_as_json.type_validators._raise_conversion_error)
+  * [\_validate\_converted\_value](#config_as_json.type_validators._validate_converted_value)
+  * [InvalidConfigurationType](#config_as_json.type_validators.InvalidConfigurationType)
+  * [ValueTypeValidator](#config_as_json.type_validators.ValueTypeValidator)
+    * [\_\_init\_\_](#config_as_json.type_validators.ValueTypeValidator.__init__)
+    * [validate\_member](#config_as_json.type_validators.ValueTypeValidator.validate_member)
+  * [ValueAsTypeValidator](#config_as_json.type_validators.ValueAsTypeValidator)
+    * [\_\_init\_\_](#config_as_json.type_validators.ValueAsTypeValidator.__init__)
+    * [validate\_member](#config_as_json.type_validators.ValueAsTypeValidator.validate_member)
+    * [\_conversion\_input\_types](#config_as_json.type_validators.ValueAsTypeValidator._conversion_input_types)
+    * [\_use\_direct](#config_as_json.type_validators.ValueAsTypeValidator._use_direct)
+    * [\_convert\_direct](#config_as_json.type_validators.ValueAsTypeValidator._convert_direct)
+    * [\_convert\_with\_func](#config_as_json.type_validators.ValueAsTypeValidator._convert_with_func)
 * [config\_as\_json.commontypes](#config_as_json.commontypes)
   * [json\_types](#config_as_json.commontypes.json_types)
 * [config\_as\_json.dict\_validators](#config_as_json.dict_validators)
@@ -1195,70 +1219,6 @@ def _validate_non_empty_str_argument(value: object,
 ```
 
 Validate and return one non-empty string argument.
-
-<a id="config_as_json.validator.ValueTypeValidator"></a>
-
-## ValueTypeValidator Objects
-
-```python
-class ValueTypeValidator(MemberValidator)
-```
-
-Validate that one member value has the configured runtime type.
-
-<a id="config_as_json.validator.ValueTypeValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(value_type: type[object]) -> None
-```
-
-Initialize the validator.
-
-**Arguments**:
-
-- `value_type` - Required runtime type for the member value.
-
-
-**Raises**:
-
-- `TypeError` - If ``value_type`` is not a type.
-
-<a id="config_as_json.validator.ValueTypeValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: 'Config',
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate one member's runtime type.
-
-The check uses normal ``isinstance`` semantics. For example,
-``ValueTypeValidator(int)`` accepts ``True`` because ``bool`` is a
-subclass of ``int`` in Python.
-
-**Arguments**:
-
-- `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
-- `member_value` - The member value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  The original member value if validation succeeds.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If ``member_value`` is not an instance of
-  ``value_type``.
 
 <a id="config_as_json.validator.ValidationStep"></a>
 
@@ -4835,6 +4795,606 @@ member to validate (which is the projected value).
 
   None if the validation check passes, otherwise the exception
   is raised.
+
+<a id="config_as_json.type_validators"></a>
+
+# config\_as\_json.type\_validators
+
+Implement type validators for configuration data.
+
+<a id="config_as_json.type_validators._validate_type_spec"></a>
+
+#### \_validate\_type\_spec
+
+```python
+def _validate_type_spec(type_spec: object, parameter_name: str,
+                        allow_empty: bool) -> tuple[type[object], ...]
+```
+
+Validate a type or list of types and return it as a tuple.
+
+**Arguments**:
+
+- `type_spec` - Constructor argument to validate.
+- `parameter_name` - Name used in error messages.
+- `allow_empty` - Whether an empty list is accepted.
+
+
+**Returns**:
+
+  The validated runtime types as a tuple.
+
+
+**Raises**:
+
+- `TypeError` - If ``type_spec`` is not a type or list of types.
+- `ValueError` - If ``type_spec`` is an empty list and empty is rejected.
+
+<a id="config_as_json.type_validators._copy_type_spec"></a>
+
+#### \_copy\_type\_spec
+
+```python
+def _copy_type_spec(
+    value_types: tuple[type[object],
+                       ...]) -> type[object] | list[type[object]]
+```
+
+Return the public representation for one validated type spec.
+
+**Arguments**:
+
+- `value_types` - Validated type tuple.
+
+
+**Returns**:
+
+  The only type directly, or a list when there are several types.
+
+<a id="config_as_json.type_validators._format_type_names"></a>
+
+#### \_format\_type\_names
+
+```python
+def _format_type_names(value_types: tuple[type[object], ...]) -> str
+```
+
+Return a short human-readable list of runtime type names.
+
+**Arguments**:
+
+- `value_types` - Runtime types to include in the text.
+
+
+**Returns**:
+
+  A comma-separated list with ``or`` before the last type.
+
+<a id="config_as_json.type_validators._matches_type_spec"></a>
+
+#### \_matches\_type\_spec
+
+```python
+def _matches_type_spec(member_value: object, value_types: tuple[type[object],
+                                                                ...],
+                       strict: bool) -> bool
+```
+
+Return whether ``member_value`` matches the configured types.
+
+**Arguments**:
+
+- `member_value` - Value to check.
+- `value_types` - Runtime types to check against.
+- `strict` - Whether exact type matching should be used.
+
+
+**Returns**:
+
+  ``True`` when the value matches one of the runtime types.
+
+<a id="config_as_json.type_validators._validate_strict"></a>
+
+#### \_validate\_strict
+
+```python
+def _validate_strict(strict: bool) -> None
+```
+
+Validate the strict-mode constructor argument.
+
+**Arguments**:
+
+- `strict` - Value supplied as the strict-mode flag.
+
+
+**Raises**:
+
+- `TypeError` - If ``strict`` is not a ``bool``.
+
+<a id="config_as_json.type_validators._validate_allowed_denied"></a>
+
+#### \_validate\_allowed\_denied
+
+```python
+def _validate_allowed_denied(allowed: tuple[type[object], ...],
+                             denied: tuple[type[object],
+                                           ...], strict: bool) -> None
+```
+
+Reject allowed types that are completely denied.
+
+**Arguments**:
+
+- `allowed` - Accepted runtime types.
+- `denied` - Runtime types that are rejected after the allowed check.
+- `strict` - Whether exact type matching should be used.
+
+
+**Raises**:
+
+- `ValueError` - If one allowed type can never pass the denied check.
+
+<a id="config_as_json.type_validators._type_is_denied"></a>
+
+#### \_type\_is\_denied
+
+```python
+def _type_is_denied(allowed_type: type[object], denied_type: type[object],
+                    strict: bool) -> bool
+```
+
+Return whether one allowed type is rejected by one denied type.
+
+**Arguments**:
+
+- `allowed_type` - Candidate allowed type.
+- `denied_type` - Candidate denied type.
+- `strict` - Whether exact type matching should be used.
+
+
+**Returns**:
+
+  ``True`` when the constructor arguments contradict each other.
+
+<a id="config_as_json.type_validators._raise_type_error"></a>
+
+#### \_raise\_type\_error
+
+```python
+def _raise_type_error(member_name: str, member_value: object,
+                      value_types: tuple[type[object],
+                                         ...], stderr_file: TextIO) -> None
+```
+
+Print and raise an invalid-type error for one member value.
+
+**Arguments**:
+
+- `member_name` - Name of the member being validated.
+- `member_value` - Invalid member value.
+- `value_types` - Runtime types accepted by the validator.
+- `stderr_file` - Stream used for diagnostics.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - Always.
+
+<a id="config_as_json.type_validators._raise_denied_error"></a>
+
+#### \_raise\_denied\_error
+
+```python
+def _raise_denied_error(member_name: str, member_value: object,
+                        denied_types: tuple[type[object],
+                                            ...], stderr_file: TextIO) -> None
+```
+
+Print and raise an error for one explicitly denied type.
+
+**Arguments**:
+
+- `member_name` - Name of the member being validated.
+- `member_value` - Invalid member value.
+- `denied_types` - Runtime types rejected by the validator.
+- `stderr_file` - Stream used for diagnostics.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - Always.
+
+<a id="config_as_json.type_validators._matching_type"></a>
+
+#### \_matching\_type
+
+```python
+def _matching_type(
+        member_value: object,
+        value_types: tuple[type[object], ...]) -> Optional[type[object]]
+```
+
+Return the closest matching type for ``member_value``.
+
+**Arguments**:
+
+- `member_value` - Value to match against the candidate types.
+- `value_types` - Candidate runtime types.
+
+
+**Returns**:
+
+  The candidate type nearest to the value type, or ``None``.
+
+<a id="config_as_json.type_validators._type_rank"></a>
+
+#### \_type\_rank
+
+```python
+def _type_rank(member_type: type[object], value_type: type[object]) -> int
+```
+
+Return how close ``value_type`` is in ``member_type``'s MRO.
+
+**Arguments**:
+
+- `member_type` - Runtime type of the value being converted.
+- `value_type` - Candidate base type.
+
+
+**Returns**:
+
+  Lower numbers mean a more specific match.
+
+<a id="config_as_json.type_validators._validate_convert_map"></a>
+
+#### \_validate\_convert\_map
+
+```python
+def _validate_convert_map(
+    convertable_types: Optional[dict[type[object], Callable[[object], T]]]
+) -> dict[type[object], Callable[[object], T]]
+```
+
+Validate conversion functions keyed by runtime type.
+
+**Arguments**:
+
+- `convertable_types` - Optional conversion mapping.
+
+
+**Returns**:
+
+  A shallow copy of the validated conversion mapping.
+
+
+**Raises**:
+
+- `TypeError` - If the mapping, keys, or values are invalid.
+
+<a id="config_as_json.type_validators._validate_no_overlap"></a>
+
+#### \_validate\_no\_overlap
+
+```python
+def _validate_no_overlap(
+        direct_types: tuple[type[object], ...],
+        convertable_types: dict[type[object], Callable[[object], T]]) -> None
+```
+
+Reject exact type overlap between direct and callable conversion.
+
+**Arguments**:
+
+- `direct_types` - Types converted with the target constructor.
+- `convertable_types` - Types converted with custom callables.
+
+
+**Raises**:
+
+- `ValueError` - If a type is present in both conversion sets.
+
+<a id="config_as_json.type_validators._raise_conversion_error"></a>
+
+#### \_raise\_conversion\_error
+
+```python
+def _raise_conversion_error(member_name: str, member_value: object,
+                            target_type: type[object], stderr_file: TextIO,
+                            cause: Exception) -> None
+```
+
+Print and raise an error when conversion fails.
+
+**Arguments**:
+
+- `member_name` - Name of the member being validated.
+- `member_value` - Member value that could not be converted.
+- `target_type` - Runtime type the value should convert to.
+- `stderr_file` - Stream used for diagnostics.
+- `cause` - Exception raised by the conversion.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - Always.
+
+<a id="config_as_json.type_validators._validate_converted_value"></a>
+
+#### \_validate\_converted\_value
+
+```python
+def _validate_converted_value(member_name: str, converted_value: object,
+                              target_type: type[object],
+                              stderr_file: TextIO) -> None
+```
+
+Validate that a conversion returned the target runtime type.
+
+**Arguments**:
+
+- `member_name` - Name of the member being validated.
+- `converted_value` - Result returned from the conversion.
+- `target_type` - Required runtime type after conversion.
+- `stderr_file` - Stream used for diagnostics.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - If the result has the wrong type.
+
+<a id="config_as_json.type_validators.InvalidConfigurationType"></a>
+
+## InvalidConfigurationType Objects
+
+```python
+class InvalidConfigurationType(InvalidConfiguration)
+```
+
+Raised when a member value has an invalid runtime type.
+
+<a id="config_as_json.type_validators.ValueTypeValidator"></a>
+
+## ValueTypeValidator Objects
+
+```python
+class ValueTypeValidator(MemberValidator)
+```
+
+Validate that one member value has the configured runtime type.
+
+The validator accepts either one runtime type or a list of runtime types.
+Normal mode uses ``isinstance`` semantics, so subclasses are accepted.
+Strict mode uses exact ``type(value)`` matching. Optional denied types
+are checked with the same strictness as the allowed types.
+
+<a id="config_as_json.type_validators.ValueTypeValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(value_type: type[object] | list[type[object]],
+             not_allowed_type: Optional[type[object]
+                                        | list[type[object]]] = None,
+             strict: bool = False) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `value_type` - Required runtime type or types for the member value.
+- `not_allowed_type` - Optional runtime types that are not allowed.
+- `strict` - Whether to require exact runtime type matches.
+
+
+**Raises**:
+
+- `TypeError` - If a type specification is invalid.
+- `TypeError` - If ``strict`` is not a boolean.
+- `ValueError` - If ``value_type`` is an empty list.
+- `ValueError` - If allowed and denied types contradict each other.
+
+<a id="config_as_json.type_validators.ValueTypeValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one member's runtime type.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The member value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The original member value if validation succeeds.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - If ``member_value`` does not match the
+  allowed types, or if it matches a denied type.
+
+<a id="config_as_json.type_validators.ValueAsTypeValidator"></a>
+
+## ValueAsTypeValidator Objects
+
+```python
+class ValueAsTypeValidator(ValueTypeValidator, Generic[T])
+```
+
+Normalize one member value to the configured runtime type.
+
+Values already matching ``value_type`` are returned unchanged. Other
+accepted values are converted either by calling ``value_type(value)`` for
+direct types, or by a custom conversion function for convertable types.
+
+<a id="config_as_json.type_validators.ValueAsTypeValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    value_type: type[T],
+    direct_types: Optional[type[object] | list[type[object]]] = None,
+    convertable_types: Optional[dict[type[object], Callable[[object],
+                                                            T]]] = None
+) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `value_type` - Runtime type to normalize the member value to.
+- `direct_types` - Runtime types converted with ``value_type(value)``.
+- `convertable_types` - Runtime types converted with custom callables.
+
+
+**Raises**:
+
+- `TypeError` - If any constructor argument has an invalid shape.
+- `ValueError` - If one type is both direct and convertable.
+
+<a id="config_as_json.type_validators.ValueAsTypeValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Normalize the member value to the configured runtime type.
+
+If both a direct type and a convertable type match, the type closest
+to ``type(member_value)`` in the MRO decides which conversion path is
+used.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The member value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - If the value is not accepted, if
+  conversion fails, or if conversion returns the wrong type.
+
+
+**Returns**:
+
+  The original or normalized member value if validation succeeds.
+
+<a id="config_as_json.type_validators.ValueAsTypeValidator._conversion_input_types"></a>
+
+#### \_conversion\_input\_types
+
+```python
+def _conversion_input_types() -> tuple[type[object], ...]
+```
+
+Return all accepted input types for diagnostics.
+
+**Returns**:
+
+  Target, direct, and convertable runtime types in check order.
+
+<a id="config_as_json.type_validators.ValueAsTypeValidator._use_direct"></a>
+
+#### \_use\_direct
+
+```python
+def _use_direct(member_value: object, direct_type: Optional[type[object]],
+                conv_type: Optional[type[object]]) -> bool
+```
+
+Return whether direct constructor conversion should be used.
+
+**Arguments**:
+
+- `member_value` - Value being converted.
+- `direct_type` - Matching direct type, if any.
+- `conv_type` - Matching callable-conversion type, if any.
+
+
+**Returns**:
+
+  ``True`` when the direct constructor path should be used.
+
+<a id="config_as_json.type_validators.ValueAsTypeValidator._convert_direct"></a>
+
+#### \_convert\_direct
+
+```python
+def _convert_direct(member_name: str, member_value: object,
+                    stderr_file: TextIO) -> T
+```
+
+Convert a value with the target type constructor.
+
+**Arguments**:
+
+- `member_name` - Name of the member being validated.
+- `member_value` - Value to convert.
+- `stderr_file` - Stream used for diagnostics.
+
+
+**Returns**:
+
+  Converted value.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - If conversion fails or returns a
+  value with the wrong runtime type.
+
+<a id="config_as_json.type_validators.ValueAsTypeValidator._convert_with_func"></a>
+
+#### \_convert\_with\_func
+
+```python
+def _convert_with_func(member_name: str, member_value: object,
+                       conv_type: type[object], stderr_file: TextIO) -> T
+```
+
+Convert a value with a configured conversion function.
+
+**Arguments**:
+
+- `member_name` - Name of the member being validated.
+- `member_value` - Value to convert.
+- `conv_type` - Matching key in ``convertable_types``.
+- `stderr_file` - Stream used for diagnostics.
+
+
+**Returns**:
+
+  Converted value.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - If conversion fails or returns a
+  value with the wrong runtime type.
 
 <a id="config_as_json.commontypes"></a>
 

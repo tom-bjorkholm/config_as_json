@@ -6,7 +6,7 @@
 
 import sys
 from collections.abc import Hashable
-from typing import Optional, TextIO
+from typing import Callable, Optional, Sequence, TextIO, cast
 import pytest
 from pytest import CaptureFixture
 from config_as_json import StrValidator
@@ -145,8 +145,7 @@ def _validate_public_attrs(member_value: object, capsys: CaptureFixture[str]) \
         -> dict[Hashable, object]:
     """Project public attributes and assert no diagnostics were printed."""
     cfg = EmptyValidationConfig()
-    result: dict[Hashable, object] = public_attrs_to_dict(
-        cfg, 'value', member_value, sys.stderr)
+    result = public_attrs_to_dict(cfg, 'value', member_value, sys.stderr)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -206,12 +205,14 @@ def test_as_dict_view_init_rejects(
         non_dict_type: object, rules: object, to_dict: object,
         validators: object, exc_type: type[Exception], message: str) -> None:
     """Constructor arguments are validated before use."""
+    bad_type = cast(type[object], non_dict_type)
+    bad_rules = cast(Sequence[DictRule], rules)
+    bad_to_dict = cast(Callable[[Config, str, object, TextIO],
+                                dict[Hashable, object]], to_dict)
+    bad_validators = cast(Optional[Sequence[MemberValidator]], validators)
     with pytest.raises(exc_type) as exc:
-        AsDictViewValidator(
-            non_dict_type=non_dict_type,  # type: ignore[arg-type]
-            rules=rules,  # type: ignore[arg-type]
-            to_dict=to_dict,  # type: ignore[arg-type]
-            validators=validators)  # type: ignore[arg-type]
+        AsDictViewValidator(non_dict_type=bad_type, rules=bad_rules,
+                            to_dict=bad_to_dict, validators=bad_validators)
     assert message in str(exc.value)
 
 

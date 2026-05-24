@@ -17,8 +17,8 @@ from config_as_json.validator import IntFloatValidator, \
     InvalidConfiguration, InvalidConfigurationValue, ValidationPlan, \
     ValidationStep, MemberValidationStep, \
     WholeConfigValidationStep, MemberValidator, WholeConfigValidator, \
-    ValueTypeValidator, MemberValidatorSequence, \
-    not_one_of_allowed_values, string_best_match
+    MemberValidatorSequence, not_one_of_allowed_values, string_best_match
+from config_as_json.type_validators import ValueTypeValidator
 from .validator_test_helpers import \
     EmptyValidationConfig, SingleMemberValidationConfig, \
     assert_validate_member_failure, assert_validate_member_ok
@@ -240,50 +240,6 @@ class AppendTextValidator(MemberValidator):
 def write_json_file(config_file: Path, json_text: str) -> None:
     """Write JSON text used by load-validation tests."""
     config_file.write_text(json_text, encoding='UTF-8')
-
-
-@pytest.mark.parametrize('bad_value_type', [None, 'str', [str]])
-def test_value_type_init_bad_type(bad_value_type: object) -> None:
-    """Test ValueTypeValidator constructor validation."""
-    with pytest.raises(TypeError) as exc:
-        ValueTypeValidator(bad_value_type)  # type: ignore[arg-type]
-    assert 'value_type must be a type' in str(exc.value)
-
-
-@pytest.mark.parametrize('validator, member_value, expected',
-                         [(ValueTypeValidator(str), 'alpha', 'alpha'),
-                          (ValueTypeValidator(int), 3, 3),
-                          (ValueTypeValidator(int), True, True),
-                          (ValueTypeValidator(list), [1, 2], [1, 2])])
-def test_value_type_validator_ok(capsys: CaptureFixture[str],
-                                 validator: MemberValidator,
-                                 member_value: object,
-                                 expected: object) -> None:
-    """Test OK cases of ValueTypeValidator."""
-    assert_validate_member_ok(capsys, validator, member_value, expected)
-
-
-@pytest.mark.parametrize('validator, member_value, message', [
-    (ValueTypeValidator(str), 42, 'Value for value is not of type str'),
-    (ValueTypeValidator(bool), 1, 'Value for value is not of type bool'),
-    (ValueTypeValidator(list), (1, 2), 'Value for value is not of type list')])
-def test_value_type_rejects_values(capsys: CaptureFixture[str],
-                                   validator: MemberValidator,
-                                   member_value: object, message: str) -> None:
-    """Test ValueTypeValidator failures."""
-    assert_validate_member_failure(capsys, validator, member_value,
-                                   InvalidConfiguration, message)
-
-
-def test_value_type_parsed_json(capsys: CaptureFixture[str]) -> None:
-    """Test ValueTypeValidator integration through Config.validate()."""
-    cfg = SingleMemberValidationConfig('value', 'alpha',
-                                       ValueTypeValidator(str),
-                                       from_json_data_text='{"value": "beta"}')
-    out, err = capsys.readouterr()
-    assert getattr(cfg, 'value') == 'beta'
-    assert out == ''
-    assert err == ''
 
 
 def test_missing_plan_raises(capsys: CaptureFixture[str]) -> None:

@@ -56,8 +56,8 @@ def test_e24_set_overrides(capsys: CaptureFixture[str]) -> None:
                                      'metrics': 'metrics_handler'}
 
 
-def test_e24_rejects_missing_handler(
-        capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
+def test_e24_rejects_missing_handler(capsys: CaptureFixture[str],
+                                     monkeypatch: MonkeyPatch) -> None:
     """Reject declared routes that do not match handler keys."""
     set_values = cast(SetValues, {
         'declared_routes': ['api'],
@@ -69,8 +69,8 @@ def test_e24_rejects_missing_handler(
         'route_handler_names'])
 
 
-def test_e24_rejects_dup_route(
-        capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
+def test_e24_rejects_dup_route(capsys: CaptureFixture[str],
+                               monkeypatch: MonkeyPatch) -> None:
     """Reject duplicate declared routes before the relation check."""
     assert_print_validator_error(capsys, monkeypatch, E24_SPEC, {
         'declared_routes': ['api', 'api'],
@@ -80,8 +80,8 @@ def test_e24_rejects_dup_route(
         'duplicates the value at index 0'])
 
 
-def test_e24_rejects_bad_handler(
-        capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
+def test_e24_rejects_bad_handler(capsys: CaptureFixture[str],
+                                 monkeypatch: MonkeyPatch) -> None:
     """Reject a route handler value that is not a string."""
     assert_print_validator_error(capsys, monkeypatch, E24_SPEC, {
         'declared_routes': ['api'],

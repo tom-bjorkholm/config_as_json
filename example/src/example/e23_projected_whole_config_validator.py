@@ -79,8 +79,8 @@ class ExampleConfig23(Config):
                                          ignore_case=True, normalize=True)
         # Then validate the stored list member. This checks that the value is
         # a list and that every replica region is one of the allowed strings.
-        replicas_validator = ListValueValidator(
-            min_value=None, max_value=None, allowed_values=REGIONS)
+        replicas_validator = ListValueValidator(min_value=None, max_value=None,
+                                                allowed_values=REGIONS)
         # Finally validate a value that does not exist as a stored member.
         # The pseudo-member name ``all_regions`` is used only in diagnostics
         # from the inner validators.

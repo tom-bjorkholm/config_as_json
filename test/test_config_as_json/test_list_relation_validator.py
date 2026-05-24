@@ -107,9 +107,9 @@ def relation_holds_for_kind(kind: ListRelationKind, values_a: list[object],
                             values_b: list[object], eq_comparator: Callable[
                                 [object, object], bool]) -> bool:
     """Return relation result from the protected relation dispatcher."""
-    validator = ListRelationValidator(
-        kind=kind, member_a_name='a', member_b_name='b',
-        eq_comparator=eq_comparator)
+    validator = ListRelationValidator(kind=kind, member_a_name='a',
+                                      member_b_name='b',
+                                      eq_comparator=eq_comparator)
     # pylint: disable-next=protected-access
     return validator._relation_holds(values_a, values_b)
 
@@ -299,8 +299,8 @@ def test_list_rel_relation_holds(
         eq_comparator: Callable[[object, object], bool],
         expected: bool) -> None:
     """Test protected relation dispatch for every relation kind."""
-    assert relation_holds_for_kind(
-        kind, values_a, values_b, eq_comparator) is expected
+    assert relation_holds_for_kind(kind, values_a, values_b,
+                                   eq_comparator) is expected
 
 
 @pytest.mark.parametrize(
@@ -329,9 +329,9 @@ def test_list_rel_relation_holds(
      ({'kind': ListRelationKind.EQUAL, 'member_a_name': 'a',
        'member_b_name': 'b', 'lt_comparator': object()}, TypeError,
       'lt_comparator must be callable')])
-def test_list_rel_rejects_bad_init(
-        kwargs: dict[str, object], exc_type: type[Exception],
-        message: str) -> None:
+def test_list_rel_rejects_bad_init(kwargs: dict[str, object],
+                                   exc_type: type[Exception],
+                                   message: str) -> None:
     """Test constructor validation."""
     with pytest.raises(exc_type, match=message):
         ListRelationValidator(**kwargs)  # type: ignore[arg-type]
@@ -362,9 +362,9 @@ def test_list_rel_stores_args() -> None:
      (ListRelationKind.SUBSET, ['a', 'a'], ('a', 'b')),
      (ListRelationKind.DISJOINT, ['a', 'a'], ('b', 'b')),
      (ListRelationKind.MULTISET_EQUAL, [[1], [2]], ([2], [1]))])
-def test_list_rel_accepts_valid(
-        capsys: pytest.CaptureFixture[str], kind: ListRelationKind,
-        a_value: object, b_value: object) -> None:
+def test_list_rel_accepts_valid(capsys: pytest.CaptureFixture[str],
+                                kind: ListRelationKind, a_value: object,
+                                b_value: object) -> None:
     """Accept each relation kind, including tuple and unhashable values."""
     validator = ListRelationValidator(kind=kind, member_a_name='a',
                                       member_b_name='b')
@@ -379,9 +379,9 @@ def test_list_rel_accepts_valid(
      (ListRelationKind.SET_EQUAL, ['a'], ['a', 'b']),
      (ListRelationKind.SUBSET, ['c'], ['a', 'b']),
      (ListRelationKind.DISJOINT, ['a'], ['b', 'a'])])
-def test_list_rel_rejects_invalid(
-        capsys: pytest.CaptureFixture[str], kind: ListRelationKind,
-        a_value: object, b_value: object) -> None:
+def test_list_rel_rejects_invalid(capsys: pytest.CaptureFixture[str],
+                                  kind: ListRelationKind, a_value: object,
+                                  b_value: object) -> None:
     """Reject every relation kind when the relation does not hold."""
     validator = ListRelationValidator(kind=kind, member_a_name='a',
                                       member_b_name='b')
@@ -392,9 +392,9 @@ def test_list_rel_rejects_invalid(
 
 def test_list_rel_custom_eq(capsys: pytest.CaptureFixture[str]) -> None:
     """Use the supplied equality comparator for element matching."""
-    validator = ListRelationValidator(
-        kind=ListRelationKind.SET_EQUAL, member_a_name='a', member_b_name='b',
-        eq_comparator=case_insensitive_eq)
+    validator = ListRelationValidator(kind=ListRelationKind.SET_EQUAL,
+                                      member_a_name='a', member_b_name='b',
+                                      eq_comparator=case_insensitive_eq)
     assert_relation_ok(capsys, validator, make_config(['API'], ['api']))
 
 

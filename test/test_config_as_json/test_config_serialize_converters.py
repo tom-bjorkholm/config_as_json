@@ -55,8 +55,8 @@ class PriorityCfg(Config):
     @override
     def serialize_converters(self) -> SerializeConverters:
         """Convert Priority members to their name before JSON write."""
-        return {'priority': SerializeConverter(
-            value_type=Enum, func=to_enum_name, args={})}
+        return {'priority': SerializeConverter(value_type=Enum,
+                                               func=to_enum_name, args={})}
 
     @override
     def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
@@ -180,8 +180,8 @@ class ParentWithChild(Config):
     @override
     def nested_configs(self) -> NestedConfigs:
         """Declare the ``section`` member as a single nested Config."""
-        return {'section': ConfigNesting(
-            kind=ConfigNestingKind.MEMBER, config_type=ChildSection)}
+        return {'section': ConfigNesting(kind=ConfigNestingKind.MEMBER,
+                                         config_type=ChildSection)}
 
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -192,8 +192,8 @@ class ParentWithChild(Config):
     @override
     def serialize_converters(self) -> SerializeConverters:
         """Use a recursive selector that intentionally also names ``label``."""
-        return {'parent_note': SerializeConverter(
-            value_type=str, func=_scream, args={})}
+        return {'parent_note': SerializeConverter(value_type=str, func=_scream,
+                                                  args={})}
 
 
 def test_parent_converter_bounded() -> None:
@@ -223,8 +223,9 @@ class ParentTargetingChild(ParentWithChild):
     @override
     def serialize_converters(self) -> SerializeConverters:
         """Declare a path selector reaching into the nested child."""
-        return {('section', 'severity'): SerializeConverter(
-            value_type=str, func=_scream, args={})}
+        return {('section', 'severity'): SerializeConverter(value_type=str,
+                                                            func=_scream,
+                                                            args={})}
 
 
 def test_parent_path_rejected() -> None:
@@ -261,8 +262,8 @@ class ReportEntry(Config):
     @override
     def serialize_converters(self) -> SerializeConverters:
         """Convert the report's priority IntEnum to its name."""
-        return {'priority': SerializeConverter(
-            value_type=Enum, func=to_enum_name, args={})}
+        return {'priority': SerializeConverter(value_type=Enum,
+                                               func=to_enum_name, args={})}
 
     @override
     def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
@@ -287,8 +288,8 @@ class ReportListConfig(Config):
     @override
     def nested_configs(self) -> NestedConfigs:
         """Declare ``reports`` as a list of nested ReportEntry objects."""
-        return {'reports': ConfigNesting(
-            kind=ConfigNestingKind.LIST_ELEMENT, config_type=ReportEntry)}
+        return {'reports': ConfigNesting(kind=ConfigNestingKind.LIST_ELEMENT,
+                                         config_type=ReportEntry)}
 
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:

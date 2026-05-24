@@ -472,8 +472,8 @@ def _handle_write_new(parsed_args: argparse.Namespace) -> None:
     e37_write_new_config(
         config_file=cast(str, parsed_args.output),
         course_name=cast(Optional[str], parsed_args.course_name),
-        default_output_format=cast(
-            Optional[OutputFormat], parsed_args.default_output_format),
+        default_output_format=cast(Optional[OutputFormat],
+                                   parsed_args.default_output_format),
         without_outputs=cast(bool, parsed_args.without_outputs),
         output_name=cast(Optional[str], parsed_args.output_name),
         output_format=cast(Optional[OutputFormat], parsed_args.output_format),

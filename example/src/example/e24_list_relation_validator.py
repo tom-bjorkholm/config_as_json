@@ -80,8 +80,9 @@ class ExampleConfig24(Config):
         # SET_EQUAL is about distinct values. Keep the duplicate rule explicit
         # with the normal list validator, where the diagnostic can point to
         # the duplicate index.
-        declared_routes_validator = ListIsOrderedValidator(
-            str, is_ordered=False, unique_values=True)
+        declared_routes_validator = ListIsOrderedValidator(str,
+                                                           is_ordered=False,
+                                                           unique_values=True)
         # The dictionary is open-ended, but it is still uniform: every key and
         # every value must be a string.
         handlers_validator = DictKeyValueTypesValidator(key_type=str,

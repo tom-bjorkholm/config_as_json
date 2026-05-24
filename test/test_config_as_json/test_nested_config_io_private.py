@@ -87,9 +87,10 @@ def test_nested_from_json_bad_keys(case_name: str) -> None:
     stderr_file = StringIO()
     nestings, json_data = _bad_from_json_case(case_name)
     with pytest.raises(KeyError) as exc:
-        _ = nesting_io._nested_config_from_json(
-            member_name='child', json_data=json_data, nestings=nestings,
-            stderr_file=stderr_file)
+        _ = nesting_io._nested_config_from_json(member_name='child',
+                                                json_data=json_data,
+                                                nestings=nestings,
+                                                stderr_file=stderr_file)
     message = 'Nested Config member child keys must be strings'
     assert message in str(exc.value)
     assert message in stderr_file.getvalue()
@@ -117,9 +118,10 @@ def test_nested_json_bad_shapes(case_name: str, message: str) -> None:
     stderr_file = StringIO()
     nestings, member_value = _bad_json_data_case(case_name, stderr_file)
     with pytest.raises(TypeError) as exc:
-        _ = nesting_io._nested_config_json_data(
-            member_name='child', member_value=member_value, nestings=nestings,
-            stderr_file=stderr_file)
+        _ = nesting_io._nested_config_json_data(member_name='child',
+                                                member_value=member_value,
+                                                nestings=nestings,
+                                                stderr_file=stderr_file)
     assert message in str(exc.value)
     assert stderr_file.getvalue() == ''
 

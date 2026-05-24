@@ -85,9 +85,9 @@ def test_e36_set_writes_default(capsys: pytest.CaptureFixture[str]) -> None:
             'audit': _audit_json('https://example.invalid/audit', 'POST', 30),
             'max_attempts': 3,
             'owner': 'training-team',
-            'participants': _participant_json(
-                name='participants', file_name='participants.csv',
-                output_format='CSV')
+            'participants': _participant_json(name='participants',
+                                              file_name='participants.csv',
+                                              output_format='CSV')
         }
     }
 
@@ -97,10 +97,11 @@ def test_e36_set_writes_reports(capsys: pytest.CaptureFixture[str]) -> None:
     set_values = cast(SetValues, {
         'course_name': 'advanced-python',
         'reports_by_key': {
-            'participants': _participant_json(
-                name='summary', file_name='summary.txt', output_format='txt'),
-            'audit': _audit_json(
-                'https://example.invalid/hooks/audit', 'put', 45),
+            'participants': _participant_json(name='summary',
+                                              file_name='summary.txt',
+                                              output_format='txt'),
+            'audit': _audit_json('https://example.invalid/hooks/audit', 'put',
+                                 45),
             'owner': 'ops',
             'max_attempts': 5,
             'labels': {'team': 'data'}
@@ -120,13 +121,14 @@ def test_e36_set_writes_reports(capsys: pytest.CaptureFixture[str]) -> None:
     assert json_data == {
         'course_name': 'advanced-python',
         'reports_by_key': {
-            'audit': _audit_json(
-                'https://example.invalid/hooks/audit', 'PUT', 45),
+            'audit': _audit_json('https://example.invalid/hooks/audit', 'PUT',
+                                 45),
             'labels': {'team': 'data'},
             'max_attempts': 5,
             'owner': 'ops',
-            'participants': _participant_json(
-                name='summary', file_name='summary.txt', output_format='TXT')
+            'participants': _participant_json(name='summary',
+                                              file_name='summary.txt',
+                                              output_format='TXT')
         }
     }
 

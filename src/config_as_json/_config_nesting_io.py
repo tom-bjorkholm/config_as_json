@@ -48,13 +48,13 @@ def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
         raise KeyError(msg)
     json_text = json.dumps(json_data, cls=_NestedConfigEncoder)
     if nesting.factory_function is None:
-        nested_config = nesting.config_type(
-            from_json_data_text=json_text, from_json_filename=None,
-            stderr_file=stderr_file)
+        nested_config = nesting.config_type(from_json_data_text=json_text,
+                                            from_json_filename=None,
+                                            stderr_file=stderr_file)
     else:
-        nested_config = nesting.factory_function(
-            from_json_data_text=json_text, from_json_filename=None,
-            stderr_file=stderr_file)
+        nested_config = nesting.factory_function(from_json_data_text=json_text,
+                                                 from_json_filename=None,
+                                                 stderr_file=stderr_file)
     if not isinstance(nested_config, nesting.config_type):
         msg = f'Nested Config factory for {name} must return '
         msg += nesting.config_type.__name__
@@ -87,9 +87,10 @@ def _list_from_json(member_name: str, json_data: object,
     nested_configs: list['Config'] = []
     for index, element_data in enumerate(json_data):
         element_name = f'{member_name}[{index}]'
-        nested_configs.append(_item_from_json(
-            name=element_name, json_data=element_data, nesting=nesting,
-            stderr_file=stderr_file))
+        nested_configs.append(_item_from_json(name=element_name,
+                                              json_data=element_data,
+                                              nesting=nesting,
+                                              stderr_file=stderr_file))
     return nested_configs
 
 
@@ -121,9 +122,10 @@ def _dict_from_json(member_name: str, json_data: object,
             print(msg, file=stderr_file)
             raise KeyError(msg)
         value_name = f'{member_name}[{key}]'
-        nested_configs[key] = _item_from_json(
-            name=value_name, json_data=value_data, nesting=nesting,
-            stderr_file=stderr_file)
+        nested_configs[key] = _item_from_json(name=value_name,
+                                              json_data=value_data,
+                                              nesting=nesting,
+                                              stderr_file=stderr_file)
     return nested_configs
 
 
@@ -205,9 +207,9 @@ def _nested_config_from_json(member_name: str, json_data: object,
         Config objects, or a dict of nested Config objects.
     """
     if _is_dict_value_by_key(nestings):
-        return _dict_by_key_from_json(
-            member_name=member_name, json_data=json_data, nestings=nestings,
-            stderr_file=stderr_file)
+        return _dict_by_key_from_json(member_name=member_name,
+                                      json_data=json_data, nestings=nestings,
+                                      stderr_file=stderr_file)
     nesting = _single_nesting(nestings)
     if nesting.kind == ConfigNestingKind.LIST_ELEMENT:
         return _list_from_json(member_name=member_name, json_data=json_data,
@@ -304,9 +306,9 @@ def _dict_json_data(member_name: str, member_value: object,
             msg = f'Nested Config member {member_name} keys must be strings'
             raise TypeError(msg)
         value_name = f'{member_name}[{key}]'
-        json_data[key] = _item_json_data(
-            member_name=value_name, member_value=value, nesting=nesting,
-            stderr_file=stderr_file)
+        json_data[key] = _item_json_data(member_name=value_name,
+                                         member_value=value, nesting=nesting,
+                                         stderr_file=stderr_file)
     return json_data
 
 
@@ -515,9 +517,9 @@ def _validate_nested_config(member_name: str, member_value: object,
         TypeError: The member value does not match the nesting kind.
     """
     if _is_dict_value_by_key(nestings):
-        _validate_dict_by_key(
-            member_name=member_name, member_value=member_value,
-            nestings=nestings, stderr_file=stderr_file)
+        _validate_dict_by_key(member_name=member_name,
+                              member_value=member_value, nestings=nestings,
+                              stderr_file=stderr_file)
         return
     nesting = _single_nesting(nestings)
     if nesting.kind == ConfigNestingKind.LIST_ELEMENT:

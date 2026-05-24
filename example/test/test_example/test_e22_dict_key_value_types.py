@@ -68,8 +68,8 @@ def test_e22_set_overrides(capsys: CaptureFixture[str]) -> None:
                                      'safe': [0.5, 0.5]}
 
 
-def test_e22_set_rejects_bad_port(
-        capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
+def test_e22_set_rejects_bad_port(capsys: CaptureFixture[str],
+                                  monkeypatch: MonkeyPatch) -> None:
     """Reject a write-time override with a non-int dict value."""
     set_values = cast(SetValues, {
         'service_ports': {'http': '8080'},
@@ -79,8 +79,8 @@ def test_e22_set_rejects_bad_port(
         'not of type int'])
 
 
-def test_e22_print_rejects_weight(
-        capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
+def test_e22_print_rejects_weight(capsys: CaptureFixture[str],
+                                  monkeypatch: MonkeyPatch) -> None:
     """Reject a read-time sample_weights entry that is not a list."""
     assert_print_validator_error(capsys, monkeypatch, E22_SPEC, {
         'service_ports': {'http': 80},
@@ -90,8 +90,8 @@ def test_e22_print_rejects_weight(
         'not of type list'])
 
 
-def test_e22_print_bad_weight_item(
-        capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
+def test_e22_print_bad_weight_item(capsys: CaptureFixture[str],
+                                   monkeypatch: MonkeyPatch) -> None:
     """Reject a value inside one nested weights list."""
     assert_print_validator_error(capsys, monkeypatch, E22_SPEC, {
         'service_ports': {'http': 80},

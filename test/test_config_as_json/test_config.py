@@ -110,12 +110,12 @@ class ConfigSomething(Config):
     def check_array_configs(self, stderr_file: TextIO) -> None:
         """Check that keywords in configuration arrays are OK."""
         abc_keys = ['def', 'geh', 'ijk']
-        _ = ListOfDictsKeysValidator(abc_keys).validate_member(
-            self, 'abc', self.abc, stderr_file)
+        abc_validator = ListOfDictsKeysValidator(abc_keys)
+        _ = abc_validator.validate_member(self, 'abc', self.abc, stderr_file)
         pqr_keys = ['gh', 'ij', 'mn']
+        pqr_validator = ListOfDictsKeysValidator(pqr_keys)
         for _, val in self.pqr.items():
-            _ = ListOfDictsKeysValidator(pqr_keys).validate_member(
-                self, 'pqr', val, stderr_file)
+            _ = pqr_validator.validate_member(self, 'pqr', val, stderr_file)
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Get converters for use when parsing JSON.

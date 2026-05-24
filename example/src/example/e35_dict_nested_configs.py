@@ -206,8 +206,8 @@ def e35_dict_nested_configs_print(config_file: PathOrStr) -> None:
     print(f'Course name: {config.course_name}')
     print(f'Report count: {len(config.reports_by_id)}')
     for report_key in sorted(config.reports_by_id):
-        for line in _report_output_lines(
-                report_key, config.reports_by_id[report_key]):
+        for line in _report_output_lines(report_key,
+                                         config.reports_by_id[report_key]):
             print(line)
 
 

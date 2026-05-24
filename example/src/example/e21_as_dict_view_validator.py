@@ -118,8 +118,8 @@ class ExampleConfig21(Config):
         # The default is deliberately the application runtime object form.
         # The member is typed as object because command-line overrides may
         # assign the dictionary form before ``Config.write()`` validates it.
-        self.retry_policy: object = RetryPolicy(
-            mode='fixed', max_attempts=3, backoff_seconds=30)
+        self.retry_policy: object = RetryPolicy(mode='fixed', max_attempts=3,
+                                                backoff_seconds=30)
         # ``Config`` reads JSON, applies parse converters, and then runs the
         # validation plan. The default above is therefore validated too.
         super().__init__(from_json_data_text=from_json_text,
@@ -175,8 +175,8 @@ def serialize_retry_policy(config: ExampleConfig21,
     # The validator can validate an object through a dict view, but JSON
     # writing still needs an actual JSON-serializable value.
     if isinstance(config.retry_policy, RetryPolicy):
-        config.retry_policy = retry_policy_to_dict(
-            config, config.retry_policy, stderr_file)
+        config.retry_policy = retry_policy_to_dict(config, config.retry_policy,
+                                                   stderr_file)
 
 
 # pylint: disable=duplicate-code

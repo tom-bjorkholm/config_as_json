@@ -26,7 +26,8 @@ from config_as_json.commontypes import ConfigPath
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.read_old_configuration import ReadOldConfiguration, \
     RocfKeyRename
-from config_as_json.validator import ValidationPlan, ValueTypeValidator
+from config_as_json.type_validators import ValueTypeValidator
+from config_as_json.validator import ValidationPlan
 from .config_enums import FileType, SplitWhere, \
     ExcelLib, RewriteKind, CaseSensitivity, ColumnRef
 
@@ -426,8 +427,9 @@ class ConfigExcelListTransform(Config, Generic[Column]):
                 discriminator_key='kind', variants=variants,
                 discriminator_validator=ValueTypeValidator(RewriteKind))],
             element_type=dict)
-        _ = rewrite_validator.validate_member(
-            self, 's09_rewrite_columns', self.s09_rewrite_columns, stderr_file)
+        _ = rewrite_validator.validate_member(self, 's09_rewrite_columns',
+                                              self.s09_rewrite_columns,
+                                              stderr_file)
 
     @staticmethod
     def check_sep_not_sep(separators: list[str], not_separators: list[str],
@@ -463,8 +465,9 @@ class ConfigExcelListTransform(Config, Generic[Column]):
             stderr_file: Stream used for user-facing diagnostics.
         """
         keys = ['column', 'separators', 'not_separators']
-        _ = ListOfDictsKeysValidator(keys).validate_member(
-            self, 's01_split_rows', self.s01_split_rows, stderr_file)
+        keys_validator = ListOfDictsKeysValidator(keys)
+        _ = keys_validator.validate_member(self, 's01_split_rows',
+                                           self.s01_split_rows, stderr_file)
         split_rows_validator = ListForEachValidator(
             element_validators=[DictForEachValidator(rules=[
                 DictRule(keys=['column'],
@@ -476,8 +479,9 @@ class ConfigExcelListTransform(Config, Generic[Column]):
                          validators=[ListSizeValidator(0, sys.maxsize),
                                      ListValueTypeValidator(str)])
             ])], element_type=dict)
-        _ = split_rows_validator.validate_member(
-            self, 's01_split_rows', self.s01_split_rows, stderr_file)
+        _ = split_rows_validator.validate_member(self, 's01_split_rows',
+                                                 self.s01_split_rows,
+                                                 stderr_file)
         for elem in self.s01_split_rows:
             sep = elem['separators']
             assert isinstance(sep, list)
@@ -493,8 +497,9 @@ class ConfigExcelListTransform(Config, Generic[Column]):
             stderr_file: Stream used for user-facing diagnostics.
         """
         keys = ['columns', 'separator']
-        _ = ListOfDictsKeysValidator(keys).validate_member(
-            self, 's02_merge_rows', self.s02_merge_rows, stderr_file)
+        keys_validator = ListOfDictsKeysValidator(keys)
+        _ = keys_validator.validate_member(self, 's02_merge_rows',
+                                           self.s02_merge_rows, stderr_file)
         merge_rows_validator = ListForEachValidator(
             element_validators=[DictForEachValidator(rules=[
                 DictRule(keys=['columns'],
@@ -504,8 +509,9 @@ class ConfigExcelListTransform(Config, Generic[Column]):
                 DictRule(keys=['separator'],
                          validators=[ValueTypeValidator(str)])
             ])], element_type=dict)
-        _ = merge_rows_validator.validate_member(
-            self, 's02_merge_rows', self.s02_merge_rows, stderr_file)
+        _ = merge_rows_validator.validate_member(self, 's02_merge_rows',
+                                                 self.s02_merge_rows,
+                                                 stderr_file)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""

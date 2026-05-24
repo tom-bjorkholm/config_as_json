@@ -570,9 +570,9 @@ class Config():
         nested_configs = self._nested_config_decls
         for member_name, nesting in nested_configs.items():
             member_value = getattr(self, member_name)
-            _validate_nested_config(
-                member_name=member_name, member_value=member_value,
-                nestings=nesting, stderr_file=stderr_file)
+            _validate_nested_config(member_name=member_name,
+                                    member_value=member_value,
+                                    nestings=nesting, stderr_file=stderr_file)
 
     @staticmethod
     def copy_initial_data(source: object, target: 'Config') -> None:
@@ -628,9 +628,9 @@ class Config():
         Args:
             stderr_file: Stream used for user-facing diagnostics.
         """
-        auto_wrap_nested_defaults_impl(
-            target=self, nested_decls=self._nested_config_decls,
-            stderr_file=stderr_file)
+        auto_wrap_nested_defaults_impl(target=self,
+                                       nested_decls=self._nested_config_decls,
+                                       stderr_file=stderr_file)
 
     def parse_json(self, from_json_text: str, ok_to_use_defaults: bool = False,
                    stderr_file: TextIO = sys.stderr) -> None:

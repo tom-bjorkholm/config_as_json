@@ -241,9 +241,9 @@ def test_str_len_dynamic_values(capsys: CaptureFixture[str]) -> None:
     validator = StrLenValidator(1, current_max_length)
     assert_validate_member_ok(capsys, validator, 'abc', 'abc')
     max_length = 2
-    assert_validate_member_failure(
-        capsys, validator, 'abc', InvalidConfiguration,
-        'length 3 which is greater than maximum 2')
+    assert_validate_member_failure(capsys, validator, 'abc',
+                                   InvalidConfiguration,
+                                   'length 3 which is greater than maximum 2')
 
 
 @pytest.mark.parametrize(

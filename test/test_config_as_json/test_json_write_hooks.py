@@ -141,8 +141,8 @@ def test_enum_in_containers() -> None:
 
 def test_none_passes_through() -> None:
     """``None`` is never sent to a converter; it passes through unchanged."""
-    converters = {'value': SerializeConverter(
-        value_type=Path, func=to_iso, args={})}
+    converters = {'value': SerializeConverter(value_type=Path, func=to_iso,
+                                              args={})}
     out = run({'value': None}, converters)
     assert out == {'value': None}
 
@@ -154,8 +154,8 @@ def test_none_passes_through() -> None:
 
 def test_rec_key_at_any_depth() -> None:
     """A plain string selector matches every dict member with that name."""
-    converters = {'level': SerializeConverter(
-        value_type=Enum, func=to_enum_value, args={})}
+    converters = {'level': SerializeConverter(value_type=Enum,
+                                              func=to_enum_value, args={})}
     data: dict[str, object] = {
         'level': Severity.LOW,
         'group': {'level': Severity.HIGH, 'other': 1},
@@ -169,8 +169,8 @@ def test_rec_key_at_any_depth() -> None:
 
 def test_rec_key_overrides_fallback() -> None:
     """An explicit converter for a key wins over the Enum fallback."""
-    converters = {'level': SerializeConverter(
-        value_type=Enum, func=to_enum_value, args={})}
+    converters = {'level': SerializeConverter(value_type=Enum,
+                                              func=to_enum_value, args={})}
     out = run({'level': Severity.LOW, 'other': Severity.HIGH}, converters)
     assert out == {'level': 'low', 'other': 'HIGH'}
 
@@ -195,8 +195,9 @@ def test_path_exact_position() -> None:
 
 def test_path_list_iteration() -> None:
     """A path ending in ``'['`` applies the converter to each list element."""
-    converters = {('matrix', '['): SerializeConverter(
-        value_type=str, func=add_prefix, args={'prefix': 'X-'})}
+    converters = {('matrix', '['): SerializeConverter(value_type=str,
+                                                      func=add_prefix,
+                                                      args={'prefix': 'X-'})}
     out = run({'matrix': ['a', 'b', 'c']}, converters)
     assert out == {'matrix': ['X-a', 'X-b', 'X-c']}
 
@@ -235,8 +236,8 @@ def test_path_selector_repr_error() -> None:
 
 def test_value_type_mismatch() -> None:
     """``value_type`` is checked before the converter is invoked."""
-    converters = {'level': SerializeConverter(
-        value_type=Enum, func=to_enum_value, args={})}
+    converters = {'level': SerializeConverter(value_type=Enum,
+                                              func=to_enum_value, args={})}
     with pytest.raises(JsonWriteHookError, match='expected Enum'):
         _ = run({'level': 'not-an-enum'}, converters)
 
@@ -251,16 +252,16 @@ def test_value_type_none_skips() -> None:
         if isinstance(value, int):
             return f'int:{value}'
         return None
-    converters = {'pick': SerializeConverter(
-        value_type=None, func=echo, args={})}
+    converters = {'pick': SerializeConverter(value_type=None, func=echo,
+                                             args={})}
     assert run({'pick': 'x'}, converters) == {'pick': 'str:x'}
     assert run({'pick': 7}, converters) == {'pick': 'int:7'}
 
 
 def test_runtime_error_wrapped() -> None:
     """Non-hook converter exceptions are wrapped with path/selector info."""
-    converters = {'level': SerializeConverter(
-        value_type=Enum, func=explode, args={})}
+    converters = {'level': SerializeConverter(value_type=Enum, func=explode,
+                                              args={})}
     with pytest.raises(JsonWriteHookError,
                        match="Converter for 'level' at .*RuntimeError"):
         _ = run({'level': Severity.LOW}, converters)
@@ -268,8 +269,8 @@ def test_runtime_error_wrapped() -> None:
 
 def test_hook_error_propagates() -> None:
     """``JsonWriteHookError`` raised inside a converter propagates as-is."""
-    converters = {'level': SerializeConverter(
-        value_type=Enum, func=explode_hook, args={})}
+    converters = {'level': SerializeConverter(value_type=Enum,
+                                              func=explode_hook, args={})}
     with pytest.raises(JsonWriteHookError, match='custom failure at level'):
         _ = run({'level': Severity.LOW}, converters)
 
@@ -280,8 +281,8 @@ def test_non_json_output() -> None:
                      **_extra: object) -> JsonType:
         _ = value, path_text, stderr_file
         return Path('/tmp/x')  # type: ignore[return-value]
-    converters = {'file': SerializeConverter(
-        value_type=str, func=returns_path, args={})}
+    converters = {'file': SerializeConverter(value_type=str, func=returns_path,
+                                             args={})}
     with pytest.raises(JsonWriteHookError, match='non-JSON type'):
         _ = run({'file': 'x'}, converters)
 
@@ -291,8 +292,9 @@ def test_non_json_output() -> None:
     [(1, 'must be a str'), ('[bad', "must not start with '\\['")])
 def test_output_dict_key_rejects(key: object, message: str) -> None:
     """Converter outputs must use JSON-compatible dictionary keys."""
-    converters = {'payload': SerializeConverter(
-        value_type=str, func=dict_with_key, args={'key': key})}
+    converters = {'payload': SerializeConverter(value_type=str,
+                                                func=dict_with_key,
+                                                args={'key': key})}
     with pytest.raises(JsonWriteHookError, match=message):
         _ = run({'payload': 'x'}, converters)
 
@@ -312,8 +314,8 @@ def test_non_json_no_converter() -> None:
                          ['', '[', ('value', '[bad'), ('[',), (), (5,), 7])
 def test_invalid_selector_shape(selector: object) -> None:
     """Bad selector shapes are reported before any conversion runs."""
-    converters = {selector: SerializeConverter(
-        value_type=str, func=add_prefix, args={'prefix': '-'})}
+    converters = {selector: SerializeConverter(value_type=str, func=add_prefix,
+                                               args={'prefix': '-'})}
     with pytest.raises(SerializeSelectorError):
         _ = run({'value': 'x'}, converters)
 
@@ -336,8 +338,9 @@ def test_rec_vs_path_end_conflict() -> None:
     converters = {
         'format': SerializeConverter(value_type=str, func=add_prefix,
                                      args={'prefix': '-'}),
-        ('outputs', '[', 'format'): SerializeConverter(
-            value_type=str, func=add_prefix, args={'prefix': '-'})}
+        ('outputs', '[', 'format'): SerializeConverter(value_type=str,
+                                                       func=add_prefix,
+                                                       args={'prefix': '-'})}
     with pytest.raises(SerializeSelectorError, match='ends in key'):
         _ = run({'outputs': [{'format': 'csv'}]}, converters)
 
@@ -347,8 +350,9 @@ def test_rec_vs_path_through() -> None:
     converters = {
         'outputs': SerializeConverter(value_type=list, func=lambda v, **_kw: v,
                                       args={}),
-        ('outputs', '[', 'name'): SerializeConverter(
-            value_type=str, func=add_prefix, args={'prefix': '-'})}
+        ('outputs', '[', 'name'): SerializeConverter(value_type=str,
+                                                     func=add_prefix,
+                                                     args={'prefix': '-'})}
     with pytest.raises(SerializeSelectorError, match='passes through key'):
         _ = run({'outputs': [{'name': 'a'}]}, converters)
 
@@ -364,8 +368,9 @@ def test_path_wrong_list_vs_dict() -> None:
 
 def test_path_wrong_dict_vs_list() -> None:
     """A path expecting a dict key but finding a list in data raises."""
-    converters = {('items', 'name'): SerializeConverter(
-        value_type=str, func=add_prefix, args={'prefix': '-'})}
+    converters = {('items', 'name'): SerializeConverter(value_type=str,
+                                                        func=add_prefix,
+                                                        args={'prefix': '-'})}
     data: dict[str, object] = {'items': [{'name': 'a'}]}
     with pytest.raises(SerializeSelectorError, match='expects a dict'):
         _ = run(data, converters)
@@ -373,8 +378,9 @@ def test_path_wrong_dict_vs_list() -> None:
 
 def test_path_wrong_scalar() -> None:
     """A path that expects a container but finds a scalar raises."""
-    converters = {('items', 'name'): SerializeConverter(
-        value_type=str, func=add_prefix, args={'prefix': '-'})}
+    converters = {('items', 'name'): SerializeConverter(value_type=str,
+                                                        func=add_prefix,
+                                                        args={'prefix': '-'})}
     data: dict[str, object] = {'items': 'scalar'}
     with pytest.raises(SerializeSelectorError, match='expects a container'):
         _ = run(data, converters)
@@ -387,8 +393,9 @@ def test_path_wrong_scalar() -> None:
 
 def test_path_into_child_rejected() -> None:
     """A converter declared into a child-owned subtree is rejected."""
-    converters = {('child', 'inner'): SerializeConverter(
-        value_type=str, func=add_prefix, args={'prefix': '-'})}
+    converters = {('child', 'inner'): SerializeConverter(value_type=str,
+                                                         func=add_prefix,
+                                                         args={'prefix': '-'})}
     with pytest.raises(SerializeSelectorError, match='child-owned'):
         _ = run({'child': {'inner': 'x'}}, converters,
                 child_owned=(('child',),))
@@ -396,8 +403,9 @@ def test_path_into_child_rejected() -> None:
 
 def test_path_ancestor_rejected() -> None:
     """A path that contains a child-owned subtree is rejected."""
-    converters = {('parent',): SerializeConverter(
-        value_type=dict, func=lambda v, **_kw: v, args={})}
+    converters = {('parent',): SerializeConverter(value_type=dict,
+                                                  func=lambda v, **_kw: v,
+                                                  args={})}
     with pytest.raises(SerializeSelectorError, match='ancestor'):
         _ = run({'parent': {'child': {'inner': 'x'}}}, converters,
                 child_owned=(('parent', 'child'),))
@@ -405,8 +413,8 @@ def test_path_ancestor_rejected() -> None:
 
 def test_rec_key_skips_child() -> None:
     """Recursive key walk does not descend into child-owned subtrees."""
-    converters = {'level': SerializeConverter(
-        value_type=Enum, func=to_enum_value, args={})}
+    converters = {'level': SerializeConverter(value_type=Enum,
+                                              func=to_enum_value, args={})}
     data: dict[str, object] = {
         'level': Severity.LOW,
         'child': {'level': 'already-converted-by-child'}}
@@ -417,8 +425,8 @@ def test_rec_key_skips_child() -> None:
 
 def test_child_list_wildcard() -> None:
     """``'['`` in child_owned_paths matches each list element."""
-    converters = {'level': SerializeConverter(
-        value_type=Enum, func=to_enum_value, args={})}
+    converters = {'level': SerializeConverter(value_type=Enum,
+                                              func=to_enum_value, args={})}
     data: dict[str, object] = {
         'level': Severity.LOW,
         'items': [{'level': 'already-1'}, {'level': 'already-2'}]}
@@ -435,8 +443,8 @@ def test_child_dict_wildcard() -> None:
     iterates its values, and the literal ``'['`` in the child-owned path
     matches each of those dict values without descending into them.
     """
-    converters = {'level': SerializeConverter(
-        value_type=Enum, func=to_enum_value, args={})}
+    converters = {'level': SerializeConverter(value_type=Enum,
+                                              func=to_enum_value, args={})}
     data: dict[str, object] = {
         'level': Severity.LOW,
         'children': {'a': {'level': 'already-a'},
@@ -488,8 +496,8 @@ def test_dict_key_literal_bracket() -> None:
 
 def test_args_forwarded() -> None:
     """``args`` is forwarded to the converter as keyword arguments."""
-    converters = {'name': SerializeConverter(
-        value_type=str, func=add_prefix, args={'prefix': 'U-'})}
+    converters = {'name': SerializeConverter(value_type=str, func=add_prefix,
+                                             args={'prefix': 'U-'})}
     assert run({'name': 'alice'}, converters) == {'name': 'U-alice'}
 
 
@@ -502,7 +510,7 @@ def test_root_must_be_dict() -> None:
 
 def test_converters_must_be_dict() -> None:
     """The ``converters`` argument must be a dict."""
+    bad_converters = cast(SerializeConverters, [])
     with pytest.raises(SerializeSelectorError, match='must return a dict'):
-        _ = apply_serialize_converters(
-            data={}, converters=[],  # type: ignore[arg-type]
-            stderr_file=sys.stderr)
+        _ = apply_serialize_converters(data={}, converters=bad_converters,
+                                       stderr_file=sys.stderr)

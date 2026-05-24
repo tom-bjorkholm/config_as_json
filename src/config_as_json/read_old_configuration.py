@@ -279,8 +279,8 @@ def _collect_path_values(data: object, path: ConfigPath,
             if not rest:
                 values.append(_MovedValue(actual_path, list_indexes, value))
                 continue
-            values.extend(_collect_path_values(
-                value, rest, actual_path, list_indexes))
+            values.extend(_collect_path_values(value, rest, actual_path,
+                                               list_indexes))
         return values
     dict_data = _as_dict(data)
     if dict_data is None or part not in dict_data:
@@ -359,8 +359,8 @@ def _path_is_prefix(first: Sequence[str | int],
 def _paths_overlap(first: Sequence[str | int],
                    second: Sequence[str | int]) -> bool:
     """Return whether either actual path is an ancestor of the other."""
-    return _path_is_prefix(first, second) or _path_is_prefix(
-        first=second, second=first)
+    return _path_is_prefix(first, second) or _path_is_prefix(first=second,
+                                                             second=first)
 
 
 def _wrap_prefix(move: RocfKeyMove,
@@ -584,17 +584,17 @@ class ReadOldConfiguration:
             Parsed configuration data matching the current JSON schema.
 
         """
-        json_data = self.pre_process_json(
-            json_data=json_data, auto_ch_hook=auto_ch_hook,
-            stderr_file=stderr_file)
+        json_data = self.pre_process_json(json_data=json_data,
+                                          auto_ch_hook=auto_ch_hook,
+                                          stderr_file=stderr_file)
         self._remove_keys_recursively(json_data, auto_ch_hook)
         self._remove_keys_by_path(json_data, auto_ch_hook)
         self._rename_json_keys(json_data, auto_ch_hook, stderr_file)
         self._move_json_keys(json_data, auto_ch_hook, stderr_file)
         self._apply_missing_values(json_data, auto_ch_hook)
-        return self.post_process_json(
-            json_data=json_data, auto_ch_hook=auto_ch_hook,
-            stderr_file=stderr_file)
+        return self.post_process_json(json_data=json_data,
+                                      auto_ch_hook=auto_ch_hook,
+                                      stderr_file=stderr_file)
 
     def _remove_keys_recursively(self, json_data: dict[str, object],
                                  auto_ch_hook: ConfigAutoChangeHook) -> None:

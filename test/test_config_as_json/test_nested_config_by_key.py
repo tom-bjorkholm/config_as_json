@@ -231,8 +231,8 @@ def test_by_key_one_file_io(capsys: CaptureFixture[str]) -> None:
     assert read_cfg.course_name == 'math'
     assert sorted(read_cfg.reports_by_id) == [
         'note', 'participants', 'retry_count']
-    read_participants = cast(
-        ReportSection, read_cfg.reports_by_id['participants'])
+    read_participants = cast(ReportSection,
+                             read_cfg.reports_by_id['participants'])
     assert read_cfg.reports_by_id['note'] == 'reviewed'
     assert read_cfg.reports_by_id['retry_count'] == 2
     assert read_participants.file_name == 'participants.txt'
@@ -260,8 +260,8 @@ def test_by_key_same_type_file_io(capsys: CaptureFixture[str]) -> None:
     assert read_cfg.course_name == 'math'
     assert read_cfg.reports_by_id['note'] == 'reviewed'
     assert read_cfg.reports_by_id['retry_count'] == 2
-    read_participants = cast(
-        ReportSection, read_cfg.reports_by_id['participants'])
+    read_participants = cast(ReportSection,
+                             read_cfg.reports_by_id['participants'])
     read_audit = cast(ReportSection, read_cfg.reports_by_id['audit'])
     assert read_participants.file_name == 'participants.txt'
     assert read_participants.output_format == 'TXT'
@@ -292,8 +292,8 @@ def test_by_key_two_type_file_io(capsys: CaptureFixture[str]) -> None:
     assert read_cfg.reports_by_id['note'] == 'reviewed'
     assert read_cfg.reports_by_id['retry_count'] == 2
     assert read_cfg.reports_by_id['plain_dict'] == {'owner': 'ops'}
-    read_participants = cast(
-        ReportSection, read_cfg.reports_by_id['participants'])
+    read_participants = cast(ReportSection,
+                             read_cfg.reports_by_id['participants'])
     read_audit = cast(AuditSection, read_cfg.reports_by_id['audit'])
     assert read_participants.file_name == 'participants.txt'
     assert read_participants.output_format == 'TXT'

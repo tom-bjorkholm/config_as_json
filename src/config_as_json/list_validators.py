@@ -84,9 +84,9 @@ def _validate_list_member_value(member_name: str, member_value: object,
     return member_value
 
 
-def _validate_typed_list_member(
-        member_name: str, member_value: object, element_type: type[Basictype],
-        stderr_file: TextIO) -> list[Basictype]:
+def _validate_typed_list_member(member_name: str, member_value: object,
+                                element_type: type[Basictype],
+                                stderr_file: TextIO) -> list[Basictype]:
     """Validate that a member is a list with elements of one runtime type.
 
     Args:
@@ -249,8 +249,9 @@ class _IndexedInvalidConfigurationValue(InvalidConfigurationValue):
         """Initialize the exception."""
         super().__init__(member_name, member_value, allowed_values)
         self.member_index: int = member_index
-        self.message = _indexed_not_allowed_message(
-            member_name, member_value, member_index, allowed_values, None)
+        self.message = _indexed_not_allowed_message(member_name, member_value,
+                                                    member_index,
+                                                    allowed_values, None)
         self.args = (self.message,)
 
 

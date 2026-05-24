@@ -131,10 +131,10 @@ def _validate_projected_dict(member_name: str, projected: object,
     return projected
 
 
-def _validate_dict_view_step(
-        validator: MemberValidator, config: 'Config', member_name: str,
-        member_value: dict[Hashable, object],
-        stderr_file: TextIO) -> dict[Hashable, object]:
+def _validate_dict_view_step(validator: MemberValidator, config: 'Config',
+                             member_name: str,
+                             member_value: dict[Hashable, object],
+                             stderr_file: TextIO) -> dict[Hashable, object]:
     """Run one dict-view validator and require a dict result."""
     result = validator.validate_member(config, member_name, member_value,
                                        stderr_file)

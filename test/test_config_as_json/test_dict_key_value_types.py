@@ -55,9 +55,9 @@ def test_kv_types_exported() -> None:
      (str, 'int', None, TypeError, 'value_type must be a type'),
      (str, int, object(), TypeError,
       'value_validator must be a MemberValidator or None')])
-def test_kv_init_bad_args(
-        key_type: object, value_type: object, value_validator: object,
-        exc_type: type[Exception], message: str) -> None:
+def test_kv_init_bad_args(key_type: object, value_type: object,
+                          value_validator: object, exc_type: type[Exception],
+                          message: str) -> None:
     """Constructor arguments must be valid runtime types and validators."""
     with pytest.raises(exc_type) as exc:
         DictKeyValueTypesValidator(
@@ -119,9 +119,8 @@ def test_kv_accepts_bool_int(capsys: CaptureFixture[str]) -> None:
          'a': 1,
          'b': 'bad'
      }, 'Value bad for value[b] is not of type int')])
-def test_kv_rejects_bad_values(
-        capsys: CaptureFixture[str], member_value: object,
-        message: str) -> None:
+def test_kv_rejects_bad_values(capsys: CaptureFixture[str],
+                               member_value: object, message: str) -> None:
     """Invalid outer values, keys and values must be reported clearly."""
     validator = DictKeyValueTypesValidator(str, int)
     assert_validate_member_failure(capsys, validator, member_value,

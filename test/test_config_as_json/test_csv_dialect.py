@@ -65,9 +65,9 @@ def test_csv_dialect_defaults(capsys: CaptureFixture[str]) -> None:
                          [('csv.excel', csv.excel, '\r\n'),
                           ('CSV.EXCEL_TAB', csv.excel_tab, '\r\n'),
                           ('csv.unix_dialect', csv.unix_dialect, '\n')])
-def test_get_csv_dialect_standard(
-        capsys: CaptureFixture[str], name: str, expected_type: type[object],
-        expected_lineterminator: str) -> None:
+def test_get_csv_dialect_standard(capsys: CaptureFixture[str], name: str,
+                                  expected_type: type[object],
+                                  expected_lineterminator: str) -> None:
     """Test all supported standard-library dialect names."""
     dialect = get_csv_dialect(name=name, delimiter=';', quoting=None,
                               quotechar='|', lineterminator=None,

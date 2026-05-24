@@ -173,9 +173,9 @@ def _wrap_list_elements(current_value: object, config_type: 'type[Config]',
         if isinstance(element, config_type):
             result.append(element)
             continue
-        result.append(_wrap_one_value(
-            source=element, config_type=config_type, name=f'{name}[{index}]',
-            stderr_file=stderr_file))
+        result.append(_wrap_one_value(source=element, config_type=config_type,
+                                      name=f'{name}[{index}]',
+                                      stderr_file=stderr_file))
         changed = True
     return result if changed else current_value
 

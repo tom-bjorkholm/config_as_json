@@ -241,9 +241,9 @@ def test_list_value_parsed_json(capsys: CaptureFixture[str]) -> None:
      (-1, 0, ValueError, 'min_size must be non-negative'),
      (0, -1, ValueError, 'max_size must be non-negative'),
      (3, 2, ValueError, 'min_size must be less than or equal to max_size')])
-def test_list_size_init_bad_bounds(
-        min_size: object, max_size: object, exc_type: type[Exception],
-        message: str) -> None:
+def test_list_size_init_bad_bounds(min_size: object, max_size: object,
+                                   exc_type: type[Exception],
+                                   message: str) -> None:
     """Test ListSizeValidator constructor validation."""
     with pytest.raises(exc_type) as exc:
         ListSizeValidator(min_size=min_size,  # type: ignore[arg-type]
@@ -267,9 +267,9 @@ def test_list_size_validator_ok(capsys: CaptureFixture[str],
     (ListSizeValidator(1, 3), [], 'size 0 which is less than minimum 1'),
     (ListSizeValidator(0, 1), [1, 2], 'size 2 which is greater than maximum 1')
 ])
-def test_list_size_rejects_values(
-        capsys: CaptureFixture[str], validator: MemberValidator,
-        member_value: object, message: str) -> None:
+def test_list_size_rejects_values(capsys: CaptureFixture[str],
+                                  validator: MemberValidator,
+                                  member_value: object, message: str) -> None:
     """Test ListSizeValidator failures."""
     assert_validate_member_failure(capsys, validator, member_value,
                                    InvalidConfiguration, message)
@@ -314,9 +314,9 @@ def test_list_value_type_ok(capsys: CaptureFixture[str],
                           (ListValueTypeValidator(bool), [False, 1],
                            'Value 1 for value at index 1 is not of type bool')]
                          )
-def test_list_type_rejects_values(
-        capsys: CaptureFixture[str], validator: MemberValidator,
-        member_value: object, message: str) -> None:
+def test_list_type_rejects_values(capsys: CaptureFixture[str],
+                                  validator: MemberValidator,
+                                  member_value: object, message: str) -> None:
     """Test ListValueTypeValidator failures."""
     assert_validate_member_failure(capsys, validator, member_value,
                                    InvalidConfiguration, message)
@@ -441,9 +441,9 @@ def test_list_ordering_validator_ok(capsys: CaptureFixture[str],
     [(ListOrderingValidator(int), (1, 2), 'Value for value is not a list'),
      (ListOrderingValidator(bool), [1],
       'Value 1 for value at index 0 is not of type bool')])
-def test_list_sort_rejects_values(
-        capsys: CaptureFixture[str], validator: MemberValidator,
-        member_value: object, message: str) -> None:
+def test_list_sort_rejects_values(capsys: CaptureFixture[str],
+                                  validator: MemberValidator,
+                                  member_value: object, message: str) -> None:
     """Test ListOrderingValidator failures."""
     assert_validate_member_failure(capsys, validator, member_value,
                                    InvalidConfiguration, message)
@@ -615,8 +615,8 @@ def test_list_dict_keys_bad_policy() -> None:
     """allow_extra_dict_keys must be a bool."""
     allow_extra = 'yes'
     with pytest.raises(TypeError) as exc:
-        ListOfDictsKeysValidator(
-            ['name'], None, allow_extra)  # type: ignore[arg-type]
+        ListOfDictsKeysValidator(['name'], None,
+                                 allow_extra)  # type: ignore[arg-type]
     assert 'allow_extra_dict_keys must be a bool' in str(exc.value)
 
 
@@ -686,9 +686,8 @@ def test_list_dict_keys_requires_key(capsys: CaptureFixture[str]) -> None:
          'name': 'extract',
          'extra': 'boom'
      }], "Unknown key 'extra' in value[0]")])
-def test_list_dict_keys_bad_values(
-        capsys: CaptureFixture[str], member_value: object,
-        message: str) -> None:
+def test_list_dict_keys_bad_values(capsys: CaptureFixture[str],
+                                   member_value: object, message: str) -> None:
     """Test ListOfDictsKeysValidator failures."""
     validator = ListOfDictsKeysValidator(['name'], ['enabled'])
     assert_validate_member_failure(capsys, validator, member_value,

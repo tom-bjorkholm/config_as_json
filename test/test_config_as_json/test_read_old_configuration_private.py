@@ -193,9 +193,9 @@ def test_remove_key_recursive_bad(data: object) -> None:
       'Both new config parameter new and old old present.\n'
       'Ignoring old parameter old\n'),
      ({'keep': 1}, {'keep': 1}, False, '')])
-def test_rename_key_recursive(
-        data: dict[str, object], expected_data: dict[str, object],
-        expected_found: bool, expected_err: str) -> None:
+def test_rename_key_recursive(data: dict[str, object],
+                              expected_data: dict[str, object],
+                              expected_found: bool, expected_err: str) -> None:
     """Test recursive key rename behavior."""
     stderr_file = StringIO()
     rename = rocf_mod.RocfKeyRename(old='old', new='new')
@@ -516,9 +516,8 @@ def test_private_one_move_ok() -> None:
     """Test private one-path move method success."""
     data: dict[str, object] = {'old': 1}
     hook = ConfigAutoChangeHook()
-    context = rocf_mod._MoveContext(
-        json_data=data, written_paths=set(), auto_ch_hook=hook,
-        stderr_file=StringIO())
+    context = rocf_mod._MoveContext(json_data=data, written_paths=set(),
+                                    auto_ch_hook=hook, stderr_file=StringIO())
     move = rocf_mod.RocfKeyMove(old_path=('old',), new_path=('new',))
     value = rocf_mod._MovedValue(actual_path=['old'], indexes=[], value=1)
     MethodReadOldConfig().run_one_move(context, move, value)
@@ -550,25 +549,24 @@ def test_private_target_current_ok(
         target: list[str | int], expected: bool) -> None:
     """Test private current-target detection."""
     hook = ConfigAutoChangeHook()
-    context = rocf_mod._MoveContext(
-        json_data=data, written_paths=set(), auto_ch_hook=hook,
-        stderr_file=StringIO())
+    context = rocf_mod._MoveContext(json_data=data, written_paths=set(),
+                                    auto_ch_hook=hook, stderr_file=StringIO())
     value = rocf_mod._MovedValue(actual_path=['old'], indexes=[], value=1)
-    result = MethodReadOldConfig().run_target_current(
-        context, value, wrap_prefix, target)
+    result = MethodReadOldConfig().run_target_current(context, value,
+                                                      wrap_prefix, target)
     assert result is expected
 
 
 def test_private_target_current_bad() -> None:
     """Test private current-target detection error handling."""
     data: dict[str, object] = {'old': 1, 'outputs': 'bad'}
-    context = rocf_mod._MoveContext(
-        json_data=data, written_paths=set(),
-        auto_ch_hook=ConfigAutoChangeHook(), stderr_file=StringIO())
+    context = rocf_mod._MoveContext(json_data=data, written_paths=set(),
+                                    auto_ch_hook=ConfigAutoChangeHook(),
+                                    stderr_file=StringIO())
     value = rocf_mod._MovedValue(actual_path=['old'], indexes=[], value=1)
     with pytest.raises(rocf_mod.RocfIncompatiblePathError):
-        MethodReadOldConfig().run_target_current(
-            context, value, ['outputs'], ['outputs', 0])
+        MethodReadOldConfig().run_target_current(context, value, ['outputs'],
+                                                 ['outputs', 0])
 
 
 def test_private_missing_values_ok() -> None:

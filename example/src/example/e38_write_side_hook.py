@@ -194,10 +194,10 @@ class TaskConfig(Config):
             # ``JsonWriteHookError`` with the actual path of the
             # offending value, which is much more helpful than a
             # ``TypeError`` from inside the converter.
-            'priority': SerializeConverter(
-                value_type=Priority, func=_priority_to_name, args={}),
-            ('output_file',): SerializeConverter(
-                value_type=Path, func=_path_to_posix, args={}),
+            'priority': SerializeConverter(value_type=Priority,
+                                           func=_priority_to_name, args={}),
+            ('output_file',): SerializeConverter(value_type=Path,
+                                                 func=_path_to_posix, args={}),
         }
         return rules
 
@@ -219,8 +219,8 @@ class TaskConfig(Config):
         ``serialize_converters`` and ``parse_converters``.
         """
         return {
-            'output_file': ParseConverter(
-                result_type=Path, func=_path_from_text, args={}),
+            'output_file': ParseConverter(result_type=Path,
+                                          func=_path_from_text, args={}),
             'review_state': self.get_converter_dict(ReviewState),
             'priority': self.get_converter_dict(Priority),
         }

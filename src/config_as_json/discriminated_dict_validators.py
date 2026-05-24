@@ -290,9 +290,9 @@ class DiscriminatedDictValidator(MemberValidator):
                                                    variant),
             allowed_keys=variant.allowed_keys,
             allow_extra_dict_keys=variant.allow_extra_dict_keys)
-        key_validator.validate_member(
-            config=config, member_name=member_name, member_value=result,
-            stderr_file=stderr_file)
+        key_validator.validate_member(config=config, member_name=member_name,
+                                      member_value=result,
+                                      stderr_file=stderr_file)
         if len(variant.rules) == 0:
             return result
         return DictForEachValidator(variant.rules).validate_member(

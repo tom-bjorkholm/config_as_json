@@ -55,8 +55,8 @@ def test_e23_set_overrides(capsys: CaptureFixture[str]) -> None:
     assert config.replica_regions == ['eu-north', 'ap-south']
 
 
-def test_e23_rejects_dup_region(
-        capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
+def test_e23_rejects_dup_region(capsys: CaptureFixture[str],
+                                monkeypatch: MonkeyPatch) -> None:
     """Reject duplicate values in the projected whole-config list."""
     set_values = cast(SetValues, {
         'primary_region': 'eu-north',
@@ -66,8 +66,8 @@ def test_e23_rejects_dup_region(
         'duplicates the value at index 0'])
 
 
-def test_e23_rejects_unknown_replica(
-        capsys: CaptureFixture[str], monkeypatch: MonkeyPatch) -> None:
+def test_e23_rejects_unknown_replica(capsys: CaptureFixture[str],
+                                     monkeypatch: MonkeyPatch) -> None:
     """Reject an invalid replica region before whole-config projection."""
     assert_print_validator_error(capsys, monkeypatch, E23_SPEC, {
         'primary_region': 'eu-north',

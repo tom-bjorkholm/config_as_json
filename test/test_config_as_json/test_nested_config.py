@@ -639,8 +639,8 @@ def test_dict_nested_bad_member(capsys: CaptureFixture[str]) -> None:
 def test_dict_nested_bad_key(capsys: CaptureFixture[str]) -> None:
     """Test that every runtime dict key must be a string."""
     cfg = ReportDictConfig(stderr_file=sys.stderr)
-    cfg.reports_by_id = cast(
-        dict[str, ReportSection], {7: ReportSection(stderr_file=sys.stderr)})
+    cfg.reports_by_id = cast(dict[str, ReportSection],
+                             {7: ReportSection(stderr_file=sys.stderr)})
     with pytest.raises(TypeError) as exc:
         cfg.validate(stderr_file=sys.stderr)
     out, err = capsys.readouterr()

@@ -34,9 +34,6 @@
   * [MemberValidator](#config_as_json.validator.MemberValidator)
     * [\_\_init\_\_](#config_as_json.validator.MemberValidator.__init__)
     * [validate\_member](#config_as_json.validator.MemberValidator.validate_member)
-  * [ValueTypeValidator](#config_as_json.validator.ValueTypeValidator)
-    * [\_\_init\_\_](#config_as_json.validator.ValueTypeValidator.__init__)
-    * [validate\_member](#config_as_json.validator.ValueTypeValidator.validate_member)
   * [ValidationStep](#config_as_json.validator.ValidationStep)
     * [apply](#config_as_json.validator.ValidationStep.apply)
   * [WholeConfigValidationStep](#config_as_json.validator.WholeConfigValidationStep)
@@ -127,6 +124,14 @@
   * [ProjectedWholeConfigValidator](#config_as_json.projected_validators.ProjectedWholeConfigValidator)
     * [\_\_init\_\_](#config_as_json.projected_validators.ProjectedWholeConfigValidator.__init__)
     * [validate](#config_as_json.projected_validators.ProjectedWholeConfigValidator.validate)
+* [config\_as\_json.type\_validators](#config_as_json.type_validators)
+  * [InvalidConfigurationType](#config_as_json.type_validators.InvalidConfigurationType)
+  * [ValueTypeValidator](#config_as_json.type_validators.ValueTypeValidator)
+    * [\_\_init\_\_](#config_as_json.type_validators.ValueTypeValidator.__init__)
+    * [validate\_member](#config_as_json.type_validators.ValueTypeValidator.validate_member)
+  * [ValueAsTypeValidator](#config_as_json.type_validators.ValueAsTypeValidator)
+    * [\_\_init\_\_](#config_as_json.type_validators.ValueAsTypeValidator.__init__)
+    * [validate\_member](#config_as_json.type_validators.ValueAsTypeValidator.validate_member)
 * [config\_as\_json.commontypes](#config_as_json.commontypes)
   * [json\_types](#config_as_json.commontypes.json_types)
 * [config\_as\_json.dict\_validators](#config_as_json.dict_validators)
@@ -799,70 +804,6 @@ the exception is raised.
   to change the value of the member in the Config object.
   The returned value is used as the new member value, even if it is
   ``None``.
-
-<a id="config_as_json.validator.ValueTypeValidator"></a>
-
-## ValueTypeValidator Objects
-
-```python
-class ValueTypeValidator(MemberValidator)
-```
-
-Validate that one member value has the configured runtime type.
-
-<a id="config_as_json.validator.ValueTypeValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(value_type: type[object]) -> None
-```
-
-Initialize the validator.
-
-**Arguments**:
-
-- `value_type` - Required runtime type for the member value.
-
-
-**Raises**:
-
-- `TypeError` - If ``value_type`` is not a type.
-
-<a id="config_as_json.validator.ValueTypeValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: 'Config',
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate one member's runtime type.
-
-The check uses normal ``isinstance`` semantics. For example,
-``ValueTypeValidator(int)`` accepts ``True`` because ``bool`` is a
-subclass of ``int`` in Python.
-
-**Arguments**:
-
-- `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
-- `member_value` - The member value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  The original member value if validation succeeds.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If ``member_value`` is not an instance of
-  ``value_type``.
 
 <a id="config_as_json.validator.ValidationStep"></a>
 
@@ -2889,6 +2830,171 @@ member to validate (which is the projected value).
 
   None if the validation check passes, otherwise the exception
   is raised.
+
+<a id="config_as_json.type_validators"></a>
+
+# config\_as\_json.type\_validators
+
+Implement type validators for configuration data.
+
+<a id="config_as_json.type_validators.InvalidConfigurationType"></a>
+
+## InvalidConfigurationType Objects
+
+```python
+class InvalidConfigurationType(InvalidConfiguration)
+```
+
+Raised when a member value has an invalid runtime type.
+
+<a id="config_as_json.type_validators.ValueTypeValidator"></a>
+
+## ValueTypeValidator Objects
+
+```python
+class ValueTypeValidator(MemberValidator)
+```
+
+Validate that one member value has the configured runtime type.
+
+The validator accepts either one runtime type or a list of runtime types.
+Normal mode uses ``isinstance`` semantics, so subclasses are accepted.
+Strict mode uses exact ``type(value)`` matching. Optional denied types
+are checked with the same strictness as the allowed types.
+
+<a id="config_as_json.type_validators.ValueTypeValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(value_type: type[object] | list[type[object]],
+             not_allowed_type: Optional[type[object]
+                                        | list[type[object]]] = None,
+             strict: bool = False) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `value_type` - Required runtime type or types for the member value.
+- `not_allowed_type` - Optional runtime types that are not allowed.
+- `strict` - Whether to require exact runtime type matches.
+
+
+**Raises**:
+
+- `TypeError` - If a type specification is invalid.
+- `TypeError` - If ``strict`` is not a boolean.
+- `ValueError` - If ``value_type`` is an empty list.
+- `ValueError` - If allowed and denied types contradict each other.
+
+<a id="config_as_json.type_validators.ValueTypeValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one member's runtime type.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The member value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The original member value if validation succeeds.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - If ``member_value`` does not match the
+  allowed types, or if it matches a denied type.
+
+<a id="config_as_json.type_validators.ValueAsTypeValidator"></a>
+
+## ValueAsTypeValidator Objects
+
+```python
+class ValueAsTypeValidator(ValueTypeValidator, Generic[T])
+```
+
+Normalize one member value to the configured runtime type.
+
+Values already matching ``value_type`` are returned unchanged. Other
+accepted values are converted either by calling ``value_type(value)`` for
+direct types, or by a custom conversion function for convertable types.
+
+<a id="config_as_json.type_validators.ValueAsTypeValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    value_type: type[T],
+    direct_types: Optional[type[object] | list[type[object]]] = None,
+    convertable_types: Optional[dict[type[object], Callable[[object],
+                                                            T]]] = None
+) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `value_type` - Runtime type to normalize the member value to.
+- `direct_types` - Runtime types converted with ``value_type(value)``.
+- `convertable_types` - Runtime types converted with custom callables.
+
+
+**Raises**:
+
+- `TypeError` - If any constructor argument has an invalid shape.
+- `ValueError` - If one type is both direct and convertable.
+
+<a id="config_as_json.type_validators.ValueAsTypeValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Normalize the member value to the configured runtime type.
+
+If both a direct type and a convertable type match, the type closest
+to ``type(member_value)`` in the MRO decides which conversion path is
+used.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The member value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - If the value is not accepted, if
+  conversion fails, or if conversion returns the wrong type.
+
+
+**Returns**:
+
+  The original or normalized member value if validation succeeds.
 
 <a id="config_as_json.commontypes"></a>
 
