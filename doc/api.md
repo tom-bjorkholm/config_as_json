@@ -4400,24 +4400,54 @@ handle that file in :meth:`ReadOldConfiguration.pre_process_json` or
 :meth:`ReadOldConfiguration.post_process_json` instead of a declarative
 ROCF path rule.
 
+The library deep-copies the old value and then transforms that copy using
+the ``transform_value`` function before writing it to the new path. The
+default identity function leaves the value unchanged. Application code may
+use this to convert the old value to a different type or format. The value
+passed to ``transform_value`` has been processed by the ``parse_json``
+method and the registered ``parse_converters`` for the old path.
+
 **Attributes**:
 
 - `old_path` - Absolute path to the old value in the root configuration
   data object.
 - `new_path` - Absolute path where the value belongs in the current
   configuration data object.
+- `transform_value` - Function to transform the old value before it is
+  written to the new path. Defaults to the identity function.
 
 <a id="config_as_json.read_old_configuration.RocfKeyRename"></a>
 
-#### RocfKeyRename
+## RocfKeyRename Objects
+
+```python
+class RocfKeyRename(NamedTuple)
+```
 
 Describe a configuration key rename from an old name to a new name.
 
 Application subclasses return these from
 :meth:`ReadOldConfiguration.get_json_key_renames` when reading old
-configuration files (ROCF). The library recursively changes dictionary members
-named ``old`` to ``new`` in dictionaries and lists. If both names exist in the
-same dictionary, the current name wins and the old value is discarded.
+configuration files (ROCF). The library recursively changes dictionary
+members named ``old`` to ``new`` in dictionaries and lists. If both names
+exist in the same dictionary, the current name wins and the old value is
+discarded.
+
+The library transforms the old key's value using the ``transform_value``
+function before writing it to the new key. The default identity function
+leaves the value unchanged. Application code may use this to convert the
+old value to a different type or format. If the value is changed and may
+be a shared reference, application code in the ``transform_value``
+function must copy the value before changing it. The value passed to
+``transform_value`` has been processed by the ``parse_json`` method and
+the registered ``parse_converters`` for the old key name.
+
+**Attributes**:
+
+- `old` - The old key name for the value in the old configuration.
+- `new` - New key value for the value in the current configuration.
+- `transform_value` - Function to transform the old value before it is
+  written to the new path. Defaults to the identity function.
 
 <a id="config_as_json.read_old_configuration.RocfConflictError"></a>
 

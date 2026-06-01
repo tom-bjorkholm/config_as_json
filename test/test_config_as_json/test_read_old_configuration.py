@@ -104,6 +104,50 @@ def test_rename_current_wins() -> None:
     ]) + '\n'
 
 
+def test_rename_transform_value() -> None:
+    """A recursive key rename may transform the old value before writing."""
+
+    def mode_from_old(value: object) -> str:
+        """Convert an old textual mode to the current textual mode."""
+        assert isinstance(value, str)
+        return {'legacy': 'current'}[value]
+
+    data: dict[str, object] = {
+        'items': [{'old_mode': 'legacy'}, {'old_mode': 'legacy'}]
+    }
+    rocf = RuleReadOldConfig()
+    rocf.renames = [
+        RocfKeyRename(old='old_mode', new='mode',
+                      transform_value=mode_from_old)]
+    hook, err = process_data(rocf, data)
+    assert data == {'items': [{'mode': 'current'}, {'mode': 'current'}]}
+    assert hook.old_keys == ['old_mode']
+    assert err == ''
+
+
+def test_rename_transform_conflict() -> None:
+    """A rename conflict discards the old value without transforming it."""
+
+    def fail_transform(value: object) -> object:
+        """Fail if a current value should have won instead."""
+        _ = value
+        raise AssertionError('transform should not be called')
+
+    data: dict[str, object] = {'old_mode': 'legacy', 'mode': 'current'}
+    rocf = RuleReadOldConfig()
+    rocf.renames = [
+        RocfKeyRename(old='old_mode', new='mode',
+                      transform_value=fail_transform)]
+    hook, err = process_data(rocf, data)
+    assert data == {'mode': 'current'}
+    assert hook.old_keys == ['old_mode']
+    assert err == '\n'.join([
+        'Inconsistent configuration:',
+        'Both new config parameter mode and old old_mode present.',
+        'Ignoring old parameter old_mode'
+    ]) + '\n'
+
+
 def test_missing_existing_lists() -> None:
     """Missing-value rules can fill dict paths and existing list elements."""
     data: dict[str, object] = {
@@ -184,6 +228,100 @@ def test_move_key_in_each_list_item() -> None:
     assert err == ''
 
 
+def test_move_transform_value() -> None:
+    """A move may transform the old value before writing the current path."""
+
+    def interval_to_seconds(value: object) -> int:
+        """Convert old minute values to current second values."""
+        assert isinstance(value, int)
+        return value * 60
+
+    data: dict[str, object] = {'refresh_minutes': 5}
+    rocf = RuleReadOldConfig()
+    rocf.moves = [
+        RocfKeyMove(old_path=('refresh_minutes',),
+                    new_path=('refresh_seconds',),
+                    transform_value=interval_to_seconds)]
+    hook, err = process_data(rocf, data)
+    assert data == {'refresh_seconds': 300}
+    assert hook.old_paths_moved == [
+        ('refresh_minutes', 'refresh_seconds')
+    ]
+    assert err == ''
+
+
+def test_move_transform_list_items() -> None:
+    """A wildcard move transforms each old list element value."""
+
+    def required_from_optional(value: object) -> bool:
+        """Invert an old optional flag to the current required flag."""
+        assert isinstance(value, bool)
+        return not value
+
+    data: dict[str, object] = {
+        'sections': [{'optional': False}, {'optional': True}]
+    }
+    rocf = RuleReadOldConfig()
+    rocf.moves = [
+        RocfKeyMove(old_path=('sections', '[', 'optional'),
+                    new_path=('sections', '[', 'required'),
+                    transform_value=required_from_optional)]
+    hook, err = process_data(rocf, data)
+    assert data == {
+        'sections': [{'required': True}, {'required': False}]
+    }
+    assert hook.old_paths_moved == [
+        ('sections[0][optional]', 'sections[0][required]'),
+        ('sections[1][optional]', 'sections[1][required]')
+    ]
+    assert err == ''
+
+
+def test_move_transform_copy() -> None:
+    """A move transform receives a copy so shared old data is not changed."""
+
+    def add_current_marker(value: object) -> object:
+        """Mutate and return the moved object copy."""
+        assert isinstance(value, dict)
+        items = value['items']
+        assert isinstance(items, list)
+        items.append('current')
+        return value
+
+    shared: dict[str, object] = {'items': ['old']}
+    data: dict[str, object] = {'old': shared, 'alias': shared}
+    rocf = RuleReadOldConfig()
+    rocf.moves = [
+        RocfKeyMove(old_path=('old',), new_path=('new',),
+                    transform_value=add_current_marker)]
+    hook, err = process_data(rocf, data)
+    assert data == {
+        'alias': {'items': ['old']},
+        'new': {'items': ['old', 'current']}
+    }
+    assert hook.old_paths_moved == [('old', 'new')]
+    assert err == ''
+
+
+def test_move_transform_error_safe() -> None:
+    """A move transform failure does not delete the old value first."""
+
+    def fail_transform(value: object) -> object:
+        """Raise the error under test."""
+        _ = value
+        raise RuntimeError('bad legacy value')
+
+    data: dict[str, object] = {'old': {'value': 1}}
+    original = deepcopy(data)
+    rocf = RuleReadOldConfig()
+    rocf.moves = [
+        RocfKeyMove(old_path=('old',), new_path=('new',),
+                    transform_value=fail_transform)]
+    with pytest.raises(RuntimeError):
+        _ = process_data(rocf, data)
+    assert data == original
+
+
 def test_move_current_list_wins() -> None:
     """An existing current list wins over an old object-to-list move."""
     data: dict[str, object] = {
@@ -201,6 +339,29 @@ def test_move_current_list_wins() -> None:
         'Inconsistent configuration:',
         'Both new config parameter outputs[0] and old output present.',
         'Ignoring old parameter output'
+    ]) + '\n'
+
+
+def test_move_transform_conflict() -> None:
+    """A move conflict discards the old value without transforming it."""
+
+    def fail_transform(value: object) -> object:
+        """Fail if a current value should have won instead."""
+        _ = value
+        raise AssertionError('transform should not be called')
+
+    data: dict[str, object] = {'old': 'legacy', 'new': 'current'}
+    rocf = RuleReadOldConfig()
+    rocf.moves = [
+        RocfKeyMove(old_path=('old',), new_path=('new',),
+                    transform_value=fail_transform)]
+    hook, err = process_data(rocf, data)
+    assert data == {'new': 'current'}
+    assert hook.old_paths_moved == [('old', 'new')]
+    assert err == '\n'.join([
+        'Inconsistent configuration:',
+        'Both new config parameter new and old old present.',
+        'Ignoring old parameter old'
     ]) + '\n'
 
 

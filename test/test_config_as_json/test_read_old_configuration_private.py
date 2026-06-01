@@ -212,6 +212,21 @@ def test_rename_key_recursive_bad() -> None:
         rocf_mod._rename_key_recursive(rename, {}, StringIO())
 
 
+def test_rename_recursive_transform() -> None:
+    """Test value transformation in the recursive rename helper."""
+
+    def old_text_to_new(value: object) -> str:
+        """Convert an old text value to its current spelling."""
+        assert isinstance(value, str)
+        return {'old-text': 'new-text'}[value]
+
+    data: dict[str, object] = {'old': 'old-text'}
+    rename = rocf_mod.RocfKeyRename(old='old', new='new',
+                                    transform_value=old_text_to_new)
+    assert rocf_mod._rename_key_recursive(rename, data, StringIO())
+    assert data == {'new': 'new-text'}
+
+
 @pytest.mark.parametrize(
     'data, path, expected',
     [({'old': 1}, ('old',), [(['old'], [], 1)]),
@@ -522,6 +537,27 @@ def test_private_one_move_ok() -> None:
     value = rocf_mod._MovedValue(actual_path=['old'], indexes=[], value=1)
     MethodReadOldConfig().run_one_move(context, move, value)
     assert data == {'new': 1}
+    assert context.written_paths == {'new'}
+    assert hook.old_keys == ['old -> new']
+
+
+def test_private_one_move_transform() -> None:
+    """Test value transformation in the private one-path move method."""
+
+    def double_value(value: object) -> int:
+        """Double an integer value."""
+        assert isinstance(value, int)
+        return value * 2
+
+    data: dict[str, object] = {'old': 3}
+    hook = ConfigAutoChangeHook()
+    context = rocf_mod._MoveContext(json_data=data, written_paths=set(),
+                                    auto_ch_hook=hook, stderr_file=StringIO())
+    move = rocf_mod.RocfKeyMove(old_path=('old',), new_path=('new',),
+                                transform_value=double_value)
+    value = rocf_mod._MovedValue(actual_path=['old'], indexes=[], value=3)
+    MethodReadOldConfig().run_one_move(context, move, value)
+    assert data == {'new': 6}
     assert context.written_paths == {'new'}
     assert hook.old_keys == ['old -> new']
 

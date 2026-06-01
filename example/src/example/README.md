@@ -1391,12 +1391,21 @@ objects. The old file format has one optional direct `output` object. The
 current file format has `outputs`, a list where each element is a nested
 `ReportOutputConfig`.
 
+The example also demonstrates value transformation during ROCF migration. Old
+files use `OldOutputFormat` with values such as `COMMA_SEPARATED_VALUES` and
+`PLAIN_TEXT`. Current files use the shorter `OutputFormat` values `CSV` and
+`TXT`. The meaning is the same, but the enum type and symbolic names changed.
+The helper `output_format_from_old()` translates one old enum member to the
+matching current enum member.
+
 The `Example37ReadOldConfig` class shows several `ReadOldConfiguration`
 features together:
 
 - `course_title` is renamed to `course_name`
-- `default_format` is moved to `default_output_format`
-- `output.format` is moved to `output.output_format`
+- `default_format` is moved to `default_output_format` and transformed from
+  `OldOutputFormat` to `OutputFormat`
+- `output.format` is moved to `output.output_format` and transformed from
+  `OldOutputFormat` to `OutputFormat`
 - the whole old `output` object is moved into `outputs[0]`
 - if the old optional `output` object is absent, `('outputs',): []` supplies
   the current empty list
@@ -1404,14 +1413,18 @@ features together:
 
 The example also highlights one parse-order detail. `parse_converters()` run
 before `ReadOldConfiguration`, so enum-valued settings need converters for
-both old and current key names when values are moved or renamed. That is why
-the current class lists converters for both `default_output_format` and
-`default_format`, and for both `output_format` and `format`.
+both old and current key names when values are moved or renamed. In this
+example the current keys use the current enum converter, while the old keys
+use the old enum converter. The move rules then pass
+`transform_value=output_format_from_old`, so the value arriving at the current
+path already has the current enum type before nested Config conversion and
+validation.
 
 The command line mirrors e31:
 
 ```sh
 python3 -m example.e37_read_old_nested_configuration_file write-old --output old.cfg
+python3 -m example.e37_read_old_nested_configuration_file write-old --output old-txt.cfg --default-format plain --output-format plain
 python3 -m example.e37_read_old_nested_configuration_file write-new --output new.cfg
 python3 -m example.e37_read_old_nested_configuration_file print --input old.cfg
 python3 -m example.e37_read_old_nested_configuration_file migrate --input old.cfg --output migrated.cfg

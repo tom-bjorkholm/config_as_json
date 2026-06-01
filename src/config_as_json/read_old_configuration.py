@@ -10,7 +10,7 @@ while reading JSON, before validation and nested ``Config`` conversion.
 # MIT License
 
 from copy import deepcopy
-from typing import NamedTuple, Optional, Sequence, TextIO, cast
+from typing import Callable, NamedTuple, Optional, Sequence, TextIO, cast
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import ConfigPath
 from config_as_json.validator import InvalidConfiguration
@@ -18,6 +18,11 @@ from config_as_json.validator import InvalidConfiguration
 
 type RocfPath = ConfigPath
 """Backward-compatible alias for ``ConfigPath``."""
+
+
+def _identity_value(value: object) -> object:
+    """Return ``value`` unchanged for default transform callbacks."""
+    return value
 
 
 class RocfKeyMove(NamedTuple):
@@ -79,26 +84,56 @@ class RocfKeyMove(NamedTuple):
     :meth:`ReadOldConfiguration.post_process_json` instead of a declarative
     ROCF path rule.
 
+    The library deep-copies the old value and then transforms that copy using
+    the ``transform_value`` function before writing it to the new path. The
+    default identity function leaves the value unchanged. Application code may
+    use this to convert the old value to a different type or format. The value
+    passed to ``transform_value`` has been processed by the ``parse_json``
+    method and the registered ``parse_converters`` for the old path.
+
     Attributes:
         old_path: Absolute path to the old value in the root configuration
             data object.
         new_path: Absolute path where the value belongs in the current
             configuration data object.
+        transform_value: Function to transform the old value before it is
+            written to the new path. Defaults to the identity function.
     """
 
     old_path: ConfigPath
     new_path: ConfigPath
+    transform_value: Callable[[object], object] = _identity_value
 
 
-RocfKeyRename = NamedTuple('RocfKeyRename', [('old', str), ('new', str)])
-"""Describe a configuration key rename from an old name to a new name.
+class RocfKeyRename(NamedTuple):
+    """Describe a configuration key rename from an old name to a new name.
 
-Application subclasses return these from
-:meth:`ReadOldConfiguration.get_json_key_renames` when reading old
-configuration files (ROCF). The library recursively changes dictionary members
-named ``old`` to ``new`` in dictionaries and lists. If both names exist in the
-same dictionary, the current name wins and the old value is discarded.
-"""
+    Application subclasses return these from
+    :meth:`ReadOldConfiguration.get_json_key_renames` when reading old
+    configuration files (ROCF). The library recursively changes dictionary
+    members named ``old`` to ``new`` in dictionaries and lists. If both names
+    exist in the same dictionary, the current name wins and the old value is
+    discarded.
+
+    The library transforms the old key's value using the ``transform_value``
+    function before writing it to the new key. The default identity function
+    leaves the value unchanged. Application code may use this to convert the
+    old value to a different type or format. If the value is changed and may
+    be a shared reference, application code in the ``transform_value``
+    function must copy the value before changing it. The value passed to
+    ``transform_value`` has been processed by the ``parse_json`` method and
+    the registered ``parse_converters`` for the old key name.
+
+    Attributes:
+        old: The old key name for the value in the old configuration.
+        new: New key value for the value in the current configuration.
+        transform_value: Function to transform the old value before it is
+             written to the new path. Defaults to the identity function.
+    """
+
+    old: str
+    new: str
+    transform_value: Callable[[object], object] = _identity_value
 
 
 class RocfConflictError(InvalidConfiguration):
@@ -248,7 +283,8 @@ def _rename_key_recursive(rename: RocfKeyRename, data: object,
             if rename.new in dict_data:
                 _conflict_diag(rename.old, rename.new, stderr_file)
             else:
-                dict_data[rename.new] = dict_data[rename.old]
+                dict_data[rename.new] = \
+                    rename.transform_value(dict_data[rename.old])
             del dict_data[rename.old]
         for value in list(dict_data.values()):
             found = _rename_key_recursive(rename, value, stderr_file) or found
@@ -649,8 +685,9 @@ class ReadOldConfiguration:
             context.auto_ch_hook.old_path_moved(old_path=old_text,
                                                 new_path=new_text)
             return
+        new_value = move.transform_value(deepcopy(moved_value.value))
         _delete_path(context.json_data, moved_value.actual_path)
-        _write_path(context.json_data, target, deepcopy(moved_value.value))
+        _write_path(context.json_data, target, new_value)
         context.written_paths.add(new_text)
         context.auto_ch_hook.old_path_moved(old_path=old_text,
                                             new_path=new_text)

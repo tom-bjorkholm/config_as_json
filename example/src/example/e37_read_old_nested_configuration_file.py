@@ -9,7 +9,9 @@ The example also shows one detail that follows from the parse order. JSON
 values are converted by ``parse_converters()`` before the
 ``ReadOldConfiguration`` rules run. Therefore, enum-valued settings need
 converters for both old and current key names when a migration moves or
-renames those keys.
+renames those keys. This example also shows how ``transform_value`` on a
+move rule can translate an old enum member into a current enum member when
+the enum names changed between application versions.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -36,6 +38,25 @@ class OutputFormat(Enum):
     TXT = auto()
 
 
+class OldOutputFormat(Enum):
+    """Select the generated output file format in old files."""
+
+    COMMA_SEPARATED_VALUES = auto()
+    PLAIN_TEXT = auto()
+
+
+def output_format_from_old(value: object) -> OutputFormat:
+    """Convert an old output format enum member to the current enum."""
+    # ReadOldConfiguration calls transform_value after Config has already
+    # applied parse_converters(). Therefore the value received here is the
+    # old enum member, not the raw JSON string from the file.
+    assert isinstance(value, OldOutputFormat)
+    return {
+        OldOutputFormat.COMMA_SEPARATED_VALUES: OutputFormat.CSV,
+        OldOutputFormat.PLAIN_TEXT: OutputFormat.TXT
+    }[value]
+
+
 class OldOutputConfig(Config):
     """Old optional direct output object."""
 
@@ -47,8 +68,9 @@ class OldOutputConfig(Config):
         # members are written exactly as old application versions wrote them.
         self.name: str = 'participants'
         self.file_name: str = 'participants.csv'
-        # The old nested object used the short key ``format``.
-        self.format: OutputFormat = OutputFormat.CSV
+        # The old nested object used the short key ``format``. The old enum
+        # also used longer symbolic names than the current enum.
+        self.format: OldOutputFormat = OldOutputFormat.COMMA_SEPARATED_VALUES
         self.encoding: str = 'utf-8'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
@@ -59,7 +81,7 @@ class OldOutputConfig(Config):
         # This converter is used only when this old teaching class reads an
         # old output object directly. The current class has its own converter
         # entries for both old and current key names.
-        converter = self.get_converter_dict(OutputFormat)
+        converter = self.get_converter_dict(OldOutputFormat)
         return {'format': converter}
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -79,7 +101,8 @@ class OldExampleConfig37(Config):
         # The old file had no ``format_version`` and no ``outputs`` list.
         # Instead, it had one optional ``output`` object.
         self.course_title: str = 'python-intro'
-        self.default_format: OutputFormat = OutputFormat.CSV
+        self.default_format: OldOutputFormat = \
+            OldOutputFormat.COMMA_SEPARATED_VALUES
         self.output: Optional[OldOutputConfig] = None
         self.debug_trace: bool = False
         super().__init__(from_json_data_text=from_json_data_text,
@@ -107,8 +130,8 @@ class OldExampleConfig37(Config):
         """Return conversions needed when reading enum values from JSON."""
         # Both enum-valued old keys are listed because JSON stores enum values
         # as text and Config applies converters while parsing JSON.
-        return {'default_format': self.get_converter_dict(OutputFormat),
-                'format': self.get_converter_dict(OutputFormat)}
+        converter = self.get_converter_dict(OldOutputFormat)
+        return {'default_format': converter, 'format': converter}
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return extra validation steps for this example configuration."""
@@ -160,14 +183,17 @@ class Example37ReadOldConfig(ReadOldConfiguration):
     def get_json_key_moves(self) -> list[RocfKeyMove]:
         """Return old paths that should be moved to current paths."""
         # Moves are for structural changes. The first rule moves a top-level
-        # value. The second rule prepares the nested output object by renaming
-        # ``format`` to ``output_format`` inside it. The third rule then wraps
+        # value and translates its enum type. The second rule prepares the
+        # nested output object by renaming ``format`` to ``output_format`` and
+        # translating the old enum type inside it. The third rule then wraps
         # the whole old ``output`` object into the current ``outputs`` list.
         return [
             RocfKeyMove(old_path=('default_format',),
-                        new_path=('default_output_format',)),
+                        new_path=('default_output_format',),
+                        transform_value=output_format_from_old),
             RocfKeyMove(old_path=('output', 'format'),
-                        new_path=('output', 'output_format')),
+                        new_path=('output', 'output_format'),
+                        transform_value=output_format_from_old),
             RocfKeyMove(old_path=('output',), new_path=('outputs', '['))
         ]
 
@@ -228,15 +254,18 @@ class ExampleConfig37(Config):
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
-        # ``default_format`` and ``format`` are old keys. They are listed
-        # because converters run before ReadOldConfiguration moves values.
-        # Without these old-key converters, old JSON enum text would be moved
-        # into the current shape as plain strings instead of OutputFormat
-        # members.
-        return {'default_output_format': self.get_converter_dict(OutputFormat),
-                'default_format': self.get_converter_dict(OutputFormat),
-                'output_format': self.get_converter_dict(OutputFormat),
-                'format': self.get_converter_dict(OutputFormat)}
+        # ``default_output_format`` and ``output_format`` are current keys.
+        # They use the current enum converter.
+        current = self.get_converter_dict(OutputFormat)
+        # ``default_format`` and ``format`` are old keys. They use the old
+        # enum converter because parse_converters() run before ROCF moves.
+        # The move rules then use transform_value to translate OldOutputFormat
+        # members to OutputFormat members.
+        old = self.get_converter_dict(OldOutputFormat)
+        return {'default_output_format': current,
+                'default_format': old,
+                'output_format': current,
+                'format': old}
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return extra validation steps for this example configuration."""
@@ -261,9 +290,14 @@ def output_format_from_text(text: str) -> OutputFormat:
     return string_to_enum_best_match(text, OutputFormat)
 
 
+def old_output_format_from_text(text: str) -> OldOutputFormat:
+    """Convert command-line text to ``OldOutputFormat``."""
+    return string_to_enum_best_match(text, OldOutputFormat)
+
+
 def _apply_old_output_values(config: OldExampleConfig37,
                              output_name: Optional[str],
-                             output_format: Optional[OutputFormat],
+                             output_format: Optional[OldOutputFormat],
                              output_encoding: Optional[str],
                              output_file_name: Optional[str]) -> None:
     """Apply command-line overrides to the old optional output object."""
@@ -281,10 +315,10 @@ def _apply_old_output_values(config: OldExampleConfig37,
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def e37_write_old_config(config_file: PathOrStr,
                          course_title: Optional[str] = None,
-                         default_format: Optional[OutputFormat] = None,
+                         default_format: Optional[OldOutputFormat] = None,
                          without_output: bool = False,
                          output_name: Optional[str] = None,
-                         output_format: Optional[OutputFormat] = None,
+                         output_format: Optional[OldOutputFormat] = None,
                          output_encoding: Optional[str] = None,
                          output_file_name: Optional[str] = None,
                          debug_trace: Optional[bool] = None) -> None:
@@ -415,10 +449,12 @@ def _add_write_old_parser(subparsers: _Subparsers) -> None:
         'write-old', help='Write an old-format configuration file.')
     old_parser.add_argument('-o', '--output', required=True)
     old_parser.add_argument('--course-title')
-    old_parser.add_argument('--default-format', type=output_format_from_text)
+    old_parser.add_argument('--default-format',
+                            type=old_output_format_from_text)
     old_parser.add_argument('--without-output', action='store_true')
     old_parser.add_argument('--output-name')
-    old_parser.add_argument('--output-format', type=output_format_from_text)
+    old_parser.add_argument('--output-format',
+                            type=old_output_format_from_text)
     old_parser.add_argument('--output-encoding')
     old_parser.add_argument('--output-file-name')
     old_parser.add_argument('--debug-trace', action='store_true')
@@ -457,11 +493,12 @@ def _handle_write_old(parsed_args: argparse.Namespace) -> None:
     e37_write_old_config(
         config_file=cast(str, parsed_args.output),
         course_title=cast(Optional[str], parsed_args.course_title),
-        default_format=cast(Optional[OutputFormat],
+        default_format=cast(Optional[OldOutputFormat],
                             parsed_args.default_format),
         without_output=cast(bool, parsed_args.without_output),
         output_name=cast(Optional[str], parsed_args.output_name),
-        output_format=cast(Optional[OutputFormat], parsed_args.output_format),
+        output_format=cast(Optional[OldOutputFormat],
+                           parsed_args.output_format),
         output_encoding=cast(Optional[str], parsed_args.output_encoding),
         output_file_name=cast(Optional[str], parsed_args.output_file_name),
         debug_trace=cast(bool, parsed_args.debug_trace))

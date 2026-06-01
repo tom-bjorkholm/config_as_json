@@ -11,7 +11,7 @@ import pytest
 from config_as_json import ConfigAutoChangeHook
 from example.e37_read_old_nested_configuration_file import \
     CURRENT_FORMAT_VERSION, Example37MigrateWarnHook, ExampleConfig37, \
-    OutputFormat, e37_migrate_config, e37_print_config, \
+    OldOutputFormat, OutputFormat, e37_migrate_config, e37_print_config, \
     e37_write_new_config, e37_write_old_config
 from example.e37_read_old_nested_configuration_file import main as e37_main
 from .test_e31_read_old_configuration_file import \
@@ -31,8 +31,8 @@ def run_old_print_roundtrip(
     """Use the e37 command-line entry point for one old-file round-trip."""
     write_args = ['write-old', '--output', config_file,
                   '--course-title', 'operations',
-                  '--default-format', 'txt',
-                  '--output-format', 'txt',
+                  '--default-format', 'plain',
+                  '--output-format', 'plain',
                   '--output-name', 'audit']
     e37_main(write_args)
     _ = capsys.readouterr()
@@ -46,9 +46,9 @@ def test_e37_write_old_shape(capsys: pytest.CaptureFixture[str]) -> None:
         config_file = dirname + '/old.cfg'
         e37_write_old_config(config_file=config_file,
                              course_title='advanced-python',
-                             default_format=OutputFormat.TXT,
+                             default_format=OldOutputFormat.PLAIN_TEXT,
                              output_name='audit',
-                             output_format=OutputFormat.TXT,
+                             output_format=OldOutputFormat.PLAIN_TEXT,
                              output_encoding='latin-1',
                              output_file_name='audit.txt', debug_trace=True)
         json_data = read_json_data(config_file)
@@ -58,10 +58,10 @@ def test_e37_write_old_shape(capsys: pytest.CaptureFixture[str]) -> None:
     assert json_data == {
         'course_title': 'advanced-python',
         'debug_trace': True,
-        'default_format': 'TXT',
+        'default_format': 'PLAIN_TEXT',
         'output': {'encoding': 'latin-1',
                    'file_name': 'audit.txt',
-                   'format': 'TXT',
+                   'format': 'PLAIN_TEXT',
                    'name': 'audit'}
     }
 
@@ -77,7 +77,7 @@ def test_e37_old_omits_output(capsys: pytest.CaptureFixture[str]) -> None:
     assert err == ''
     assert json_data == {'course_title': 'python-intro',
                          'debug_trace': False,
-                         'default_format': 'CSV'}
+                         'default_format': 'COMMA_SEPARATED_VALUES'}
 
 
 def test_e37_write_new_shape(capsys: pytest.CaptureFixture[str]) -> None:
@@ -152,8 +152,8 @@ def test_e37_config_reads_old(capsys: pytest.CaptureFixture[str]) -> None:
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/old.cfg'
         e37_write_old_config(config_file=config_file, course_title='support',
-                             default_format=OutputFormat.TXT,
-                             output_format=OutputFormat.TXT)
+                             default_format=OldOutputFormat.PLAIN_TEXT,
+                             output_format=OldOutputFormat.PLAIN_TEXT)
         _ = capsys.readouterr()
         config = ExampleConfig37(from_json_filename=config_file,
                                  auto_ch_hook=ConfigAutoChangeHook())
@@ -174,7 +174,7 @@ def test_e37_migrate_shape(capsys: pytest.CaptureFixture[str]) -> None:
         old_file = dirname + '/old.cfg'
         new_file = dirname + '/new.cfg'
         e37_write_old_config(config_file=old_file, course_title='support',
-                             default_format=OutputFormat.TXT)
+                             default_format=OldOutputFormat.PLAIN_TEXT)
         _ = capsys.readouterr()
         e37_migrate_config(infile=old_file, outfile=new_file)
         json_data = read_json_data(new_file)
