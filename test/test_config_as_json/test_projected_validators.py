@@ -457,9 +457,11 @@ def test_projected_member_validator_integration_uses_parsed_json(
       'validators must be non-empty'),
      (project_whole_route_names, 'projected', [object()], TypeError,
       'validators[0] must be a MemberValidator')])
-def test_whole_proj_rejects_bad_init(
-        projector: object, pseudo_member_name: object, validators: object,
-        exc_type: type[Exception], message: str) -> None:
+def test_whole_proj_rejects_bad_init(projector: object,
+                                     pseudo_member_name: object,
+                                     validators: object,
+                                     exc_type: type[Exception],
+                                     message: str) -> None:
     """Test whole-config projected validator constructor validation."""
     with pytest.raises(exc_type) as exc:
         ProjectedWholeConfigValidator(

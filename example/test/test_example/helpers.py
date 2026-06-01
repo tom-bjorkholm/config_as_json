@@ -190,10 +190,10 @@ def patch_config_factory_stderr(
     monkeypatch.setattr(module, factory_name, create_config)
 
 
-def assert_rt_out(
-        capsys: pytest.CaptureFixture[str],
-        main_func: Callable[[Optional[list[str]]], None], config_basename: str,
-        set_args: list[str], expected_lines: list[str]) -> None:
+def assert_rt_out(capsys: pytest.CaptureFixture[str],
+                  main_func: Callable[[Optional[list[str]]], None],
+                  config_basename: str, set_args: list[str],
+                  expected_lines: list[str]) -> None:
     """Run one example through set then print and assert the output."""
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/' + config_basename

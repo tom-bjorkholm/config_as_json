@@ -100,9 +100,9 @@ class WrongTypeFactory:
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr) -> Config:
         """Construct a Config object that is not the declared config_type."""
-        return WrongOutputConfig(
-            from_json_data_text=from_json_data_text,
-            from_json_filename=from_json_filename, stderr_file=stderr_file)
+        return WrongOutputConfig(from_json_data_text=from_json_data_text,
+                                 from_json_filename=from_json_filename,
+                                 stderr_file=stderr_file)
 
 
 class FactoryParentConfig(Config):
@@ -239,15 +239,15 @@ class DictByKeyFactoryParentConfig(Config):
     @override
     def nested_configs(self) -> NestedConfigs:
         """Return nested Config declarations."""
-        typed_nesting = ConfigNesting(
-            kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
-            config_type=FactoryOutputConfig, discriminator_key='typed')
-        factory_nesting = ConfigNesting(
-            kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
-            config_type=FactoryOutputConfig, discriminator_key='factory',
-            factory_function=self._factory_function)
+        typed_nest = ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+                                   config_type=FactoryOutputConfig,
+                                   discriminator_key='typed')
+        fact_nest = ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+                                  config_type=FactoryOutputConfig,
+                                  discriminator_key='factory',
+                                  factory_function=self._factory_function)
         return {
-            'outputs': [typed_nesting, factory_nesting]
+            'outputs': [typed_nest, fact_nest]
         }
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:

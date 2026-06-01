@@ -141,10 +141,9 @@ class ConfigExcelTransformValidated(Config, Generic[Column]):
             auto_ch_hook = MigrateCfgWarnHook()
         copy_common_state_from_legacy(self, col_ref, colinfo, tinfo,
                                       auto_ch_hook, stderr_file)
-        super().__init__(
-            from_json_data_text=from_json_data_text,
-            from_json_filename=from_json_filename, auto_ch_hook=auto_ch_hook,
-            stderr_file=stderr_file)
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=from_json_filename,
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
 
     def sort_sx_hook(self, stderr_file: TextIO) -> None:
         """Sort s[0-9]_ as needed (hook)."""

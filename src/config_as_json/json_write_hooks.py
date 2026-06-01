@@ -462,15 +462,18 @@ def _convert_dict(value: dict[str, object], selector_path: _SelectorPath,
         # may also target the same name as a different key elsewhere; the
         # exact match wins here.
         if child_selector in ctx.paths:
-            result[key] = _apply_one_converter(
-                value=item, converter=ctx.paths[child_selector],
-                path_text=child_text, selector=child_selector,
-                stderr_file=ctx.stderr_file)
+            converter = ctx.paths[child_selector]
+            result[key] = _apply_one_converter(value=item, converter=converter,
+                                               path_text=child_text,
+                                               selector=child_selector,
+                                               stderr_file=ctx.stderr_file)
             continue
         if key in ctx.rec_key:
-            result[key] = _apply_one_converter(
-                value=item, converter=ctx.rec_key[key], path_text=child_text,
-                selector=key, stderr_file=ctx.stderr_file)
+            converter = ctx.rec_key[key]
+            result[key] = _apply_one_converter(value=item, converter=converter,
+                                               path_text=child_text,
+                                               selector=key,
+                                               stderr_file=ctx.stderr_file)
             continue
         result[key] = _convert_value(value=item, selector_path=child_selector,
                                      path_text=child_text, ctx=ctx)

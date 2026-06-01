@@ -509,9 +509,9 @@ class DictByKeyBridge(Config):
         """Return nested Config declarations for the dict-by-key bridge."""
         return {
             'mixed': [
-                ConfigNesting(
-                    kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
-                    config_type=MySection, discriminator_key='section')
+                ConfigNesting(kind=ConfigNestingKind.DICT_VALUE_BY_KEY,
+                              config_type=MySection,
+                              discriminator_key='section')
             ]
         }
 

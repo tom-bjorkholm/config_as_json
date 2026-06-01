@@ -72,9 +72,10 @@ def not_one_of_allowed_values(member_name: str, member_value: object,
     Returns:
         A string containing the error message.
     """
-    return _not_one_of_allowed_values_message(
-        member_name=member_name, member_value=member_value,
-        allowed_values=allowed_values, stderr_file=stderr_file)
+    return _not_one_of_allowed_values_message(member_name=member_name,
+                                              member_value=member_value,
+                                              allowed_values=allowed_values,
+                                              stderr_file=stderr_file)
 
 
 class InvalidConfigurationValue(InvalidConfiguration):
@@ -293,9 +294,10 @@ class MemberValidationStep(ValidationStep):
                 print(msg, file=stderr_file)
                 raise AttributeError(msg)
             member_value = getattr(config, member_name)
-            ret = self.validator.validate_member(
-                config=config, member_name=member_name,
-                member_value=member_value, stderr_file=stderr_file)
+            ret = self.validator.validate_member(config=config,
+                                                 member_name=member_name,
+                                                 member_value=member_value,
+                                                 stderr_file=stderr_file)
             setattr(config, member_name, ret)
 
 

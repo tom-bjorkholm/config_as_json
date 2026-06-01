@@ -357,10 +357,10 @@ def test_dict_keys_needs_required(capsys: CaptureFixture[str]) -> None:
          'a': 1,
          'c': 3
      }, "Unknown key 'c' in value")])
-def test_dict_keys_rejects_values(
-        capsys: CaptureFixture[str], mandatory_keys: Sequence[str],
-        allowed_keys: Optional[Sequence[str]], member_value: object,
-        message: str) -> None:
+def test_dict_keys_rejects_values(capsys: CaptureFixture[str],
+                                  mandatory_keys: Sequence[str],
+                                  allowed_keys: Optional[Sequence[str]],
+                                  member_value: object, message: str) -> None:
     """Test that bad dicts are rejected with descriptive errors."""
     validator = DictKeysValidator(mandatory_keys=mandatory_keys,
                                   allowed_keys=allowed_keys)

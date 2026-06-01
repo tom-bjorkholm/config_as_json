@@ -229,16 +229,18 @@ class AsDictViewValidator(MemberValidator):
         self.validators: list[MemberValidator] = \
             _validation_chain(self.rules, whole_validators)
 
-    def _validate_dict_view(
-            self, config: 'Config', member_name: str,
-            dict_view: dict[Hashable, object], stderr_file: TextIO) \
+    def _validate_dict_view(self, config: 'Config', member_name: str,
+                            dict_view: dict[Hashable, object],
+                            stderr_file: TextIO) \
             -> Optional[object]:
         """Validate one dictionary view and return its normalized value."""
         current: dict[Hashable, object] = dict_view
         for validator in self.validators:
-            current = _validate_dict_view_step(
-                validator=validator, config=config, member_name=member_name,
-                member_value=current, stderr_file=stderr_file)
+            current = _validate_dict_view_step(validator=validator,
+                                               config=config,
+                                               member_name=member_name,
+                                               member_value=current,
+                                               stderr_file=stderr_file)
         return current
 
     def validate_member(self, config: 'Config', member_name: str,

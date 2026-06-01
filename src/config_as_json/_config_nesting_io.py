@@ -172,9 +172,10 @@ def _dict_by_key_from_json(member_name: str, json_data: object,
             raise KeyError(msg)
         if key in nesting_by_key:
             value_name = f'{member_name}[{key}]'
-            nested_configs[key] = _item_from_json(
-                name=value_name, json_data=value_data,
-                nesting=nesting_by_key[key], stderr_file=stderr_file)
+            nested_configs[key] = _item_from_json(name=value_name,
+                                                  json_data=value_data,
+                                                  nesting=nesting_by_key[key],
+                                                  stderr_file=stderr_file)
         else:
             nested_configs[key] = value_data
     return nested_configs
@@ -273,9 +274,10 @@ def _list_json_data(member_name: str, member_value: object,
     json_data: list[JsonType] = []
     for index, element_value in enumerate(member_value):
         element_name = f'{member_name}[{index}]'
-        element_data = _item_json_data(
-            member_name=element_name, member_value=element_value,
-            nesting=nesting, stderr_file=stderr_file)
+        element_data = _item_json_data(member_name=element_name,
+                                       member_value=element_value,
+                                       nesting=nesting,
+                                       stderr_file=stderr_file)
         json_data.append(element_data)
     return json_data
 
@@ -347,9 +349,10 @@ def _dict_by_key_json_data(member_name: str, member_value: object,
             raise TypeError(msg)
         if key in nesting_by_key:
             value_name = f'{member_name}[{key}]'
-            json_data[key] = _item_json_data(
-                member_name=value_name, member_value=value,
-                nesting=nesting_by_key[key], stderr_file=stderr_file)
+            json_data[key] = _item_json_data(member_name=value_name,
+                                             member_value=value,
+                                             nesting=nesting_by_key[key],
+                                             stderr_file=stderr_file)
         elif _is_config_object(value):
             msg = f'Nested Config member {member_name}[{key}] has no '
             msg += 'DICT_VALUE_BY_KEY declaration'
@@ -374,9 +377,10 @@ def _nested_config_json_data(member_name: str, member_value: object,
         JSON-compatible data for the configured nesting kind.
     """
     if _is_dict_value_by_key(nestings):
-        return _dict_by_key_json_data(
-            member_name=member_name, member_value=member_value,
-            nestings=nestings, stderr_file=stderr_file)
+        return _dict_by_key_json_data(member_name=member_name,
+                                      member_value=member_value,
+                                      nestings=nestings,
+                                      stderr_file=stderr_file)
     nesting = _single_nesting(nestings)
     if nesting.kind == ConfigNestingKind.LIST_ELEMENT:
         return _list_json_data(member_name=member_name,

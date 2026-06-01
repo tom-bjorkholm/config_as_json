@@ -446,12 +446,14 @@ class ListRelationValidator(WholeConfigValidator):
                 ``str``, ``bytes``, or ``bytearray``.
             InvalidConfiguration: The relation does not hold.
         """
-        values_a = self._relation_value(
-            config=config, member_name=self.member_a_name,
-            projector=self.a_projector, stderr_file=stderr_file)
-        values_b = self._relation_value(
-            config=config, member_name=self.member_b_name,
-            projector=self.b_projector, stderr_file=stderr_file)
+        values_a = self._relation_value(config=config,
+                                        member_name=self.member_a_name,
+                                        projector=self.a_projector,
+                                        stderr_file=stderr_file)
+        values_b = self._relation_value(config=config,
+                                        member_name=self.member_b_name,
+                                        projector=self.b_projector,
+                                        stderr_file=stderr_file)
         if not self._relation_holds(values_a, values_b):
             msg = 'Invalid configuration: '
             msg += f'Relation {self.kind.name} does not hold between '

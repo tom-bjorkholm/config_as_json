@@ -406,9 +406,9 @@ def test_remove_path(data: dict[str, object], path: ConfigPath,
       {'items': [{'name': 'a'}, {'name': 'b'}]}, ['items[0][name]']),
      ({'items': [1, 2]}, ('items', '['), 'a', {'items': [1, 2]}, []),
      ({}, ('items', '[', 'name'), 'a', {}, [])])
-def test_apply_missing(
-        data: dict[str, object], path: ConfigPath, value: object,
-        expected_data: dict[str, object], expected_applied: list[str]) -> None:
+def test_apply_missing(data: dict[str, object], path: ConfigPath,
+                       value: object, expected_data: dict[str, object],
+                       expected_applied: list[str]) -> None:
     """Test missing-value application."""
     assert rocf_mod._apply_missing(data, path, value, []) == expected_applied
     assert data == expected_data
@@ -529,9 +529,9 @@ def test_private_one_move_ok() -> None:
 def test_private_one_move_bad() -> None:
     """Test private one-path move conflict handling."""
     data: dict[str, object] = {'old': 1}
-    context = rocf_mod._MoveContext(
-        json_data=data, written_paths={'new'},
-        auto_ch_hook=ConfigAutoChangeHook(), stderr_file=StringIO())
+    context = rocf_mod._MoveContext(json_data=data, written_paths={'new'},
+                                    auto_ch_hook=ConfigAutoChangeHook(),
+                                    stderr_file=StringIO())
     move = rocf_mod.RocfKeyMove(old_path=('old',), new_path=('new',))
     value = rocf_mod._MovedValue(actual_path=['old'], indexes=[], value=1)
     with pytest.raises(rocf_mod.RocfConflictError):
@@ -544,9 +544,10 @@ def test_private_one_move_bad() -> None:
      ({'old': 1}, None, ['new'], False),
      ({'output': {'name': 'old'}, 'outputs': []}, ['outputs'],
       ['outputs', 0], True)])
-def test_private_target_current_ok(
-        data: dict[str, object], wrap_prefix: Optional[list[str | int]],
-        target: list[str | int], expected: bool) -> None:
+def test_private_target_current_ok(data: dict[str, object],
+                                   wrap_prefix: Optional[list[str | int]],
+                                   target: list[str | int],
+                                   expected: bool) -> None:
     """Test private current-target detection."""
     hook = ConfigAutoChangeHook()
     context = rocf_mod._MoveContext(json_data=data, written_paths=set(),

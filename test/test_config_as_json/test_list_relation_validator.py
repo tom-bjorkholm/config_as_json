@@ -341,10 +341,12 @@ def test_list_rel_stores_args() -> None:
     """Test that constructor arguments are exposed on the validator."""
     a_projector = _RecordingProjector(['a'])
     b_projector = _RecordingProjector(['b'])
-    validator = ListRelationValidator(
-        kind=ListRelationKind.SET_EQUAL, member_a_name='left',
-        member_b_name='right', a_projector=a_projector,
-        b_projector=b_projector, eq_comparator=case_insensitive_eq)
+    validator = ListRelationValidator(kind=ListRelationKind.SET_EQUAL,
+                                      member_a_name='left',
+                                      member_b_name='right',
+                                      a_projector=a_projector,
+                                      b_projector=b_projector,
+                                      eq_comparator=case_insensitive_eq)
     assert validator.kind == ListRelationKind.SET_EQUAL
     assert validator.member_a_name == 'left'
     assert validator.member_b_name == 'right'
@@ -402,10 +404,11 @@ def test_list_rel_uses_projectors(capsys: pytest.CaptureFixture[str]) -> None:
     """Validate relation values returned from whole-config projectors."""
     a_projector = _RecordingProjector(('api', 'admin'))
     b_projector = _RecordingProjector(['admin', 'api'])
-    validator = ListRelationValidator(
-        kind=ListRelationKind.MULTISET_EQUAL, member_a_name='route_names',
-        member_b_name='handler_names', a_projector=a_projector,
-        b_projector=b_projector)
+    validator = ListRelationValidator(kind=ListRelationKind.MULTISET_EQUAL,
+                                      member_a_name='route_names',
+                                      member_b_name='handler_names',
+                                      a_projector=a_projector,
+                                      b_projector=b_projector)
     config = RelationConfig()
     assert_relation_ok(capsys, validator, config)
     assert a_projector.calls == [(config, sys.stderr)]
@@ -414,9 +417,10 @@ def test_list_rel_uses_projectors(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_list_rel_mixes_projector(capsys: pytest.CaptureFixture[str]) -> None:
     """Validate one stored member against one projected sequence."""
-    validator = ListRelationValidator(
-        kind=ListRelationKind.SET_EQUAL, member_a_name='a',
-        member_b_name='handler_names', b_projector=handler_names_projector)
+    validator = ListRelationValidator(kind=ListRelationKind.SET_EQUAL,
+                                      member_a_name='a',
+                                      member_b_name='handler_names',
+                                      b_projector=handler_names_projector)
     assert_relation_ok(capsys, validator, RelationConfig())
 
 
@@ -441,18 +445,20 @@ def test_list_rel_rejects_bad_values(capsys: pytest.CaptureFixture[str],
 
 def test_list_rel_rejects_proj_str(capsys: pytest.CaptureFixture[str]) -> None:
     """Reject a string returned from a projector."""
-    validator = ListRelationValidator(
-        kind=ListRelationKind.EQUAL, member_a_name='projected',
-        member_b_name='b', a_projector=_RecordingProjector('text'))
+    validator = ListRelationValidator(kind=ListRelationKind.EQUAL,
+                                      member_a_name='projected',
+                                      member_b_name='b',
+                                      a_projector=_RecordingProjector('text'))
     assert_relation_failure(capsys, validator, RelationConfig(), TypeError,
                             'must be a sequence')
 
 
 def test_list_rel_accepts_json(capsys: pytest.CaptureFixture[str]) -> None:
     """Validate a list relation through ``Config.validate()``."""
-    validator = ListRelationValidator(
-        kind=ListRelationKind.SET_EQUAL, member_a_name='a',
-        member_b_name='handler_names', b_projector=handler_names_projector)
+    validator = ListRelationValidator(kind=ListRelationKind.SET_EQUAL,
+                                      member_a_name='a',
+                                      member_b_name='handler_names',
+                                      b_projector=handler_names_projector)
     config = RelationConfig(
         validator=validator,
         from_json_data_text='{"a": ["api", "admin"], "b": [], '
@@ -467,9 +473,10 @@ def test_list_rel_accepts_json(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_list_rel_rejects_json(capsys: pytest.CaptureFixture[str]) -> None:
     """Reject an invalid relation while parsing a config."""
-    validator = ListRelationValidator(
-        kind=ListRelationKind.SET_EQUAL, member_a_name='a',
-        member_b_name='handler_names', b_projector=handler_names_projector)
+    validator = ListRelationValidator(kind=ListRelationKind.SET_EQUAL,
+                                      member_a_name='a',
+                                      member_b_name='handler_names',
+                                      b_projector=handler_names_projector)
     with pytest.raises(InvalidConfiguration) as exc:
         RelationConfig(
             validator=validator,

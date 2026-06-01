@@ -201,9 +201,10 @@ def test_public_attrs_rejects_slots(capsys: CaptureFixture[str]) -> None:
      (_Settings, [], public_attrs_to_dict, [], ValueError,
       'rules must be non-empty when validators is None or empty')])
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
-def test_as_dict_view_init_rejects(
-        non_dict_type: object, rules: object, to_dict: object,
-        validators: object, exc_type: type[Exception], message: str) -> None:
+def test_as_dict_view_init_rejects(non_dict_type: object, rules: object,
+                                   to_dict: object, validators: object,
+                                   exc_type: type[Exception],
+                                   message: str) -> None:
     """Constructor arguments are validated before use."""
     bad_type = cast(type[object], non_dict_type)
     bad_rules = cast(Sequence[DictRule], rules)

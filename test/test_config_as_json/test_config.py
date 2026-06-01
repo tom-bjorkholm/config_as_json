@@ -549,10 +549,10 @@ def par_json_quote(var: Optional[str]) -> str:
 
 
 # pylint: disable-next=R0913,R0917,C0301,R0912,R0914
-def csv_combinations_chcker(
-        nam: Optional[str], dlm: Optional[str], esc: Optional[str],
-        quot: Optional[str], qchar: Optional[str], lterm: Optional[str],
-        err: bool) -> None:
+def csv_combinations_chcker(nam: Optional[str], dlm: Optional[str],
+                            esc: Optional[str], quot: Optional[str],
+                            qchar: Optional[str], lterm: Optional[str],
+                            err: bool) -> None:
     """Check test combinations of CSV configurations."""
     scfg = '{"csv_dialect2": {"name": ' + par_json_quote(nam)\
         + ', "delimiter": '\
@@ -617,11 +617,12 @@ def csv_combinations_chcker(
 @pytest.mark.parametrize('ltr,er6', [(None, False), ('end', False),
                                      ('>', False), (None, False)])
 # pylint: disable-next=R0913,R0917,C0301,R0914
-def test_config_smt_csv_comb_s(
-        capsys: CaptureFixture[str], nam: Optional[str], dmt: Optional[str],
-        esc: Optional[str], quo: Optional[str], qch: Optional[str],
-        ltr: Optional[str], er1: bool, er2: bool, er3: bool, er4: bool,
-        er5: bool, er6: bool) -> None:
+def test_config_smt_csv_comb_s(capsys: CaptureFixture[str], nam: Optional[str],
+                               dmt: Optional[str], esc: Optional[str],
+                               quo: Optional[str], qch: Optional[str],
+                               ltr: Optional[str], er1: bool, er2: bool,
+                               er3: bool, er4: bool, er5: bool,
+                               er6: bool) -> None:
     """Test combinations of CSV configurations thorough."""
     has_error = er1 or er2 or er3 or er4 or er5 or er6
     csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, has_error)
@@ -644,11 +645,12 @@ def test_config_smt_csv_comb_s(
 @pytest.mark.parametrize('qch,er5', [(None, False)])
 @pytest.mark.parametrize('ltr,er6', [('>', False), (None, False)])
 # pylint: disable-next=R0913,R0917,C0301,R0914
-def test_config_smt_csv_comb_f1(
-        capsys: CaptureFixture[str], nam: Optional[str], dmt: Optional[str],
-        esc: Optional[str], quo: Optional[str], qch: Optional[str],
-        ltr: Optional[str], er1: bool, er2: bool, er3: bool, er4: bool,
-        er5: bool, er6: bool) -> None:
+def test_config_smt_csv_comb_f1(capsys: CaptureFixture[str],
+                                nam: Optional[str], dmt: Optional[str],
+                                esc: Optional[str], quo: Optional[str],
+                                qch: Optional[str], ltr: Optional[str],
+                                er1: bool, er2: bool, er3: bool, er4: bool,
+                                er5: bool, er6: bool) -> None:
     """Test combinations of CSV configurations f1."""
     has_error = er1 or er2 or er3 or er4 or er5 or er6
     csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, has_error)
@@ -668,11 +670,12 @@ def test_config_smt_csv_comb_f1(
 @pytest.mark.parametrize('ltr,er6', [(None, False), ('end', False),
                                      ('>', False)])
 # pylint: disable-next=R0913,R0917,C0301,R0914
-def test_config_smt_csv_comb_f6(
-        capsys: CaptureFixture[str], nam: Optional[str], dmt: Optional[str],
-        esc: Optional[str], quo: Optional[str], qch: Optional[str],
-        ltr: Optional[str], er1: bool, er2: bool, er3: bool, er4: bool,
-        er5: bool, er6: bool) -> None:
+def test_config_smt_csv_comb_f6(capsys: CaptureFixture[str],
+                                nam: Optional[str], dmt: Optional[str],
+                                esc: Optional[str], quo: Optional[str],
+                                qch: Optional[str], ltr: Optional[str],
+                                er1: bool, er2: bool, er3: bool, er4: bool,
+                                er5: bool, er6: bool) -> None:
     """Test combinations of CSV configurations f6."""
     has_error = er1 or er2 or er3 or er4 or er5 or er6
     csv_combinations_chcker(nam, dmt, esc, quo, qch, ltr, has_error)

@@ -58,9 +58,10 @@ def _assert_allowed_values_fail(capsys: CaptureFixture[str],
       'allowed_values must be a non-empty'),
      (None, None, lambda: [1, 2.0], TypeError,
       'allowed_values must be a sequence of int')])
-def test_list_value_init_bad_args(
-        min_value: object, max_value: object, allowed_values: object,
-        exc_type: type[Exception], message: str) -> None:
+def test_list_value_init_bad_args(min_value: object, max_value: object,
+                                  allowed_values: object,
+                                  exc_type: type[Exception],
+                                  message: str) -> None:
     """Test ListValueValidator constructor validation."""
     allowed = allowed_values
     with pytest.raises(exc_type) as exc:
@@ -112,9 +113,11 @@ def test_list_value_validator_ok(capsys: CaptureFixture[str],
       'Value 4 for value at index 1 is greater than maximum 3'),
      (ListValueValidator(1, 5, [2, 3]), [2, 4], InvalidConfigurationValue,
       'Value 4 for value at index 1 is not one of the allowed values')])
-def test_list_value_rejects_values(
-        capsys: CaptureFixture[str], validator: MemberValidator,
-        member_value: object, exc_type: type[Exception], message: str) -> None:
+def test_list_value_rejects_values(capsys: CaptureFixture[str],
+                                   validator: MemberValidator,
+                                   member_value: object,
+                                   exc_type: type[Exception],
+                                   message: str) -> None:
     """Test ListValueValidator failures for type and value constraints."""
     assert_validate_member_failure(capsys, validator, member_value, exc_type,
                                    message)
@@ -333,15 +336,16 @@ def test_list_type_parsed_json(capsys: CaptureFixture[str]) -> None:
     assert err == ''
 
 
-@pytest.mark.parametrize(
-    'element_type, is_ordered, is_reversed, exc_type, message',
-    [([], True, False, TypeError,
-      'element_type must be one of int, float, str, or bool'),
-     (int, False, True, ValueError,
-      'is_reversed requires is_ordered to be True')])
-def test_list_ordered_init_bad_args(
-        element_type: object, is_ordered: bool, is_reversed: bool,
-        exc_type: type[Exception], message: str) -> None:
+@pytest.mark.parametrize(('element_type', 'is_ordered', 'is_reversed',
+                          'exc_type', 'message'), [
+    ([], True, False, TypeError,
+     'element_type must be one of int, float, str, or bool'),
+    (int, False, True, ValueError,
+     'is_reversed requires is_ordered to be True')])
+def test_list_ordered_init_bad_args(element_type: object, is_ordered: bool,
+                                    is_reversed: bool,
+                                    exc_type: type[Exception],
+                                    message: str) -> None:
     """Test ListIsOrderedValidator constructor validation."""
     element = element_type
     with pytest.raises(exc_type) as exc:
@@ -367,23 +371,23 @@ def test_list_is_ordered_ok(capsys: CaptureFixture[str],
     assert_validate_member_ok(capsys, validator, member_value, expected)
 
 
-@pytest.mark.parametrize(
-    'validator, member_value, message',
-    [(ListIsOrderedValidator(int), (1, 2), 'Value for value is not a list'),
-     (ListIsOrderedValidator(bool), [1],
-      'Value 1 for value at index 0 is not of type bool'),
-     (ListIsOrderedValidator(int), [2, 1],
-      'Value 1 for value at index 1 is less than previous value 2'),
-     (ListIsOrderedValidator(int, is_reversed=True), [2, 3],
-      'Value 3 for value at index 1 is greater than previous value 2'),
-     (ListIsOrderedValidator(int, is_ordered=False, unique_values=True),
-      [2, 1, 2], 'Value 2 for value at index 2 duplicates the value'),
-     (ListIsOrderedValidator(str, lt_comparator=casefold_lt), [
+@pytest.mark.parametrize('validator, member_value, message', [
+    (ListIsOrderedValidator(int), (1, 2), 'Value for value is not a list'),
+    (ListIsOrderedValidator(bool), [1],
+     'Value 1 for value at index 0 is not of type bool'),
+    (ListIsOrderedValidator(int), [2, 1],
+     'Value 1 for value at index 1 is less than previous value 2'),
+    (ListIsOrderedValidator(int, is_reversed=True), [2, 3],
+     'Value 3 for value at index 1 is greater than previous value 2'),
+    (ListIsOrderedValidator(int, is_ordered=False, unique_values=True),
+     [2, 1, 2], 'Value 2 for value at index 2 duplicates the value'),
+    (ListIsOrderedValidator(str, lt_comparator=casefold_lt), [
         'bravo', 'Alpha'
      ], 'Value Alpha for value at index 1 is less than previous value bravo')])
-def test_list_ordered_rejects_values(
-        capsys: CaptureFixture[str], validator: MemberValidator,
-        member_value: object, message: str) -> None:
+def test_list_ordered_rejects_values(capsys: CaptureFixture[str],
+                                     validator: MemberValidator,
+                                     member_value: object,
+                                     message: str) -> None:
     """Test ListIsOrderedValidator failures."""
     assert_validate_member_failure(capsys, validator, member_value,
                                    InvalidConfiguration, message)

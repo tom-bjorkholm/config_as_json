@@ -44,11 +44,13 @@ def test_e37_write_old_shape(capsys: pytest.CaptureFixture[str]) -> None:
     """Write an old file with an optional direct output object."""
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/old.cfg'
-        e37_write_old_config(
-            config_file=config_file, course_title='advanced-python',
-            default_format=OutputFormat.TXT, output_name='audit',
-            output_format=OutputFormat.TXT, output_encoding='latin-1',
-            output_file_name='audit.txt', debug_trace=True)
+        e37_write_old_config(config_file=config_file,
+                             course_title='advanced-python',
+                             default_format=OutputFormat.TXT,
+                             output_name='audit',
+                             output_format=OutputFormat.TXT,
+                             output_encoding='latin-1',
+                             output_file_name='audit.txt', debug_trace=True)
         json_data = read_json_data(config_file)
     out, err = capsys.readouterr()
     assert out == f'Old configuration written to {config_file}\n'
@@ -82,11 +84,13 @@ def test_e37_write_new_shape(capsys: pytest.CaptureFixture[str]) -> None:
     """Write a current file with a nested list of output objects."""
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/current.cfg'
-        e37_write_new_config(
-            config_file=config_file, course_name='advanced-python',
-            default_output_format=OutputFormat.TXT, output_name='audit',
-            output_format=OutputFormat.TXT, output_encoding='latin-1',
-            output_file_name='audit.txt')
+        e37_write_new_config(config_file=config_file,
+                             course_name='advanced-python',
+                             default_output_format=OutputFormat.TXT,
+                             output_name='audit',
+                             output_format=OutputFormat.TXT,
+                             output_encoding='latin-1',
+                             output_file_name='audit.txt')
         json_data = read_json_data(config_file)
     out, err = capsys.readouterr()
     assert out == f'Current configuration written to {config_file}\n'
@@ -147,9 +151,9 @@ def test_e37_config_reads_old(capsys: pytest.CaptureFixture[str]) -> None:
     """Create the current config object directly from an old JSON file."""
     with TemporaryDirectory() as dirname:
         config_file = dirname + '/old.cfg'
-        e37_write_old_config(
-            config_file=config_file, course_title='support',
-            default_format=OutputFormat.TXT, output_format=OutputFormat.TXT)
+        e37_write_old_config(config_file=config_file, course_title='support',
+                             default_format=OutputFormat.TXT,
+                             output_format=OutputFormat.TXT)
         _ = capsys.readouterr()
         config = ExampleConfig37(from_json_filename=config_file,
                                  auto_ch_hook=ConfigAutoChangeHook())

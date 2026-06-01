@@ -235,10 +235,11 @@ def _indexed_not_allowed_message(member_name: str, member_value: object,
     Returns:
         A string containing the error message.
     """
-    return _not_one_of_allowed_values_message(
-        member_name=member_name, member_value=member_value,
-        allowed_values=allowed_values, stderr_file=stderr_file,
-        member_index=member_index)
+    return _not_one_of_allowed_values_message(member_name=member_name,
+                                              member_value=member_value,
+                                              allowed_values=allowed_values,
+                                              stderr_file=stderr_file,
+                                              member_index=member_index)
 
 
 class _IndexedInvalidConfigurationValue(InvalidConfigurationValue):
@@ -834,9 +835,10 @@ class ListForEachValidator(MemberValidator):
             element_name = f'{member_name}[{index}]'
             current: object = element
             for validator in self.element_validators:
-                current = validator.validate_member(
-                    config=config, member_name=element_name,
-                    member_value=current, stderr_file=stderr_file)
+                current = validator.validate_member(config=config,
+                                                    member_name=element_name,
+                                                    member_value=current,
+                                                    stderr_file=stderr_file)
             result.append(current)
         return result
 
