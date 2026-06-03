@@ -252,3 +252,32 @@ def test_val_mig_item_to_dict() -> None:
         ('items[1]', 'items[1][name]')
     ]
     assert err == ''
+
+
+def test_val_mig_list_no_write() -> None:
+    """Whole old list elements are removed when no write applies."""
+
+    def never(value: object) -> bool:
+        """Reject every old list element."""
+        _ = value
+        return False
+
+    def fail_transform(value: object) -> object:
+        """Fail if rejected writes still transform old values."""
+        _ = value
+        raise AssertionError('transform should not be called')
+
+    data: dict[str, object] = {'items': ['first', 'second']}
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(old_path=('items', '['),
+                           writes=[
+                               RocfValueWrite(
+                                   new_path=('handled', '[', 'name'),
+                                   condition=never,
+                                   transform_value=fail_transform)])]
+    hook, err = process_data(rocf, data)
+    assert data == {'items': []}
+    assert sorted(hook.old_keys) == ['items[0]', 'items[1]']
+    assert not hook.old_paths_moved
+    assert err == ''

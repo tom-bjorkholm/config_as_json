@@ -66,6 +66,14 @@ def assert_no_error(stderr_file: StringIO) -> None:
     assert stderr_file.getvalue() == ''
 
 
+def test_method_unknown_raises() -> None:
+    """Test method override detection for unknown method names."""
+    with pytest.raises(AttributeError) as exc:
+        _ = read_mod._method_is_overridden(read_mod.ReadOldConfiguration(),
+                                           'missing_hook')
+    assert str(exc.value) == 'missing_hook'
+
+
 @pytest.mark.parametrize('value, expected', [({'a': 1}, {'a': 1}),
                                              ({}, {})])
 def test_as_dict_ok(value: object, expected: dict[str, object]) -> None:
@@ -624,3 +632,16 @@ def test_private_missing_values_bad() -> None:
     rocf.missing = {('items', '[', 'name'): 'a'}
     with pytest.raises(InvalidConfiguration):
         rocf.run_missing_values({'items': 'bad'}, ConfigAutoChangeHook())
+
+
+def test_mig_ctx_mismatch() -> None:
+    """Test direct value-migration calls with mismatching context data."""
+    data: dict[str, object] = {'old': 1}
+    context_data: dict[str, object] = {'old': 1}
+    context = rocf_mod._MoveContext(json_data=context_data,
+                                    written_paths=set(),
+                                    auto_ch_hook=ConfigAutoChangeHook(),
+                                    stderr_file=StringIO())
+    migration = rocf_mod.RocfValueMigration(old_path=('old',), writes=[])
+    with pytest.raises(ValueError, match='json_data must match'):
+        rocf_mod.process_value_migration(data, migration, context)
