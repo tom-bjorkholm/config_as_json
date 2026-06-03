@@ -19,8 +19,9 @@ from config_as_json.config_factory import config_factory_from_json, \
     MatchConfig, MatchConfigSeq, JsonValueMatcher
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.read_old_configuration import ReadOldConfiguration, \
-    RocfConflictError, RocfIncompatiblePathError, RocfKeyMove, \
-    RocfKeyRename, RocfPath
+    RocfKeyMove, RocfKeyRename, RocfPath
+from config_as_json.rocf_value_migration import RocfConflictError, \
+    RocfIncompatiblePathError, RocfValueMigration, RocfValueWrite
 from config_as_json.csv_dialect import CsvDialectConfig, \
     CsvDialectValidator, get_csv_dialect
 from config_as_json.char_encoding import check_char_encoding, \
@@ -62,6 +63,8 @@ __all__ = ['Config',
            'RocfKeyRename',
            'RocfPath',
            'RocfKeyMove',
+           'RocfValueMigration',
+           'RocfValueWrite',
            'ReadOldConfiguration',
            'RocfConflictError',
            'RocfIncompatiblePathError',

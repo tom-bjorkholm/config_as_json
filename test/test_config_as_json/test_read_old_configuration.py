@@ -7,11 +7,9 @@
 from copy import deepcopy
 from io import StringIO
 import pytest
-from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.commontypes import ConfigPath
-from config_as_json.read_old_configuration import ReadOldConfiguration, \
-    RocfConflictError, RocfIncompatiblePathError, RocfKeyMove, \
-    RocfKeyRename
+from config_as_json import ConfigAutoChangeHook, ConfigPath, \
+    ReadOldConfiguration, RocfConflictError, RocfIncompatiblePathError, \
+    RocfKeyMove, RocfKeyRename, RocfValueMigration, RocfValueWrite
 
 
 class RuleReadOldConfig(ReadOldConfiguration):
@@ -24,10 +22,15 @@ class RuleReadOldConfig(ReadOldConfiguration):
         self.remove_paths: list[ConfigPath] = []
         self.missing: dict[ConfigPath, object] = {}
         self.renames: list[RocfKeyRename] = []
+        self.value_migrations: list[RocfValueMigration] = []
 
     def get_json_key_moves(self) -> list[RocfKeyMove]:
         """Return injected move rules."""
         return self.moves
+
+    def get_value_migrations(self) -> list[RocfValueMigration]:
+        """Return injected value migration rules."""
+        return self.value_migrations
 
     def get_keys_to_prune(self) -> list[str]:
         """Return injected recursive remove keys."""
@@ -526,3 +529,381 @@ def test_invalid_move_rules_raise(move: RocfKeyMove) -> None:
         rocf = RuleReadOldConfig()
         rocf.moves = [move]
         _ = process_data(rocf, data)
+
+
+def test_val_mig_routes_value() -> None:
+    """A value migration can route one old value to one current path."""
+
+    def is_csv(value: object) -> bool:
+        """Return whether the old format value means CSV output."""
+        assert isinstance(value, str)
+        return value == 'csv'
+
+    def is_text(value: object) -> bool:
+        """Return whether the old format value means text output."""
+        assert isinstance(value, str)
+        return value == 'text'
+
+    def enabled_from_format(value: object) -> bool:
+        """Convert any accepted old format value to an enabled flag."""
+        assert isinstance(value, str)
+        return bool(value)
+
+    data: dict[str, object] = {'legacy_format': 'csv'}
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('legacy_format',),
+            writes=[
+                RocfValueWrite(new_path=('csv_output', 'enabled'),
+                               condition=is_csv,
+                               transform_value=enabled_from_format),
+                RocfValueWrite(new_path=('text_output', 'enabled'),
+                               condition=is_text,
+                               transform_value=enabled_from_format)])]
+    hook, err = process_data(rocf, data)
+    assert data == {'csv_output': {'enabled': True}}
+    assert hook.old_paths_moved == [
+        ('legacy_format', 'csv_output[enabled]')
+    ]
+    assert hook.old_keys == ['legacy_format -> csv_output[enabled]']
+    assert err == ''
+
+
+def test_val_mig_splits_value() -> None:
+    """A value migration can split one old object into several values."""
+
+    def attempts_from_retry(value: object) -> int:
+        """Return current max attempts from an old retry object."""
+        assert isinstance(value, dict)
+        attempts = value['attempts']
+        assert isinstance(attempts, int)
+        return attempts
+
+    def delay_from_retry(value: object) -> int:
+        """Return current delay seconds from an old retry object."""
+        assert isinstance(value, dict)
+        delay_minutes = value['delay_minutes']
+        assert isinstance(delay_minutes, int)
+        return delay_minutes * 60
+
+    data: dict[str, object] = {
+        'retry': {'attempts': 3, 'delay_minutes': 2}
+    }
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('retry',),
+            writes=[
+                RocfValueWrite(new_path=('retry_policy', 'max_attempts'),
+                               transform_value=attempts_from_retry),
+                RocfValueWrite(new_path=('retry_policy', 'delay_seconds'),
+                               transform_value=delay_from_retry)])]
+    hook, err = process_data(rocf, data)
+    assert data == {
+        'retry_policy': {'max_attempts': 3, 'delay_seconds': 120}
+    }
+    assert hook.old_paths_moved == [
+        ('retry', 'retry_policy[max_attempts]'),
+        ('retry', 'retry_policy[delay_seconds]')
+    ]
+    assert err == ''
+
+
+def test_val_mig_conflict_skips() -> None:
+    """Current values win before value-migration callbacks are called."""
+
+    def fail_condition(value: object) -> bool:
+        """Fail if conflict detection did not happen first."""
+        _ = value
+        raise AssertionError('condition should not be called')
+
+    def fail_transform(value: object) -> object:
+        """Fail if conflict detection did not happen first."""
+        _ = value
+        raise AssertionError('transform should not be called')
+
+    data: dict[str, object] = {
+        'legacy_format': 'csv',
+        'csv_output': {'enabled': False}
+    }
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('legacy_format',),
+            writes=[
+                RocfValueWrite(new_path=('csv_output', 'enabled'),
+                               condition=fail_condition,
+                               transform_value=fail_transform),
+                RocfValueWrite(new_path=('text_output', 'enabled'),
+                               condition=fail_condition,
+                               transform_value=fail_transform)])]
+    hook, err = process_data(rocf, data)
+    assert data == {'csv_output': {'enabled': False}}
+    assert hook.old_keys == ['legacy_format']
+    assert not hook.old_paths_moved
+    assert err == '\n'.join([
+        'Inconsistent configuration:',
+        'Both new config parameter one of csv_output[enabled], '
+        'text_output[enabled] and old legacy_format present.',
+        'Existing current parameter(s): csv_output[enabled]',
+        'Ignoring old parameter legacy_format'
+    ]) + '\n'
+
+
+def test_val_mig_no_write_handles() -> None:
+    """A value migration removes the old value when no write applies."""
+
+    def never(value: object) -> bool:
+        """Return False for the no-write test case."""
+        _ = value
+        return False
+
+    data: dict[str, object] = {'legacy_format': 'unknown'}
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('legacy_format',),
+            writes=[RocfValueWrite(new_path=('format',), condition=never)])]
+    hook, err = process_data(rocf, data)
+    assert not data
+    assert hook.old_keys == ['legacy_format']
+    assert not hook.old_paths_moved
+    assert err == ''
+
+
+def test_val_mig_empty_writes() -> None:
+    """A value migration with no writes accepts and removes old data."""
+    data: dict[str, object] = {'obsolete': True}
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(old_path=('obsolete',), writes=[])]
+    hook, err = process_data(rocf, data)
+    assert not data
+    assert hook.old_keys == ['obsolete']
+    assert err == ''
+
+
+def test_val_mig_callbacks_copy() -> None:
+    """Each value-migration callback gets an independent old value copy."""
+
+    def condition_mutates(value: object) -> bool:
+        """Mutate the condition copy and accept the migration."""
+        assert isinstance(value, dict)
+        items = value['items']
+        assert isinstance(items, list)
+        items.append('condition')
+        return True
+
+    def transform_mutates(value: object) -> object:
+        """Mutate and return the transform copy."""
+        assert isinstance(value, dict)
+        items = value['items']
+        assert isinstance(items, list)
+        items.append('transform')
+        return value
+
+    shared: dict[str, object] = {'items': ['old']}
+    data: dict[str, object] = {'legacy': shared, 'alias': shared}
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('legacy',),
+            writes=[RocfValueWrite(new_path=('current',),
+                                   condition=condition_mutates,
+                                   transform_value=transform_mutates)])]
+    hook, err = process_data(rocf, data)
+    assert data == {
+        'alias': {'items': ['old']},
+        'current': {'items': ['old', 'transform']}
+    }
+    assert hook.old_paths_moved == [('legacy', 'current')]
+    assert err == ''
+
+
+def test_val_mig_error_safe() -> None:
+    """A transform failure leaves the actual old value unchanged."""
+
+    def fail_transform(value: object) -> object:
+        """Raise the error used by this test."""
+        _ = value
+        raise RuntimeError('bad old value')
+
+    data: dict[str, object] = {'legacy': {'value': 1}}
+    original = deepcopy(data)
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('legacy',),
+            writes=[RocfValueWrite(new_path=('current',),
+                                   transform_value=fail_transform)])]
+    with pytest.raises(RuntimeError):
+        _ = process_data(rocf, data)
+    assert data == original
+
+
+def test_val_mig_bad_target_safe() -> None:
+    """An incompatible write path leaves the old value unchanged."""
+    data: dict[str, object] = {'legacy': 1, 'current': 'bad'}
+    original = deepcopy(data)
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('legacy',),
+            writes=[RocfValueWrite(new_path=('current', 'value'))])]
+    with pytest.raises(RocfIncompatiblePathError):
+        _ = process_data(rocf, data)
+    assert data == original
+
+
+def test_val_mig_list_items() -> None:
+    """A value migration can handle each old list item separately."""
+
+    def is_file(value: object) -> bool:
+        """Return whether one old output kind means file output."""
+        assert isinstance(value, str)
+        return value == 'file'
+
+    def is_stream(value: object) -> bool:
+        """Return whether one old output kind means stream output."""
+        assert isinstance(value, str)
+        return value == 'stream'
+
+    def standard_name(value: object) -> str:
+        """Return a deterministic name for the selected output kind."""
+        assert isinstance(value, str)
+        return value + '-main'
+
+    data: dict[str, object] = {
+        'outputs': [{'legacy_kind': 'file'}, {'legacy_kind': 'stream'}]
+    }
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('outputs', '[', 'legacy_kind'),
+            writes=[
+                RocfValueWrite(new_path=('outputs', '[', 'file_name'),
+                               condition=is_file,
+                               transform_value=standard_name),
+                RocfValueWrite(new_path=('outputs', '[', 'stream_name'),
+                               condition=is_stream,
+                               transform_value=standard_name)])]
+    hook, err = process_data(rocf, data)
+    assert data == {
+        'outputs': [{'file_name': 'file-main'},
+                    {'stream_name': 'stream-main'}]
+    }
+    assert hook.old_paths_moved == [
+        ('outputs[0][legacy_kind]', 'outputs[0][file_name]'),
+        ('outputs[1][legacy_kind]', 'outputs[1][stream_name]')
+    ]
+    assert err == ''
+
+
+def test_val_mig_wraps_list() -> None:
+    """A non-list old value can be migrated into a new current list."""
+    data: dict[str, object] = {'legacy_output': 'main'}
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('legacy_output',),
+            writes=[RocfValueWrite(new_path=('outputs', '[', 'name'))])]
+    hook, err = process_data(rocf, data)
+    assert data == {'outputs': [{'name': 'main'}]}
+    assert hook.old_paths_moved == [
+        ('legacy_output', 'outputs[0][name]')
+    ]
+    assert err == ''
+
+
+def test_val_mig_current_list_wins() -> None:
+    """An existing current list wins over a scalar-to-list migration."""
+
+    def fail_transform(value: object) -> object:
+        """Fail if the current list conflict was not found first."""
+        _ = value
+        raise AssertionError('transform should not be called')
+
+    data: dict[str, object] = {'legacy_output': 'main', 'outputs': []}
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('legacy_output',),
+            writes=[RocfValueWrite(new_path=('outputs', '[', 'name'),
+                                   transform_value=fail_transform)])]
+    hook, err = process_data(rocf, data)
+    assert data == {'outputs': []}
+    assert hook.old_keys == ['legacy_output']
+    assert err == '\n'.join([
+        'Inconsistent configuration:',
+        'Both new config parameter outputs[0][name] and old legacy_output '
+        'present.',
+        'Existing current parameter(s): outputs',
+        'Ignoring old parameter legacy_output'
+    ]) + '\n'
+
+
+def test_val_mig_dup_targets_raise() -> None:
+    """Two writes in one value migration cannot target the same path."""
+    data: dict[str, object] = {'legacy': 1}
+    original = deepcopy(data)
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('legacy',),
+            writes=[RocfValueWrite(new_path=('current',)),
+                    RocfValueWrite(new_path=('current',))])]
+    with pytest.raises(RocfConflictError):
+        _ = process_data(rocf, data)
+    assert data == original
+
+
+@pytest.mark.parametrize(
+    'migration',
+    [RocfValueMigration(old_path=(), writes=[]),
+     RocfValueMigration(old_path=('old',),
+                        writes=[RocfValueWrite(new_path=('[1',))]),
+     RocfValueMigration(old_path=('items', '[', 'old'),
+                        writes=[RocfValueWrite(new_path=('current',))])])
+def test_invalid_val_migrations(migration: RocfValueMigration) -> None:
+    """Invalid value migration path syntax is rejected."""
+    data: dict[str, object] = {'old': 1, 'items': [{'old': 2}]}
+    original = deepcopy(data)
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [migration]
+    with pytest.raises(ValueError):
+        _ = process_data(rocf, data)
+    assert data == original
+
+
+def test_val_mig_move_missing_order() -> None:
+    """Value migrations run after moves and before missing values."""
+
+    def is_fast(value: object) -> bool:
+        """Return whether the old mode asks for fast mode."""
+        assert isinstance(value, str)
+        return value == 'fast'
+
+    def to_true(value: object) -> bool:
+        """Convert any accepted old mode value to True."""
+        assert isinstance(value, str)
+        return bool(value)
+
+    data: dict[str, object] = {'old_mode': 'fast'}
+    rocf = RuleReadOldConfig()
+    rocf.moves = [RocfKeyMove(old_path=('old_mode',),
+                              new_path=('legacy_mode',))]
+    rocf.value_migrations = [
+        RocfValueMigration(
+            old_path=('legacy_mode',),
+            writes=[RocfValueWrite(new_path=('fast_mode',), condition=is_fast,
+                                   transform_value=to_true)])]
+    rocf.missing = {('fast_mode',): False, ('slow_mode',): False}
+    hook, err = process_data(rocf, data)
+    assert data == {'fast_mode': True, 'slow_mode': False}
+    assert hook.old_paths_moved == [
+        ('old_mode', 'legacy_mode'),
+        ('legacy_mode', 'fast_mode')
+    ]
+    assert hook.rocf_val_keys == ['slow_mode']
+    assert err == ''

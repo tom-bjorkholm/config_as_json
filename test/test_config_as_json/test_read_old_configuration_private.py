@@ -14,7 +14,8 @@ import pytest
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import ConfigPath
 from config_as_json.validator import InvalidConfiguration
-import config_as_json.read_old_configuration as rocf_mod
+import config_as_json.read_old_configuration as read_mod
+import config_as_json.rocf_value_migration as rocf_mod
 from .test_read_old_configuration import RuleReadOldConfig
 
 
@@ -42,7 +43,7 @@ class MethodReadOldConfig(RuleReadOldConfig):
         self._move_json_keys(data, hook, stderr_file)
 
     def run_one_move(self, context: rocf_mod._MoveContext,
-                     move: rocf_mod.RocfKeyMove,
+                     move: read_mod.RocfKeyMove,
                      value: rocf_mod._MovedValue) -> None:
         """Run one actual path move through the private method."""
         self._move_one_path(context, move, value)
@@ -132,25 +133,25 @@ def test_list_marker_count(path: ConfigPath, expected: int) -> None:
 
 @pytest.mark.parametrize(
     'move',
-    [rocf_mod.RocfKeyMove(old_path=('old',), new_path=('new',)),
-     rocf_mod.RocfKeyMove(old_path=('output',), new_path=('outputs', '[')),
-     rocf_mod.RocfKeyMove(old_path=('items', '[', 'old'),
+    [read_mod.RocfKeyMove(old_path=('old',), new_path=('new',)),
+     read_mod.RocfKeyMove(old_path=('output',), new_path=('outputs', '[')),
+     read_mod.RocfKeyMove(old_path=('items', '[', 'old'),
                           new_path=('items', '[', 'new'))])
-def test_validate_move_ok(move: rocf_mod.RocfKeyMove) -> None:
+def test_validate_move_ok(move: read_mod.RocfKeyMove) -> None:
     """Test accepted declarative move rules."""
-    rocf_mod._validate_move(move)
+    read_mod._validate_move(move)
 
 
 @pytest.mark.parametrize(
     'move',
-    [rocf_mod.RocfKeyMove(old_path=(), new_path=('new',)),
-     rocf_mod.RocfKeyMove(old_path=('same',), new_path=('same',)),
-     rocf_mod.RocfKeyMove(old_path=('items', '[', 'old'), new_path=('new',)),
-     rocf_mod.RocfKeyMove(old_path=('old',), new_path=('[5',))])
-def test_validate_move_bad(move: rocf_mod.RocfKeyMove) -> None:
+    [read_mod.RocfKeyMove(old_path=(), new_path=('new',)),
+     read_mod.RocfKeyMove(old_path=('same',), new_path=('same',)),
+     read_mod.RocfKeyMove(old_path=('items', '[', 'old'), new_path=('new',)),
+     read_mod.RocfKeyMove(old_path=('old',), new_path=('[5',))])
+def test_validate_move_bad(move: read_mod.RocfKeyMove) -> None:
     """Test rejected declarative move rules."""
     with pytest.raises(ValueError):
-        rocf_mod._validate_move(move)
+        read_mod._validate_move(move)
 
 
 def test_conflict_diag() -> None:
@@ -174,14 +175,14 @@ def test_remove_key_recursive(data: dict[str, object], key: str,
                               expected_data: dict[str, object],
                               expected_found: bool) -> None:
     """Test recursive key removal through dictionaries and lists."""
-    assert rocf_mod._remove_key_recursive(data, key) == expected_found
+    assert read_mod._remove_key_recursive(data, key) == expected_found
     assert data == expected_data
 
 
 @pytest.mark.parametrize('data', ['text', 7, None])
 def test_remove_key_recursive_bad(data: object) -> None:
     """Test recursive key removal on non-container data."""
-    assert not rocf_mod._remove_key_recursive(data, 'drop')
+    assert not read_mod._remove_key_recursive(data, 'drop')
 
 
 @pytest.mark.parametrize(
@@ -198,8 +199,8 @@ def test_rename_key_recursive(data: dict[str, object],
                               expected_found: bool, expected_err: str) -> None:
     """Test recursive key rename behavior."""
     stderr_file = StringIO()
-    rename = rocf_mod.RocfKeyRename(old='old', new='new')
-    assert rocf_mod._rename_key_recursive(rename, data, stderr_file) == \
+    rename = read_mod.RocfKeyRename(old='old', new='new')
+    assert read_mod._rename_key_recursive(rename, data, stderr_file) == \
         expected_found
     assert data == expected_data
     assert stderr_file.getvalue() == expected_err
@@ -207,9 +208,9 @@ def test_rename_key_recursive(data: dict[str, object],
 
 def test_rename_key_recursive_bad() -> None:
     """Test invalid recursive key rename input."""
-    rename = rocf_mod.RocfKeyRename(old='same', new='same')
+    rename = read_mod.RocfKeyRename(old='same', new='same')
     with pytest.raises(AssertionError):
-        rocf_mod._rename_key_recursive(rename, {}, StringIO())
+        read_mod._rename_key_recursive(rename, {}, StringIO())
 
 
 def test_rename_recursive_transform() -> None:
@@ -221,9 +222,9 @@ def test_rename_recursive_transform() -> None:
         return {'old-text': 'new-text'}[value]
 
     data: dict[str, object] = {'old': 'old-text'}
-    rename = rocf_mod.RocfKeyRename(old='old', new='new',
+    rename = read_mod.RocfKeyRename(old='old', new='new',
                                     transform_value=old_text_to_new)
-    assert rocf_mod._rename_key_recursive(rename, data, StringIO())
+    assert read_mod._rename_key_recursive(rename, data, StringIO())
     assert data == {'new': 'new-text'}
 
 
@@ -312,19 +313,19 @@ def test_paths_overlap(first: list[str | int], second: list[str | int],
 
 @pytest.mark.parametrize(
     'move, target, expected',
-    [(rocf_mod.RocfKeyMove(old_path=('old',), new_path=('items', '[')),
+    [(read_mod.RocfKeyMove(old_path=('old',), new_path=('items', '[')),
       ['items', 0], ['items']),
-     (rocf_mod.RocfKeyMove(old_path=('items', '[', 'old'),
+     (read_mod.RocfKeyMove(old_path=('items', '[', 'old'),
                            new_path=('items', '[', 'new')),
       ['items', 2, 'new'], None),
-     (rocf_mod.RocfKeyMove(old_path=('old',), new_path=('items', '[')),
+     (read_mod.RocfKeyMove(old_path=('old',), new_path=('items', '[')),
       ['items'], None),
-     (rocf_mod.RocfKeyMove(old_path=('old',), new_path=('new',)),
+     (read_mod.RocfKeyMove(old_path=('old',), new_path=('new',)),
       ['new'], None)])
-def test_wrap_prefix(move: rocf_mod.RocfKeyMove, target: list[str | int],
+def test_wrap_prefix(move: read_mod.RocfKeyMove, target: list[str | int],
                      expected: Optional[list[str | int]]) -> None:
     """Test current-list prefix detection for object-to-list moves."""
-    assert rocf_mod._wrap_prefix(move, target) == expected
+    assert read_mod._wrap_prefix(move, target) == expected
 
 
 @pytest.mark.parametrize(
@@ -407,7 +408,7 @@ def test_remove_path(data: dict[str, object], path: ConfigPath,
                      expected_data: dict[str, object],
                      expected_removed: list[str]) -> None:
     """Test path-based removal rules."""
-    assert rocf_mod._remove_path(data, path, []) == expected_removed
+    assert read_mod._remove_path(data, path, []) == expected_removed
     assert data == expected_data
 
 
@@ -425,7 +426,7 @@ def test_apply_missing(data: dict[str, object], path: ConfigPath,
                        value: object, expected_data: dict[str, object],
                        expected_applied: list[str]) -> None:
     """Test missing-value application."""
-    assert rocf_mod._apply_missing(data, path, value, []) == expected_applied
+    assert read_mod._apply_missing(data, path, value, []) == expected_applied
     assert data == expected_data
 
 
@@ -436,7 +437,7 @@ def test_apply_missing(data: dict[str, object], path: ConfigPath,
 def test_apply_missing_bad(data: dict[str, object], path: ConfigPath) -> None:
     """Test missing-value application through incompatible containers."""
     with pytest.raises(rocf_mod.RocfIncompatiblePathError):
-        rocf_mod._apply_missing(data, path, 'value', [])
+        read_mod._apply_missing(data, path, 'value', [])
 
 
 def test_private_remove_recursive_ok() -> None:
@@ -482,7 +483,7 @@ def test_private_renames_ok() -> None:
     data: dict[str, object] = {'old': 1}
     hook = ConfigAutoChangeHook()
     rocf = MethodReadOldConfig()
-    rocf.renames = [rocf_mod.RocfKeyRename(old='old', new='new')]
+    rocf.renames = [read_mod.RocfKeyRename(old='old', new='new')]
     stderr_file = StringIO()
     rocf.run_renames(data, hook, stderr_file)
     assert data == {'new': 1}
@@ -493,7 +494,7 @@ def test_private_renames_ok() -> None:
 def test_private_renames_bad() -> None:
     """Test private recursive-rename method error handling."""
     rocf = MethodReadOldConfig()
-    rocf.renames = [rocf_mod.RocfKeyRename(old='same', new='same')]
+    rocf.renames = [read_mod.RocfKeyRename(old='same', new='same')]
     with pytest.raises(AssertionError):
         rocf.run_renames({}, ConfigAutoChangeHook(), StringIO())
 
@@ -503,7 +504,7 @@ def test_private_moves_ok() -> None:
     data: dict[str, object] = {'old': 1}
     hook = ConfigAutoChangeHook()
     rocf = MethodReadOldConfig()
-    rocf.moves = [rocf_mod.RocfKeyMove(old_path=('old',), new_path=('new',))]
+    rocf.moves = [read_mod.RocfKeyMove(old_path=('old',), new_path=('new',))]
     stderr_file = StringIO()
     rocf.run_moves(data, hook, stderr_file)
     assert data == {'new': 1}
@@ -514,11 +515,11 @@ def test_private_moves_ok() -> None:
 
 @pytest.mark.parametrize(
     'moves, error_type',
-    [([rocf_mod.RocfKeyMove(old_path=(), new_path=('new',))], ValueError),
-     ([rocf_mod.RocfKeyMove(old_path=('a',), new_path=('new',)),
-       rocf_mod.RocfKeyMove(old_path=('b',), new_path=('new',))],
+    [([read_mod.RocfKeyMove(old_path=(), new_path=('new',))], ValueError),
+     ([read_mod.RocfKeyMove(old_path=('a',), new_path=('new',)),
+       read_mod.RocfKeyMove(old_path=('b',), new_path=('new',))],
       rocf_mod.RocfConflictError)])
-def test_private_moves_bad(moves: list[rocf_mod.RocfKeyMove],
+def test_private_moves_bad(moves: list[read_mod.RocfKeyMove],
                            error_type: type[Exception]) -> None:
     """Test private path-move method error handling."""
     rocf = MethodReadOldConfig()
@@ -533,7 +534,7 @@ def test_private_one_move_ok() -> None:
     hook = ConfigAutoChangeHook()
     context = rocf_mod._MoveContext(json_data=data, written_paths=set(),
                                     auto_ch_hook=hook, stderr_file=StringIO())
-    move = rocf_mod.RocfKeyMove(old_path=('old',), new_path=('new',))
+    move = read_mod.RocfKeyMove(old_path=('old',), new_path=('new',))
     value = rocf_mod._MovedValue(actual_path=['old'], indexes=[], value=1)
     MethodReadOldConfig().run_one_move(context, move, value)
     assert data == {'new': 1}
@@ -553,7 +554,7 @@ def test_private_one_move_transform() -> None:
     hook = ConfigAutoChangeHook()
     context = rocf_mod._MoveContext(json_data=data, written_paths=set(),
                                     auto_ch_hook=hook, stderr_file=StringIO())
-    move = rocf_mod.RocfKeyMove(old_path=('old',), new_path=('new',),
+    move = read_mod.RocfKeyMove(old_path=('old',), new_path=('new',),
                                 transform_value=double_value)
     value = rocf_mod._MovedValue(actual_path=['old'], indexes=[], value=3)
     MethodReadOldConfig().run_one_move(context, move, value)
@@ -568,7 +569,7 @@ def test_private_one_move_bad() -> None:
     context = rocf_mod._MoveContext(json_data=data, written_paths={'new'},
                                     auto_ch_hook=ConfigAutoChangeHook(),
                                     stderr_file=StringIO())
-    move = rocf_mod.RocfKeyMove(old_path=('old',), new_path=('new',))
+    move = read_mod.RocfKeyMove(old_path=('old',), new_path=('new',))
     value = rocf_mod._MovedValue(actual_path=['old'], indexes=[], value=1)
     with pytest.raises(rocf_mod.RocfConflictError):
         MethodReadOldConfig().run_one_move(context, move, value)

@@ -8,6 +8,7 @@ import sys
 from collections.abc import Callable
 from copy import deepcopy
 from typing import Generic, Optional, TextIO, cast
+from config_as_json import ReadOldConfiguration
 from config_as_json.char_encoding import CharEncodingValidator
 from config_as_json.config import Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
@@ -16,7 +17,6 @@ from config_as_json.list_validators import ListIsOrderedValidator, \
     ListOfDictsKeysValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.projected_validators import ProjectedMemberValidator
-from config_as_json.read_old_configuration import ReadOldConfiguration
 from config_as_json.validator import ValidationPlan, \
     WholeConfigValidationStep, MemberValidationStep, \
     WholeConfigValidator

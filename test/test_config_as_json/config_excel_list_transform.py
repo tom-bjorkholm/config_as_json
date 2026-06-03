@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Optional, Callable, TypeVar, NamedTuple, TextIO, \
     Generic, TypedDict
 from csv import Dialect
+from config_as_json import ReadOldConfiguration, RocfKeyRename
 from config_as_json.config import Config, ParseConverter
 from config_as_json.char_encoding import check_char_encoding
 from config_as_json.csv_dialect import get_csv_dialect
@@ -24,8 +25,6 @@ from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import ConfigPath
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
-from config_as_json.read_old_configuration import ReadOldConfiguration, \
-    RocfKeyRename
 from config_as_json.type_validators import ValueTypeValidator
 from config_as_json.validator import ValidationPlan
 from .config_enums import FileType, SplitWhere, \

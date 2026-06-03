@@ -190,11 +190,10 @@
 * [config\_as\_json.read\_old\_configuration](#config_as_json.read_old_configuration)
   * [RocfKeyMove](#config_as_json.read_old_configuration.RocfKeyMove)
   * [RocfKeyRename](#config_as_json.read_old_configuration.RocfKeyRename)
-  * [RocfConflictError](#config_as_json.read_old_configuration.RocfConflictError)
-  * [RocfIncompatiblePathError](#config_as_json.read_old_configuration.RocfIncompatiblePathError)
   * [ReadOldConfiguration](#config_as_json.read_old_configuration.ReadOldConfiguration)
     * [process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.process_json)
     * [get\_json\_key\_moves](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_moves)
+    * [get\_value\_migrations](#config_as_json.read_old_configuration.ReadOldConfiguration.get_value_migrations)
     * [get\_keys\_to\_prune](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_prune)
     * [get\_keys\_to\_remove\_recursively](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove_recursively)
     * [get\_keys\_to\_remove](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove)
@@ -207,8 +206,11 @@
   * [copy\_initial\_data\_impl](#config_as_json._config_initial_data.copy_initial_data_impl)
   * [auto\_wrap\_nested\_defaults\_impl](#config_as_json._config_initial_data.auto_wrap_nested_defaults_impl)
 * [config\_as\_json.rocf\_value\_migration](#config_as_json.rocf_value_migration)
+  * [RocfConflictError](#config_as_json.rocf_value_migration.RocfConflictError)
+  * [RocfIncompatiblePathError](#config_as_json.rocf_value_migration.RocfIncompatiblePathError)
   * [RocfValueWrite](#config_as_json.rocf_value_migration.RocfValueWrite)
   * [RocfValueMigration](#config_as_json.rocf_value_migration.RocfValueMigration)
+  * [process\_value\_migration](#config_as_json.rocf_value_migration.process_value_migration)
 * [config\_as\_json.as\_dict\_view\_validator](#config_as_json.as_dict_view_validator)
   * [public\_attrs\_to\_dict](#config_as_json.as_dict_view_validator.public_attrs_to_dict)
   * [AsDictViewValidator](#config_as_json.as_dict_view_validator.AsDictViewValidator)
@@ -4454,36 +4456,6 @@ the registered ``parse_converters`` for the old key name.
 - `transform_value` - Function to transform the old value before it is
   written to the new path. Defaults to the identity function.
 
-<a id="config_as_json.read_old_configuration.RocfConflictError"></a>
-
-## RocfConflictError Objects
-
-```python
-class RocfConflictError(InvalidConfiguration)
-```
-
-Raised when several old-file move rules write one current path.
-
-Application code may declare several :class:`RocfKeyMove` rules with the
-same ``new_path`` when one current configuration version can read files
-from more than one older version. The library raises this exception only
-if more than one rule actually writes to the same current target while
-processing one input file.
-
-<a id="config_as_json.read_old_configuration.RocfIncompatiblePathError"></a>
-
-## RocfIncompatiblePathError Objects
-
-```python
-class RocfIncompatiblePathError(InvalidConfiguration)
-```
-
-Raised when the library cannot create a declared current path.
-
-Declarative read old configuration file (ROCF) processing raises this when
-a move or missing-value rule needs an intermediate dictionary or list, but
-the input data already has an incompatible value at that location.
-
 <a id="config_as_json.read_old_configuration.ReadOldConfiguration"></a>
 
 ## ReadOldConfiguration Objects
@@ -4517,6 +4489,7 @@ methods:
 - :meth:`get_keys_to_remove`
 - :meth:`get_json_key_renames`
 - :meth:`get_json_key_moves`
+- :meth:`get_value_migrations`
 - :meth:`get_missing_path_values`
 
 Unusual migrations can override :meth:`pre_process_json` or
@@ -4546,12 +4519,13 @@ The library applies rules in this order:
 3. remove keys from :meth:`get_keys_to_remove`
 4. rename keys from :meth:`get_json_key_renames`
 5. move paths from :meth:`get_json_key_moves`
-6. add values from :meth:`get_missing_path_values`
-7. :meth:`post_process_json`
+6. migrate values from :meth:`get_value_migrations`
+7. add values from :meth:`get_missing_path_values`
+8. :meth:`post_process_json`
 
-Missing values are applied after renames and moves so old values get a
-chance to populate the current shape before fallback values are
-supplied.
+Missing values are applied after renames, moves and value migrations
+so old values get a chance to populate the current shape before
+fallback values are supplied.
 
 This method may mutate ``json_data`` in place. The caller must use the
 returned object because overrides may return another dictionary.
@@ -4617,6 +4591,32 @@ ancestor or descendant paths are legal but order-sensitive.
 **Returns**:
 
   Move rules to apply in list order while reading old files.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_value_migrations"></a>
+
+#### get\_value\_migrations
+
+```python
+def get_value_migrations() -> list[RocfValueMigration]
+```
+
+Return old values that produce current-schema values.
+
+Application subclasses override this when one old configuration value
+cannot be described as one fixed :class:`RocfKeyMove`. This covers
+cases where the old value chooses between several current paths, where
+one old value is split into several derived current values, and where
+an old value should be accepted and removed only for selected values.
+
+The library applies these rules after path moves and before missing
+current values. If a declared current target already exists, the
+current value wins, the old value is removed, and callback functions
+are not called.
+
+**Returns**:
+
+  Value migration rules to apply in list order while reading old
+  files.
 
 <a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_prune"></a>
 
@@ -4711,11 +4711,11 @@ a value that is mandatory in the current configuration. Return current
 paths and the values that should be inserted when those paths are
 absent.
 
-The library applies these values after removals, renames and moves.
-This gives old values a chance to populate the current shape before
-fallback values are supplied. The value is deep-copied before it is
-inserted so later changes to one inserted container do not affect
-another.
+The library applies these values after removals, renames, moves and
+value migrations. This gives old values a chance to populate the
+current shape before fallback values are supplied. The value is
+deep-copied before it is inserted so later changes to one inserted
+container do not affect another.
 
 Intermediate dictionaries may be created as needed. If the path
 contains the list wildcard ``'['``, the value is supplied inside
@@ -4800,10 +4800,10 @@ def pre_process_json(json_data: dict[str, object],
 Pre-process data before declarative old-file handling.
 
 Application subclasses override this only for old-file migrations that
-cannot be expressed with removals, renames, moves or missing values.
-Prefer the declarative methods when they are enough, because the
-library can then handle reporting, current-value conflicts and path
-validation consistently.
+cannot be expressed with removals, renames, moves, value migrations or
+missing values. Prefer the declarative methods when they are enough,
+because the library can then handle reporting, current-value conflicts
+and path validation consistently.
 
 The library calls this before any declarative rules. The override may
 mutate ``json_data`` in place or return a replacement dictionary. It
@@ -4840,11 +4840,11 @@ Application subclasses override this only for old-file migrations that
 need to inspect or adjust the result of the declarative processing.
 Prefer declarative rules when possible.
 
-The library calls this after removals, renames, moves and missing
-values. The override may mutate ``json_data`` in place or return a
-replacement dictionary. It should report any compatibility changes it
-performs through ``auto_ch_hook`` and write user-facing diagnostics to
-``stderr_file`` when needed.
+The library calls this after removals, renames, moves, value
+migrations and missing values. The override may mutate ``json_data`` in
+place or return a replacement dictionary. It should report any
+compatibility changes it performs through ``auto_ch_hook`` and write
+user-facing diagnostics to ``stderr_file`` when needed.
 
 **Arguments**:
 
@@ -4945,9 +4945,39 @@ Define declarative ROCF rules for value-producing migrations.
 
 Application code can use these small rule objects when one old
 configuration value needs to produce zero, one or several current JSON
-values. The rules describe the public contract only in this first version.
-The processing code is expected to live in this module when value migrations
-are implemented.
+values. The processing code in this module applies those rules while reading
+old configuration files.
+
+<a id="config_as_json.rocf_value_migration.RocfConflictError"></a>
+
+## RocfConflictError Objects
+
+```python
+class RocfConflictError(InvalidConfiguration)
+```
+
+Raised when several old-file rules write one current path.
+
+Application code may declare several compatibility rules with the same
+current path when one current configuration version can read files from
+more than one older version. The library raises this exception only if
+more than one old value actually writes to the same current target while
+processing one input file.
+
+<a id="config_as_json.rocf_value_migration.RocfIncompatiblePathError"></a>
+
+## RocfIncompatiblePathError Objects
+
+```python
+class RocfIncompatiblePathError(InvalidConfiguration)
+```
+
+Raised when the library cannot create a declared current path.
+
+Declarative read old configuration file (ROCF) processing raises this when
+a move, value migration or missing-value rule needs an intermediate
+dictionary or list, but the input data already has an incompatible value at
+that location.
 
 <a id="config_as_json.rocf_value_migration.RocfValueWrite"></a>
 
@@ -5009,7 +5039,7 @@ class RocfValueMigration(NamedTuple)
 Declare that one old value produces current configuration values.
 
 Application subclasses return these rules from a
-``ReadOldConfiguration.get_value_migration()`` method when an old
+``ReadOldConfiguration.get_value_migrations()`` method when an old
 configuration parameter cannot be described as one fixed
 :class:`RocfKeyMove`. Typical cases are a value that routes to one of
 several current paths, or a value that is split into several derived
@@ -5102,6 +5132,25 @@ the summary passed to ``auto_changed()`` must remain backward-compatible.
   data object.
 - `writes` - Current value writes to consider as one all-or-nothing
   migration.
+
+<a id="config_as_json.rocf_value_migration.process_value_migration"></a>
+
+#### process\_value\_migration
+
+```python
+def process_value_migration(json_data: dict[str, object],
+                            migration: RocfValueMigration,
+                            context: _MoveContext) -> None
+```
+
+Apply one value migration rule to parsed JSON data.
+
+**Arguments**:
+
+- `json_data` - Root JSON object being normalized. It is passed explicitly
+  so the public function signature shows the mutated object.
+- `migration` - Value migration rule to apply.
+- `context` - Shared ROCF processing context for this batch.
 
 <a id="config_as_json.as_dict_view_validator"></a>
 

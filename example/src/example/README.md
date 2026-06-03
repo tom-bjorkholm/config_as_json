@@ -1539,3 +1539,49 @@ python3 -m example.e39_neutral_base_class set --output config.cfg \
   --c1 hello --b1p true --b3p 4
 python3 -m example.e39_neutral_base_class print --input config.cfg
 ```
+
+## e40_value_migration.py
+
+[Source code for e40_value_migration.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e40_value_migration.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e40_value_migration.py)
+
+This example teaches `RocfValueMigration`, which is the declarative
+read-old-configuration rule for cases where one old value produces zero,
+one, or several current values. Use it when `RocfKeyMove` is too simple
+because the target path depends on the old value, or because one old value
+must be split into several current values.
+
+The teaching story uses this old file shape:
+
+- `report_kind`, one string that is either `summary` or `detail`
+- `retention_days`, one integer retention setting
+
+The current file shape uses nested dictionaries instead:
+
+- `reports.summary.enabled`
+- `reports.detail.enabled`
+- `retention.min_days`
+- `retention.max_days`
+
+`Example40ReadOldConfig.get_value_migrations()` declares two migrations:
+
+- `report_kind` has two possible writes. The `condition` callback on each
+  write decides whether that current path should be produced. A `summary`
+  old value writes `reports.summary.enabled`; a `detail` old value writes
+  `reports.detail.enabled`.
+- `retention_days` has two unconditional writes. One callback derives
+  `retention.min_days`, and the other derives `retention.max_days`.
+
+The example also shows how value migrations interact with missing current
+values. Missing values are applied after value migrations, so the selected
+report kind writes `True` first and the unselected report kind receives the
+fallback value `False`.
+
+The command line mirrors the earlier read-old-configuration examples:
+
+```sh
+python3 -m example.e40_value_migration write-old --output old.cfg \
+  --report-kind detail --retention-days 40
+python3 -m example.e40_value_migration write-new --output new.cfg
+python3 -m example.e40_value_migration print --input old.cfg
+python3 -m example.e40_value_migration migrate --input old.cfg --output migrated.cfg
+```

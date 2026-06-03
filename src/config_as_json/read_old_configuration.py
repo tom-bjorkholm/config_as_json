@@ -11,10 +11,16 @@ while reading JSON, before validation and nested ``Config`` conversion.
 
 from copy import deepcopy
 import warnings
-from typing import Callable, NamedTuple, Optional, Sequence, TextIO, cast
+from typing import Callable, NamedTuple, Optional, TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import ConfigPath
-from config_as_json.validator import InvalidConfiguration
+from config_as_json.rocf_value_migration import RocfConflictError, \
+    RocfValueMigration, \
+    _MoveContext, _MovedValue, _as_dict, _as_list, _collect_path_values, \
+    _conflict_diag, _delete_path, _get_existing_value, _list_marker_count, \
+    _path_exists, _path_text, _paths_overlap, _require_dict, _require_list, \
+    _target_path, _validate_path, _wrap_prefix_for, _write_path, \
+    process_value_migration
 
 
 type RocfPath = ConfigPath
@@ -159,95 +165,6 @@ class RocfKeyRename(NamedTuple):
     transform_value: Callable[[object], object] = _identity_value
 
 
-class RocfConflictError(InvalidConfiguration):
-    """Raised when several old-file move rules write one current path.
-
-    Application code may declare several :class:`RocfKeyMove` rules with the
-    same ``new_path`` when one current configuration version can read files
-    from more than one older version. The library raises this exception only
-    if more than one rule actually writes to the same current target while
-    processing one input file.
-    """
-
-
-class RocfIncompatiblePathError(InvalidConfiguration):
-    """Raised when the library cannot create a declared current path.
-
-    Declarative read old configuration file (ROCF) processing raises this when
-    a move or missing-value rule needs an intermediate dictionary or list, but
-    the input data already has an incompatible value at that location.
-    """
-
-
-class _MovedValue(NamedTuple):
-    """One existing old value found by expanding a move rule."""
-
-    actual_path: list[str | int]
-    indexes: list[int]
-    value: object
-
-
-class _MoveContext(NamedTuple):
-    """Library state shared while applying one batch of move rules."""
-
-    json_data: dict[str, object]
-    written_paths: set[str]
-    auto_ch_hook: ConfigAutoChangeHook
-    stderr_file: TextIO
-
-
-def _as_dict(value: object) -> Optional[dict[str, object]]:
-    """Return ``value`` as a JSON-object dictionary if possible."""
-    if isinstance(value, dict):
-        return cast(dict[str, object], value)
-    return None
-
-
-def _as_list(value: object) -> Optional[list[object]]:
-    """Return ``value`` as a JSON-array list if possible."""
-    if isinstance(value, list):
-        return cast(list[object], value)
-    return None
-
-
-def _path_text(path: Sequence[str | int]) -> str:
-    """Return the path text used in diagnostics and hook callbacks.
-
-    The first dictionary key is rendered as a plain string. Every later
-    step (dictionary key or list index) is wrapped in square brackets, so
-    a JSON path renders as ``outputs[2][csv_params][delimiter]``. ROCF
-    only traverses plain JSON dictionaries and lists, so there is no
-    ``.member`` dot syntax here: that style is reserved for cases where a
-    path step is known to address a class attribute (for instance inside
-    a nested ``Config`` object), which ROCF does not do.
-    """
-    result = ''
-    for part in path:
-        if not result and isinstance(part, str):
-            result = part
-            continue
-        result += f'[{part}]'
-    return result
-
-
-def _validate_path(path: ConfigPath, name: str) -> None:
-    """Validate a path returned by an application ROCF method."""
-    if not path:
-        raise ValueError(f'{name} must not be empty')
-    if path[0] == '[':
-        raise ValueError(f'{name} must start with a dictionary key')
-    for part in path:
-        if not isinstance(part, str):
-            raise TypeError(f'{name} elements must be strings')
-        if part.startswith('[') and part != '[':
-            raise ValueError(f'{name} element {part} is reserved')
-
-
-def _list_marker_count(path: ConfigPath) -> int:
-    """Return the number of each-list wildcards in ``path``."""
-    return sum(1 for part in path if part == '[')
-
-
 def _validate_move(move: RocfKeyMove) -> None:
     """Validate one application-supplied move rule before applying it."""
     _validate_path(move.old_path, 'old_path')
@@ -263,14 +180,6 @@ def _validate_move(move: RocfKeyMove) -> None:
     msg = 'ROCF moves support equal list wildcard counts, or wrapping one '
     msg += 'non-list old value into one new list'
     raise ValueError(msg)
-
-
-def _conflict_diag(old_path: str, new_path: str, stderr_file: TextIO) -> None:
-    """Write the user-facing diagnostic for a current value winning."""
-    print('Inconsistent configuration:', file=stderr_file)
-    print(f'Both new config parameter {new_path} and old {old_path} '
-          'present.', file=stderr_file)
-    print(f'Ignoring old parameter {old_path}', file=stderr_file)
 
 
 def _remove_key_recursive(data: object, key: str) -> bool:
@@ -321,209 +230,36 @@ def _rename_key_recursive(rename: RocfKeyRename, data: object,
     return False
 
 
-def _collect_path_values(data: object, path: ConfigPath,
-                         actual: list[str | int],
-                         indexes: list[int]) -> list[_MovedValue]:
-    """Collect old values reached by expanding one move-rule path."""
-    part = path[0]
-    rest = path[1:]
-    if part == '[':
-        list_data = _as_list(data)
-        if list_data is None:
-            return []
-        values = []
-        for index, value in enumerate(list_data):
-            actual_path = actual + [index]
-            list_indexes = indexes + [index]
-            if not rest:
-                values.append(_MovedValue(actual_path, list_indexes, value))
-                continue
-            values.extend(_collect_path_values(value, rest, actual_path,
-                                               list_indexes))
-        return values
-    dict_data = _as_dict(data)
-    if dict_data is None or part not in dict_data:
-        return []
-    new_actual = actual + [part]
-    if not rest:
-        return [_MovedValue(new_actual, indexes, dict_data[part])]
-    return _collect_path_values(dict_data[part], rest, new_actual, indexes)
-
-
-def _target_path(new_path: ConfigPath, indexes: list[int]) -> list[str | int]:
-    """Return the current target path for one collected old value."""
-    target: list[str | int] = []
-    next_index = 0
-    for part in new_path:
-        if part == '[':
-            if indexes:
-                target.append(indexes[next_index])
-                next_index += 1
-            else:
-                target.append(0)
-        else:
-            target.append(part)
-    return target
-
-
-def _delete_path(data: object, path: Sequence[str | int]) -> None:
-    """Delete an old actual path after it has been handled."""
-    if not path:
-        return
-    part = path[0]
-    rest = path[1:]
-    if isinstance(part, int):
-        list_data = _as_list(data)
-        if list_data is None or part >= len(list_data):
-            return
-        if rest:
-            _delete_path(list_data[part], rest)
-        else:
-            del list_data[part]
-        return
-    dict_data = _as_dict(data)
-    if dict_data is None or part not in dict_data:
-        return
-    if rest:
-        _delete_path(dict_data[part], rest)
-    else:
-        del dict_data[part]
-
-
-def _path_exists(data: object, path: Sequence[str | int]) -> bool:
-    """Return whether a current actual path already exists."""
-    current = data
-    for part in path:
-        if isinstance(part, int):
-            list_data = _as_list(current)
-            if list_data is None or part >= len(list_data):
-                return False
-            current = list_data[part]
-        else:
-            dict_data = _as_dict(current)
-            if dict_data is None or part not in dict_data:
-                return False
-            current = dict_data[part]
-    return True
-
-
-def _path_is_prefix(first: Sequence[str | int],
-                    second: Sequence[str | int]) -> bool:
-    """Return whether ``first`` is an ancestor path of ``second``."""
-    if len(first) > len(second):
-        return False
-    return list(first) == list(second[:len(first)])
-
-
-def _paths_overlap(first: Sequence[str | int],
-                   second: Sequence[str | int]) -> bool:
-    """Return whether either actual path is an ancestor of the other."""
-    return _path_is_prefix(first, second) or _path_is_prefix(first=second,
-                                                             second=first)
-
-
 def _wrap_prefix(move: RocfKeyMove,
                  target: list[str | int]) -> Optional[list[str | int]]:
     """Return the current-list path for an object-to-list move."""
-    if _list_marker_count(move.old_path) != 0:
-        return None
-    if _list_marker_count(move.new_path) != 1:
-        return None
-    for index, part in enumerate(target):
-        if isinstance(part, int):
-            return target[:index]
-    return None
+    return _wrap_prefix_for(move.old_path, move.new_path, target)
 
 
-def _get_existing_value(data: object,
-                        path: Sequence[str | int]) -> tuple[bool, object]:
-    """Return whether an actual path exists and its current value."""
-    current = data
-    for part in path:
-        if isinstance(part, int):
-            list_data = _as_list(current)
-            if list_data is None or part >= len(list_data):
-                return False, None
-            current = list_data[part]
-        else:
-            dict_data = _as_dict(current)
-            if dict_data is None or part not in dict_data:
-                return False, None
-            current = dict_data[part]
-    return True, current
-
-
-def _container_for(next_part: str | int) -> object:
-    """Return the empty container needed before ``next_part``."""
-    if isinstance(next_part, int):
-        return []
-    return {}
-
-
-def _require_dict(value: object, path: Sequence[str | int]) \
-        -> dict[str, object]:
-    """Return a dict or raise when a rule needs a dict path."""
-    dict_data = _as_dict(value)
-    if dict_data is None:
-        msg = f'Path {_path_text(path)} must be a dictionary'
-        raise RocfIncompatiblePathError(msg)
-    return dict_data
-
-
-def _require_list(value: object, path: Sequence[str | int]) -> list[object]:
-    """Return a list or raise when a rule needs a list path."""
-    list_data = _as_list(value)
+def _remove_list_path(data: object, rest: ConfigPath,
+                      actual: list[str | int]) -> list[str]:
+    """Apply a remove rule whose next path element is a list wildcard."""
+    list_data = _as_list(data)
     if list_data is None:
-        msg = f'Path {_path_text(path)} must be a list'
-        raise RocfIncompatiblePathError(msg)
-    return list_data
-
-
-def _write_path(data: object, path: Sequence[str | int],
-                value: object) -> None:
-    """Write a moved or missing value, creating current containers."""
-    current = data
-    for index, part in enumerate(path[:-1]):
-        next_part = path[index + 1]
-        if isinstance(part, int):
-            list_data = _require_list(current, path[:index])
-            while len(list_data) <= part:
-                list_data.append(_container_for(next_part))
-            current = list_data[part]
-        else:
-            dict_data = _require_dict(current, path[:index])
-            if part not in dict_data:
-                dict_data[part] = _container_for(next_part)
-            current = dict_data[part]
-    last = path[-1]
-    if isinstance(last, int):
-        list_data = _require_list(current, path[:-1])
-        while len(list_data) <= last:
-            list_data.append(None)
-        list_data[last] = value
-    else:
-        dict_data = _require_dict(current, path[:-1])
-        dict_data[last] = value
+        return []
+    if not rest:
+        removed = [_path_text(actual + [index])
+                   for index in range(len(list_data))]
+        list_data.clear()
+        return removed
+    removed = []
+    for index, value in enumerate(list_data):
+        removed.extend(_remove_path(value, rest, actual + [index]))
+    return removed
 
 
 def _remove_path(data: object, path: ConfigPath,
                  actual: list[str | int]) -> list[str]:
     """Apply one old-path remove rule and return removed path texts."""
+    if path[0] == '[':
+        return _remove_list_path(data, path[1:], actual)
     part = path[0]
     rest = path[1:]
-    if part == '[':
-        list_data = _as_list(data)
-        if list_data is None:
-            return []
-        if not rest:
-            removed = [_path_text(actual + [index])
-                       for index in range(len(list_data))]
-            list_data.clear()
-            return removed
-        removed = []
-        for index, value in enumerate(list_data):
-            removed.extend(_remove_path(value, rest, actual + [index]))
-        return removed
     dict_data = _as_dict(data)
     if dict_data is None or part not in dict_data:
         return []
@@ -587,6 +323,7 @@ class ReadOldConfiguration:
     - :meth:`get_keys_to_remove`
     - :meth:`get_json_key_renames`
     - :meth:`get_json_key_moves`
+    - :meth:`get_value_migrations`
     - :meth:`get_missing_path_values`
 
     Unusual migrations can override :meth:`pre_process_json` or
@@ -610,12 +347,13 @@ class ReadOldConfiguration:
         3. remove keys from :meth:`get_keys_to_remove`
         4. rename keys from :meth:`get_json_key_renames`
         5. move paths from :meth:`get_json_key_moves`
-        6. add values from :meth:`get_missing_path_values`
-        7. :meth:`post_process_json`
+        6. migrate values from :meth:`get_value_migrations`
+        7. add values from :meth:`get_missing_path_values`
+        8. :meth:`post_process_json`
 
-        Missing values are applied after renames and moves so old values get a
-        chance to populate the current shape before fallback values are
-        supplied.
+        Missing values are applied after renames, moves and value migrations
+        so old values get a chance to populate the current shape before
+        fallback values are supplied.
 
         This method may mutate ``json_data`` in place. The caller must use the
         returned object because overrides may return another dictionary.
@@ -650,6 +388,7 @@ class ReadOldConfiguration:
         self._remove_keys_by_path(json_data, auto_ch_hook)
         self._rename_json_keys(json_data, auto_ch_hook, stderr_file)
         self._move_json_keys(json_data, auto_ch_hook, stderr_file)
+        self._migrate_json_values(json_data, auto_ch_hook, stderr_file)
         self._apply_missing_values(json_data, auto_ch_hook)
         return self.post_process_json(json_data=json_data,
                                       auto_ch_hook=auto_ch_hook,
@@ -692,6 +431,16 @@ class ReadOldConfiguration:
             moved = _collect_path_values(json_data, move.old_path, [], [])
             for moved_value in moved:
                 self._move_one_path(context, move, moved_value)
+
+    def _migrate_json_values(self, json_data: dict[str, object],
+                             auto_ch_hook: ConfigAutoChangeHook,
+                             stderr_file: TextIO) -> None:
+        """Apply application-declared value migration rules."""
+        context = _MoveContext(json_data=json_data, written_paths=set(),
+                               auto_ch_hook=auto_ch_hook,
+                               stderr_file=stderr_file)
+        for migration in self.get_value_migrations():
+            process_value_migration(json_data, migration, context)
 
     def _move_one_path(self, context: _MoveContext, move: RocfKeyMove,
                        moved_value: _MovedValue) -> None:
@@ -798,6 +547,26 @@ class ReadOldConfiguration:
         """
         return []
 
+    def get_value_migrations(self) -> list[RocfValueMigration]:
+        """Return old values that produce current-schema values.
+
+        Application subclasses override this when one old configuration value
+        cannot be described as one fixed :class:`RocfKeyMove`. This covers
+        cases where the old value chooses between several current paths, where
+        one old value is split into several derived current values, and where
+        an old value should be accepted and removed only for selected values.
+
+        The library applies these rules after path moves and before missing
+        current values. If a declared current target already exists, the
+        current value wins, the old value is removed, and callback functions
+        are not called.
+
+        Returns:
+            Value migration rules to apply in list order while reading old
+            files.
+        """
+        return []
+
     def get_keys_to_prune(self) -> list[str]:
         """Return old key names to prune recursively.
 
@@ -863,11 +632,11 @@ class ReadOldConfiguration:
         paths and the values that should be inserted when those paths are
         absent.
 
-        The library applies these values after removals, renames and moves.
-        This gives old values a chance to populate the current shape before
-        fallback values are supplied. The value is deep-copied before it is
-        inserted so later changes to one inserted container do not affect
-        another.
+        The library applies these values after removals, renames, moves and
+        value migrations. This gives old values a chance to populate the
+        current shape before fallback values are supplied. The value is
+        deep-copied before it is inserted so later changes to one inserted
+        container do not affect another.
 
         Intermediate dictionaries may be created as needed. If the path
         contains the list wildcard ``'['``, the value is supplied inside
@@ -932,10 +701,10 @@ class ReadOldConfiguration:
         """Pre-process data before declarative old-file handling.
 
         Application subclasses override this only for old-file migrations that
-        cannot be expressed with removals, renames, moves or missing values.
-        Prefer the declarative methods when they are enough, because the
-        library can then handle reporting, current-value conflicts and path
-        validation consistently.
+        cannot be expressed with removals, renames, moves, value migrations or
+        missing values. Prefer the declarative methods when they are enough,
+        because the library can then handle reporting, current-value conflicts
+        and path validation consistently.
 
         The library calls this before any declarative rules. The override may
         mutate ``json_data`` in place or return a replacement dictionary. It
@@ -966,11 +735,11 @@ class ReadOldConfiguration:
         need to inspect or adjust the result of the declarative processing.
         Prefer declarative rules when possible.
 
-        The library calls this after removals, renames, moves and missing
-        values. The override may mutate ``json_data`` in place or return a
-        replacement dictionary. It should report any compatibility changes it
-        performs through ``auto_ch_hook`` and write user-facing diagnostics to
-        ``stderr_file`` when needed.
+        The library calls this after removals, renames, moves, value
+        migrations and missing values. The override may mutate ``json_data`` in
+        place or return a replacement dictionary. It should report any
+        compatibility changes it performs through ``auto_ch_hook`` and write
+        user-facing diagnostics to ``stderr_file`` when needed.
 
         Args:
             json_data: Current-shape data after declarative processing steps

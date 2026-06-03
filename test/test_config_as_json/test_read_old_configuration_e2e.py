@@ -12,7 +12,7 @@ import pytest
 from config_as_json import Config, ConfigAutoChangeHook, ConfigNesting, \
     ConfigNestingKind, ConfigPath, JsonType, NestedConfigs, ParseConverter, \
     PathOrStr, ReadOldConfiguration, RocfKeyMove, RocfKeyRename, \
-    ValidationPlan
+    RocfValueMigration, RocfValueWrite, ValidationPlan
 
 
 class E2EFormat(Enum):
@@ -79,8 +79,10 @@ class OldE2EConfig(Config):
         self.export: OldE2EExportConfig = OldE2EExportConfig(
             stderr_file=stderr_file)
         self.sections: list[JsonType] = [
-            {'name': 'intro', 'duration': 15, 'stale': True},
-            {'name': 'advanced', 'duration': 45, 'stale': True}
+            {'name': 'intro', 'duration': 15, 'stale': True,
+             'attendance': 'required'},
+            {'name': 'advanced', 'duration': 45, 'stale': True,
+             'attendance': 'optional'}
         ]
         self.legacy_block: dict[str, JsonType] = {'drop': True}
         self.trace_enabled: bool = True
@@ -132,6 +134,18 @@ class E2EExportConfig(Config):
         return []
 
 
+def attendance_required(value: object) -> bool:
+    """Convert an old attendance value to the current required flag."""
+    assert isinstance(value, str)
+    return value == 'required'
+
+
+def attendance_label(value: object) -> str:
+    """Convert an old attendance value to a current label."""
+    assert isinstance(value, str)
+    return value
+
+
 class E2EReadOldConfig(ReadOldConfiguration):
     """Normalize old test data to the current test shape."""
 
@@ -150,6 +164,18 @@ class E2EReadOldConfig(ReadOldConfiguration):
             RocfKeyMove(old_path=('sections', '[', 'duration'),
                         new_path=('sections', '[', 'minutes'))
         ]
+
+    def get_value_migrations(self) -> list[RocfValueMigration]:
+        """Return value migrations for old test data."""
+        return [
+            RocfValueMigration(
+                old_path=('sections', '[', 'attendance'),
+                writes=[
+                    RocfValueWrite(new_path=('sections', '[', 'required'),
+                                   transform_value=attendance_required),
+                    RocfValueWrite(new_path=('sections', '[',
+                                             'attendance_label'),
+                                   transform_value=attendance_label)])]
 
     def get_keys_to_prune(self) -> list[str]:
         """Return old key names removed everywhere in the input."""
@@ -240,8 +266,10 @@ def assert_old_shape_result(cfg: E2EConfig) -> None:
     assert cfg.export_items[0].selected_format == E2EFormat.CSV
     assert cfg.export_items[0].char_encoding == 'utf-8'
     assert cfg.sections == [
-        {'name': 'intro', 'minutes': 15, 'required': True},
-        {'name': 'advanced', 'minutes': 45, 'required': True}
+        {'name': 'intro', 'minutes': 15, 'required': True,
+         'attendance_label': 'required'},
+        {'name': 'advanced', 'minutes': 45, 'required': False,
+         'attendance_label': 'optional'}
     ]
     assert not cfg.empty_tags
 
@@ -265,12 +293,14 @@ def test_old_shape_read(capsys: pytest.CaptureFixture[str]) -> None:
         'export[format_name] -> export[selected_format]',
         'export -> export_items[0]',
         'sections[0][duration] -> sections[0][minutes]',
-        'sections[1][duration] -> sections[1][minutes]'
+        'sections[1][duration] -> sections[1][minutes]',
+        'sections[0][attendance] -> sections[0][required]',
+        'sections[0][attendance] -> sections[0][attendance_label]',
+        'sections[1][attendance] -> sections[1][required]',
+        'sections[1][attendance] -> sections[1][attendance_label]'
     ], [
         'schema_version',
         'export_items[0][char_encoding]',
-        'sections[0][required]',
-        'sections[1][required]',
         'empty_tags'
     ])]
     assert hook.old_paths_moved == [
@@ -278,7 +308,11 @@ def test_old_shape_read(capsys: pytest.CaptureFixture[str]) -> None:
         ('export[format_name]', 'export[selected_format]'),
         ('export', 'export_items[0]'),
         ('sections[0][duration]', 'sections[0][minutes]'),
-        ('sections[1][duration]', 'sections[1][minutes]')
+        ('sections[1][duration]', 'sections[1][minutes]'),
+        ('sections[0][attendance]', 'sections[0][required]'),
+        ('sections[0][attendance]', 'sections[0][attendance_label]'),
+        ('sections[1][attendance]', 'sections[1][required]'),
+        ('sections[1][attendance]', 'sections[1][attendance_label]')
     ]
 
 

@@ -10,13 +10,12 @@ import sys
 from typing import Optional, cast, override, TextIO
 import pytest
 from pytest import CaptureFixture
+from config_as_json import ReadOldConfiguration, RocfKeyRename
 from config_as_json.config import Config, ParseConverter
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
     NestedConfigs
 from config_as_json.commontypes import ConfigPath, JsonType
-from config_as_json.read_old_configuration import ReadOldConfiguration, \
-    RocfKeyRename
 from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
     WholeConfigValidationStep, WholeConfigValidator
 
