@@ -582,9 +582,33 @@ def _verify_writes(data: dict[str, object], old_path: list[str | int],
                    prepared: list[_PreparedWrite]) -> None:
     """Check write compatibility on a temporary JSON data copy."""
     trial = deepcopy(data)
-    _delete_path(trial, old_path)
+    _remove_old_path(trial, old_path, prepared)
     for item in prepared:
         _write_path(trial, item.path, item.value)
+
+
+def _old_slot_placeholder(old_path: list[str | int],
+                          prepared: list[_PreparedWrite]) \
+        -> tuple[bool, object]:
+    """Return a replacement value for an old list slot if one is needed."""
+    if not old_path or not isinstance(old_path[-1], int):
+        return False, None
+    for item in prepared:
+        if _path_is_prefix(old_path, item.path):
+            if len(item.path) == len(old_path):
+                return True, None
+            return True, _container_for(item.path[len(old_path)])
+    return False, None
+
+
+def _remove_old_path(data: dict[str, object], old_path: list[str | int],
+                     prepared: list[_PreparedWrite]) -> None:
+    """Remove old data while preserving needed list slots."""
+    keep_slot, placeholder = _old_slot_placeholder(old_path, prepared)
+    if keep_slot:
+        _write_path(data, old_path, placeholder)
+        return
+    _delete_path(data, old_path)
 
 
 def _delete_order(values: list[_MovedValue],
@@ -610,7 +634,7 @@ def _process_one_value_migration(context: _MoveContext,
         return
     prepared = _prepared_writes(migration, moved_value, infos)
     _verify_writes(context.json_data, moved_value.actual_path, prepared)
-    _delete_path(context.json_data, moved_value.actual_path)
+    _remove_old_path(context.json_data, moved_value.actual_path, prepared)
     if not prepared:
         context.auto_ch_hook.old_key_handled(old_text)
         return

@@ -415,6 +415,8 @@
   * [\_value\_conflict\_diag](#config_as_json.rocf_value_migration._value_conflict_diag)
   * [\_prepared\_writes](#config_as_json.rocf_value_migration._prepared_writes)
   * [\_verify\_writes](#config_as_json.rocf_value_migration._verify_writes)
+  * [\_old\_slot\_placeholder](#config_as_json.rocf_value_migration._old_slot_placeholder)
+  * [\_remove\_old\_path](#config_as_json.rocf_value_migration._remove_old_path)
   * [\_delete\_order](#config_as_json.rocf_value_migration._delete_order)
   * [\_process\_one\_value\_migration](#config_as_json.rocf_value_migration._process_one_value_migration)
   * [process\_value\_migration](#config_as_json.rocf_value_migration.process_value_migration)
@@ -8859,6 +8861,29 @@ def _verify_writes(data: dict[str, object], old_path: list[str | int],
 ```
 
 Check write compatibility on a temporary JSON data copy.
+
+<a id="config_as_json.rocf_value_migration._old_slot_placeholder"></a>
+
+#### \_old\_slot\_placeholder
+
+```python
+def _old_slot_placeholder(
+        old_path: list[str | int],
+        prepared: list[_PreparedWrite]) -> tuple[bool, object]
+```
+
+Return a replacement value for an old list slot if one is needed.
+
+<a id="config_as_json.rocf_value_migration._remove_old_path"></a>
+
+#### \_remove\_old\_path
+
+```python
+def _remove_old_path(data: dict[str, object], old_path: list[str | int],
+                     prepared: list[_PreparedWrite]) -> None
+```
+
+Remove old data while preserving needed list slots.
 
 <a id="config_as_json.rocf_value_migration._delete_order"></a>
 
