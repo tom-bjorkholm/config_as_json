@@ -142,5 +142,5 @@ After a build, the generated reports can be browsed through
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.
-- Built version(s): 1.1
+- Built version(s): 1.1.1
 - Build and test using Python 3.14.5
