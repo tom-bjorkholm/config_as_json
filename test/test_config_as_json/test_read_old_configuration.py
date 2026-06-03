@@ -29,7 +29,7 @@ class RuleReadOldConfig(ReadOldConfiguration):
         """Return injected move rules."""
         return self.moves
 
-    def get_keys_to_remove_recursively(self) -> list[str]:
+    def get_keys_to_prune(self) -> list[str]:
         """Return injected recursive remove keys."""
         return self.remove_names
 
@@ -37,13 +37,65 @@ class RuleReadOldConfig(ReadOldConfiguration):
         """Return injected path remove rules."""
         return self.remove_paths
 
-    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
         """Return injected missing-value rules."""
         return self.missing
 
     def get_json_key_renames(self) -> list[RocfKeyRename]:
         """Return injected rename rules."""
         return self.renames
+
+
+class LegacyPruneReadOldConfig(ReadOldConfiguration):
+    """Read-old processor using the deprecated recursive remove hook."""
+
+    def get_keys_to_remove_recursively(self) -> list[str]:
+        """Return old key names through the deprecated hook."""
+        return ['drop']
+
+
+class LegacyMissingReadOldConfig(ReadOldConfiguration):
+    """Read-old processor using the deprecated missing-value hook."""
+
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+        """Return missing path values through the deprecated hook."""
+        return {('version',): 2}
+
+
+class LegacyPruneBase(ReadOldConfiguration):
+    """Intermediate base class using the deprecated remove hook."""
+
+    def get_keys_to_remove_recursively(self) -> list[str]:
+        """Return old key names through an inherited deprecated hook."""
+        return ['drop']
+
+
+class LegacyPruneChild(LegacyPruneBase):
+    """Read-old processor inheriting a deprecated hook override."""
+
+
+class ConflictingPruneReadOldConfig(ReadOldConfiguration):
+    """Read-old processor overriding both recursive remove hook names."""
+
+    def get_keys_to_prune(self) -> list[str]:
+        """Return old key names through the new hook."""
+        return ['new_drop']
+
+    def get_keys_to_remove_recursively(self) -> list[str]:
+        """Return old key names through the deprecated hook."""
+        return ['old_drop']
+
+
+class ConflictingMissingReadOldConfig(ReadOldConfiguration):
+    """Read-old processor overriding both missing-value hook names."""
+
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
+        """Return missing path values through the new hook."""
+        return {('new_version',): 2}
+
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+        """Return missing path values through the deprecated hook."""
+        return {('old_version',): 1}
 
 
 def process_data(rocf: ReadOldConfiguration,
@@ -53,6 +105,68 @@ def process_data(rocf: ReadOldConfiguration,
     stderr_file = StringIO()
     rocf.process_json(data, hook, stderr_file)
     return hook, stderr_file.getvalue()
+
+
+def test_depr_prune_direct_warns() -> None:
+    """Deprecated recursive remove hook warns when called directly."""
+    rocf = ReadOldConfiguration()
+    with pytest.warns(DeprecationWarning, match='get_keys_to_prune'):
+        keys = rocf.get_keys_to_remove_recursively()
+    assert not keys
+
+
+def test_depr_missing_direct_warns() -> None:
+    """Deprecated missing-value hook warns when called directly."""
+    rocf = ReadOldConfiguration()
+    with pytest.warns(DeprecationWarning, match='get_missing_path_values'):
+        values = rocf.get_values_for_missing_json_keys()
+    assert not values
+
+
+def test_legacy_prune_warns_works() -> None:
+    """Deprecated recursive remove override warns and still works."""
+    data: dict[str, object] = {'drop': True, 'keep': True}
+    with pytest.warns(DeprecationWarning, match='get_keys_to_prune'):
+        hook, err = process_data(LegacyPruneReadOldConfig(), data)
+    assert data == {'keep': True}
+    assert hook.old_keys == ['drop']
+    assert err == ''
+
+
+def test_legacy_missing_warns_works() -> None:
+    """Deprecated missing-value override warns and still works."""
+    data: dict[str, object] = {}
+    with pytest.warns(DeprecationWarning, match='get_missing_path_values'):
+        hook, err = process_data(LegacyMissingReadOldConfig(), data)
+    assert data == {'version': 2}
+    assert hook.rocf_val_keys == ['version']
+    assert err == ''
+
+
+def test_legacy_base_warns_works() -> None:
+    """Deprecated overrides inherited from an app base are detected."""
+    data: dict[str, object] = {'drop': True, 'keep': True}
+    with pytest.warns(DeprecationWarning, match='get_keys_to_prune'):
+        hook, err = process_data(LegacyPruneChild(), data)
+    assert data == {'keep': True}
+    assert hook.old_keys == ['drop']
+    assert err == ''
+
+
+def test_conflicting_prune_raise() -> None:
+    """Overriding both recursive remove hook names is invalid."""
+    with pytest.raises(TypeError) as exc:
+        _ = process_data(ConflictingPruneReadOldConfig(), {})
+    assert 'get_keys_to_remove_recursively()' in str(exc.value)
+    assert 'get_keys_to_prune()' in str(exc.value)
+
+
+def test_conflicting_missing_raise() -> None:
+    """Overriding both missing-value hook names is invalid."""
+    with pytest.raises(TypeError) as exc:
+        _ = process_data(ConflictingMissingReadOldConfig(), {})
+    assert 'get_values_for_missing_json_keys()' in str(exc.value)
+    assert 'get_missing_path_values()' in str(exc.value)
 
 
 def test_process_noop_current_data() -> None:

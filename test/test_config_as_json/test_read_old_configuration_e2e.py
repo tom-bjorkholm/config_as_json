@@ -151,7 +151,7 @@ class E2EReadOldConfig(ReadOldConfiguration):
                         new_path=('sections', '[', 'minutes'))
         ]
 
-    def get_keys_to_remove_recursively(self) -> list[str]:
+    def get_keys_to_prune(self) -> list[str]:
         """Return old key names removed everywhere in the input."""
         return ['trace_enabled']
 
@@ -159,7 +159,7 @@ class E2EReadOldConfig(ReadOldConfiguration):
         """Return precise old paths removed from the input."""
         return [('legacy_block',), ('sections', '[', 'stale')]
 
-    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
         """Return current values supplied when old data lacks them."""
         return {('schema_version',): 3,
                 ('export_items', '[', 'char_encoding'): 'utf-8',

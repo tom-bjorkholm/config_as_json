@@ -197,13 +197,13 @@ class Example37ReadOldConfig(ReadOldConfiguration):
             RocfKeyMove(old_path=('output',), new_path=('outputs', '['))
         ]
 
-    def get_keys_to_remove_recursively(self) -> list[str]:
+    def get_keys_to_prune(self) -> list[str]:
         """Return old key names that are no longer in current files."""
         # ``debug_trace`` is accepted when old files contain it, but it is not
         # part of the current configuration model.
         return ['debug_trace']
 
-    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
         """Return current values for paths missing from old files."""
         # Missing values run after moves. Therefore an old ``output`` object
         # can first become ``outputs[0]``. Only if the old optional object is

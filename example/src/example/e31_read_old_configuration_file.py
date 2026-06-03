@@ -81,7 +81,7 @@ class OldExampleConfig31(Config):
 class Example31ReadOldConfig(ReadOldConfiguration):
     """Describe how old e31 configuration files are normalized."""
 
-    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
         """Return current values for paths missing from old files."""
         # These keys are mandatory in the current shape, but old files never
         # contained them. The values are inserted after old names have been
@@ -89,7 +89,7 @@ class Example31ReadOldConfig(ReadOldConfiguration):
         return {('format_version',): CURRENT_FORMAT_VERSION,
                 ('max_items',): 25}
 
-    def get_keys_to_remove_recursively(self) -> list[str]:
+    def get_keys_to_prune(self) -> list[str]:
         """Return old key names that are no longer in current files."""
         # Recursive removal is useful when an old setting could appear in more
         # than one place. It removes every matching JSON object member.

@@ -95,7 +95,7 @@ class ColInfo(NamedTuple, Generic[Column]):
 class ExcelListTransformReadOldConfig(ReadOldConfiguration):
     """Normalize old excel-list-transform test configuration files."""
 
-    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
         """Provide default values for optional encoding."""
         return {('in_csv_encoding',): 'utf_8_sig',
                 ('out_csv_encoding',): 'utf-8',

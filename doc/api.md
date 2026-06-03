@@ -195,8 +195,10 @@
   * [ReadOldConfiguration](#config_as_json.read_old_configuration.ReadOldConfiguration)
     * [process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.process_json)
     * [get\_json\_key\_moves](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_moves)
+    * [get\_keys\_to\_prune](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_prune)
     * [get\_keys\_to\_remove\_recursively](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove_recursively)
     * [get\_keys\_to\_remove](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove)
+    * [get\_missing\_path\_values](#config_as_json.read_old_configuration.ReadOldConfiguration.get_missing_path_values)
     * [get\_values\_for\_missing\_json\_keys](#config_as_json.read_old_configuration.ReadOldConfiguration.get_values_for_missing_json_keys)
     * [get\_json\_key\_renames](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_renames)
     * [pre\_process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.pre_process_json)
@@ -4511,11 +4513,11 @@ present.
 Application-specific subclasses should normally override only declarative
 methods:
 
-- :meth:`get_keys_to_remove_recursively`
+- :meth:`get_keys_to_prune`
 - :meth:`get_keys_to_remove`
 - :meth:`get_json_key_renames`
 - :meth:`get_json_key_moves`
-- :meth:`get_values_for_missing_json_keys`
+- :meth:`get_missing_path_values`
 
 Unusual migrations can override :meth:`pre_process_json` or
 :meth:`post_process_json`. See ``example/src`` for complete examples.
@@ -4540,11 +4542,11 @@ methods called below.
 The library applies rules in this order:
 
 1. :meth:`pre_process_json`
-2. remove keys from :meth:`get_keys_to_remove_recursively`
+2. remove keys from :meth:`get_keys_to_prune`
 3. remove keys from :meth:`get_keys_to_remove`
 4. rename keys from :meth:`get_json_key_renames`
 5. move paths from :meth:`get_json_key_moves`
-6. add values from :meth:`get_values_for_missing_json_keys`
+6. add values from :meth:`get_missing_path_values`
 7. :meth:`post_process_json`
 
 Missing values are applied after renames and moves so old values get a
@@ -4616,15 +4618,15 @@ ancestor or descendant paths are legal but order-sensitive.
 
   Move rules to apply in list order while reading old files.
 
-<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove_recursively"></a>
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_prune"></a>
 
-#### get\_keys\_to\_remove\_recursively
+#### get\_keys\_to\_prune
 
 ```python
-def get_keys_to_remove_recursively() -> list[str]
+def get_keys_to_prune() -> list[str]
 ```
 
-Return old key names to remove recursively.
+Return old key names to prune recursively.
 
 Application subclasses override this when old configuration files may
 contain a member name that no longer exists anywhere in the current
@@ -4641,6 +4643,25 @@ intended.
   Returning ``['debug_trace']`` removes ``debug_trace`` wherever an
   old file contains it.
 
+
+**Returns**:
+
+  Old dictionary member names that should be accepted and removed.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove_recursively"></a>
+
+#### get\_keys\_to\_remove\_recursively
+
+```python
+def get_keys_to_remove_recursively() -> list[str]
+```
+
+Return old key names to remove recursively.
+
+.. deprecated:: 1.0.2
+Use :meth:`get_keys_to_prune` instead. The deprecated name is kept
+during an API migration period so old subclasses continue to work
+when they override it.
 
 **Returns**:
 
@@ -4675,12 +4696,12 @@ current schema.
 
   Old paths that should be accepted and removed from the input data.
 
-<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_values_for_missing_json_keys"></a>
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_missing_path_values"></a>
 
-#### get\_values\_for\_missing\_json\_keys
+#### get\_missing\_path\_values
 
 ```python
-def get_values_for_missing_json_keys() -> dict[ConfigPath, object]
+def get_missing_path_values() -> dict[ConfigPath, object]
 ```
 
 Return values for missing current-schema paths.
@@ -4710,6 +4731,25 @@ the library raises :class:`RocfIncompatiblePathError`.
   Returning ``{('format_version',): 2}`` inserts
   ``format_version`` only when the input file does not contain it.
 
+
+**Returns**:
+
+  A mapping from current paths to values supplied when absent.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_values_for_missing_json_keys"></a>
+
+#### get\_values\_for\_missing\_json\_keys
+
+```python
+def get_values_for_missing_json_keys() -> dict[ConfigPath, object]
+```
+
+Return values for missing current-schema paths.
+
+.. deprecated:: 1.0.2
+Use :meth:`get_missing_path_values` instead. The deprecated name is
+kept during an API migration period so old subclasses continue to
+work when they override it.
 
 **Returns**:
 

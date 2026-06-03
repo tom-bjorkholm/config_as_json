@@ -24,7 +24,7 @@ from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
 class AbcReadOldConfig(ReadOldConfiguration):
     """Provide compatibility defaults for ``AbcConfig``."""
 
-    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
         """Return default values for optional parameters."""
         return {('cd',): 'cd99', ('ef',): 'ef99'}
 
@@ -309,11 +309,11 @@ class RocfRemoveAutoChangeHook(ConfigAutoChangeHook):
 class RocfRemoveReadOldConfig(ReadOldConfiguration):
     """Normalize old files used by removed-key parser tests."""
 
-    def get_keys_to_remove_recursively(self) -> list[str]:
+    def get_keys_to_prune(self) -> list[str]:
         """Return old keys that should be dropped from JSON input."""
         return ['obsolete_top', 'obsolete_nested']
 
-    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
         """Return current values for paths missing from old files."""
         return {('version',): 2}
 

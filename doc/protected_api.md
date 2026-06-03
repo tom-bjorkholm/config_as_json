@@ -330,6 +330,8 @@
   * [assert\_dict\_equal](#config_as_json.assert_dict_equal.assert_dict_equal)
 * [config\_as\_json.read\_old\_configuration](#config_as_json.read_old_configuration)
   * [\_identity\_value](#config_as_json.read_old_configuration._identity_value)
+  * [\_method\_is\_overridden](#config_as_json.read_old_configuration._method_is_overridden)
+  * [\_warn\_deprecated\_hook](#config_as_json.read_old_configuration._warn_deprecated_hook)
   * [RocfKeyMove](#config_as_json.read_old_configuration.RocfKeyMove)
   * [RocfKeyRename](#config_as_json.read_old_configuration.RocfKeyRename)
   * [RocfConflictError](#config_as_json.read_old_configuration.RocfConflictError)
@@ -368,9 +370,14 @@
     * [\_move\_one\_path](#config_as_json.read_old_configuration.ReadOldConfiguration._move_one_path)
     * [\_target\_is\_current](#config_as_json.read_old_configuration.ReadOldConfiguration._target_is_current)
     * [\_apply\_missing\_values](#config_as_json.read_old_configuration.ReadOldConfiguration._apply_missing_values)
+    * [\_use\_deprecated\_hook](#config_as_json.read_old_configuration.ReadOldConfiguration._use_deprecated_hook)
+    * [\_get\_keys\_to\_prune](#config_as_json.read_old_configuration.ReadOldConfiguration._get_keys_to_prune)
+    * [\_get\_missing\_path\_values](#config_as_json.read_old_configuration.ReadOldConfiguration._get_missing_path_values)
     * [get\_json\_key\_moves](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_moves)
+    * [get\_keys\_to\_prune](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_prune)
     * [get\_keys\_to\_remove\_recursively](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove_recursively)
     * [get\_keys\_to\_remove](#config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove)
+    * [get\_missing\_path\_values](#config_as_json.read_old_configuration.ReadOldConfiguration.get_missing_path_values)
     * [get\_values\_for\_missing\_json\_keys](#config_as_json.read_old_configuration.ReadOldConfiguration.get_values_for_missing_json_keys)
     * [get\_json\_key\_renames](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_renames)
     * [pre\_process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.pre_process_json)
@@ -7323,6 +7330,27 @@ def _identity_value(value: object) -> object
 
 Return ``value`` unchanged for default transform callbacks.
 
+<a id="config_as_json.read_old_configuration._method_is_overridden"></a>
+
+#### \_method\_is\_overridden
+
+```python
+def _method_is_overridden(instance: object, method_name: str) -> bool
+```
+
+Return whether a method is overridden below ReadOldConfiguration.
+
+<a id="config_as_json.read_old_configuration._warn_deprecated_hook"></a>
+
+#### \_warn\_deprecated\_hook
+
+```python
+def _warn_deprecated_hook(old_name: str, new_name: str,
+                          stacklevel: int) -> None
+```
+
+Warn that a deprecated ReadOldConfiguration hook name was used.
+
 <a id="config_as_json.read_old_configuration.RocfKeyMove"></a>
 
 ## RocfKeyMove Objects
@@ -7766,11 +7794,11 @@ present.
 Application-specific subclasses should normally override only declarative
 methods:
 
-- :meth:`get_keys_to_remove_recursively`
+- :meth:`get_keys_to_prune`
 - :meth:`get_keys_to_remove`
 - :meth:`get_json_key_renames`
 - :meth:`get_json_key_moves`
-- :meth:`get_values_for_missing_json_keys`
+- :meth:`get_missing_path_values`
 
 Unusual migrations can override :meth:`pre_process_json` or
 :meth:`post_process_json`. See ``example/src`` for complete examples.
@@ -7795,11 +7823,11 @@ methods called below.
 The library applies rules in this order:
 
 1. :meth:`pre_process_json`
-2. remove keys from :meth:`get_keys_to_remove_recursively`
+2. remove keys from :meth:`get_keys_to_prune`
 3. remove keys from :meth:`get_keys_to_remove`
 4. rename keys from :meth:`get_json_key_renames`
 5. move paths from :meth:`get_json_key_moves`
-6. add values from :meth:`get_values_for_missing_json_keys`
+6. add values from :meth:`get_missing_path_values`
 7. :meth:`post_process_json`
 
 Missing values are applied after renames and moves so old values get a
@@ -7914,6 +7942,36 @@ def _apply_missing_values(json_data: dict[str, object],
 
 Apply application-declared current missing-value rules.
 
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration._use_deprecated_hook"></a>
+
+#### \_use\_deprecated\_hook
+
+```python
+def _use_deprecated_hook(old_name: str, new_name: str) -> bool
+```
+
+Return whether a deprecated hook override should be used.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration._get_keys_to_prune"></a>
+
+#### \_get\_keys\_to\_prune
+
+```python
+def _get_keys_to_prune() -> list[str]
+```
+
+Return recursive remove keys from the active public hook.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration._get_missing_path_values"></a>
+
+#### \_get\_missing\_path\_values
+
+```python
+def _get_missing_path_values() -> dict[ConfigPath, object]
+```
+
+Return missing path values from the active public hook.
+
 <a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_moves"></a>
 
 #### get\_json\_key\_moves
@@ -7951,15 +8009,15 @@ ancestor or descendant paths are legal but order-sensitive.
 
   Move rules to apply in list order while reading old files.
 
-<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove_recursively"></a>
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_prune"></a>
 
-#### get\_keys\_to\_remove\_recursively
+#### get\_keys\_to\_prune
 
 ```python
-def get_keys_to_remove_recursively() -> list[str]
+def get_keys_to_prune() -> list[str]
 ```
 
-Return old key names to remove recursively.
+Return old key names to prune recursively.
 
 Application subclasses override this when old configuration files may
 contain a member name that no longer exists anywhere in the current
@@ -7976,6 +8034,25 @@ intended.
   Returning ``['debug_trace']`` removes ``debug_trace`` wherever an
   old file contains it.
 
+
+**Returns**:
+
+  Old dictionary member names that should be accepted and removed.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_keys_to_remove_recursively"></a>
+
+#### get\_keys\_to\_remove\_recursively
+
+```python
+def get_keys_to_remove_recursively() -> list[str]
+```
+
+Return old key names to remove recursively.
+
+.. deprecated:: 1.0.2
+Use :meth:`get_keys_to_prune` instead. The deprecated name is kept
+during an API migration period so old subclasses continue to work
+when they override it.
 
 **Returns**:
 
@@ -8010,12 +8087,12 @@ current schema.
 
   Old paths that should be accepted and removed from the input data.
 
-<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_values_for_missing_json_keys"></a>
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_missing_path_values"></a>
 
-#### get\_values\_for\_missing\_json\_keys
+#### get\_missing\_path\_values
 
 ```python
-def get_values_for_missing_json_keys() -> dict[ConfigPath, object]
+def get_missing_path_values() -> dict[ConfigPath, object]
 ```
 
 Return values for missing current-schema paths.
@@ -8045,6 +8122,25 @@ the library raises :class:`RocfIncompatiblePathError`.
   Returning ``{('format_version',): 2}`` inserts
   ``format_version`` only when the input file does not contain it.
 
+
+**Returns**:
+
+  A mapping from current paths to values supplied when absent.
+
+<a id="config_as_json.read_old_configuration.ReadOldConfiguration.get_values_for_missing_json_keys"></a>
+
+#### get\_values\_for\_missing\_json\_keys
+
+```python
+def get_values_for_missing_json_keys() -> dict[ConfigPath, object]
+```
+
+Return values for missing current-schema paths.
+
+.. deprecated:: 1.0.2
+Use :meth:`get_missing_path_values` instead. The deprecated name is
+kept during an API migration period so old subclasses continue to
+work when they override it.
 
 **Returns**:
 

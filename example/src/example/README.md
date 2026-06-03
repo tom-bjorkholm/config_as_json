@@ -1065,10 +1065,10 @@ The current configuration class handles this by overriding
 rules:
 
 - `get_json_key_renames()` maps old key names to current key names
-- `get_values_for_missing_json_keys()` supplies values for mandatory current
-  keys that old files did not have
-- `get_keys_to_remove_recursively()` accepts and drops keys that only existed
-  in the old format
+- `get_missing_path_values()` supplies values for mandatory current keys that
+  old files did not have
+- `get_keys_to_prune()` accepts and drops keys that only existed in the old
+  format
 
 The standard application pattern is important: application code constructs
 the current configuration class even when the file on disk was written by an

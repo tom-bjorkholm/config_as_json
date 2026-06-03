@@ -10,6 +10,7 @@ while reading JSON, before validation and nested ``Config`` conversion.
 # MIT License
 
 from copy import deepcopy
+import warnings
 from typing import Callable, NamedTuple, Optional, Sequence, TextIO, cast
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import ConfigPath
@@ -20,9 +21,31 @@ type RocfPath = ConfigPath
 """Backward-compatible alias for ``ConfigPath``."""
 
 
+_OLD_PRUNE_HOOK = 'get_keys_to_remove_recursively'
+_NEW_PRUNE_HOOK = 'get_keys_to_prune'
+_OLD_MISSING_HOOK = 'get_values_for_missing_json_keys'
+_NEW_MISSING_HOOK = 'get_missing_path_values'
+
+
 def _identity_value(value: object) -> object:
     """Return ``value`` unchanged for default transform callbacks."""
     return value
+
+
+def _method_is_overridden(instance: object, method_name: str) -> bool:
+    """Return whether a method is overridden below ReadOldConfiguration."""
+    for cls in type(instance).__mro__:
+        if method_name in cls.__dict__:
+            return cls is not ReadOldConfiguration
+    raise AttributeError(method_name)
+
+
+def _warn_deprecated_hook(old_name: str, new_name: str,
+                          stacklevel: int) -> None:
+    """Warn that a deprecated ReadOldConfiguration hook name was used."""
+    msg = f'ReadOldConfiguration.{old_name}() is deprecated; '
+    msg += f'use {new_name}() instead.'
+    warnings.warn(msg, DeprecationWarning, stacklevel=stacklevel)
 
 
 class RocfKeyMove(NamedTuple):
@@ -560,11 +583,11 @@ class ReadOldConfiguration:
     Application-specific subclasses should normally override only declarative
     methods:
 
-    - :meth:`get_keys_to_remove_recursively`
+    - :meth:`get_keys_to_prune`
     - :meth:`get_keys_to_remove`
     - :meth:`get_json_key_renames`
     - :meth:`get_json_key_moves`
-    - :meth:`get_values_for_missing_json_keys`
+    - :meth:`get_missing_path_values`
 
     Unusual migrations can override :meth:`pre_process_json` or
     :meth:`post_process_json`. See ``example/src`` for complete examples.
@@ -583,11 +606,11 @@ class ReadOldConfiguration:
         The library applies rules in this order:
 
         1. :meth:`pre_process_json`
-        2. remove keys from :meth:`get_keys_to_remove_recursively`
+        2. remove keys from :meth:`get_keys_to_prune`
         3. remove keys from :meth:`get_keys_to_remove`
         4. rename keys from :meth:`get_json_key_renames`
         5. move paths from :meth:`get_json_key_moves`
-        6. add values from :meth:`get_values_for_missing_json_keys`
+        6. add values from :meth:`get_missing_path_values`
         7. :meth:`post_process_json`
 
         Missing values are applied after renames and moves so old values get a
@@ -635,7 +658,7 @@ class ReadOldConfiguration:
     def _remove_keys_recursively(self, json_data: dict[str, object],
                                  auto_ch_hook: ConfigAutoChangeHook) -> None:
         """Apply application-declared recursive key removals."""
-        for key in self.get_keys_to_remove_recursively():
+        for key in self._get_keys_to_prune():
             if not isinstance(key, str):
                 raise TypeError('recursive remove keys must be strings')
             if _remove_key_recursive(json_data, key):
@@ -715,10 +738,36 @@ class ReadOldConfiguration:
     def _apply_missing_values(self, json_data: dict[str, object],
                               auto_ch_hook: ConfigAutoChangeHook) -> None:
         """Apply application-declared current missing-value rules."""
-        for path, value in self.get_values_for_missing_json_keys().items():
+        for path, value in self._get_missing_path_values().items():
             _validate_path(path, 'missing-value path')
             for applied_path in _apply_missing(json_data, path, value, []):
                 auto_ch_hook.rocf_missing_value_provided(applied_path)
+
+    def _use_deprecated_hook(self, old_name: str, new_name: str) -> bool:
+        """Return whether a deprecated hook override should be used."""
+        old_overridden = _method_is_overridden(self, old_name)
+        new_overridden = _method_is_overridden(self, new_name)
+        if old_overridden and new_overridden:
+            msg = 'ReadOldConfiguration subclass overrides both '
+            msg += f'{old_name}() and {new_name}(). '
+            msg += f'Remove deprecated {old_name}().'
+            raise TypeError(msg)
+        if old_overridden:
+            _warn_deprecated_hook(old_name, new_name, stacklevel=4)
+            return True
+        return False
+
+    def _get_keys_to_prune(self) -> list[str]:
+        """Return recursive remove keys from the active public hook."""
+        if self._use_deprecated_hook(_OLD_PRUNE_HOOK, _NEW_PRUNE_HOOK):
+            return self.get_keys_to_remove_recursively()
+        return self.get_keys_to_prune()
+
+    def _get_missing_path_values(self) -> dict[ConfigPath, object]:
+        """Return missing path values from the active public hook."""
+        if self._use_deprecated_hook(_OLD_MISSING_HOOK, _NEW_MISSING_HOOK):
+            return self.get_values_for_missing_json_keys()
+        return self.get_missing_path_values()
 
     def get_json_key_moves(self) -> list[RocfKeyMove]:
         """Return old paths whose values should move to current paths.
@@ -749,8 +798,8 @@ class ReadOldConfiguration:
         """
         return []
 
-    def get_keys_to_remove_recursively(self) -> list[str]:
-        """Return old key names to remove recursively.
+    def get_keys_to_prune(self) -> list[str]:
+        """Return old key names to prune recursively.
 
         Application subclasses override this when old configuration files may
         contain a member name that no longer exists anywhere in the current
@@ -769,6 +818,20 @@ class ReadOldConfiguration:
         Returns:
             Old dictionary member names that should be accepted and removed.
         """
+        return []
+
+    def get_keys_to_remove_recursively(self) -> list[str]:
+        """Return old key names to remove recursively.
+
+        .. deprecated:: 1.0.2
+           Use :meth:`get_keys_to_prune` instead. The deprecated name is kept
+           during an API migration period so old subclasses continue to work
+           when they override it.
+
+        Returns:
+            Old dictionary member names that should be accepted and removed.
+        """
+        _warn_deprecated_hook(_OLD_PRUNE_HOOK, _NEW_PRUNE_HOOK, stacklevel=2)
         return []
 
     def get_keys_to_remove(self) -> list[ConfigPath]:
@@ -792,7 +855,7 @@ class ReadOldConfiguration:
         """
         return []
 
-    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
         """Return values for missing current-schema paths.
 
         Application subclasses override this when old configuration files lack
@@ -822,6 +885,21 @@ class ReadOldConfiguration:
         Returns:
             A mapping from current paths to values supplied when absent.
         """
+        return {}
+
+    def get_values_for_missing_json_keys(self) -> dict[ConfigPath, object]:
+        """Return values for missing current-schema paths.
+
+        .. deprecated:: 1.0.2
+           Use :meth:`get_missing_path_values` instead. The deprecated name is
+           kept during an API migration period so old subclasses continue to
+           work when they override it.
+
+        Returns:
+            A mapping from current paths to values supplied when absent.
+        """
+        _warn_deprecated_hook(_OLD_MISSING_HOOK, _NEW_MISSING_HOOK,
+                              stacklevel=2)
         return {}
 
     def get_json_key_renames(self) -> list[RocfKeyRename]:
