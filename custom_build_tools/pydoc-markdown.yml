@@ -12,7 +12,10 @@ processors:
   - type: filter
     # Optional: skip private members, etc.
     expression: >
-      (not name.startswith('_') or name in ('__init__', '__call__')) and
+      all(
+        not part.startswith('_') or part in ('__init__', '__call__')
+        for part in name.split('.')
+      ) and
       default()
     skip_empty_modules: true
     exclude_private: true

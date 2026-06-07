@@ -59,11 +59,6 @@
   * [OptionalMemberValidator](#config_as_json.optional_validator.OptionalMemberValidator)
     * [\_\_init\_\_](#config_as_json.optional_validator.OptionalMemberValidator.__init__)
     * [validate\_member](#config_as_json.optional_validator.OptionalMemberValidator.validate_member)
-* [config\_as\_json.\_deprecated\_support](#config_as_json._deprecated_support)
-  * [DeprecatedHook](#config_as_json._deprecated_support.DeprecatedHook)
-  * [method\_is\_overridden](#config_as_json._deprecated_support.method_is_overridden)
-  * [warn\_deprecated\_hook](#config_as_json._deprecated_support.warn_deprecated_hook)
-  * [use\_deprecated\_hook](#config_as_json._deprecated_support.use_deprecated_hook)
 * [config\_as\_json.config\_auto\_change\_hook](#config_as_json.config_auto_change_hook)
   * [ConfigAutoChangeHook](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook)
     * [\_\_init\_\_](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.__init__)
@@ -207,9 +202,6 @@
     * [get\_json\_key\_renames](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_renames)
     * [pre\_process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.pre_process_json)
     * [post\_process\_json](#config_as_json.read_old_configuration.ReadOldConfiguration.post_process_json)
-* [config\_as\_json.\_config\_initial\_data](#config_as_json._config_initial_data)
-  * [copy\_initial\_data\_impl](#config_as_json._config_initial_data.copy_initial_data_impl)
-  * [auto\_wrap\_nested\_defaults\_impl](#config_as_json._config_initial_data.auto_wrap_nested_defaults_impl)
 * [config\_as\_json.rocf\_value\_migration](#config_as_json.rocf_value_migration)
   * [RocfConflictError](#config_as_json.rocf_value_migration.RocfConflictError)
   * [RocfIncompatiblePathError](#config_as_json.rocf_value_migration.RocfIncompatiblePathError)
@@ -1371,54 +1363,6 @@ Validate one member if it is not None.
 **Raises**:
 
   The same exceptions as the supplied validator(s).
-
-<a id="config_as_json._deprecated_support"></a>
-
-# config\_as\_json.\_deprecated\_support
-
-Support compatibility shims for renamed internal hooks.
-
-<a id="config_as_json._deprecated_support.DeprecatedHook"></a>
-
-## DeprecatedHook Objects
-
-```python
-class DeprecatedHook(NamedTuple)
-```
-
-Describe a hook that was renamed during API migration.
-
-<a id="config_as_json._deprecated_support.method_is_overridden"></a>
-
-#### method\_is\_overridden
-
-```python
-def method_is_overridden(instance: object, method_name: str,
-                         base_class: type[object]) -> bool
-```
-
-Return whether a method is overridden below a base class.
-
-<a id="config_as_json._deprecated_support.warn_deprecated_hook"></a>
-
-#### warn\_deprecated\_hook
-
-```python
-def warn_deprecated_hook(hook: DeprecatedHook, stacklevel: int) -> None
-```
-
-Warn that a deprecated hook name was used.
-
-<a id="config_as_json._deprecated_support.use_deprecated_hook"></a>
-
-#### use\_deprecated\_hook
-
-```python
-def use_deprecated_hook(instance: object, base_class: type[object],
-                        hook: DeprecatedHook, stacklevel: int) -> bool
-```
-
-Return whether a deprecated hook override should be used.
 
 <a id="config_as_json.config_auto_change_hook"></a>
 
@@ -4913,82 +4857,6 @@ user-facing diagnostics to ``stderr_file`` when needed.
 
   Data matching the current configuration schema. This data is now
   ready to be validated and converted to nested Config objects.
-
-<a id="config_as_json._config_initial_data"></a>
-
-# config\_as\_json.\_config\_initial\_data
-
-Copy neutral initial data into Config defaults and auto-wrap nesting.
-
-This private module implements two related operations:
-
-- ``copy_initial_data_impl`` copies public attribute values from a neutral
-  data source (plain object, dataclass instance, or mapping) onto a Config
-  target. It is the workhorse behind ``Config.copy_initial_data``.
-
-- ``auto_wrap_nested_defaults_impl`` is called from ``Config.__init__``
-  after the nested-config declarations have been validated. It walks the
-  declared nested members and replaces any default value that is not yet
-  an instance of its declared bridge ``config_type`` with a freshly
-  constructed bridge-typed value whose public attributes were copied from
-  the original neutral value.
-
-Together these two operations let a derived Config inherit defaults from a
-framework-neutral data class without copying every public attribute by
-hand and without losing the bridge-typed schema for nested sections.
-
-<a id="config_as_json._config_initial_data.copy_initial_data_impl"></a>
-
-#### copy\_initial\_data\_impl
-
-```python
-def copy_initial_data_impl(source: object, target: 'Config') -> None
-```
-
-Copy public attributes from ``source`` onto a Config ``target``.
-
-The check for "extra" source attributes is enforced only when
-``target`` already exposes at least one public attribute. That covers
-the common multiple-inheritance pattern where the neutral base class
-constructor has already created the schema on ``target``, and it also
-covers the internal wrap path where a freshly constructed bridge is
-being populated. When ``target`` has no public attributes yet (the
-pattern used when the neutral constructor takes required arguments
-that the bridge does not duplicate), the source's public attributes
-become the target's schema and no comparison can be made.
-
-**Arguments**:
-
-- `source` - Plain object, mapping, or dataclass instance whose public
-  attributes describe the desired default values.
-- `target` - Config instance whose attributes should be assigned.
-
-
-**Raises**:
-
-- `TypeError` - ``source`` cannot be read, or ``target`` has a known
-  public schema and ``source`` exposes a public attribute that
-  ``target`` does not declare.
-
-<a id="config_as_json._config_initial_data.auto_wrap_nested_defaults_impl"></a>
-
-#### auto\_wrap\_nested\_defaults\_impl
-
-```python
-def auto_wrap_nested_defaults_impl(target: 'Config',
-                                   nested_decls: dict[str,
-                                                      list[ConfigNesting]],
-                                   stderr_file: TextIO) -> None
-```
-
-Wrap any nested member defaults that are not yet bridge-typed.
-
-**Arguments**:
-
-- `target` - Config instance whose declared nested members should be
-  scanned and possibly replaced with bridge-typed wrappers.
-- `nested_decls` - Validated nested-config declarations for ``target``.
-- `stderr_file` - Stream used for user-facing diagnostics.
 
 <a id="config_as_json.rocf_value_migration"></a>
 
