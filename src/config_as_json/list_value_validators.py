@@ -8,7 +8,7 @@ import sys
 from operator import lt as operator_lt
 from typing import Callable, Generic, Optional, Sequence, TextIO
 from config_as_json._list_validator_common import Basictype, \
-    _validate_basic_list_type, _validate_list_member_value
+    _validate_list_member_value
 from config_as_json.config import Config
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue, MemberValidator, \
@@ -17,17 +17,19 @@ from config_as_json.validator import InvalidConfiguration, \
     _validated_constraint_vtype, _validate_type_argument
 
 
-def _validate_list_element_type(element_type: type[object]) -> None:
-    """Validate that a list validator uses one supported runtime type.
+def _validate_element_type_arg(element_type: object) -> type[object]:
+    """Validate and return a list element runtime type.
 
     Args:
         element_type: The element type configured for a list validator.
 
+    Returns:
+        The validated element type.
+
     Raises:
-        TypeError: If ``element_type`` is not exactly ``int``, ``float``,
-                   ``str``, or ``bool``.
+        TypeError: If ``element_type`` is not a type.
     """
-    _validate_basic_list_type(element_type, 'element_type')
+    return _validate_type_argument(element_type, 'element_type')
 
 
 def _validate_list_size_bounds(min_size: int, max_size: int) -> None:
@@ -287,8 +289,8 @@ class ListValueTypeValidator(MemberValidator):
         Raises:
             TypeError: If ``element_type`` is not a type.
         """
-        self.element_type: type[object] = _validate_type_argument(
-            element_type, 'element_type')
+        self.element_type: type[object] = \
+            _validate_element_type_arg(element_type)
 
     def validate_member(self, config: Config, member_name: str,
                         member_value: object,

@@ -317,7 +317,7 @@ def test_list_size_parsed_json(capsys: CaptureFixture[str]) -> None:
     assert err == ''
 
 
-@pytest.mark.parametrize('bad_element_type', [None, 'str', [str]])
+@pytest.mark.parametrize('bad_element_type', [None, 'str', [str], (str, int)])
 def test_list_type_init_bad_type(bad_element_type: object) -> None:
     """Test ListValueTypeValidator constructor validation."""
     with pytest.raises(TypeError) as exc:
@@ -330,7 +330,11 @@ def test_list_type_init_bad_type(bad_element_type: object) -> None:
     [(ListValueTypeValidator(str), [], []),
      (ListValueTypeValidator(str), ['alpha', 'beta'], ['alpha', 'beta']),
      (ListValueTypeValidator(int), [True, 2], [True, 2]),
-     (ListValueTypeValidator(list), [[1], [2, 3]], [[1], [2, 3]])])
+     (ListValueTypeValidator(list), [[1], [2, 3]], [[1], [2, 3]]),
+     (ListValueTypeValidator(dict), [{'rank': 1}], [{'rank': 1}]),
+     (ListValueTypeValidator(tuple), [(1, ), (2, 3)], [(1, ), (2, 3)]),
+     (ListValueTypeValidator(object), [None, 'alpha', 1],
+      [None, 'alpha', 1])])
 def test_list_value_type_ok(capsys: CaptureFixture[str],
                             validator: MemberValidator, member_value: object,
                             expected: object) -> None:
@@ -368,6 +372,8 @@ def test_list_type_parsed_json(capsys: CaptureFixture[str]) -> None:
 @pytest.mark.parametrize(('element_type', 'is_ordered', 'is_reversed',
                           'exc_type', 'message'), [
     ([], True, False, TypeError,
+     'element_type must be one of int, float, str, or bool'),
+    (dict, True, False, TypeError,
      'element_type must be one of int, float, str, or bool'),
     (int, False, True, ValueError,
      'is_reversed requires is_ordered to be True')])
@@ -435,7 +441,8 @@ def test_list_ordered_parsed_json(capsys: CaptureFixture[str]) -> None:
 
 @pytest.mark.parametrize(
     'element_type, message',
-    [([], 'element_type must be one of int, float, str, or bool')])
+    [([], 'element_type must be one of int, float, str, or bool'),
+     (dict, 'element_type must be one of int, float, str, or bool')])
 def test_list_ordering_bad_args(element_type: object, message: str) -> None:
     """Test ListOrderingValidator constructor validation."""
     element = element_type

@@ -464,7 +464,7 @@
   * [\_convert\_value](#config_as_json.json_write_hooks._convert_value)
   * [apply\_serialize\_converters](#config_as_json.json_write_hooks.apply_serialize_converters)
 * [config\_as\_json.list\_value\_validators](#config_as_json.list_value_validators)
-  * [\_validate\_list\_element\_type](#config_as_json.list_value_validators._validate_list_element_type)
+  * [\_validate\_element\_type\_arg](#config_as_json.list_value_validators._validate_element_type_arg)
   * [\_validate\_list\_size\_bounds](#config_as_json.list_value_validators._validate_list_size_bounds)
   * [\_indexed\_not\_allowed\_message](#config_as_json.list_value_validators._indexed_not_allowed_message)
   * [\_IndexedInvalidCfgValue](#config_as_json.list_value_validators._IndexedInvalidCfgValue)
@@ -9695,25 +9695,29 @@ literal data key.
 
 Implement value and size validators for list members.
 
-<a id="config_as_json.list_value_validators._validate_list_element_type"></a>
+<a id="config_as_json.list_value_validators._validate_element_type_arg"></a>
 
-#### \_validate\_list\_element\_type
+#### \_validate\_element\_type\_arg
 
 ```python
-def _validate_list_element_type(element_type: type[object]) -> None
+def _validate_element_type_arg(element_type: object) -> type[object]
 ```
 
-Validate that a list validator uses one supported runtime type.
+Validate and return a list element runtime type.
 
 **Arguments**:
 
 - `element_type` - The element type configured for a list validator.
 
 
+**Returns**:
+
+  The validated element type.
+
+
 **Raises**:
 
-- `TypeError` - If ``element_type`` is not exactly ``int``, ``float``,
-  ``str``, or ``bool``.
+- `TypeError` - If ``element_type`` is not a type.
 
 <a id="config_as_json.list_value_validators._validate_list_size_bounds"></a>
 
