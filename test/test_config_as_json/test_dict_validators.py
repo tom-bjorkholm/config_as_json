@@ -17,9 +17,9 @@ from config_as_json.dict_validators import (
     DictForEachValidator, DictKeysValidator, DictRule, accept_all_keys,
     _inner_member_name, _validate_dict_member_value, _validate_for_each_rules,
     _validate_string_keys)
-from config_as_json.list_validators import (ListForEachValidator,
-                                            ListSizeValidator,
-                                            ListValueValidator)
+from config_as_json.list_element_validators import ListForEachValidator
+from config_as_json.list_value_validators import (ListSizeValidator,
+                                                  ListValueValidator)
 from config_as_json.validator import (IntFloatValidator, InvalidConfiguration,
                                       InvalidConfigurationValue,
                                       MemberValidator)

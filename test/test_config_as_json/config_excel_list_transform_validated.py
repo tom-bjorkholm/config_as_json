@@ -13,8 +13,8 @@ from config_as_json.char_encoding import CharEncodingValidator
 from config_as_json.config import Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.csv_dialect import CsvDialectValidator
-from config_as_json.list_validators import ListIsOrderedValidator, \
-    ListOfDictsKeysValidator
+from config_as_json.list_element_validators import ListOfDictsKeysValidator
+from config_as_json.list_ordering_validators import ListIsOrderedValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.projected_validators import ProjectedMemberValidator
 from config_as_json.validator import ValidationPlan, \

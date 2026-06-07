@@ -8,10 +8,12 @@ import sys
 from typing import Callable, Optional, Sequence, cast
 import pytest
 from pytest import CaptureFixture
-from config_as_json.list_validators import ListForEachValidator, \
-    ListIsOrderedValidator, ListKeyOrderingValidator, ListOrderingValidator, \
-    ListSizeValidator, ListOfDictsKeysValidator, ListValueTypeValidator, \
-    ListValueValidator, InvalidListKeyType
+from config_as_json.list_element_validators import ListForEachValidator, \
+    ListOfDictsKeysValidator
+from config_as_json.list_ordering_validators import ListIsOrderedValidator, \
+    ListKeyOrderingValidator, ListOrderingValidator, InvalidListKeyType
+from config_as_json.list_value_validators import ListSizeValidator, \
+    ListValueTypeValidator, ListValueValidator
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue, MemberValidator
 from .validator_test_helpers import EmptyValidationConfig, \

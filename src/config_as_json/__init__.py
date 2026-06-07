@@ -39,12 +39,14 @@ from config_as_json.type_validators import InvalidConfigurationType, \
     ValueAsTypeValidator, ValueTypeValidator
 from config_as_json.str_validators import StrValidator, StrLenValidator, \
     StrCaseSpec, StrPositionSpec, StrCaseValidator, StrCaseChangeValidator
-from config_as_json.list_validators import ListValueValidator, \
-    ListSizeValidator, ListIsOrderedValidator, ListOrderingValidator, \
-    ListKeyOrderingValidator, ListValueTypeValidator, ListForEachValidator, \
-    ListOfDictsKeysValidator, InvalidListKeyType
 from config_as_json.dict_validators import DictKeysValidator, DictRule, \
     DictForEachValidator, DictKeyValueTypesValidator, accept_all_keys
+from config_as_json.list_value_validators import ListValueValidator, \
+    ListSizeValidator, ListValueTypeValidator
+from config_as_json.list_ordering_validators import ListIsOrderedValidator, \
+    ListOrderingValidator, ListKeyOrderingValidator, InvalidListKeyType
+from config_as_json.list_element_validators import ListForEachValidator, \
+    ListOfDictsKeysValidator
 from config_as_json.discriminated_dict_validators import DictVariant, \
     DiscriminatedDictValidator
 from config_as_json.projected_validators import ProjectedMemberValidator, \

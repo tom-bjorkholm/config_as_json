@@ -10,8 +10,8 @@ import pytest
 from config_as_json import StrValidator
 from config_as_json.config import Config
 from config_as_json.dict_validators import DictKeysValidator
-from config_as_json.list_validators import ListIsOrderedValidator, \
-    ListSizeValidator
+from config_as_json.list_ordering_validators import ListIsOrderedValidator
+from config_as_json.list_value_validators import ListSizeValidator
 from config_as_json.projected_validators import ProjectedMemberValidator, \
     ProjectedWholeConfigValidator
 from config_as_json.validator import InvalidConfiguration, \

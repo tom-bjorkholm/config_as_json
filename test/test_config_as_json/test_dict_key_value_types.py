@@ -13,8 +13,8 @@ from pytest import CaptureFixture
 from config_as_json import DictKeyValueTypesValidator as public_validator
 from config_as_json.dict_validators import DictForEachValidator, \
     DictKeyValueTypesValidator
-from config_as_json.list_validators import ListOrderingValidator, \
-    ListValueValidator
+from config_as_json.list_ordering_validators import ListOrderingValidator
+from config_as_json.list_value_validators import ListValueValidator
 from config_as_json.validator import InvalidConfiguration
 from .validator_test_helpers import EmptyValidationConfig, \
     SingleMemberValidationConfig, assert_validate_member_failure

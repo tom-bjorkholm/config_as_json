@@ -18,8 +18,10 @@ from config_as_json.csv_dialect import get_csv_dialect
 from config_as_json.dict_validators import DictForEachValidator, DictRule
 from config_as_json.discriminated_dict_validators import DictVariant, \
     DiscriminatedDictValidator
-from config_as_json.list_validators import ListForEachValidator, \
-    ListIsOrderedValidator, ListOfDictsKeysValidator, ListSizeValidator, \
+from config_as_json.list_element_validators import ListForEachValidator, \
+    ListOfDictsKeysValidator
+from config_as_json.list_ordering_validators import ListIsOrderedValidator
+from config_as_json.list_value_validators import ListSizeValidator, \
     ListValueTypeValidator
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook

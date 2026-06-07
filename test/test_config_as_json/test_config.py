@@ -18,7 +18,7 @@ from config_as_json.config import ConfigBadJson, _over_ride_needed, Config, \
 from config_as_json.assert_dict_equal import assert_dict_equal
 from config_as_json.commontypes import PathOrStr
 from config_as_json.csv_dialect import get_csv_dialect, CsvDialectConfig
-from config_as_json.list_validators import ListOfDictsKeysValidator
+from config_as_json.list_element_validators import ListOfDictsKeysValidator
 from config_as_json.validator import InvalidConfiguration, ValidationPlan
 
 

@@ -80,6 +80,16 @@
   * [MemberValidatorSequence](#config_as_json.validator.MemberValidatorSequence)
     * [\_\_init\_\_](#config_as_json.validator.MemberValidatorSequence.__init__)
     * [validate\_member](#config_as_json.validator.MemberValidatorSequence.validate_member)
+* [config\_as\_json.list\_element\_validators](#config_as_json.list_element_validators)
+  * [\_check\_element\_validators](#config_as_json.list_element_validators._check_element_validators)
+  * [\_check\_element\_type\_arg](#config_as_json.list_element_validators._check_element_type_arg)
+  * [ListForEachValidator](#config_as_json.list_element_validators.ListForEachValidator)
+    * [\_\_init\_\_](#config_as_json.list_element_validators.ListForEachValidator.__init__)
+    * [\_validate\_element\_type](#config_as_json.list_element_validators.ListForEachValidator._validate_element_type)
+    * [validate\_member](#config_as_json.list_element_validators.ListForEachValidator.validate_member)
+  * [ListOfDictsKeysValidator](#config_as_json.list_element_validators.ListOfDictsKeysValidator)
+    * [\_\_init\_\_](#config_as_json.list_element_validators.ListOfDictsKeysValidator.__init__)
+    * [validate\_member](#config_as_json.list_element_validators.ListOfDictsKeysValidator.validate_member)
 * [config\_as\_json.optional\_validator](#config_as_json.optional_validator)
   * [\_validate\_mvalidator](#config_as_json.optional_validator._validate_mvalidator)
   * [OptionalMemberValidator](#config_as_json.optional_validator.OptionalMemberValidator)
@@ -120,6 +130,29 @@
     * [rocf\_missing\_value\_provided](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.rocf_missing_value_provided)
     * [old\_path\_moved](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_path_moved)
     * [all\_autochanges\_done](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.all_autochanges_done)
+* [config\_as\_json.list\_ordering\_validators](#config_as_json.list_ordering_validators)
+  * [InvalidListKeyType](#config_as_json.list_ordering_validators.InvalidListKeyType)
+    * [\_\_init\_\_](#config_as_json.list_ordering_validators.InvalidListKeyType.__init__)
+  * [\_validate\_list\_element\_type](#config_as_json.list_ordering_validators._validate_list_element_type)
+  * [\_validate\_list\_key\_type](#config_as_json.list_ordering_validators._validate_list_key_type)
+  * [\_validate\_typed\_list\_member](#config_as_json.list_ordering_validators._validate_typed_list_member)
+  * [\_validate\_keyed\_list\_member](#config_as_json.list_ordering_validators._validate_keyed_list_member)
+  * [\_compare\_values](#config_as_json.list_ordering_validators._compare_values)
+  * [\_sort\_list\_values](#config_as_json.list_ordering_validators._sort_list_values)
+  * [\_sort\_keyed\_list\_values](#config_as_json.list_ordering_validators._sort_keyed_list_values)
+  * [\_unique\_list\_values](#config_as_json.list_ordering_validators._unique_list_values)
+  * [\_unique\_keyed\_list\_values](#config_as_json.list_ordering_validators._unique_keyed_list_values)
+  * [\_validate\_list\_order](#config_as_json.list_ordering_validators._validate_list_order)
+  * [\_validate\_unique\_list\_values](#config_as_json.list_ordering_validators._validate_unique_list_values)
+  * [ListIsOrderedValidator](#config_as_json.list_ordering_validators.ListIsOrderedValidator)
+    * [\_\_init\_\_](#config_as_json.list_ordering_validators.ListIsOrderedValidator.__init__)
+    * [validate\_member](#config_as_json.list_ordering_validators.ListIsOrderedValidator.validate_member)
+  * [ListOrderingValidator](#config_as_json.list_ordering_validators.ListOrderingValidator)
+    * [\_\_init\_\_](#config_as_json.list_ordering_validators.ListOrderingValidator.__init__)
+    * [validate\_member](#config_as_json.list_ordering_validators.ListOrderingValidator.validate_member)
+  * [ListKeyOrderingValidator](#config_as_json.list_ordering_validators.ListKeyOrderingValidator)
+    * [\_\_init\_\_](#config_as_json.list_ordering_validators.ListKeyOrderingValidator.__init__)
+    * [validate\_member](#config_as_json.list_ordering_validators.ListKeyOrderingValidator.validate_member)
 * [config\_as\_json.config](#config_as_json.config)
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [\_over\_ride\_needed](#config_as_json.config._over_ride_needed)
@@ -284,6 +317,11 @@
   * [check\_char\_encoding](#config_as_json.char_encoding.check_char_encoding)
   * [CharEncodingValidator](#config_as_json.char_encoding.CharEncodingValidator)
     * [validate\_member](#config_as_json.char_encoding.CharEncodingValidator.validate_member)
+* [config\_as\_json.\_list\_validator\_common](#config_as_json._list_validator_common)
+  * [Basictype](#config_as_json._list_validator_common.Basictype)
+  * [Elementtype](#config_as_json._list_validator_common.Elementtype)
+  * [\_validate\_basic\_list\_type](#config_as_json._list_validator_common._validate_basic_list_type)
+  * [\_validate\_list\_member\_value](#config_as_json._list_validator_common._validate_list_member_value)
 * [config\_as\_json.config\_factory](#config_as_json.config_factory)
   * [MatchConfig](#config_as_json.config_factory.MatchConfig)
     * [match\_func](#config_as_json.config_factory.MatchConfig.match_func)
@@ -295,55 +333,6 @@
     * [\_\_call\_\_](#config_as_json.config_factory.JsonValueMatcher.__call__)
     * [compare\_value](#config_as_json.config_factory.JsonValueMatcher.compare_value)
   * [config\_factory\_from\_json](#config_as_json.config_factory.config_factory_from_json)
-* [config\_as\_json.list\_validators](#config_as_json.list_validators)
-  * [Basictype](#config_as_json.list_validators.Basictype)
-  * [Elementtype](#config_as_json.list_validators.Elementtype)
-  * [InvalidListKeyType](#config_as_json.list_validators.InvalidListKeyType)
-    * [\_\_init\_\_](#config_as_json.list_validators.InvalidListKeyType.__init__)
-  * [\_validate\_basic\_list\_type](#config_as_json.list_validators._validate_basic_list_type)
-  * [\_validate\_list\_element\_type](#config_as_json.list_validators._validate_list_element_type)
-  * [\_validate\_list\_key\_type](#config_as_json.list_validators._validate_list_key_type)
-  * [\_validate\_list\_size\_bounds](#config_as_json.list_validators._validate_list_size_bounds)
-  * [\_validate\_list\_member\_value](#config_as_json.list_validators._validate_list_member_value)
-  * [\_validate\_typed\_list\_member](#config_as_json.list_validators._validate_typed_list_member)
-  * [\_validate\_keyed\_list\_member](#config_as_json.list_validators._validate_keyed_list_member)
-  * [\_compare\_values](#config_as_json.list_validators._compare_values)
-  * [\_sort\_list\_values](#config_as_json.list_validators._sort_list_values)
-  * [\_sort\_keyed\_list\_values](#config_as_json.list_validators._sort_keyed_list_values)
-  * [\_unique\_list\_values](#config_as_json.list_validators._unique_list_values)
-  * [\_unique\_keyed\_list\_values](#config_as_json.list_validators._unique_keyed_list_values)
-  * [\_validate\_list\_order](#config_as_json.list_validators._validate_list_order)
-  * [\_validate\_unique\_list\_values](#config_as_json.list_validators._validate_unique_list_values)
-  * [\_indexed\_not\_allowed\_message](#config_as_json.list_validators._indexed_not_allowed_message)
-  * [\_IndexedInvalidConfigurationValue](#config_as_json.list_validators._IndexedInvalidConfigurationValue)
-    * [\_\_init\_\_](#config_as_json.list_validators._IndexedInvalidConfigurationValue.__init__)
-  * [ListValueValidator](#config_as_json.list_validators.ListValueValidator)
-    * [\_\_init\_\_](#config_as_json.list_validators.ListValueValidator.__init__)
-    * [validate\_member](#config_as_json.list_validators.ListValueValidator.validate_member)
-  * [ListSizeValidator](#config_as_json.list_validators.ListSizeValidator)
-    * [\_\_init\_\_](#config_as_json.list_validators.ListSizeValidator.__init__)
-    * [validate\_member](#config_as_json.list_validators.ListSizeValidator.validate_member)
-  * [ListValueTypeValidator](#config_as_json.list_validators.ListValueTypeValidator)
-    * [\_\_init\_\_](#config_as_json.list_validators.ListValueTypeValidator.__init__)
-    * [validate\_member](#config_as_json.list_validators.ListValueTypeValidator.validate_member)
-  * [ListIsOrderedValidator](#config_as_json.list_validators.ListIsOrderedValidator)
-    * [\_\_init\_\_](#config_as_json.list_validators.ListIsOrderedValidator.__init__)
-    * [validate\_member](#config_as_json.list_validators.ListIsOrderedValidator.validate_member)
-  * [ListOrderingValidator](#config_as_json.list_validators.ListOrderingValidator)
-    * [\_\_init\_\_](#config_as_json.list_validators.ListOrderingValidator.__init__)
-    * [validate\_member](#config_as_json.list_validators.ListOrderingValidator.validate_member)
-  * [ListKeyOrderingValidator](#config_as_json.list_validators.ListKeyOrderingValidator)
-    * [\_\_init\_\_](#config_as_json.list_validators.ListKeyOrderingValidator.__init__)
-    * [validate\_member](#config_as_json.list_validators.ListKeyOrderingValidator.validate_member)
-  * [\_validate\_for\_each\_element\_validators](#config_as_json.list_validators._validate_for_each_element_validators)
-  * [\_validate\_for\_each\_element\_type](#config_as_json.list_validators._validate_for_each_element_type)
-  * [ListForEachValidator](#config_as_json.list_validators.ListForEachValidator)
-    * [\_\_init\_\_](#config_as_json.list_validators.ListForEachValidator.__init__)
-    * [\_validate\_element\_type](#config_as_json.list_validators.ListForEachValidator._validate_element_type)
-    * [validate\_member](#config_as_json.list_validators.ListForEachValidator.validate_member)
-  * [ListOfDictsKeysValidator](#config_as_json.list_validators.ListOfDictsKeysValidator)
-    * [\_\_init\_\_](#config_as_json.list_validators.ListOfDictsKeysValidator.__init__)
-    * [validate\_member](#config_as_json.list_validators.ListOfDictsKeysValidator.validate_member)
 * [config\_as\_json.assert\_dict\_equal](#config_as_json.assert_dict_equal)
   * [\_print\_dict\_differs](#config_as_json.assert_dict_equal._print_dict_differs)
   * [assert\_dict\_equal](#config_as_json.assert_dict_equal.assert_dict_equal)
@@ -474,6 +463,21 @@
   * [\_passthrough\_child](#config_as_json.json_write_hooks._passthrough_child)
   * [\_convert\_value](#config_as_json.json_write_hooks._convert_value)
   * [apply\_serialize\_converters](#config_as_json.json_write_hooks.apply_serialize_converters)
+* [config\_as\_json.list\_value\_validators](#config_as_json.list_value_validators)
+  * [\_validate\_list\_element\_type](#config_as_json.list_value_validators._validate_list_element_type)
+  * [\_validate\_list\_size\_bounds](#config_as_json.list_value_validators._validate_list_size_bounds)
+  * [\_indexed\_not\_allowed\_message](#config_as_json.list_value_validators._indexed_not_allowed_message)
+  * [\_IndexedInvalidCfgValue](#config_as_json.list_value_validators._IndexedInvalidCfgValue)
+    * [\_\_init\_\_](#config_as_json.list_value_validators._IndexedInvalidCfgValue.__init__)
+  * [ListValueValidator](#config_as_json.list_value_validators.ListValueValidator)
+    * [\_\_init\_\_](#config_as_json.list_value_validators.ListValueValidator.__init__)
+    * [validate\_member](#config_as_json.list_value_validators.ListValueValidator.validate_member)
+  * [ListSizeValidator](#config_as_json.list_value_validators.ListSizeValidator)
+    * [\_\_init\_\_](#config_as_json.list_value_validators.ListSizeValidator.__init__)
+    * [validate\_member](#config_as_json.list_value_validators.ListSizeValidator.validate_member)
+  * [ListValueTypeValidator](#config_as_json.list_value_validators.ListValueTypeValidator)
+    * [\_\_init\_\_](#config_as_json.list_value_validators.ListValueTypeValidator.__init__)
+    * [validate\_member](#config_as_json.list_value_validators.ListValueTypeValidator.validate_member)
 * [config\_as\_json.config\_nesting](#config_as_json.config_nesting)
   * [ConfigNestingKind](#config_as_json.config_nesting.ConfigNestingKind)
   * [ConfigFactory](#config_as_json.config_nesting.ConfigFactory)
@@ -1890,6 +1894,273 @@ Validate one member by applying a sequence of validators.
 - `member_value` - The value of the member to validate.
 - `stderr_file` - The file to write error messages to.
 
+<a id="config_as_json.list_element_validators"></a>
+
+# config\_as\_json.list\_element\_validators
+
+Implement per-element validators for list members.
+
+<a id="config_as_json.list_element_validators._check_element_validators"></a>
+
+#### \_check\_element\_validators
+
+```python
+def _check_element_validators(
+        element_validators: Sequence[MemberValidator]) -> None
+```
+
+Validate the ``element_validators`` argument of ListForEachValidator.
+
+**Arguments**:
+
+- `element_validators` - Validators to apply to each list element.
+
+
+**Raises**:
+
+- `ValueError` - If ``element_validators`` is empty.
+- `TypeError` - If any entry is not a ``MemberValidator``.
+
+<a id="config_as_json.list_element_validators._check_element_type_arg"></a>
+
+#### \_check\_element\_type\_arg
+
+```python
+def _check_element_type_arg(element_type: Optional[type[object]]) -> None
+```
+
+Validate the ``element_type`` argument of ListForEachValidator.
+
+**Arguments**:
+
+- `element_type` - Optional required runtime type of each list element.
+
+
+**Raises**:
+
+- `TypeError` - If ``element_type`` is not ``None`` and not a ``type``.
+
+<a id="config_as_json.list_element_validators.ListForEachValidator"></a>
+
+## ListForEachValidator Objects
+
+```python
+class ListForEachValidator(MemberValidator)
+```
+
+Apply a sequence of inner validators to each element of a list.
+
+This validator is the general composition mechanism for list members.
+It iterates the outer list and delegates all per-element work to the
+``element_validators`` sequence. It has no opinion about what an
+element is: every inner validator is a ``MemberValidator`` and can
+therefore be any of the built-in validators or a user-defined one.
+
+Typical use cases include, but are not restricted to:
+
+- Lists of lists (a matrix) where each inner list is checked with
+  other list validators such as ``ListSizeValidator`` or
+  ``ListValueValidator``.
+- Lists of dicts where each element is checked with the built-in
+  ``DictKeysValidator`` and ``DictForEachValidator`` (or any
+  user-defined ``MemberValidator``) used as inner element
+  validators.
+- Lists of scalar values where each element is checked or normalized
+  by a user-defined validator. For example a custom ``MemberValidator``
+  may spell-check each string, convert each string to upper case, or
+  apply any other per-element rule that the built-in scalar list
+  validators do not cover.
+
+Because ``ListForEachValidator`` is itself a ``MemberValidator``, one
+instance can be an element validator of another, so nesting is not
+limited to a single inner layer.
+
+The member value must be a list. For each element, in order:
+
+1. If ``element_type`` was provided, the element must be an instance of
+   that type.
+2. Every validator in ``element_validators`` is invoked on the element,
+   in order. Each validator receives the value returned by the previous
+   validator, so normalization performed by one inner validator is
+   visible to the next one.
+3. The final value returned for that element is collected into a new
+   list that is returned from ``validate_member``.
+
+When an inner validator is invoked, ``member_name`` is the outer member
+name with the element index appended in square brackets, for example
+``'matrix[3]'``. The validator's error messages therefore stay precise
+about which element failed. The ``member_name`` is built as the
+configuration structure is traversed. The top level member name starts
+the string as a plain string. When "indexing" into a list or dict the
+index is appended in square brackets. When going into a class member
+a dot and the member name is appended.
+
+List-level size or ordering checks are intentionally not part of this
+class. Use a separate ``ListSizeValidator`` (or any other list
+validator) as an earlier or later step in the ``ValidationPlan``.
+
+<a id="config_as_json.list_element_validators.ListForEachValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(element_validators: Sequence[MemberValidator],
+             element_type: Optional[type[object]] = None) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `element_validators` - Non-empty sequence of validators to apply
+  to each list element, in order. Each entry must be a
+  ``MemberValidator``.
+- `element_type` - Optional required runtime type of each list
+  element. If ``None``, the type check is skipped and the
+  inner validators are solely responsible for type checks.
+
+
+**Raises**:
+
+- `ValueError` - If ``element_validators`` is empty.
+- `TypeError` - If any entry of ``element_validators`` is not a
+  ``MemberValidator``, or if ``element_type`` is not ``None``
+  and not a ``type``.
+
+<a id="config_as_json.list_element_validators.ListForEachValidator._validate_element_type"></a>
+
+#### \_validate\_element\_type
+
+```python
+def _validate_element_type(member_name: str, index: int, element: object,
+                           stderr_file: TextIO) -> None
+```
+
+Check one element's type when ``element_type`` is configured.
+
+**Arguments**:
+
+- `member_name` - The outer member name used in error messages.
+- `index` - The index of the element in the outer list.
+- `element` - The element to type-check.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If ``element`` is not an instance of
+  ``self.element_type``.
+
+<a id="config_as_json.list_element_validators.ListForEachValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one list member by delegating to the inner validators.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the outer list member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  A new list whose elements are the values returned by the last
+  inner validator for each element. The caller's list is never
+  modified in place.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list, an element
+  has the wrong runtime type, or a supplied validator raised
+  ``InvalidConfiguration``.
+- `InvalidConfigurationValue` - If a supplied validator raised
+  ``InvalidConfigurationValue``.
+
+<a id="config_as_json.list_element_validators.ListOfDictsKeysValidator"></a>
+
+## ListOfDictsKeysValidator Objects
+
+```python
+class ListOfDictsKeysValidator(MemberValidator)
+```
+
+Validate the keys of every dict element in a list member.
+
+This is the dedicated predefined validator for the common "list of
+dictionaries with a fixed key policy" shape. It is equivalent to using a
+``ListForEachValidator`` with ``element_type=dict`` and one inner
+``DictKeysValidator``. Pass ``allow_extra_dict_keys=True`` for an open
+dict shape where each element must contain selected mandatory keys but
+may also carry application-specific extra keys.
+
+<a id="config_as_json.list_element_validators.ListOfDictsKeysValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(mandatory_keys: Sequence[str],
+             allowed_keys: Optional[Sequence[str]] = None,
+             allow_extra_dict_keys: bool = False) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `mandatory_keys` - Keys that must be present in every dict element.
+- `allowed_keys` - Additional keys that are permitted but not required.
+- `allow_extra_dict_keys` - Whether keys not listed in
+  ``mandatory_keys`` or ``allowed_keys`` should be accepted.
+
+
+**Raises**:
+
+- `TypeError` - If any key entry is not a string.
+- `ValueError` - If a key sequence contains duplicates.
+
+<a id="config_as_json.list_element_validators.ListOfDictsKeysValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one list-of-dicts member against the configured keys.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the list member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  A new list containing the validated dict elements.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list, one element is
+  not a dict, one dict misses a mandatory key, or one dict has
+  an unknown key while ``allow_extra_dict_keys`` is ``False``.
+
 <a id="config_as_json.optional_validator"></a>
 
 # config\_as\_json.optional\_validator
@@ -2607,6 +2878,584 @@ least one automatic change was recorded.
 **Arguments**:
 
 - `stderr_file` - Stream used for user-facing diagnostics.
+
+<a id="config_as_json.list_ordering_validators"></a>
+
+# config\_as\_json.list\_ordering\_validators
+
+Implement ordering validators for list members.
+
+<a id="config_as_json.list_ordering_validators.InvalidListKeyType"></a>
+
+## InvalidListKeyType Objects
+
+```python
+class InvalidListKeyType(InvalidConfiguration)
+```
+
+Raised when a key-ordering validator receives a key of wrong type.
+
+<a id="config_as_json.list_ordering_validators.InvalidListKeyType.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(member_name: str, member_index: int, key_value: object,
+             key_type: type[object]) -> None
+```
+
+Initialize the exception.
+
+<a id="config_as_json.list_ordering_validators._validate_list_element_type"></a>
+
+#### \_validate\_list\_element\_type
+
+```python
+def _validate_list_element_type(element_type: type[object]) -> None
+```
+
+Validate that a list validator uses one supported runtime type.
+
+**Arguments**:
+
+- `element_type` - The element type configured for a list validator.
+
+
+**Raises**:
+
+- `TypeError` - If ``element_type`` is not exactly ``int``, ``float``,
+  ``str``, or ``bool``.
+
+<a id="config_as_json.list_ordering_validators._validate_list_key_type"></a>
+
+#### \_validate\_list\_key\_type
+
+```python
+def _validate_list_key_type(key_type: type[object]) -> None
+```
+
+Validate that a key-ordering validator uses a supported key type.
+
+**Arguments**:
+
+- `key_type` - The key type configured for a list validator.
+
+
+**Raises**:
+
+- `TypeError` - If ``key_type`` is not exactly ``int``, ``float``,
+  ``str``, or ``bool``.
+
+<a id="config_as_json.list_ordering_validators._validate_typed_list_member"></a>
+
+#### \_validate\_typed\_list\_member
+
+```python
+def _validate_typed_list_member(member_name: str, member_value: object,
+                                element_type: type[Basictype],
+                                stderr_file: TextIO) -> list[Basictype]
+```
+
+Validate that a member is a list with elements of one runtime type.
+
+**Arguments**:
+
+- `member_name` - The member name used in any error message.
+- `member_value` - The value to validate.
+- `element_type` - The required runtime type of each list element.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The validated list value with a narrow element type.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list or one element has
+  the wrong runtime type.
+
+<a id="config_as_json.list_ordering_validators._validate_keyed_list_member"></a>
+
+#### \_validate\_keyed\_list\_member
+
+```python
+def _validate_keyed_list_member(
+        member_name: str, member_value: object,
+        element_type: type[Elementtype],
+        key: Callable[[Elementtype], Basictype], key_type: type[Basictype],
+        stderr_file: TextIO) -> list[tuple[Elementtype, Basictype]]
+```
+
+Validate one list and return each element with its projected key.
+
+**Arguments**:
+
+- `member_name` - The member name used in any error message.
+- `member_value` - The value to validate.
+- `element_type` - The required runtime type of each list element.
+- `key` - Callable that computes the ordering key for one element.
+- `key_type` - The required runtime type of each projected key.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  A list of ``(element, key)`` pairs.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list or one element has
+  the wrong runtime type.
+- `InvalidListKeyType` - If one projected key has the wrong runtime type.
+
+<a id="config_as_json.list_ordering_validators._compare_values"></a>
+
+#### \_compare\_values
+
+```python
+def _compare_values(
+        left: Basictype, right: Basictype,
+        lt_comparator: Callable[[Basictype, Basictype], bool]) -> int
+```
+
+Compare two values using a less-than comparator.
+
+<a id="config_as_json.list_ordering_validators._sort_list_values"></a>
+
+#### \_sort\_list\_values
+
+```python
+def _sort_list_values(values: Sequence[Basictype],
+                      lt_comparator: Callable[[Basictype, Basictype], bool],
+                      reverse: bool) -> list[Basictype]
+```
+
+Return a stably sorted list using a less-than comparator.
+
+**Arguments**:
+
+- `values` - The values to sort.
+- `lt_comparator` - The less-than comparator used for ordering.
+- `reverse` - Whether to reverse the final sort order.
+
+
+**Returns**:
+
+  A new sorted list.
+
+<a id="config_as_json.list_ordering_validators._sort_keyed_list_values"></a>
+
+#### \_sort\_keyed\_list\_values
+
+```python
+def _sort_keyed_list_values(
+        values: Sequence[tuple[Elementtype, Basictype]],
+        lt_comparator: Callable[[Basictype, Basictype], bool],
+        reverse: bool) -> list[tuple[Elementtype, Basictype]]
+```
+
+Return a stably sorted list using each element's projected key.
+
+**Arguments**:
+
+- `values` - The ``(element, key)`` pairs to sort.
+- `lt_comparator` - The less-than comparator used for keys.
+- `reverse` - Whether to reverse the final sort order.
+
+
+**Returns**:
+
+  A new sorted list of ``(element, key)`` pairs.
+
+<a id="config_as_json.list_ordering_validators._unique_list_values"></a>
+
+#### \_unique\_list\_values
+
+```python
+def _unique_list_values(values: Sequence[Basictype]) -> list[Basictype]
+```
+
+Return the first occurrence of each value in the current order.
+
+**Arguments**:
+
+- `values` - The values to deduplicate.
+
+
+**Returns**:
+
+  A new list with only the first occurrence of each value kept.
+
+<a id="config_as_json.list_ordering_validators._unique_keyed_list_values"></a>
+
+#### \_unique\_keyed\_list\_values
+
+```python
+def _unique_keyed_list_values(
+    values: Sequence[tuple[Elementtype, Basictype]]
+) -> list[tuple[Elementtype, Basictype]]
+```
+
+Return the first element for each key in the current order.
+
+**Arguments**:
+
+- `values` - The ``(element, key)`` pairs to deduplicate.
+
+
+**Returns**:
+
+  A new list of ``(element, key)`` pairs with unique keys.
+
+<a id="config_as_json.list_ordering_validators._validate_list_order"></a>
+
+#### \_validate\_list\_order
+
+```python
+def _validate_list_order(member_name: str, values: Sequence[Basictype],
+                         is_reversed: bool,
+                         lt_comparator: Callable[[Basictype, Basictype], bool],
+                         stderr_file: TextIO) -> None
+```
+
+Validate that adjacent values are in the requested non-strict order.
+
+**Arguments**:
+
+- `member_name` - The member name used in any error message.
+- `values` - The typed list values to validate.
+- `is_reversed` - Whether descending order is required.
+- `lt_comparator` - The less-than comparator used for ordering.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the list is not in the requested order.
+
+<a id="config_as_json.list_ordering_validators._validate_unique_list_values"></a>
+
+#### \_validate\_unique\_list\_values
+
+```python
+def _validate_unique_list_values(member_name: str, values: Sequence[Basictype],
+                                 stderr_file: TextIO) -> None
+```
+
+Validate that a list contains no duplicate values.
+
+Duplicate detection uses normal Python equality semantics rather than the
+custom ordering comparator.
+
+**Arguments**:
+
+- `member_name` - The member name used in any error message.
+- `values` - The typed list values to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If a duplicate value is found.
+
+<a id="config_as_json.list_ordering_validators.ListIsOrderedValidator"></a>
+
+## ListIsOrderedValidator Objects
+
+```python
+class ListIsOrderedValidator(MemberValidator, Generic[Basictype])
+```
+
+Validate list element types, optional ordering, and uniqueness.
+
+<a id="config_as_json.list_ordering_validators.ListIsOrderedValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    element_type: type[Basictype],
+    is_ordered: bool = True,
+    is_reversed: bool = False,
+    unique_values: bool = False,
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
+```
+
+Initialize the validator.
+
+The validator always checks that the member value is a list and that
+every element is an instance of ``element_type`` using normal
+``isinstance`` semantics. This means, for example, that ``True`` is
+accepted when ``element_type`` is ``int``.
+
+If ``is_ordered`` is true, the list must be in non-strict ascending
+order by default, or in non-strict descending order when
+``is_reversed`` is true. Equal adjacent values are therefore allowed
+unless ``unique_values`` is also true.
+
+If ``unique_values`` is true, duplicate detection uses normal Python
+equality semantics rather than the custom ordering comparator.
+
+**Arguments**:
+
+- `element_type` - The type of the elements in the list. Must be one
+  of the supported basic scalar types.
+- `is_ordered` - Whether to validate element order.
+- `is_reversed` - Whether ordered lists must be descending instead of
+  ascending.
+- `unique_values` - Whether duplicate values are rejected.
+- `lt_comparator` - Comparator function for the element values.
+  Defaults to the < operator.
+
+
+**Raises**:
+
+- `TypeError` - If ``element_type`` is unsupported.
+- `ValueError` - If ``is_reversed`` is true while ``is_ordered`` is
+  false.
+
+<a id="config_as_json.list_ordering_validators.ListIsOrderedValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one list member against order and uniqueness rules.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The original list value if validation succeeds.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list, an element has
+  the wrong type, the list order is wrong, or
+  duplicates are present when forbidden.
+
+<a id="config_as_json.list_ordering_validators.ListOrderingValidator"></a>
+
+## ListOrderingValidator Objects
+
+```python
+class ListOrderingValidator(MemberValidator, Generic[Basictype])
+```
+
+Normalize one list by ordering, reversing, and deduplicating it.
+
+<a id="config_as_json.list_ordering_validators.ListOrderingValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    element_type: type[Basictype],
+    order: bool = True,
+    reverse: bool = False,
+    keep_only_unique: bool = False,
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
+```
+
+Initialize the validator.
+
+The validator always checks that the member value is a list and that
+every element is an instance of ``element_type`` using normal
+``isinstance`` semantics. This means, for example, that ``True`` is
+accepted when ``element_type`` is ``int``.
+
+If ``order`` is true, the list is stably sorted with
+``lt_comparator``. If ``reverse`` is also true, the sorted result is
+descending.
+
+If ``order`` is false and ``reverse`` is true, the original list order
+is reversed first.
+
+If ``keep_only_unique`` is true, duplicate removal happens after any
+ordering or reversing. Duplicate removal is stable in the current
+order, so the first occurrence in the current order is kept and later
+equal values are removed. Duplicate detection uses normal Python
+equality semantics rather than the custom ordering comparator.
+
+**Arguments**:
+
+- `element_type` - The type of the elements in the list. Must be one
+  of the supported basic scalar types.
+- `order` - Whether to sort the list.
+- `reverse` - Whether to reverse the sort order, or to reverse the
+  original list when ``order`` is false.
+- `keep_only_unique` - Whether to remove later duplicate values after
+  ordering or reversing.
+- `lt_comparator` - Comparator function for the element values.
+  Defaults to the < operator.
+
+
+**Raises**:
+
+- `TypeError` - If ``element_type`` is unsupported.
+
+<a id="config_as_json.list_ordering_validators.ListOrderingValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate and normalize one list member.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  A reordered or deduplicated list. If no normalization is
+  configured, the original list value is returned unchanged.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list or one element
+  has the wrong runtime type.
+
+<a id="config_as_json.list_ordering_validators.ListKeyOrderingValidator"></a>
+
+## ListKeyOrderingValidator Objects
+
+```python
+class ListKeyOrderingValidator(MemberValidator, Generic[Elementtype,
+                                                        Basictype])
+```
+
+Normalize one list by ordering complex elements through scalar keys.
+
+Use this validator when your configuration stores a list of complex
+elements, such as dictionaries, and your application wants that list
+normalized by one scalar value from each element.
+
+The member value must be a list. Every element must be an instance of
+``element_type`` according to normal ``isinstance`` semantics. The
+validator calls ``key`` once for every element, validates that the
+returned key is an instance of ``key_type``, and then orders or
+deduplicates the original elements through those keys. The supported key
+types are the same basic scalar types accepted by
+``ListOrderingValidator``: ``int``, ``float``, ``str``, and ``bool``.
+
+Your ``key`` callable owns the application-specific projection from one
+complex element to one scalar key. If the callable raises an exception,
+this validator does not catch or wrap it. Validate the element shape
+before this validator, or make the callable raise the exception you want
+application code to see.
+
+Ordering and duplicate removal are based on the projected keys, but the
+returned normalized list contains the original elements. If
+``keep_only_unique`` is true, later elements whose projected key is equal
+to a key already kept are removed. Duplicate-key detection uses normal
+Python equality semantics for the keys rather than ``lt_comparator``.
+
+<a id="config_as_json.list_ordering_validators.ListKeyOrderingValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    *,
+    element_type: type[Elementtype],
+    key: Callable[[Elementtype], Basictype],
+    key_type: type[Basictype],
+    order: bool = True,
+    reverse: bool = False,
+    keep_only_unique: bool = False,
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
+```
+
+Initialize the key-ordering validator.
+
+**Arguments**:
+
+- `element_type` - Runtime type required for each original list
+  element. For example, use ``dict`` for a list of
+  dictionaries.
+- `key` - Callable that computes the scalar ordering key for one
+  element. Exceptions raised by this callable propagate
+  unchanged.
+- `key_type` - Runtime type required for the keys returned by
+  ``key``. Must be one of ``int``, ``float``, ``str``, or
+  ``bool``.
+- `order` - Whether to sort the list by projected key.
+- `reverse` - Whether to reverse the sort order, or to reverse the
+  original list when ``order`` is false.
+- `keep_only_unique` - Whether to remove later elements with duplicate
+  projected keys after ordering or reversing.
+- `lt_comparator` - Comparator function for the projected keys.
+  Defaults to the < operator.
+
+
+**Raises**:
+
+- `TypeError` - If ``element_type`` is not a type, if ``key`` is not
+  callable, or if ``key_type`` is unsupported.
+
+<a id="config_as_json.list_ordering_validators.ListKeyOrderingValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate and normalize one list member by projected key.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  A reordered or key-deduplicated list containing the original
+  elements. If no normalization is configured, the original list
+  value is returned unchanged.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list or one element
+  has the wrong runtime type.
+- `InvalidListKeyType` - If ``key`` returns a value whose runtime type
+  is not accepted by ``key_type``.
 
 <a id="config_as_json.config"></a>
 
@@ -6238,6 +7087,73 @@ Validate one character encoding member.
 - `InvalidConfiguration` - If the member value is not a string or does
   not name a recognized text encoding.
 
+<a id="config_as_json._list_validator_common"></a>
+
+# config\_as\_json.\_list\_validator\_common
+
+Collect shared helpers for list validators.
+
+<a id="config_as_json._list_validator_common.Basictype"></a>
+
+#### Basictype
+
+Basic scalar type accepted by the list validators.
+
+<a id="config_as_json._list_validator_common.Elementtype"></a>
+
+#### Elementtype
+
+Element type accepted by key-based list ordering validators.
+
+<a id="config_as_json._list_validator_common._validate_basic_list_type"></a>
+
+#### \_validate\_basic\_list\_type
+
+```python
+def _validate_basic_list_type(value_type: type[object],
+                              parameter_name: str) -> None
+```
+
+Validate that a list validator uses one supported scalar type.
+
+**Arguments**:
+
+- `value_type` - The configured scalar type.
+- `parameter_name` - The constructor argument name used in error messages.
+
+
+**Raises**:
+
+- `TypeError` - If ``value_type`` is not exactly ``int``, ``float``,
+  ``str``, or ``bool``.
+
+<a id="config_as_json._list_validator_common._validate_list_member_value"></a>
+
+#### \_validate\_list\_member\_value
+
+```python
+def _validate_list_member_value(member_name: str, member_value: object,
+                                stderr_file: TextIO) -> list[object]
+```
+
+Validate that one member value is a list and return it.
+
+**Arguments**:
+
+- `member_name` - The member name used in any error message.
+- `member_value` - The value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The validated list value.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If ``member_value`` is not a list.
+
 <a id="config_as_json.config_factory"></a>
 
 # config\_as\_json.config\_factory
@@ -6439,1205 +7355,6 @@ by inspecting the input document itself.
 - `RuntimeError` - Neither or both JSON input sources were supplied.
 - `SystemExit` - The JSON could not be decoded, no matcher accepted it, or
   a referenced input file does not exist.
-
-<a id="config_as_json.list_validators"></a>
-
-# config\_as\_json.list\_validators
-
-Implement list validators for config-as-json.
-
-<a id="config_as_json.list_validators.Basictype"></a>
-
-#### Basictype
-
-Basic scalar type accepted by the list validators.
-
-<a id="config_as_json.list_validators.Elementtype"></a>
-
-#### Elementtype
-
-Element type accepted by key-based list ordering validators.
-
-<a id="config_as_json.list_validators.InvalidListKeyType"></a>
-
-## InvalidListKeyType Objects
-
-```python
-class InvalidListKeyType(InvalidConfiguration)
-```
-
-Raised when a key-ordering validator receives a key of wrong type.
-
-<a id="config_as_json.list_validators.InvalidListKeyType.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(member_name: str, member_index: int, key_value: object,
-             key_type: type[object]) -> None
-```
-
-Initialize the exception.
-
-<a id="config_as_json.list_validators._validate_basic_list_type"></a>
-
-#### \_validate\_basic\_list\_type
-
-```python
-def _validate_basic_list_type(value_type: type[object],
-                              parameter_name: str) -> None
-```
-
-Validate that a list validator uses one supported scalar type.
-
-**Arguments**:
-
-- `value_type` - The configured scalar type.
-- `parameter_name` - The constructor argument name used in error messages.
-
-
-**Raises**:
-
-- `TypeError` - If ``value_type`` is not exactly ``int``, ``float``,
-  ``str``, or ``bool``.
-
-<a id="config_as_json.list_validators._validate_list_element_type"></a>
-
-#### \_validate\_list\_element\_type
-
-```python
-def _validate_list_element_type(element_type: type[object]) -> None
-```
-
-Validate that a list validator uses one supported runtime type.
-
-**Arguments**:
-
-- `element_type` - The element type configured for a list validator.
-
-
-**Raises**:
-
-- `TypeError` - If ``element_type`` is not exactly ``int``, ``float``,
-  ``str``, or ``bool``.
-
-<a id="config_as_json.list_validators._validate_list_key_type"></a>
-
-#### \_validate\_list\_key\_type
-
-```python
-def _validate_list_key_type(key_type: type[object]) -> None
-```
-
-Validate that a key-ordering validator uses a supported key type.
-
-**Arguments**:
-
-- `key_type` - The key type configured for a list validator.
-
-
-**Raises**:
-
-- `TypeError` - If ``key_type`` is not exactly ``int``, ``float``,
-  ``str``, or ``bool``.
-
-<a id="config_as_json.list_validators._validate_list_size_bounds"></a>
-
-#### \_validate\_list\_size\_bounds
-
-```python
-def _validate_list_size_bounds(min_size: int, max_size: int) -> None
-```
-
-Validate constructor bounds for ``ListSizeValidator``.
-
-**Arguments**:
-
-- `min_size` - Minimum allowed list size.
-- `max_size` - Maximum allowed list size.
-
-
-**Raises**:
-
-- `TypeError` - If one bound is not exactly an ``int``.
-- `ValueError` - If one bound is negative or ``min_size`` exceeds
-  ``max_size``.
-
-<a id="config_as_json.list_validators._validate_list_member_value"></a>
-
-#### \_validate\_list\_member\_value
-
-```python
-def _validate_list_member_value(member_name: str, member_value: object,
-                                stderr_file: TextIO) -> list[object]
-```
-
-Validate that one member value is a list and return it.
-
-**Arguments**:
-
-- `member_name` - The member name used in any error message.
-- `member_value` - The value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  The validated list value.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If ``member_value`` is not a list.
-
-<a id="config_as_json.list_validators._validate_typed_list_member"></a>
-
-#### \_validate\_typed\_list\_member
-
-```python
-def _validate_typed_list_member(member_name: str, member_value: object,
-                                element_type: type[Basictype],
-                                stderr_file: TextIO) -> list[Basictype]
-```
-
-Validate that a member is a list with elements of one runtime type.
-
-**Arguments**:
-
-- `member_name` - The member name used in any error message.
-- `member_value` - The value to validate.
-- `element_type` - The required runtime type of each list element.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  The validated list value with a narrow element type.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If the member is not a list or one element has
-  the wrong runtime type.
-
-<a id="config_as_json.list_validators._validate_keyed_list_member"></a>
-
-#### \_validate\_keyed\_list\_member
-
-```python
-def _validate_keyed_list_member(
-        member_name: str, member_value: object,
-        element_type: type[Elementtype],
-        key: Callable[[Elementtype], Basictype], key_type: type[Basictype],
-        stderr_file: TextIO) -> list[tuple[Elementtype, Basictype]]
-```
-
-Validate one list and return each element with its projected key.
-
-**Arguments**:
-
-- `member_name` - The member name used in any error message.
-- `member_value` - The value to validate.
-- `element_type` - The required runtime type of each list element.
-- `key` - Callable that computes the ordering key for one element.
-- `key_type` - The required runtime type of each projected key.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  A list of ``(element, key)`` pairs.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If the member is not a list or one element has
-  the wrong runtime type.
-- `InvalidListKeyType` - If one projected key has the wrong runtime type.
-
-<a id="config_as_json.list_validators._compare_values"></a>
-
-#### \_compare\_values
-
-```python
-def _compare_values(
-        left: Basictype, right: Basictype,
-        lt_comparator: Callable[[Basictype, Basictype], bool]) -> int
-```
-
-Compare two values using a less-than comparator.
-
-<a id="config_as_json.list_validators._sort_list_values"></a>
-
-#### \_sort\_list\_values
-
-```python
-def _sort_list_values(values: Sequence[Basictype],
-                      lt_comparator: Callable[[Basictype, Basictype], bool],
-                      reverse: bool) -> list[Basictype]
-```
-
-Return a stably sorted list using a less-than comparator.
-
-**Arguments**:
-
-- `values` - The values to sort.
-- `lt_comparator` - The less-than comparator used for ordering.
-- `reverse` - Whether to reverse the final sort order.
-
-
-**Returns**:
-
-  A new sorted list.
-
-<a id="config_as_json.list_validators._sort_keyed_list_values"></a>
-
-#### \_sort\_keyed\_list\_values
-
-```python
-def _sort_keyed_list_values(
-        values: Sequence[tuple[Elementtype, Basictype]],
-        lt_comparator: Callable[[Basictype, Basictype], bool],
-        reverse: bool) -> list[tuple[Elementtype, Basictype]]
-```
-
-Return a stably sorted list using each element's projected key.
-
-**Arguments**:
-
-- `values` - The ``(element, key)`` pairs to sort.
-- `lt_comparator` - The less-than comparator used for keys.
-- `reverse` - Whether to reverse the final sort order.
-
-
-**Returns**:
-
-  A new sorted list of ``(element, key)`` pairs.
-
-<a id="config_as_json.list_validators._unique_list_values"></a>
-
-#### \_unique\_list\_values
-
-```python
-def _unique_list_values(values: Sequence[Basictype]) -> list[Basictype]
-```
-
-Return the first occurrence of each value in the current order.
-
-**Arguments**:
-
-- `values` - The values to deduplicate.
-
-
-**Returns**:
-
-  A new list with only the first occurrence of each value kept.
-
-<a id="config_as_json.list_validators._unique_keyed_list_values"></a>
-
-#### \_unique\_keyed\_list\_values
-
-```python
-def _unique_keyed_list_values(
-    values: Sequence[tuple[Elementtype, Basictype]]
-) -> list[tuple[Elementtype, Basictype]]
-```
-
-Return the first element for each key in the current order.
-
-**Arguments**:
-
-- `values` - The ``(element, key)`` pairs to deduplicate.
-
-
-**Returns**:
-
-  A new list of ``(element, key)`` pairs with unique keys.
-
-<a id="config_as_json.list_validators._validate_list_order"></a>
-
-#### \_validate\_list\_order
-
-```python
-def _validate_list_order(member_name: str, values: Sequence[Basictype],
-                         is_reversed: bool,
-                         lt_comparator: Callable[[Basictype, Basictype], bool],
-                         stderr_file: TextIO) -> None
-```
-
-Validate that adjacent values are in the requested non-strict order.
-
-**Arguments**:
-
-- `member_name` - The member name used in any error message.
-- `values` - The typed list values to validate.
-- `is_reversed` - Whether descending order is required.
-- `lt_comparator` - The less-than comparator used for ordering.
-- `stderr_file` - The file to write error messages to.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If the list is not in the requested order.
-
-<a id="config_as_json.list_validators._validate_unique_list_values"></a>
-
-#### \_validate\_unique\_list\_values
-
-```python
-def _validate_unique_list_values(member_name: str, values: Sequence[Basictype],
-                                 stderr_file: TextIO) -> None
-```
-
-Validate that a list contains no duplicate values.
-
-Duplicate detection uses normal Python equality semantics rather than the
-custom ordering comparator.
-
-**Arguments**:
-
-- `member_name` - The member name used in any error message.
-- `values` - The typed list values to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If a duplicate value is found.
-
-<a id="config_as_json.list_validators._indexed_not_allowed_message"></a>
-
-#### \_indexed\_not\_allowed\_message
-
-```python
-def _indexed_not_allowed_message(member_name: str, member_value: object,
-                                 member_index: int,
-                                 allowed_values: Sequence[object],
-                                 stderr_file: Optional[TextIO]) -> str
-```
-
-Construct a message for a list element outside the allowed values.
-
-Construct a message that one element in a list value is not one of the
-allowed values. If ``stderr_file`` is not ``None``, the message is
-written to it.
-
-**Arguments**:
-
-- `member_name` - The name of the member that has the invalid list value.
-- `member_value` - The invalid element value in the list.
-- `member_index` - The index of the invalid element in the list.
-- `allowed_values` - The allowed values for elements in the list.
-- `stderr_file` - The file to optionally write error messages to.
-  If set to ``None`` explicitly, printing is suppressed.
-
-
-**Returns**:
-
-  A string containing the error message.
-
-<a id="config_as_json.list_validators._IndexedInvalidConfigurationValue"></a>
-
-## \_IndexedInvalidConfigurationValue Objects
-
-```python
-class _IndexedInvalidConfigurationValue(InvalidConfigurationValue)
-```
-
-Raised when a list element value is not one of the allowed values.
-
-<a id="config_as_json.list_validators._IndexedInvalidConfigurationValue.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(member_name: str, member_value: object, member_index: int,
-             allowed_values: Sequence[object]) -> None
-```
-
-Initialize the exception.
-
-<a id="config_as_json.list_validators.ListValueValidator"></a>
-
-## ListValueValidator Objects
-
-```python
-class ListValueValidator(MemberValidator, Generic[Basictype])
-```
-
-Validate values in a list of basic scalar values.
-
-<a id="config_as_json.list_validators.ListValueValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(
-    min_value: Optional[Basictype],
-    max_value: Optional[Basictype],
-    allowed_values: Optional[Sequence[Basictype]
-                             | Callable[[], Sequence[Basictype]]],
-    lt_comparator: Callable[[Basictype, Basictype],
-                            bool] = operator_lt) -> None
-```
-
-Initialize the validator.
-
-The validator checks that the member value is a list containing only
-values of the inferred scalar runtime type. Each element value must
-satisfy every configured constraint: lower bound, upper bound, and
-allowed-values membership.
-At least one of min_value, max_value, or allowed_values must be
-provided.
-
-**Arguments**:
-
-- `min_value` - Minimum allowed member element value.
-  If ``None``, no minimum value is checked.
-- `max_value` - Maximum allowed member element value.
-  If ``None``, no maximum value is checked.
-- `allowed_values` - The only allowed values for the elements of
-  the member.
-  If ``None``, no allowed-values check is done.
-  If a callable, it is called at validation time
-  to get the allowed values.
-- `lt_comparator` - Comparator function for the element values.
-  Defaults to the < operator.
-
-
-**Raises**:
-
-- `ValueError` - If no constraints are provided.
-- `ValueError` - If allowed_values is provided as an empty sequence.
-- `ValueError` - If min_value is greater than max_value.
-- `TypeError` - If incompatible or mixed runtime types are used.
-
-<a id="config_as_json.list_validators.ListValueValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: Config,
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate one list member against elementwise constraints.
-
-The validator accepts only actual list values. Each element in the
-list must be an instance of the inferred constraint type and must
-satisfy every configured constraint. The custom comparator is used
-only for lower-bound and upper-bound checks. Membership in
-``allowed_values`` uses the normal equality semantics of ``in``.
-
-**Arguments**:
-
-- `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
-- `member_value` - The list value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - The member is not a list or one element does
-  not satisfy type or range constraints.
-- `InvalidConfigurationValue` - One element is not one of the allowed
-  values.
-
-
-**Returns**:
-
-  The original list value if the validation check passes.
-
-<a id="config_as_json.list_validators.ListSizeValidator"></a>
-
-## ListSizeValidator Objects
-
-```python
-class ListSizeValidator(MemberValidator)
-```
-
-Validate that a list length stays within mandatory size bounds.
-
-<a id="config_as_json.list_validators.ListSizeValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(min_size: int, max_size: int) -> None
-```
-
-Initialize the validator.
-
-The validator accepts only actual list values. The list length must be
-between ``min_size`` and ``max_size``, inclusive.
-
-**Arguments**:
-
-- `min_size` - Minimum allowed size of the list.
-- `max_size` - Maximum allowed size of the list.
-
-
-**Raises**:
-
-- `TypeError` - If one bound is not exactly an ``int``.
-- `ValueError` - If one bound is negative or ``min_size`` exceeds
-  ``max_size``.
-
-<a id="config_as_json.list_validators.ListSizeValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: Config,
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate one list member against the configured size bounds.
-
-**Arguments**:
-
-- `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
-- `member_value` - The list value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  The original list value if validation succeeds.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If the member is not a list or its size is
-  outside the allowed range.
-
-<a id="config_as_json.list_validators.ListValueTypeValidator"></a>
-
-## ListValueTypeValidator Objects
-
-```python
-class ListValueTypeValidator(MemberValidator)
-```
-
-Validate that a member is a list with one element runtime type.
-
-<a id="config_as_json.list_validators.ListValueTypeValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(element_type: type[object]) -> None
-```
-
-Initialize the validator.
-
-**Arguments**:
-
-- `element_type` - Required runtime type for each list element.
-
-
-**Raises**:
-
-- `TypeError` - If ``element_type`` is not a type.
-
-<a id="config_as_json.list_validators.ListValueTypeValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: Config,
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate one list member's element types.
-
-The element checks use normal ``isinstance`` semantics. For example,
-``ListValueTypeValidator(int)`` accepts ``True`` because ``bool`` is
-a subclass of ``int`` in Python.
-
-**Arguments**:
-
-- `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
-- `member_value` - The list value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  The original list value if validation succeeds.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If the member is not a list or one element
-  is not an instance of ``element_type``.
-
-<a id="config_as_json.list_validators.ListIsOrderedValidator"></a>
-
-## ListIsOrderedValidator Objects
-
-```python
-class ListIsOrderedValidator(MemberValidator, Generic[Basictype])
-```
-
-Validate list element types, optional ordering, and uniqueness.
-
-<a id="config_as_json.list_validators.ListIsOrderedValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(
-    element_type: type[Basictype],
-    is_ordered: bool = True,
-    is_reversed: bool = False,
-    unique_values: bool = False,
-    lt_comparator: Callable[[Basictype, Basictype],
-                            bool] = operator_lt) -> None
-```
-
-Initialize the validator.
-
-The validator always checks that the member value is a list and that
-every element is an instance of ``element_type`` using normal
-``isinstance`` semantics. This means, for example, that ``True`` is
-accepted when ``element_type`` is ``int``.
-
-If ``is_ordered`` is true, the list must be in non-strict ascending
-order by default, or in non-strict descending order when
-``is_reversed`` is true. Equal adjacent values are therefore allowed
-unless ``unique_values`` is also true.
-
-If ``unique_values`` is true, duplicate detection uses normal Python
-equality semantics rather than the custom ordering comparator.
-
-**Arguments**:
-
-- `element_type` - The type of the elements in the list. Must be one
-  of the supported basic scalar types.
-- `is_ordered` - Whether to validate element order.
-- `is_reversed` - Whether ordered lists must be descending instead of
-  ascending.
-- `unique_values` - Whether duplicate values are rejected.
-- `lt_comparator` - Comparator function for the element values.
-  Defaults to the < operator.
-
-
-**Raises**:
-
-- `TypeError` - If ``element_type`` is unsupported.
-- `ValueError` - If ``is_reversed`` is true while ``is_ordered`` is
-  false.
-
-<a id="config_as_json.list_validators.ListIsOrderedValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: Config,
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate one list member against order and uniqueness rules.
-
-**Arguments**:
-
-- `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
-- `member_value` - The list value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  The original list value if validation succeeds.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If the member is not a list, an element has
-  the wrong type, the list order is wrong, or
-  duplicates are present when forbidden.
-
-<a id="config_as_json.list_validators.ListOrderingValidator"></a>
-
-## ListOrderingValidator Objects
-
-```python
-class ListOrderingValidator(MemberValidator, Generic[Basictype])
-```
-
-Normalize one list by ordering, reversing, and deduplicating it.
-
-<a id="config_as_json.list_validators.ListOrderingValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(
-    element_type: type[Basictype],
-    order: bool = True,
-    reverse: bool = False,
-    keep_only_unique: bool = False,
-    lt_comparator: Callable[[Basictype, Basictype],
-                            bool] = operator_lt) -> None
-```
-
-Initialize the validator.
-
-The validator always checks that the member value is a list and that
-every element is an instance of ``element_type`` using normal
-``isinstance`` semantics. This means, for example, that ``True`` is
-accepted when ``element_type`` is ``int``.
-
-If ``order`` is true, the list is stably sorted with
-``lt_comparator``. If ``reverse`` is also true, the sorted result is
-descending.
-
-If ``order`` is false and ``reverse`` is true, the original list order
-is reversed first.
-
-If ``keep_only_unique`` is true, duplicate removal happens after any
-ordering or reversing. Duplicate removal is stable in the current
-order, so the first occurrence in the current order is kept and later
-equal values are removed. Duplicate detection uses normal Python
-equality semantics rather than the custom ordering comparator.
-
-**Arguments**:
-
-- `element_type` - The type of the elements in the list. Must be one
-  of the supported basic scalar types.
-- `order` - Whether to sort the list.
-- `reverse` - Whether to reverse the sort order, or to reverse the
-  original list when ``order`` is false.
-- `keep_only_unique` - Whether to remove later duplicate values after
-  ordering or reversing.
-- `lt_comparator` - Comparator function for the element values.
-  Defaults to the < operator.
-
-
-**Raises**:
-
-- `TypeError` - If ``element_type`` is unsupported.
-
-<a id="config_as_json.list_validators.ListOrderingValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: Config,
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate and normalize one list member.
-
-**Arguments**:
-
-- `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
-- `member_value` - The list value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  A reordered or deduplicated list. If no normalization is
-  configured, the original list value is returned unchanged.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If the member is not a list or one element
-  has the wrong runtime type.
-
-<a id="config_as_json.list_validators.ListKeyOrderingValidator"></a>
-
-## ListKeyOrderingValidator Objects
-
-```python
-class ListKeyOrderingValidator(MemberValidator, Generic[Elementtype,
-                                                        Basictype])
-```
-
-Normalize one list by ordering complex elements through scalar keys.
-
-Use this validator when your configuration stores a list of complex
-elements, such as dictionaries, and your application wants that list
-normalized by one scalar value from each element.
-
-The member value must be a list. Every element must be an instance of
-``element_type`` according to normal ``isinstance`` semantics. The
-validator calls ``key`` once for every element, validates that the
-returned key is an instance of ``key_type``, and then orders or
-deduplicates the original elements through those keys. The supported key
-types are the same basic scalar types accepted by
-``ListOrderingValidator``: ``int``, ``float``, ``str``, and ``bool``.
-
-Your ``key`` callable owns the application-specific projection from one
-complex element to one scalar key. If the callable raises an exception,
-this validator does not catch or wrap it. Validate the element shape
-before this validator, or make the callable raise the exception you want
-application code to see.
-
-Ordering and duplicate removal are based on the projected keys, but the
-returned normalized list contains the original elements. If
-``keep_only_unique`` is true, later elements whose projected key is equal
-to a key already kept are removed. Duplicate-key detection uses normal
-Python equality semantics for the keys rather than ``lt_comparator``.
-
-<a id="config_as_json.list_validators.ListKeyOrderingValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(
-    *,
-    element_type: type[Elementtype],
-    key: Callable[[Elementtype], Basictype],
-    key_type: type[Basictype],
-    order: bool = True,
-    reverse: bool = False,
-    keep_only_unique: bool = False,
-    lt_comparator: Callable[[Basictype, Basictype],
-                            bool] = operator_lt) -> None
-```
-
-Initialize the key-ordering validator.
-
-**Arguments**:
-
-- `element_type` - Runtime type required for each original list
-  element. For example, use ``dict`` for a list of
-  dictionaries.
-- `key` - Callable that computes the scalar ordering key for one
-  element. Exceptions raised by this callable propagate
-  unchanged.
-- `key_type` - Runtime type required for the keys returned by
-  ``key``. Must be one of ``int``, ``float``, ``str``, or
-  ``bool``.
-- `order` - Whether to sort the list by projected key.
-- `reverse` - Whether to reverse the sort order, or to reverse the
-  original list when ``order`` is false.
-- `keep_only_unique` - Whether to remove later elements with duplicate
-  projected keys after ordering or reversing.
-- `lt_comparator` - Comparator function for the projected keys.
-  Defaults to the < operator.
-
-
-**Raises**:
-
-- `TypeError` - If ``element_type`` is not a type, if ``key`` is not
-  callable, or if ``key_type`` is unsupported.
-
-<a id="config_as_json.list_validators.ListKeyOrderingValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: Config,
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate and normalize one list member by projected key.
-
-**Arguments**:
-
-- `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
-- `member_value` - The list value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  A reordered or key-deduplicated list containing the original
-  elements. If no normalization is configured, the original list
-  value is returned unchanged.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If the member is not a list or one element
-  has the wrong runtime type.
-- `InvalidListKeyType` - If ``key`` returns a value whose runtime type
-  is not accepted by ``key_type``.
-
-<a id="config_as_json.list_validators._validate_for_each_element_validators"></a>
-
-#### \_validate\_for\_each\_element\_validators
-
-```python
-def _validate_for_each_element_validators(
-        element_validators: Sequence[MemberValidator]) -> None
-```
-
-Validate the ``element_validators`` argument of ListForEachValidator.
-
-**Arguments**:
-
-- `element_validators` - Validators to apply to each list element.
-
-
-**Raises**:
-
-- `ValueError` - If ``element_validators`` is empty.
-- `TypeError` - If any entry is not a ``MemberValidator``.
-
-<a id="config_as_json.list_validators._validate_for_each_element_type"></a>
-
-#### \_validate\_for\_each\_element\_type
-
-```python
-def _validate_for_each_element_type(
-        element_type: Optional[type[object]]) -> None
-```
-
-Validate the ``element_type`` argument of ListForEachValidator.
-
-**Arguments**:
-
-- `element_type` - Optional required runtime type of each list element.
-
-
-**Raises**:
-
-- `TypeError` - If ``element_type`` is not ``None`` and not a ``type``.
-
-<a id="config_as_json.list_validators.ListForEachValidator"></a>
-
-## ListForEachValidator Objects
-
-```python
-class ListForEachValidator(MemberValidator)
-```
-
-Apply a sequence of inner validators to each element of a list.
-
-This validator is the general composition mechanism for list members.
-It iterates the outer list and delegates all per-element work to the
-``element_validators`` sequence. It has no opinion about what an
-element is: every inner validator is a ``MemberValidator`` and can
-therefore be any of the built-in validators or a user-defined one.
-
-Typical use cases include, but are not restricted to:
-
-- Lists of lists (a matrix) where each inner list is checked with
-  other list validators such as ``ListSizeValidator`` or
-  ``ListValueValidator``.
-- Lists of dicts where each element is checked with the built-in
-  ``DictKeysValidator`` and ``DictForEachValidator`` (or any
-  user-defined ``MemberValidator``) used as inner element
-  validators.
-- Lists of scalar values where each element is checked or normalized
-  by a user-defined validator. For example a custom ``MemberValidator``
-  may spell-check each string, convert each string to upper case, or
-  apply any other per-element rule that the built-in scalar list
-  validators do not cover.
-
-Because ``ListForEachValidator`` is itself a ``MemberValidator``, one
-instance can be an element validator of another, so nesting is not
-limited to a single inner layer.
-
-The member value must be a list. For each element, in order:
-
-1. If ``element_type`` was provided, the element must be an instance of
-   that type.
-2. Every validator in ``element_validators`` is invoked on the element,
-   in order. Each validator receives the value returned by the previous
-   validator, so normalization performed by one inner validator is
-   visible to the next one.
-3. The final value returned for that element is collected into a new
-   list that is returned from ``validate_member``.
-
-When an inner validator is invoked, ``member_name`` is the outer member
-name with the element index appended in square brackets, for example
-``'matrix[3]'``. The validator's error messages therefore stay precise
-about which element failed. The ``member_name`` is built as the
-configuration structure is traversed. The top level member name starts
-the string as a plain string. When "indexing" into a list or dict the
-index is appended in square brackets. When going into a class member
-a dot and the member name is appended.
-
-List-level size or ordering checks are intentionally not part of this
-class. Use a separate ``ListSizeValidator`` (or any other list
-validator) as an earlier or later step in the ``ValidationPlan``.
-
-<a id="config_as_json.list_validators.ListForEachValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(element_validators: Sequence[MemberValidator],
-             element_type: Optional[type[object]] = None) -> None
-```
-
-Initialize the validator.
-
-**Arguments**:
-
-- `element_validators` - Non-empty sequence of validators to apply
-  to each list element, in order. Each entry must be a
-  ``MemberValidator``.
-- `element_type` - Optional required runtime type of each list
-  element. If ``None``, the type check is skipped and the
-  inner validators are solely responsible for type checks.
-
-
-**Raises**:
-
-- `ValueError` - If ``element_validators`` is empty.
-- `TypeError` - If any entry of ``element_validators`` is not a
-  ``MemberValidator``, or if ``element_type`` is not ``None``
-  and not a ``type``.
-
-<a id="config_as_json.list_validators.ListForEachValidator._validate_element_type"></a>
-
-#### \_validate\_element\_type
-
-```python
-def _validate_element_type(member_name: str, index: int, element: object,
-                           stderr_file: TextIO) -> None
-```
-
-Check one element's type when ``element_type`` is configured.
-
-**Arguments**:
-
-- `member_name` - The outer member name used in error messages.
-- `index` - The index of the element in the outer list.
-- `element` - The element to type-check.
-- `stderr_file` - The file to write error messages to.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If ``element`` is not an instance of
-  ``self.element_type``.
-
-<a id="config_as_json.list_validators.ListForEachValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: Config,
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate one list member by delegating to the inner validators.
-
-**Arguments**:
-
-- `config` - The Config object that owns the member.
-- `member_name` - The name of the outer list member to validate.
-- `member_value` - The list value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  A new list whose elements are the values returned by the last
-  inner validator for each element. The caller's list is never
-  modified in place.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If the member is not a list, an element
-  has the wrong runtime type, or a supplied validator raised
-  ``InvalidConfiguration``.
-- `InvalidConfigurationValue` - If a supplied validator raised
-  ``InvalidConfigurationValue``.
-
-<a id="config_as_json.list_validators.ListOfDictsKeysValidator"></a>
-
-## ListOfDictsKeysValidator Objects
-
-```python
-class ListOfDictsKeysValidator(MemberValidator)
-```
-
-Validate the keys of every dict element in a list member.
-
-This is the dedicated predefined validator for the common "list of
-dictionaries with a fixed key policy" shape. It is equivalent to using a
-``ListForEachValidator`` with ``element_type=dict`` and one inner
-``DictKeysValidator``. Pass ``allow_extra_dict_keys=True`` for an open
-dict shape where each element must contain selected mandatory keys but
-may also carry application-specific extra keys.
-
-<a id="config_as_json.list_validators.ListOfDictsKeysValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(mandatory_keys: Sequence[str],
-             allowed_keys: Optional[Sequence[str]] = None,
-             allow_extra_dict_keys: bool = False) -> None
-```
-
-Initialize the validator.
-
-**Arguments**:
-
-- `mandatory_keys` - Keys that must be present in every dict element.
-- `allowed_keys` - Additional keys that are permitted but not required.
-- `allow_extra_dict_keys` - Whether keys not listed in
-  ``mandatory_keys`` or ``allowed_keys`` should be accepted.
-
-
-**Raises**:
-
-- `TypeError` - If any key entry is not a string.
-- `ValueError` - If a key sequence contains duplicates.
-
-<a id="config_as_json.list_validators.ListOfDictsKeysValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: Config,
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate one list-of-dicts member against the configured keys.
-
-**Arguments**:
-
-- `config` - The Config object that owns the member.
-- `member_name` - The name of the list member to validate.
-- `member_value` - The list value to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  A new list containing the validated dict elements.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - If the member is not a list, one element is
-  not a dict, one dict misses a mandatory key, or one dict has
-  an unknown key while ``allow_extra_dict_keys`` is ``False``.
 
 <a id="config_as_json.assert_dict_equal"></a>
 
@@ -9971,6 +9688,330 @@ literal data key.
 - `JsonWriteHookError` - A matched value has the wrong type, a
   converter raises an error that should be wrapped with path
   context, or a conversion result is not JSON-compatible.
+
+<a id="config_as_json.list_value_validators"></a>
+
+# config\_as\_json.list\_value\_validators
+
+Implement value and size validators for list members.
+
+<a id="config_as_json.list_value_validators._validate_list_element_type"></a>
+
+#### \_validate\_list\_element\_type
+
+```python
+def _validate_list_element_type(element_type: type[object]) -> None
+```
+
+Validate that a list validator uses one supported runtime type.
+
+**Arguments**:
+
+- `element_type` - The element type configured for a list validator.
+
+
+**Raises**:
+
+- `TypeError` - If ``element_type`` is not exactly ``int``, ``float``,
+  ``str``, or ``bool``.
+
+<a id="config_as_json.list_value_validators._validate_list_size_bounds"></a>
+
+#### \_validate\_list\_size\_bounds
+
+```python
+def _validate_list_size_bounds(min_size: int, max_size: int) -> None
+```
+
+Validate constructor bounds for ``ListSizeValidator``.
+
+**Arguments**:
+
+- `min_size` - Minimum allowed list size.
+- `max_size` - Maximum allowed list size.
+
+
+**Raises**:
+
+- `TypeError` - If one bound is not exactly an ``int``.
+- `ValueError` - If one bound is negative or ``min_size`` exceeds
+  ``max_size``.
+
+<a id="config_as_json.list_value_validators._indexed_not_allowed_message"></a>
+
+#### \_indexed\_not\_allowed\_message
+
+```python
+def _indexed_not_allowed_message(member_name: str, member_value: object,
+                                 member_index: int,
+                                 allowed_values: Sequence[object],
+                                 stderr_file: Optional[TextIO]) -> str
+```
+
+Construct a message for a list element outside the allowed values.
+
+Construct a message that one element in a list value is not one of the
+allowed values. If ``stderr_file`` is not ``None``, the message is
+written to it.
+
+**Arguments**:
+
+- `member_name` - The name of the member that has the invalid list value.
+- `member_value` - The invalid element value in the list.
+- `member_index` - The index of the invalid element in the list.
+- `allowed_values` - The allowed values for elements in the list.
+- `stderr_file` - The file to optionally write error messages to.
+  If set to ``None`` explicitly, printing is suppressed.
+
+
+**Returns**:
+
+  A string containing the error message.
+
+<a id="config_as_json.list_value_validators._IndexedInvalidCfgValue"></a>
+
+## \_IndexedInvalidCfgValue Objects
+
+```python
+class _IndexedInvalidCfgValue(InvalidConfigurationValue)
+```
+
+Raised when a list element value is not one of the allowed values.
+
+<a id="config_as_json.list_value_validators._IndexedInvalidCfgValue.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(member_name: str, member_value: object, member_index: int,
+             allowed_values: Sequence[object]) -> None
+```
+
+Initialize the exception.
+
+<a id="config_as_json.list_value_validators.ListValueValidator"></a>
+
+## ListValueValidator Objects
+
+```python
+class ListValueValidator(MemberValidator, Generic[Basictype])
+```
+
+Validate values in a list of basic scalar values.
+
+<a id="config_as_json.list_value_validators.ListValueValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    min_value: Optional[Basictype],
+    max_value: Optional[Basictype],
+    allowed_values: Optional[Sequence[Basictype]
+                             | Callable[[], Sequence[Basictype]]],
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
+```
+
+Initialize the validator.
+
+The validator checks that the member value is a list containing only
+values of the inferred scalar runtime type. Each element value must
+satisfy every configured constraint: lower bound, upper bound, and
+allowed-values membership.
+At least one of min_value, max_value, or allowed_values must be
+provided.
+
+**Arguments**:
+
+- `min_value` - Minimum allowed member element value.
+  If ``None``, no minimum value is checked.
+- `max_value` - Maximum allowed member element value.
+  If ``None``, no maximum value is checked.
+- `allowed_values` - The only allowed values for the elements of
+  the member.
+  If ``None``, no allowed-values check is done.
+  If a callable, it is called at validation time
+  to get the allowed values.
+- `lt_comparator` - Comparator function for the element values.
+  Defaults to the < operator.
+
+
+**Raises**:
+
+- `ValueError` - If no constraints are provided.
+- `ValueError` - If allowed_values is provided as an empty sequence.
+- `ValueError` - If min_value is greater than max_value.
+- `TypeError` - If incompatible or mixed runtime types are used.
+
+<a id="config_as_json.list_value_validators.ListValueValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one list member against elementwise constraints.
+
+The validator accepts only actual list values. Each element in the
+list must be an instance of the inferred constraint type and must
+satisfy every configured constraint. The custom comparator is used
+only for lower-bound and upper-bound checks. Membership in
+``allowed_values`` uses the normal equality semantics of ``in``.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - The member is not a list or one element does
+  not satisfy type or range constraints.
+- `InvalidConfigurationValue` - One element is not one of the allowed
+  values.
+
+
+**Returns**:
+
+  The original list value if the validation check passes.
+
+<a id="config_as_json.list_value_validators.ListSizeValidator"></a>
+
+## ListSizeValidator Objects
+
+```python
+class ListSizeValidator(MemberValidator)
+```
+
+Validate that a list length stays within mandatory size bounds.
+
+<a id="config_as_json.list_value_validators.ListSizeValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(min_size: int, max_size: int) -> None
+```
+
+Initialize the validator.
+
+The validator accepts only actual list values. The list length must be
+between ``min_size`` and ``max_size``, inclusive.
+
+**Arguments**:
+
+- `min_size` - Minimum allowed size of the list.
+- `max_size` - Maximum allowed size of the list.
+
+
+**Raises**:
+
+- `TypeError` - If one bound is not exactly an ``int``.
+- `ValueError` - If one bound is negative or ``min_size`` exceeds
+  ``max_size``.
+
+<a id="config_as_json.list_value_validators.ListSizeValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one list member against the configured size bounds.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The original list value if validation succeeds.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list or its size is
+  outside the allowed range.
+
+<a id="config_as_json.list_value_validators.ListValueTypeValidator"></a>
+
+## ListValueTypeValidator Objects
+
+```python
+class ListValueTypeValidator(MemberValidator)
+```
+
+Validate that a member is a list with one element runtime type.
+
+<a id="config_as_json.list_value_validators.ListValueTypeValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(element_type: type[object]) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `element_type` - Required runtime type for each list element.
+
+
+**Raises**:
+
+- `TypeError` - If ``element_type`` is not a type.
+
+<a id="config_as_json.list_value_validators.ListValueTypeValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate one list member's element types.
+
+The element checks use normal ``isinstance`` semantics. For example,
+``ListValueTypeValidator(int)`` accepts ``True`` because ``bool`` is
+a subclass of ``int`` in Python.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The original list value if validation succeeds.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list or one element
+  is not an instance of ``element_type``.
 
 <a id="config_as_json.config_nesting"></a>
 

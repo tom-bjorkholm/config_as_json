@@ -7,7 +7,7 @@
 import sys
 from typing import Optional, TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
-from config_as_json.list_validators import ListIsOrderedValidator
+from config_as_json.list_ordering_validators import ListIsOrderedValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.validator import ValidationPlan, MemberValidationStep
 from .config_excel_list_transform_validated import \
