@@ -249,7 +249,7 @@ class ConfigExcelListTransform(Config, Generic[Column]):
     def sort_sx_hook(self) -> None:
         """Sort s[0-9]_ as needed (hook)."""
 
-    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+    def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old test config files."""
         return ExcelListTransformReadOldConfig()
 

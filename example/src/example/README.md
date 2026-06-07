@@ -1060,7 +1060,7 @@ The example demonstrates three kinds of compatibility:
 - `debug_trace` only existed in the old format and is removed
 
 The current configuration class handles this by overriding
-`_get_read_old_configuration()` and returning a small
+`_get_read_old_config()` and returning a small
 `ReadOldConfiguration` subclass. That subclass describes the compatibility
 rules:
 

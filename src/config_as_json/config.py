@@ -16,6 +16,7 @@ plan integration.
 from copy import deepcopy
 import json
 import sys
+import warnings
 from typing import Optional, Type, NamedTuple, Callable, TextIO, TypeVar
 from enum import Enum
 from config_as_json.str_to_enum import string_to_enum_best_match
@@ -69,6 +70,26 @@ ParseConverter = NamedTuple('ParseConverter', [('result_type', type),
                                                ('args',
                                                 dict[str, object])])
 """Describe how one parsed JSON value should be converted after loading."""
+
+
+_OLD_READ_OLD_CONFIG_HOOK = '_get_read_old_configuration'
+_NEW_READ_OLD_CONFIG_HOOK = '_get_read_old_config'
+
+
+def _method_is_overridden(instance: object, method_name: str) -> bool:
+    """Return whether a method is overridden below Config."""
+    for cls in type(instance).__mro__:
+        if method_name in cls.__dict__:
+            return cls is not Config
+    raise AttributeError(method_name)
+
+
+def _warn_deprecated_hook(old_name: str, new_name: str,
+                          stacklevel: int) -> None:
+    """Warn that a deprecated Config hook name was used."""
+    msg = f'Config.{old_name}() is deprecated; '
+    msg += f'use {new_name}() instead.'
+    warnings.warn(msg, DeprecationWarning, stacklevel=stacklevel)
 
 
 _T = TypeVar('_T', int, str, bool, float)
@@ -252,14 +273,53 @@ class Config():
         """
         return {}
 
-    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+    def _use_deprecated_hook(self, old_name: str, new_name: str) -> bool:
+        """Return whether a deprecated hook override should be used."""
+        old_overridden = _method_is_overridden(self, old_name)
+        new_overridden = _method_is_overridden(self, new_name)
+        if not old_overridden:
+            return False
+        if new_overridden:
+            msg = 'Config subclass overrides both '
+            msg += f'{old_name}() and {new_name}(). '
+            msg += f'Remove deprecated {old_name}().'
+            raise TypeError(msg)
+        _warn_deprecated_hook(old_name, new_name, stacklevel=4)
+        return True
+
+    def _get_active_rocf(self) -> ReadOldConfiguration:
+        """Return the read-old processor from the active hook."""
+        if self._use_deprecated_hook(_OLD_READ_OLD_CONFIG_HOOK,
+                                     _NEW_READ_OLD_CONFIG_HOOK):
+            return self._get_read_old_configuration()
+        return self._get_read_old_config()
+
+    def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old configuration data.
 
         Derived classes override this method when they need to accept old
         configuration file shapes. The default object leaves parsed data
         unchanged.
+
+        Returns:
+            Read-old processor that should normalize old configuration data.
         """
         return ReadOldConfiguration()
+
+    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+        """Return the object that normalizes old configuration data.
+
+        .. deprecated:: 1.1.2
+           Use :meth:`_get_read_old_config` instead. The deprecated name is
+           kept during an API migration period so old subclasses continue to
+           work when they override it.
+
+        Returns:
+            Read-old processor that should normalize old configuration data.
+        """
+        _warn_deprecated_hook(_OLD_READ_OLD_CONFIG_HOOK,
+                              _NEW_READ_OLD_CONFIG_HOOK, stacklevel=2)
+        return self._get_read_old_config()
 
     @staticmethod
     def check_key_match(
@@ -673,7 +733,7 @@ class Config():
             raise ConfigBadJson(msg=msg, doc=from_json_text, pos=0)
         assert data is not None  # runtime checked above, tell mypy it's ok
         assert isinstance(data, dict)  # tell mypy it's ok
-        rocf = self._get_read_old_configuration()
+        rocf = self._get_active_rocf()
         data_obj = rocf.process_json(json_data=data,
                                      auto_ch_hook=self._hook_cfg_autochange,
                                      stderr_file=stderr_file)

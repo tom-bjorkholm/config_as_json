@@ -5,8 +5,10 @@
 # MIT License
 
 from enum import Enum, auto
+from io import StringIO
 import json
 import sys
+import warnings
 from typing import Optional, cast, override, TextIO
 import pytest
 from pytest import CaptureFixture
@@ -42,13 +44,64 @@ class AbcConfig(Config):
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file)
 
-    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+    def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old test files."""
         return AbcReadOldConfig()
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
         return []
+
+
+class HookReadOldConfig(ReadOldConfiguration):
+    """Read-old processor returned by hook compatibility tests."""
+
+    def get_missing_path_values(self) -> dict[ConfigPath, object]:
+        """Return a missing value that proves the hook was used."""
+        return {('name',): 'legacy'}
+
+
+class HookConfigBase(Config):
+    """Base configuration for read-old hook compatibility tests."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr) -> None:
+        """Construct a simple configuration with one current member."""
+        self.name = 'current'
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=None, stderr_file=stderr_file)
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        return []
+
+
+class NewHookConfig(HookConfigBase):
+    """Config using the current read-old hook name."""
+
+    @override
+    def _get_read_old_config(self) -> ReadOldConfiguration:
+        """Return the read-old processor through the current hook."""
+        return HookReadOldConfig()
+
+
+class LegacyHookConfig(HookConfigBase):
+    """Config using the deprecated read-old hook name."""
+
+    @override
+    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+        """Return the read-old processor through the deprecated hook."""
+        return HookReadOldConfig()
+
+
+class ConflictingHookConfig(LegacyHookConfig):
+    """Config overriding both read-old hook names."""
+
+    @override
+    def _get_read_old_config(self) -> ReadOldConfiguration:
+        """Return the read-old processor through the current hook."""
+        return HookReadOldConfig()
 
 
 class OptionalOutputMode(Enum):
@@ -342,7 +395,7 @@ class RocfRemoveConfig(Config):
                          from_json_filename=None, auto_ch_hook=auto_ch_hook,
                          stderr_file=stderr_file)
 
-    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+    def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old test files."""
         return RocfRemoveReadOldConfig()
 
@@ -363,6 +416,44 @@ def test_cfg_abc_dump_ok(capsys: CaptureFixture[str]) -> None:
     for _ in range(10):
         jstext = jstext.replace('  ', ' ')
     assert jstext == '{ "ab": "a1b2", "cd": "c3d4", "ef": "e5f6" }'
+
+
+def test_new_rocf_hook_no_warn() -> None:
+    """Current read-old hook name works without deprecation warnings."""
+    stderr = StringIO()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        cfg = NewHookConfig(from_json_data_text='{}', stderr_file=stderr)
+    assert cfg.name == 'legacy'
+    assert not caught
+    assert stderr.getvalue() == ''
+
+
+def test_depr_rocf_hook_warns() -> None:
+    """Deprecated read-old hook override warns and still works."""
+    stderr = StringIO()
+    with pytest.warns(DeprecationWarning, match='_get_read_old_config'):
+        cfg = LegacyHookConfig(from_json_data_text='{}', stderr_file=stderr)
+    assert cfg.name == 'legacy'
+    assert stderr.getvalue() == ''
+
+
+def test_depr_rocf_direct() -> None:
+    """Deprecated read-old hook warns when called directly."""
+    cfg = NewHookConfig(stderr_file=StringIO())
+    with pytest.warns(DeprecationWarning, match='_get_read_old_config'):
+        # pylint: disable-next=protected-access
+        rocf = cfg._get_read_old_configuration()
+    assert isinstance(rocf, HookReadOldConfig)
+
+
+def test_rocf_hook_conflict() -> None:
+    """Overriding both read-old hook names is invalid."""
+    with pytest.raises(TypeError) as exc:
+        _ = ConflictingHookConfig(from_json_data_text='{}',
+                                  stderr_file=StringIO())
+    assert '_get_read_old_configuration()' in str(exc.value)
+    assert '_get_read_old_config()' in str(exc.value)
 
 
 def test_omit_none_defaults(capsys: CaptureFixture[str]) -> None:

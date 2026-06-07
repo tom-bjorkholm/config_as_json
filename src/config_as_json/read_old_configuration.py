@@ -303,7 +303,7 @@ class ReadOldConfiguration:
     Applications derive from this class when the current ``Config`` subclass
     should accept configuration files written by older application versions.
     The current ``Config`` subclass normally returns that derived object from
-    ``_get_read_old_configuration()``.
+    ``_get_read_old_config()``.
 
     The config_as_json library calls this object while reading every
     configuration file. It has already decoded JSON text and may already have

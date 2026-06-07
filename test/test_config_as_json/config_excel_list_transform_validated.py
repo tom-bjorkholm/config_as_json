@@ -238,9 +238,8 @@ class ConfigExcelTransformValidated(Config, Generic[Column]):
         LegacyConfigExcelListTransform.get_converter_dict)
     parse_converters = LegacyConfigExcelListTransform.parse_converters
 
-    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+    def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old test config files."""
         legacy_self = cast(LegacyConfigExcelListTransform[Column], self)
         # pylint: disable=protected-access
-        return LegacyConfigExcelListTransform._get_read_old_configuration(
-            legacy_self)
+        return LegacyConfigExcelListTransform._get_read_old_config(legacy_self)

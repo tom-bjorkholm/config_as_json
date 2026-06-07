@@ -160,7 +160,7 @@ class ExampleConfig40(Config):
                          from_json_filename=from_json_filename,
                          auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
 
-    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+    def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old e40 files."""
         return Example40ReadOldConfig()
 

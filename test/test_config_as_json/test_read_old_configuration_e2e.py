@@ -220,7 +220,7 @@ class E2EConfig(Config):
                                           config_type=E2EExportConfig)
         }
 
-    def _get_read_old_configuration(self) -> ReadOldConfiguration:
+    def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old test data."""
         return E2EReadOldConfig()
 

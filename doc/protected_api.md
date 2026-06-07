@@ -119,11 +119,16 @@
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [\_over\_ride\_needed](#config_as_json.config._over_ride_needed)
   * [ParseConverter](#config_as_json.config.ParseConverter)
+  * [\_method\_is\_overridden](#config_as_json.config._method_is_overridden)
+  * [\_warn\_deprecated\_hook](#config_as_json.config._warn_deprecated_hook)
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [parse\_converters](#config_as_json.config.Config.parse_converters)
     * [serialize\_converters](#config_as_json.config.Config.serialize_converters)
     * [nested\_configs](#config_as_json.config.Config.nested_configs)
+    * [\_use\_deprecated\_hook](#config_as_json.config.Config._use_deprecated_hook)
+    * [\_get\_active\_rocf](#config_as_json.config.Config._get_active_rocf)
+    * [\_get\_read\_old\_config](#config_as_json.config.Config._get_read_old_config)
     * [\_get\_read\_old\_configuration](#config_as_json.config.Config._get_read_old_configuration)
     * [check\_key\_match](#config_as_json.config.Config.check_key_match)
     * [check\_dict\_parse](#config_as_json.config.Config.check_dict_parse)
@@ -2605,6 +2610,27 @@ real conversion recipes.
 
 Describe how one parsed JSON value should be converted after loading.
 
+<a id="config_as_json.config._method_is_overridden"></a>
+
+#### \_method\_is\_overridden
+
+```python
+def _method_is_overridden(instance: object, method_name: str) -> bool
+```
+
+Return whether a method is overridden below Config.
+
+<a id="config_as_json.config._warn_deprecated_hook"></a>
+
+#### \_warn\_deprecated\_hook
+
+```python
+def _warn_deprecated_hook(old_name: str, new_name: str,
+                          stacklevel: int) -> None
+```
+
+Warn that a deprecated Config hook name was used.
+
 <a id="config_as_json.config.Config"></a>
 
 ## Config Objects
@@ -2778,6 +2804,40 @@ parsing, validation, mutation, diagnostics, or other side effects.
 Values should be constant from the time ``super().__init__`` is
 called. Every nested Config object needs a declaration.
 
+<a id="config_as_json.config.Config._use_deprecated_hook"></a>
+
+#### \_use\_deprecated\_hook
+
+```python
+def _use_deprecated_hook(old_name: str, new_name: str) -> bool
+```
+
+Return whether a deprecated hook override should be used.
+
+<a id="config_as_json.config.Config._get_active_rocf"></a>
+
+#### \_get\_active\_rocf
+
+```python
+def _get_active_rocf() -> ReadOldConfiguration
+```
+
+Return the read-old processor from the active hook.
+
+<a id="config_as_json.config.Config._get_read_old_config"></a>
+
+#### \_get\_read\_old\_config
+
+```python
+def _get_read_old_config() -> ReadOldConfiguration
+```
+
+Return the object that normalizes old configuration data.
+
+Derived classes override this method when they need to accept old
+configuration file shapes. The default object leaves parsed data
+unchanged.
+
 <a id="config_as_json.config.Config._get_read_old_configuration"></a>
 
 #### \_get\_read\_old\_configuration
@@ -2788,9 +2848,14 @@ def _get_read_old_configuration() -> ReadOldConfiguration
 
 Return the object that normalizes old configuration data.
 
-Derived classes override this method when they need to accept old
-configuration file shapes. The default object leaves parsed data
-unchanged.
+.. deprecated:: 1.1.2
+Use :meth:`_get_read_old_config` instead. The deprecated name is
+kept during an API migration period so old subclasses continue to
+work when they override it.
+
+**Returns**:
+
+  Read-old processor that should normalize old configuration data.
 
 <a id="config_as_json.config.Config.check_key_match"></a>
 
@@ -7574,7 +7639,7 @@ Base class for application-specific old-file compatibility.
 Applications derive from this class when the current ``Config`` subclass
 should accept configuration files written by older application versions.
 The current ``Config`` subclass normally returns that derived object from
-``_get_read_old_configuration()``.
+``_get_read_old_config()``.
 
 The config_as_json library calls this object while reading every
 configuration file. It has already decoded JSON text and may already have
