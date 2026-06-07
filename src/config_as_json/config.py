@@ -16,7 +16,6 @@ plan integration.
 from copy import deepcopy
 import json
 import sys
-import warnings
 from typing import Optional, Type, NamedTuple, Callable, TextIO, TypeVar
 from enum import Enum
 from config_as_json.str_to_enum import string_to_enum_best_match
@@ -29,6 +28,9 @@ from config_as_json._config_nesting_io import _nested_config_from_json, \
     _nested_config_json_data, _validate_nested_config
 from config_as_json._config_initial_data import copy_initial_data_impl, \
     auto_wrap_nested_defaults_impl
+from config_as_json._deprecated_support import DeprecatedHook, \
+    use_deprecated_hook, \
+    warn_deprecated_hook
 from config_as_json.json_write_hooks import SerializeConverters, \
     apply_serialize_converters
 from config_as_json.read_old_configuration import ReadOldConfiguration
@@ -72,24 +74,9 @@ ParseConverter = NamedTuple('ParseConverter', [('result_type', type),
 """Describe how one parsed JSON value should be converted after loading."""
 
 
-_OLD_READ_OLD_CONFIG_HOOK = '_get_read_old_configuration'
-_NEW_READ_OLD_CONFIG_HOOK = '_get_read_old_config'
-
-
-def _method_is_overridden(instance: object, method_name: str) -> bool:
-    """Return whether a method is overridden below Config."""
-    for cls in type(instance).__mro__:
-        if method_name in cls.__dict__:
-            return cls is not Config
-    raise AttributeError(method_name)
-
-
-def _warn_deprecated_hook(old_name: str, new_name: str,
-                          stacklevel: int) -> None:
-    """Warn that a deprecated Config hook name was used."""
-    msg = f'Config.{old_name}() is deprecated; '
-    msg += f'use {new_name}() instead.'
-    warnings.warn(msg, DeprecationWarning, stacklevel=stacklevel)
+_READ_OLD_CONFIG_HOOK = DeprecatedHook(owner_name='Config',
+                                       old_name='_get_read_old_configuration',
+                                       new_name='_get_read_old_config')
 
 
 _T = TypeVar('_T', int, str, bool, float)
@@ -273,24 +260,10 @@ class Config():
         """
         return {}
 
-    def _use_deprecated_hook(self, old_name: str, new_name: str) -> bool:
-        """Return whether a deprecated hook override should be used."""
-        old_overridden = _method_is_overridden(self, old_name)
-        new_overridden = _method_is_overridden(self, new_name)
-        if not old_overridden:
-            return False
-        if new_overridden:
-            msg = 'Config subclass overrides both '
-            msg += f'{old_name}() and {new_name}(). '
-            msg += f'Remove deprecated {old_name}().'
-            raise TypeError(msg)
-        _warn_deprecated_hook(old_name, new_name, stacklevel=4)
-        return True
-
     def _get_active_rocf(self) -> ReadOldConfiguration:
         """Return the read-old processor from the active hook."""
-        if self._use_deprecated_hook(_OLD_READ_OLD_CONFIG_HOOK,
-                                     _NEW_READ_OLD_CONFIG_HOOK):
+        if use_deprecated_hook(self, Config, _READ_OLD_CONFIG_HOOK,
+                               stacklevel=4):
             return self._get_read_old_configuration()
         return self._get_read_old_config()
 
@@ -317,8 +290,7 @@ class Config():
         Returns:
             Read-old processor that should normalize old configuration data.
         """
-        _warn_deprecated_hook(_OLD_READ_OLD_CONFIG_HOOK,
-                              _NEW_READ_OLD_CONFIG_HOOK, stacklevel=2)
+        warn_deprecated_hook(_READ_OLD_CONFIG_HOOK, stacklevel=2)
         return self._get_read_old_config()
 
     @staticmethod

@@ -85,6 +85,11 @@
   * [OptionalMemberValidator](#config_as_json.optional_validator.OptionalMemberValidator)
     * [\_\_init\_\_](#config_as_json.optional_validator.OptionalMemberValidator.__init__)
     * [validate\_member](#config_as_json.optional_validator.OptionalMemberValidator.validate_member)
+* [config\_as\_json.\_deprecated\_support](#config_as_json._deprecated_support)
+  * [DeprecatedHook](#config_as_json._deprecated_support.DeprecatedHook)
+  * [method\_is\_overridden](#config_as_json._deprecated_support.method_is_overridden)
+  * [warn\_deprecated\_hook](#config_as_json._deprecated_support.warn_deprecated_hook)
+  * [use\_deprecated\_hook](#config_as_json._deprecated_support.use_deprecated_hook)
 * [config\_as\_json.\_config\_nesting\_io](#config_as_json._config_nesting_io)
   * [\_NestedConfigEncoder](#config_as_json._config_nesting_io._NestedConfigEncoder)
     * [default](#config_as_json._config_nesting_io._NestedConfigEncoder.default)
@@ -119,14 +124,11 @@
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [\_over\_ride\_needed](#config_as_json.config._over_ride_needed)
   * [ParseConverter](#config_as_json.config.ParseConverter)
-  * [\_method\_is\_overridden](#config_as_json.config._method_is_overridden)
-  * [\_warn\_deprecated\_hook](#config_as_json.config._warn_deprecated_hook)
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [parse\_converters](#config_as_json.config.Config.parse_converters)
     * [serialize\_converters](#config_as_json.config.Config.serialize_converters)
     * [nested\_configs](#config_as_json.config.Config.nested_configs)
-    * [\_use\_deprecated\_hook](#config_as_json.config.Config._use_deprecated_hook)
     * [\_get\_active\_rocf](#config_as_json.config.Config._get_active_rocf)
     * [\_get\_read\_old\_config](#config_as_json.config.Config._get_read_old_config)
     * [\_get\_read\_old\_configuration](#config_as_json.config.Config._get_read_old_configuration)
@@ -335,8 +337,6 @@
   * [assert\_dict\_equal](#config_as_json.assert_dict_equal.assert_dict_equal)
 * [config\_as\_json.read\_old\_configuration](#config_as_json.read_old_configuration)
   * [\_identity\_value](#config_as_json.read_old_configuration._identity_value)
-  * [\_method\_is\_overridden](#config_as_json.read_old_configuration._method_is_overridden)
-  * [\_warn\_deprecated\_hook](#config_as_json.read_old_configuration._warn_deprecated_hook)
   * [RocfKeyMove](#config_as_json.read_old_configuration.RocfKeyMove)
   * [RocfKeyRename](#config_as_json.read_old_configuration.RocfKeyRename)
   * [\_validate\_move](#config_as_json.read_old_configuration._validate_move)
@@ -356,7 +356,6 @@
     * [\_move\_one\_path](#config_as_json.read_old_configuration.ReadOldConfiguration._move_one_path)
     * [\_target\_is\_current](#config_as_json.read_old_configuration.ReadOldConfiguration._target_is_current)
     * [\_apply\_missing\_values](#config_as_json.read_old_configuration.ReadOldConfiguration._apply_missing_values)
-    * [\_use\_deprecated\_hook](#config_as_json.read_old_configuration.ReadOldConfiguration._use_deprecated_hook)
     * [\_get\_keys\_to\_prune](#config_as_json.read_old_configuration.ReadOldConfiguration._get_keys_to_prune)
     * [\_get\_missing\_path\_values](#config_as_json.read_old_configuration.ReadOldConfiguration._get_missing_path_values)
     * [get\_json\_key\_moves](#config_as_json.read_old_configuration.ReadOldConfiguration.get_json_key_moves)
@@ -1959,6 +1958,54 @@ Validate one member if it is not None.
 
   The same exceptions as the supplied validator(s).
 
+<a id="config_as_json._deprecated_support"></a>
+
+# config\_as\_json.\_deprecated\_support
+
+Support compatibility shims for renamed internal hooks.
+
+<a id="config_as_json._deprecated_support.DeprecatedHook"></a>
+
+## DeprecatedHook Objects
+
+```python
+class DeprecatedHook(NamedTuple)
+```
+
+Describe a hook that was renamed during API migration.
+
+<a id="config_as_json._deprecated_support.method_is_overridden"></a>
+
+#### method\_is\_overridden
+
+```python
+def method_is_overridden(instance: object, method_name: str,
+                         base_class: type[object]) -> bool
+```
+
+Return whether a method is overridden below a base class.
+
+<a id="config_as_json._deprecated_support.warn_deprecated_hook"></a>
+
+#### warn\_deprecated\_hook
+
+```python
+def warn_deprecated_hook(hook: DeprecatedHook, stacklevel: int) -> None
+```
+
+Warn that a deprecated hook name was used.
+
+<a id="config_as_json._deprecated_support.use_deprecated_hook"></a>
+
+#### use\_deprecated\_hook
+
+```python
+def use_deprecated_hook(instance: object, base_class: type[object],
+                        hook: DeprecatedHook, stacklevel: int) -> bool
+```
+
+Return whether a deprecated hook override should be used.
+
 <a id="config_as_json._config_nesting_io"></a>
 
 # config\_as\_json.\_config\_nesting\_io
@@ -2610,27 +2657,6 @@ real conversion recipes.
 
 Describe how one parsed JSON value should be converted after loading.
 
-<a id="config_as_json.config._method_is_overridden"></a>
-
-#### \_method\_is\_overridden
-
-```python
-def _method_is_overridden(instance: object, method_name: str) -> bool
-```
-
-Return whether a method is overridden below Config.
-
-<a id="config_as_json.config._warn_deprecated_hook"></a>
-
-#### \_warn\_deprecated\_hook
-
-```python
-def _warn_deprecated_hook(old_name: str, new_name: str,
-                          stacklevel: int) -> None
-```
-
-Warn that a deprecated Config hook name was used.
-
 <a id="config_as_json.config.Config"></a>
 
 ## Config Objects
@@ -2804,16 +2830,6 @@ parsing, validation, mutation, diagnostics, or other side effects.
 Values should be constant from the time ``super().__init__`` is
 called. Every nested Config object needs a declaration.
 
-<a id="config_as_json.config.Config._use_deprecated_hook"></a>
-
-#### \_use\_deprecated\_hook
-
-```python
-def _use_deprecated_hook(old_name: str, new_name: str) -> bool
-```
-
-Return whether a deprecated hook override should be used.
-
 <a id="config_as_json.config.Config._get_active_rocf"></a>
 
 #### \_get\_active\_rocf
@@ -2837,6 +2853,10 @@ Return the object that normalizes old configuration data.
 Derived classes override this method when they need to accept old
 configuration file shapes. The default object leaves parsed data
 unchanged.
+
+**Returns**:
+
+  Read-old processor that should normalize old configuration data.
 
 <a id="config_as_json.config.Config._get_read_old_configuration"></a>
 
@@ -7415,27 +7435,6 @@ def _identity_value(value: object) -> object
 
 Return ``value`` unchanged for default transform callbacks.
 
-<a id="config_as_json.read_old_configuration._method_is_overridden"></a>
-
-#### \_method\_is\_overridden
-
-```python
-def _method_is_overridden(instance: object, method_name: str) -> bool
-```
-
-Return whether a method is overridden below ReadOldConfiguration.
-
-<a id="config_as_json.read_old_configuration._warn_deprecated_hook"></a>
-
-#### \_warn\_deprecated\_hook
-
-```python
-def _warn_deprecated_hook(old_name: str, new_name: str,
-                          stacklevel: int) -> None
-```
-
-Warn that a deprecated ReadOldConfiguration hook name was used.
-
 <a id="config_as_json.read_old_configuration.RocfKeyMove"></a>
 
 ## RocfKeyMove Objects
@@ -7816,16 +7815,6 @@ def _apply_missing_values(json_data: dict[str, object],
 ```
 
 Apply application-declared current missing-value rules.
-
-<a id="config_as_json.read_old_configuration.ReadOldConfiguration._use_deprecated_hook"></a>
-
-#### \_use\_deprecated\_hook
-
-```python
-def _use_deprecated_hook(old_name: str, new_name: str) -> bool
-```
-
-Return whether a deprecated hook override should be used.
 
 <a id="config_as_json.read_old_configuration.ReadOldConfiguration._get_keys_to_prune"></a>
 

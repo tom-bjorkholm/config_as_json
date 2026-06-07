@@ -59,6 +59,11 @@
   * [OptionalMemberValidator](#config_as_json.optional_validator.OptionalMemberValidator)
     * [\_\_init\_\_](#config_as_json.optional_validator.OptionalMemberValidator.__init__)
     * [validate\_member](#config_as_json.optional_validator.OptionalMemberValidator.validate_member)
+* [config\_as\_json.\_deprecated\_support](#config_as_json._deprecated_support)
+  * [DeprecatedHook](#config_as_json._deprecated_support.DeprecatedHook)
+  * [method\_is\_overridden](#config_as_json._deprecated_support.method_is_overridden)
+  * [warn\_deprecated\_hook](#config_as_json._deprecated_support.warn_deprecated_hook)
+  * [use\_deprecated\_hook](#config_as_json._deprecated_support.use_deprecated_hook)
 * [config\_as\_json.config\_auto\_change\_hook](#config_as_json.config_auto_change_hook)
   * [ConfigAutoChangeHook](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook)
     * [\_\_init\_\_](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.__init__)
@@ -1366,6 +1371,54 @@ Validate one member if it is not None.
 **Raises**:
 
   The same exceptions as the supplied validator(s).
+
+<a id="config_as_json._deprecated_support"></a>
+
+# config\_as\_json.\_deprecated\_support
+
+Support compatibility shims for renamed internal hooks.
+
+<a id="config_as_json._deprecated_support.DeprecatedHook"></a>
+
+## DeprecatedHook Objects
+
+```python
+class DeprecatedHook(NamedTuple)
+```
+
+Describe a hook that was renamed during API migration.
+
+<a id="config_as_json._deprecated_support.method_is_overridden"></a>
+
+#### method\_is\_overridden
+
+```python
+def method_is_overridden(instance: object, method_name: str,
+                         base_class: type[object]) -> bool
+```
+
+Return whether a method is overridden below a base class.
+
+<a id="config_as_json._deprecated_support.warn_deprecated_hook"></a>
+
+#### warn\_deprecated\_hook
+
+```python
+def warn_deprecated_hook(hook: DeprecatedHook, stacklevel: int) -> None
+```
+
+Warn that a deprecated hook name was used.
+
+<a id="config_as_json._deprecated_support.use_deprecated_hook"></a>
+
+#### use\_deprecated\_hook
+
+```python
+def use_deprecated_hook(instance: object, base_class: type[object],
+                        hook: DeprecatedHook, stacklevel: int) -> bool
+```
+
+Return whether a deprecated hook override should be used.
 
 <a id="config_as_json.config_auto_change_hook"></a>
 

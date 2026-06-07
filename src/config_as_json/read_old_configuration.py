@@ -10,10 +10,12 @@ while reading JSON, before validation and nested ``Config`` conversion.
 # MIT License
 
 from copy import deepcopy
-import warnings
 from typing import Callable, NamedTuple, Optional, TextIO
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import ConfigPath
+from config_as_json._deprecated_support import DeprecatedHook, \
+    use_deprecated_hook, \
+    warn_deprecated_hook
 from config_as_json.rocf_value_migration import RocfConflictError, \
     RocfValueMigration, \
     _MoveContext, _MovedValue, _as_dict, _as_list, _collect_path_values, \
@@ -27,31 +29,17 @@ type RocfPath = ConfigPath
 """Backward-compatible alias for ``ConfigPath``."""
 
 
-_OLD_PRUNE_HOOK = 'get_keys_to_remove_recursively'
-_NEW_PRUNE_HOOK = 'get_keys_to_prune'
-_OLD_MISSING_HOOK = 'get_values_for_missing_json_keys'
-_NEW_MISSING_HOOK = 'get_missing_path_values'
+_PRUNE_HOOK = DeprecatedHook(owner_name='ReadOldConfiguration',
+                             old_name='get_keys_to_remove_recursively',
+                             new_name='get_keys_to_prune')
+_MISSING_HOOK = DeprecatedHook(owner_name='ReadOldConfiguration',
+                               old_name='get_values_for_missing_json_keys',
+                               new_name='get_missing_path_values')
 
 
 def _identity_value(value: object) -> object:
     """Return ``value`` unchanged for default transform callbacks."""
     return value
-
-
-def _method_is_overridden(instance: object, method_name: str) -> bool:
-    """Return whether a method is overridden below ReadOldConfiguration."""
-    for cls in type(instance).__mro__:
-        if method_name in cls.__dict__:
-            return cls is not ReadOldConfiguration
-    raise AttributeError(method_name)
-
-
-def _warn_deprecated_hook(old_name: str, new_name: str,
-                          stacklevel: int) -> None:
-    """Warn that a deprecated ReadOldConfiguration hook name was used."""
-    msg = f'ReadOldConfiguration.{old_name}() is deprecated; '
-    msg += f'use {new_name}() instead.'
-    warnings.warn(msg, DeprecationWarning, stacklevel=stacklevel)
 
 
 class RocfKeyMove(NamedTuple):
@@ -492,29 +480,17 @@ class ReadOldConfiguration:
             for applied_path in _apply_missing(json_data, path, value, []):
                 auto_ch_hook.rocf_missing_value_provided(applied_path)
 
-    def _use_deprecated_hook(self, old_name: str, new_name: str) -> bool:
-        """Return whether a deprecated hook override should be used."""
-        old_overridden = _method_is_overridden(self, old_name)
-        new_overridden = _method_is_overridden(self, new_name)
-        if old_overridden and new_overridden:
-            msg = 'ReadOldConfiguration subclass overrides both '
-            msg += f'{old_name}() and {new_name}(). '
-            msg += f'Remove deprecated {old_name}().'
-            raise TypeError(msg)
-        if old_overridden:
-            _warn_deprecated_hook(old_name, new_name, stacklevel=4)
-            return True
-        return False
-
     def _get_keys_to_prune(self) -> list[str]:
         """Return recursive remove keys from the active public hook."""
-        if self._use_deprecated_hook(_OLD_PRUNE_HOOK, _NEW_PRUNE_HOOK):
+        if use_deprecated_hook(self, ReadOldConfiguration, _PRUNE_HOOK,
+                               stacklevel=4):
             return self.get_keys_to_remove_recursively()
         return self.get_keys_to_prune()
 
     def _get_missing_path_values(self) -> dict[ConfigPath, object]:
         """Return missing path values from the active public hook."""
-        if self._use_deprecated_hook(_OLD_MISSING_HOOK, _NEW_MISSING_HOOK):
+        if use_deprecated_hook(self, ReadOldConfiguration, _MISSING_HOOK,
+                               stacklevel=4):
             return self.get_values_for_missing_json_keys()
         return self.get_missing_path_values()
 
@@ -600,7 +576,7 @@ class ReadOldConfiguration:
         Returns:
             Old dictionary member names that should be accepted and removed.
         """
-        _warn_deprecated_hook(_OLD_PRUNE_HOOK, _NEW_PRUNE_HOOK, stacklevel=2)
+        warn_deprecated_hook(_PRUNE_HOOK, stacklevel=2)
         return []
 
     def get_keys_to_remove(self) -> list[ConfigPath]:
@@ -667,8 +643,7 @@ class ReadOldConfiguration:
         Returns:
             A mapping from current paths to values supplied when absent.
         """
-        _warn_deprecated_hook(_OLD_MISSING_HOOK, _NEW_MISSING_HOOK,
-                              stacklevel=2)
+        warn_deprecated_hook(_MISSING_HOOK, stacklevel=2)
         return {}
 
     def get_json_key_renames(self) -> list[RocfKeyRename]:

@@ -11,6 +11,7 @@
 from io import StringIO
 from typing import Optional, TextIO, cast
 import pytest
+import config_as_json._deprecated_support as depr_mod
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import ConfigPath
 from config_as_json.validator import InvalidConfiguration
@@ -69,8 +70,9 @@ def assert_no_error(stderr_file: StringIO) -> None:
 def test_method_unknown_raises() -> None:
     """Test method override detection for unknown method names."""
     with pytest.raises(AttributeError) as exc:
-        _ = read_mod._method_is_overridden(read_mod.ReadOldConfiguration(),
-                                           'missing_hook')
+        _ = depr_mod.method_is_overridden(read_mod.ReadOldConfiguration(),
+                                          'missing_hook',
+                                          read_mod.ReadOldConfiguration)
     assert str(exc.value) == 'missing_hook'
 
 
