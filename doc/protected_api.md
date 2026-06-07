@@ -297,12 +297,21 @@
   * [config\_factory\_from\_json](#config_as_json.config_factory.config_factory_from_json)
 * [config\_as\_json.list\_validators](#config_as_json.list_validators)
   * [Basictype](#config_as_json.list_validators.Basictype)
+  * [Elementtype](#config_as_json.list_validators.Elementtype)
+  * [InvalidListKeyType](#config_as_json.list_validators.InvalidListKeyType)
+    * [\_\_init\_\_](#config_as_json.list_validators.InvalidListKeyType.__init__)
+  * [\_validate\_basic\_list\_type](#config_as_json.list_validators._validate_basic_list_type)
   * [\_validate\_list\_element\_type](#config_as_json.list_validators._validate_list_element_type)
+  * [\_validate\_list\_key\_type](#config_as_json.list_validators._validate_list_key_type)
   * [\_validate\_list\_size\_bounds](#config_as_json.list_validators._validate_list_size_bounds)
   * [\_validate\_list\_member\_value](#config_as_json.list_validators._validate_list_member_value)
   * [\_validate\_typed\_list\_member](#config_as_json.list_validators._validate_typed_list_member)
+  * [\_validate\_keyed\_list\_member](#config_as_json.list_validators._validate_keyed_list_member)
+  * [\_compare\_values](#config_as_json.list_validators._compare_values)
   * [\_sort\_list\_values](#config_as_json.list_validators._sort_list_values)
+  * [\_sort\_keyed\_list\_values](#config_as_json.list_validators._sort_keyed_list_values)
   * [\_unique\_list\_values](#config_as_json.list_validators._unique_list_values)
+  * [\_unique\_keyed\_list\_values](#config_as_json.list_validators._unique_keyed_list_values)
   * [\_validate\_list\_order](#config_as_json.list_validators._validate_list_order)
   * [\_validate\_unique\_list\_values](#config_as_json.list_validators._validate_unique_list_values)
   * [\_indexed\_not\_allowed\_message](#config_as_json.list_validators._indexed_not_allowed_message)
@@ -323,6 +332,9 @@
   * [ListOrderingValidator](#config_as_json.list_validators.ListOrderingValidator)
     * [\_\_init\_\_](#config_as_json.list_validators.ListOrderingValidator.__init__)
     * [validate\_member](#config_as_json.list_validators.ListOrderingValidator.validate_member)
+  * [ListKeyOrderingValidator](#config_as_json.list_validators.ListKeyOrderingValidator)
+    * [\_\_init\_\_](#config_as_json.list_validators.ListKeyOrderingValidator.__init__)
+    * [validate\_member](#config_as_json.list_validators.ListKeyOrderingValidator.validate_member)
   * [\_validate\_for\_each\_element\_validators](#config_as_json.list_validators._validate_for_each_element_validators)
   * [\_validate\_for\_each\_element\_type](#config_as_json.list_validators._validate_for_each_element_type)
   * [ListForEachValidator](#config_as_json.list_validators.ListForEachValidator)
@@ -6440,6 +6452,55 @@ Implement list validators for config-as-json.
 
 Basic scalar type accepted by the list validators.
 
+<a id="config_as_json.list_validators.Elementtype"></a>
+
+#### Elementtype
+
+Element type accepted by key-based list ordering validators.
+
+<a id="config_as_json.list_validators.InvalidListKeyType"></a>
+
+## InvalidListKeyType Objects
+
+```python
+class InvalidListKeyType(InvalidConfiguration)
+```
+
+Raised when a key-ordering validator receives a key of wrong type.
+
+<a id="config_as_json.list_validators.InvalidListKeyType.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(member_name: str, member_index: int, key_value: object,
+             key_type: type[object]) -> None
+```
+
+Initialize the exception.
+
+<a id="config_as_json.list_validators._validate_basic_list_type"></a>
+
+#### \_validate\_basic\_list\_type
+
+```python
+def _validate_basic_list_type(value_type: type[object],
+                              parameter_name: str) -> None
+```
+
+Validate that a list validator uses one supported scalar type.
+
+**Arguments**:
+
+- `value_type` - The configured scalar type.
+- `parameter_name` - The constructor argument name used in error messages.
+
+
+**Raises**:
+
+- `TypeError` - If ``value_type`` is not exactly ``int``, ``float``,
+  ``str``, or ``bool``.
+
 <a id="config_as_json.list_validators._validate_list_element_type"></a>
 
 #### \_validate\_list\_element\_type
@@ -6458,6 +6519,26 @@ Validate that a list validator uses one supported runtime type.
 **Raises**:
 
 - `TypeError` - If ``element_type`` is not exactly ``int``, ``float``,
+  ``str``, or ``bool``.
+
+<a id="config_as_json.list_validators._validate_list_key_type"></a>
+
+#### \_validate\_list\_key\_type
+
+```python
+def _validate_list_key_type(key_type: type[object]) -> None
+```
+
+Validate that a key-ordering validator uses a supported key type.
+
+**Arguments**:
+
+- `key_type` - The key type configured for a list validator.
+
+
+**Raises**:
+
+- `TypeError` - If ``key_type`` is not exactly ``int``, ``float``,
   ``str``, or ``bool``.
 
 <a id="config_as_json.list_validators._validate_list_size_bounds"></a>
@@ -6539,6 +6620,53 @@ Validate that a member is a list with elements of one runtime type.
 - `InvalidConfiguration` - If the member is not a list or one element has
   the wrong runtime type.
 
+<a id="config_as_json.list_validators._validate_keyed_list_member"></a>
+
+#### \_validate\_keyed\_list\_member
+
+```python
+def _validate_keyed_list_member(
+        member_name: str, member_value: object,
+        element_type: type[Elementtype],
+        key: Callable[[Elementtype], Basictype], key_type: type[Basictype],
+        stderr_file: TextIO) -> list[tuple[Elementtype, Basictype]]
+```
+
+Validate one list and return each element with its projected key.
+
+**Arguments**:
+
+- `member_name` - The member name used in any error message.
+- `member_value` - The value to validate.
+- `element_type` - The required runtime type of each list element.
+- `key` - Callable that computes the ordering key for one element.
+- `key_type` - The required runtime type of each projected key.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  A list of ``(element, key)`` pairs.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list or one element has
+  the wrong runtime type.
+- `InvalidListKeyType` - If one projected key has the wrong runtime type.
+
+<a id="config_as_json.list_validators._compare_values"></a>
+
+#### \_compare\_values
+
+```python
+def _compare_values(
+        left: Basictype, right: Basictype,
+        lt_comparator: Callable[[Basictype, Basictype], bool]) -> int
+```
+
+Compare two values using a less-than comparator.
+
 <a id="config_as_json.list_validators._sort_list_values"></a>
 
 #### \_sort\_list\_values
@@ -6562,6 +6690,30 @@ Return a stably sorted list using a less-than comparator.
 
   A new sorted list.
 
+<a id="config_as_json.list_validators._sort_keyed_list_values"></a>
+
+#### \_sort\_keyed\_list\_values
+
+```python
+def _sort_keyed_list_values(
+        values: Sequence[tuple[Elementtype, Basictype]],
+        lt_comparator: Callable[[Basictype, Basictype], bool],
+        reverse: bool) -> list[tuple[Elementtype, Basictype]]
+```
+
+Return a stably sorted list using each element's projected key.
+
+**Arguments**:
+
+- `values` - The ``(element, key)`` pairs to sort.
+- `lt_comparator` - The less-than comparator used for keys.
+- `reverse` - Whether to reverse the final sort order.
+
+
+**Returns**:
+
+  A new sorted list of ``(element, key)`` pairs.
+
 <a id="config_as_json.list_validators._unique_list_values"></a>
 
 #### \_unique\_list\_values
@@ -6580,6 +6732,27 @@ Return the first occurrence of each value in the current order.
 **Returns**:
 
   A new list with only the first occurrence of each value kept.
+
+<a id="config_as_json.list_validators._unique_keyed_list_values"></a>
+
+#### \_unique\_keyed\_list\_values
+
+```python
+def _unique_keyed_list_values(
+    values: Sequence[tuple[Elementtype, Basictype]]
+) -> list[tuple[Elementtype, Basictype]]
+```
+
+Return the first element for each key in the current order.
+
+**Arguments**:
+
+- `values` - The ``(element, key)`` pairs to deduplicate.
+
+
+**Returns**:
+
+  A new list of ``(element, key)`` pairs with unique keys.
 
 <a id="config_as_json.list_validators._validate_list_order"></a>
 
@@ -7089,6 +7262,120 @@ Validate and normalize one list member.
 
 - `InvalidConfiguration` - If the member is not a list or one element
   has the wrong runtime type.
+
+<a id="config_as_json.list_validators.ListKeyOrderingValidator"></a>
+
+## ListKeyOrderingValidator Objects
+
+```python
+class ListKeyOrderingValidator(MemberValidator, Generic[Elementtype,
+                                                        Basictype])
+```
+
+Normalize one list by ordering complex elements through scalar keys.
+
+Use this validator when your configuration stores a list of complex
+elements, such as dictionaries, and your application wants that list
+normalized by one scalar value from each element.
+
+The member value must be a list. Every element must be an instance of
+``element_type`` according to normal ``isinstance`` semantics. The
+validator calls ``key`` once for every element, validates that the
+returned key is an instance of ``key_type``, and then orders or
+deduplicates the original elements through those keys. The supported key
+types are the same basic scalar types accepted by
+``ListOrderingValidator``: ``int``, ``float``, ``str``, and ``bool``.
+
+Your ``key`` callable owns the application-specific projection from one
+complex element to one scalar key. If the callable raises an exception,
+this validator does not catch or wrap it. Validate the element shape
+before this validator, or make the callable raise the exception you want
+application code to see.
+
+Ordering and duplicate removal are based on the projected keys, but the
+returned normalized list contains the original elements. If
+``keep_only_unique`` is true, later elements whose projected key is equal
+to a key already kept are removed. Duplicate-key detection uses normal
+Python equality semantics for the keys rather than ``lt_comparator``.
+
+<a id="config_as_json.list_validators.ListKeyOrderingValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    *,
+    element_type: type[Elementtype],
+    key: Callable[[Elementtype], Basictype],
+    key_type: type[Basictype],
+    order: bool = True,
+    reverse: bool = False,
+    keep_only_unique: bool = False,
+    lt_comparator: Callable[[Basictype, Basictype],
+                            bool] = operator_lt) -> None
+```
+
+Initialize the key-ordering validator.
+
+**Arguments**:
+
+- `element_type` - Runtime type required for each original list
+  element. For example, use ``dict`` for a list of
+  dictionaries.
+- `key` - Callable that computes the scalar ordering key for one
+  element. Exceptions raised by this callable propagate
+  unchanged.
+- `key_type` - Runtime type required for the keys returned by
+  ``key``. Must be one of ``int``, ``float``, ``str``, or
+  ``bool``.
+- `order` - Whether to sort the list by projected key.
+- `reverse` - Whether to reverse the sort order, or to reverse the
+  original list when ``order`` is false.
+- `keep_only_unique` - Whether to remove later elements with duplicate
+  projected keys after ordering or reversing.
+- `lt_comparator` - Comparator function for the projected keys.
+  Defaults to the < operator.
+
+
+**Raises**:
+
+- `TypeError` - If ``element_type`` is not a type, if ``key`` is not
+  callable, or if ``key_type`` is unsupported.
+
+<a id="config_as_json.list_validators.ListKeyOrderingValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: Config,
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate and normalize one list member by projected key.
+
+**Arguments**:
+
+- `config` - The Config object that owns the member.
+- `member_name` - The name of the member to validate.
+- `member_value` - The list value to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  A reordered or key-deduplicated list containing the original
+  elements. If no normalization is configured, the original list
+  value is returned unchanged.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - If the member is not a list or one element
+  has the wrong runtime type.
+- `InvalidListKeyType` - If ``key`` returns a value whose runtime type
+  is not accepted by ``key_type``.
 
 <a id="config_as_json.list_validators._validate_for_each_element_validators"></a>
 

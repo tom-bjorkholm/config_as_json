@@ -1,6 +1,8 @@
 #! /usr/local/bin/python3
 """Implement list validators for config-as-json."""
 
+# pylint: disable=too-many-lines
+
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
@@ -21,6 +23,44 @@ Basictype = TypeVar('Basictype', int, float, str, bool)
 """Basic scalar type accepted by the list validators."""
 
 
+Elementtype = TypeVar('Elementtype')
+"""Element type accepted by key-based list ordering validators."""
+
+
+class InvalidListKeyType(InvalidConfiguration):
+    """Raised when a key-ordering validator receives a key of wrong type."""
+
+    def __init__(self, member_name: str, member_index: int, key_value: object,
+                 key_type: type[object]) -> None:
+        """Initialize the exception."""
+        self.member_name: str = member_name
+        self.member_index: int = member_index
+        self.key_value: object = key_value
+        self.key_type: type[object] = key_type
+        msg = 'Invalid configuration: '
+        msg += f'Key value {key_value} for {member_name} '
+        msg += f'at index {member_index} '
+        msg += f'is not of type {key_type.__name__}.'
+        super().__init__(msg)
+
+
+def _validate_basic_list_type(value_type: type[object],
+                              parameter_name: str) -> None:
+    """Validate that a list validator uses one supported scalar type.
+
+    Args:
+        value_type: The configured scalar type.
+        parameter_name: The constructor argument name used in error messages.
+
+    Raises:
+        TypeError: If ``value_type`` is not exactly ``int``, ``float``,
+                   ``str``, or ``bool``.
+    """
+    if value_type not in (int, float, str, bool):
+        msg = f'{parameter_name} must be one of int, float, str, or bool.'
+        raise TypeError(msg)
+
+
 def _validate_list_element_type(element_type: type[object]) -> None:
     """Validate that a list validator uses one supported runtime type.
 
@@ -31,9 +71,20 @@ def _validate_list_element_type(element_type: type[object]) -> None:
         TypeError: If ``element_type`` is not exactly ``int``, ``float``,
                    ``str``, or ``bool``.
     """
-    if element_type not in (int, float, str, bool):
-        msg = 'element_type must be one of int, float, str, or bool.'
-        raise TypeError(msg)
+    _validate_basic_list_type(element_type, 'element_type')
+
+
+def _validate_list_key_type(key_type: type[object]) -> None:
+    """Validate that a key-ordering validator uses a supported key type.
+
+    Args:
+        key_type: The key type configured for a list validator.
+
+    Raises:
+        TypeError: If ``key_type`` is not exactly ``int``, ``float``,
+                   ``str``, or ``bool``.
+    """
+    _validate_basic_list_type(key_type, 'key_type')
 
 
 def _validate_list_size_bounds(min_size: int, max_size: int) -> None:
@@ -118,6 +169,65 @@ def _validate_typed_list_member(member_name: str, member_value: object,
     return typed_list
 
 
+# pylint: disable-next=too-many-arguments,too-many-positional-arguments
+def _validate_keyed_list_member(
+        member_name: str, member_value: object,
+        element_type: type[Elementtype], key: Callable[[Elementtype],
+                                                       Basictype],
+        key_type: type[Basictype], stderr_file: TextIO
+        ) -> list[tuple[Elementtype, Basictype]]:
+    """Validate one list and return each element with its projected key.
+
+    Args:
+        member_name: The member name used in any error message.
+        member_value: The value to validate.
+        element_type: The required runtime type of each list element.
+        key: Callable that computes the ordering key for one element.
+        key_type: The required runtime type of each projected key.
+        stderr_file: The file to write error messages to.
+
+    Returns:
+        A list of ``(element, key)`` pairs.
+
+    Raises:
+        InvalidConfiguration: If the member is not a list or one element has
+                              the wrong runtime type.
+        InvalidListKeyType: If one projected key has the wrong runtime type.
+    """
+    raw_list = _validate_list_member_value(member_name=member_name,
+                                           member_value=member_value,
+                                           stderr_file=stderr_file)
+    keyed_list: list[tuple[Elementtype, Basictype]] = []
+    for member_index, raw_value in enumerate(raw_list):
+        if not isinstance(raw_value, element_type):
+            msg = 'Invalid configuration: '
+            msg += f'Value {raw_value} for {member_name} '
+            msg += f'at index {member_index} '
+            msg += f'is not of type {element_type.__name__}.'
+            print(msg, file=stderr_file)
+            raise InvalidConfiguration(msg)
+        key_value = key(raw_value)
+        if not isinstance(key_value, key_type):
+            exc = InvalidListKeyType(member_name=member_name,
+                                     member_index=member_index,
+                                     key_value=key_value, key_type=key_type)
+            print(exc.message, file=stderr_file)
+            raise exc
+        keyed_list.append((raw_value, key_value))
+    return keyed_list
+
+
+def _compare_values(left: Basictype, right: Basictype,
+                    lt_comparator: Callable[[Basictype, Basictype], bool]
+                    ) -> int:
+    """Compare two values using a less-than comparator."""
+    if lt_comparator(left, right):
+        return -1
+    if lt_comparator(right, left):
+        return 1
+    return 0
+
+
 def _sort_list_values(values: Sequence[Basictype],
                       lt_comparator: Callable[[Basictype, Basictype], bool],
                       reverse: bool) -> list[Basictype]:
@@ -133,11 +243,29 @@ def _sort_list_values(values: Sequence[Basictype],
     """
     def compare(left: Basictype, right: Basictype) -> int:
         """Compare two values for use with ``cmp_to_key``."""
-        if lt_comparator(left, right):
-            return -1
-        if lt_comparator(right, left):
-            return 1
-        return 0
+        return _compare_values(left, right, lt_comparator)
+
+    return sorted(values, key=cmp_to_key(compare), reverse=reverse)
+
+
+def _sort_keyed_list_values(
+        values: Sequence[tuple[Elementtype, Basictype]],
+        lt_comparator: Callable[[Basictype, Basictype], bool],
+        reverse: bool) -> list[tuple[Elementtype, Basictype]]:
+    """Return a stably sorted list using each element's projected key.
+
+    Args:
+        values: The ``(element, key)`` pairs to sort.
+        lt_comparator: The less-than comparator used for keys.
+        reverse: Whether to reverse the final sort order.
+
+    Returns:
+        A new sorted list of ``(element, key)`` pairs.
+    """
+    def compare(left: tuple[Elementtype, Basictype],
+                right: tuple[Elementtype, Basictype]) -> int:
+        """Compare two keyed elements for use with ``cmp_to_key``."""
+        return _compare_values(left[1], right[1], lt_comparator)
 
     return sorted(values, key=cmp_to_key(compare), reverse=reverse)
 
@@ -152,6 +280,26 @@ def _unique_list_values(values: Sequence[Basictype]) -> list[Basictype]:
         A new list with only the first occurrence of each value kept.
     """
     return list(dict.fromkeys(values))
+
+
+def _unique_keyed_list_values(values: Sequence[
+        tuple[Elementtype, Basictype]]) \
+        -> list[tuple[Elementtype, Basictype]]:
+    """Return the first element for each key in the current order.
+
+    Args:
+        values: The ``(element, key)`` pairs to deduplicate.
+
+    Returns:
+        A new list of ``(element, key)`` pairs with unique keys.
+    """
+    result: list[tuple[Elementtype, Basictype]] = []
+    seen_keys: set[Basictype] = set()
+    for element, key_value in values:
+        if key_value not in seen_keys:
+            seen_keys.add(key_value)
+            result.append((element, key_value))
+    return result
 
 
 def _validate_list_order(member_name: str, values: Sequence[Basictype],
@@ -661,6 +809,123 @@ class ListOrderingValidator(MemberValidator, Generic[Basictype]):
         if self.keep_only_unique:
             result = _unique_list_values(result)
         return result
+
+
+# pylint: disable-next=too-few-public-methods
+class ListKeyOrderingValidator(MemberValidator,
+                               Generic[Elementtype, Basictype]):
+    """Normalize one list by ordering complex elements through scalar keys.
+
+    Use this validator when your configuration stores a list of complex
+    elements, such as dictionaries, and your application wants that list
+    normalized by one scalar value from each element.
+
+    The member value must be a list. Every element must be an instance of
+    ``element_type`` according to normal ``isinstance`` semantics. The
+    validator calls ``key`` once for every element, validates that the
+    returned key is an instance of ``key_type``, and then orders or
+    deduplicates the original elements through those keys. The supported key
+    types are the same basic scalar types accepted by
+    ``ListOrderingValidator``: ``int``, ``float``, ``str``, and ``bool``.
+
+    Your ``key`` callable owns the application-specific projection from one
+    complex element to one scalar key. If the callable raises an exception,
+    this validator does not catch or wrap it. Validate the element shape
+    before this validator, or make the callable raise the exception you want
+    application code to see.
+
+    Ordering and duplicate removal are based on the projected keys, but the
+    returned normalized list contains the original elements. If
+    ``keep_only_unique`` is true, later elements whose projected key is equal
+    to a key already kept are removed. Duplicate-key detection uses normal
+    Python equality semantics for the keys rather than ``lt_comparator``.
+    """
+
+    # pylint: disable-next=too-many-arguments
+    def __init__(self, *, element_type: type[Elementtype],
+                 key: Callable[[Elementtype], Basictype],
+                 key_type: type[Basictype], order: bool = True,
+                 reverse: bool = False, keep_only_unique: bool = False,
+                 lt_comparator: Callable[[Basictype, Basictype], bool] =
+                 operator_lt) -> None:
+        """Initialize the key-ordering validator.
+
+        Args:
+            element_type: Runtime type required for each original list
+                          element. For example, use ``dict`` for a list of
+                          dictionaries.
+            key: Callable that computes the scalar ordering key for one
+                 element. Exceptions raised by this callable propagate
+                 unchanged.
+            key_type: Runtime type required for the keys returned by
+                      ``key``. Must be one of ``int``, ``float``, ``str``, or
+                      ``bool``.
+            order: Whether to sort the list by projected key.
+            reverse: Whether to reverse the sort order, or to reverse the
+                     original list when ``order`` is false.
+            keep_only_unique: Whether to remove later elements with duplicate
+                              projected keys after ordering or reversing.
+            lt_comparator: Comparator function for the projected keys.
+                           Defaults to the < operator.
+
+        Raises:
+            TypeError: If ``element_type`` is not a type, if ``key`` is not
+                       callable, or if ``key_type`` is unsupported.
+        """
+        _validate_type_argument(element_type, 'element_type')
+        if not callable(key):
+            raise TypeError('key must be callable.')
+        _validate_list_key_type(key_type)
+        self.element_type: type[Elementtype] = element_type
+        self.key: Callable[[Elementtype], Basictype] = key
+        self.key_type: type[Basictype] = key_type
+        self.order: bool = order
+        self.reverse: bool = reverse
+        self.keep_only_unique: bool = keep_only_unique
+        self.lt_comparator: Callable[[Basictype, Basictype], bool] = \
+            lt_comparator
+
+    def validate_member(self, config: Config, member_name: str,
+                        member_value: object,
+                        stderr_file: TextIO = sys.stderr) -> Optional[object]:
+        """Validate and normalize one list member by projected key.
+
+        Args:
+            config: The Config object that owns the member.
+            member_name: The name of the member to validate.
+            member_value: The list value to validate.
+            stderr_file: The file to write error messages to.
+
+        Returns:
+            A reordered or key-deduplicated list containing the original
+            elements. If no normalization is configured, the original list
+            value is returned unchanged.
+
+        Raises:
+            InvalidConfiguration: If the member is not a list or one element
+                                  has the wrong runtime type.
+            InvalidListKeyType: If ``key`` returns a value whose runtime type
+                                is not accepted by ``key_type``.
+        """
+        _ = config
+        keyed_values = _validate_keyed_list_member(
+            member_name=member_name, member_value=member_value,
+            element_type=self.element_type, key=self.key,
+            key_type=self.key_type, stderr_file=stderr_file)
+        if not self.order and not self.reverse and \
+                not self.keep_only_unique:
+            return member_value
+        if self.order:
+            result = _sort_keyed_list_values(values=keyed_values,
+                                             lt_comparator=self.lt_comparator,
+                                             reverse=self.reverse)
+        else:
+            result = list(keyed_values)
+            if self.reverse:
+                result.reverse()
+        if self.keep_only_unique:
+            result = _unique_keyed_list_values(result)
+        return [element for element, _ in result]
 
 
 def _validate_for_each_element_validators(

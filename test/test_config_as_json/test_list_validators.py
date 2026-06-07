@@ -5,12 +5,13 @@
 # MIT License
 
 import sys
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence, cast
 import pytest
 from pytest import CaptureFixture
 from config_as_json.list_validators import ListForEachValidator, \
-    ListIsOrderedValidator, ListOrderingValidator, ListSizeValidator, \
-    ListOfDictsKeysValidator, ListValueTypeValidator, ListValueValidator
+    ListIsOrderedValidator, ListKeyOrderingValidator, ListOrderingValidator, \
+    ListSizeValidator, ListOfDictsKeysValidator, ListValueTypeValidator, \
+    ListValueValidator, InvalidListKeyType
 from config_as_json.validator import InvalidConfiguration, \
     InvalidConfigurationValue, MemberValidator
 from .validator_test_helpers import EmptyValidationConfig, \
@@ -21,6 +22,32 @@ from .validator_test_helpers import EmptyValidationConfig, \
 def casefold_lt(left: str, right: str) -> bool:
     """Compare two strings case-insensitively."""
     return left.casefold() < right.casefold()
+
+
+def dict_rank_key(value: dict[str, object]) -> int:
+    """Return the integer rank from one test dict."""
+    rank = value['rank']
+    assert isinstance(rank, int)
+    return rank
+
+
+def dict_name_key(value: dict[str, object]) -> str:
+    """Return the name from one test dict."""
+    name = value['name']
+    assert isinstance(name, str)
+    return name
+
+
+def unchecked_dict_rank_key(value: dict[str, object]) -> int:
+    """Return the rank while lying to static type checking."""
+    return cast(int, value['rank'])
+
+
+def missing_dict_rank_key(value: dict[str, object]) -> int:
+    """Try to return a missing rank key from one test dict."""
+    rank = value['missing_rank']
+    assert isinstance(rank, int)
+    return rank
 
 
 def _assert_allowed_values_fail(capsys: CaptureFixture[str],
@@ -460,6 +487,146 @@ def test_list_sort_parsed_json(capsys: CaptureFixture[str]) -> None:
         from_json_data_text='{"value": [3, 1, 3, 2]}')
     out, err = capsys.readouterr()
     assert getattr(cfg, 'value') == [1, 2, 3]
+    assert out == ''
+    assert err == ''
+
+
+@pytest.mark.parametrize(
+    'element_type, key, key_type, exc_type, message',
+    [([], dict_rank_key, int, TypeError, 'element_type must be a type'),
+     (dict, 'not-callable', int, TypeError, 'key must be callable'),
+     (dict, dict_rank_key, list, TypeError,
+      'key_type must be one of int, float, str, or bool')])
+def test_list_key_ordering_bad_args(element_type: object, key: object,
+                                    key_type: object,
+                                    exc_type: type[Exception],
+                                    message: str) -> None:
+    """Test ListKeyOrderingValidator constructor validation."""
+    element_type_arg = cast(type[dict[str, object]], element_type)
+    key_arg = cast(Callable[[dict[str, object]], int], key)
+    key_type_arg = cast(type[int], key_type)
+    with pytest.raises(exc_type) as exc:
+        ListKeyOrderingValidator(element_type=element_type_arg, key=key_arg,
+                                 key_type=key_type_arg)
+    assert message in str(exc.value)
+
+
+def test_key_ordering_named_only() -> None:
+    """Test that ListKeyOrderingValidator requires named arguments."""
+    positional_call = cast(Callable[
+        [type[dict[str, object]], Callable[[dict[str, object]], int],
+         type[int]], object], ListKeyOrderingValidator)
+    with pytest.raises(TypeError) as exc:
+        # pylint: disable-next=too-many-function-args,missing-kwoa
+        positional_call(dict, dict_rank_key, int)
+    assert 'positional' in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    'validator, member_value, expected',
+    [(ListKeyOrderingValidator(element_type=dict, key=dict_rank_key,
+                               key_type=int), [], []),
+     (ListKeyOrderingValidator(element_type=dict, key=dict_rank_key,
+                               key_type=int),
+      [{'rank': 3, 'name': 'c'}, {'rank': 1, 'name': 'a'}],
+      [{'rank': 1, 'name': 'a'}, {'rank': 3, 'name': 'c'}]),
+     (ListKeyOrderingValidator(element_type=dict, key=dict_rank_key,
+                               key_type=int, reverse=True),
+      [{'rank': 1, 'name': 'a'}, {'rank': 3, 'name': 'c'}],
+      [{'rank': 3, 'name': 'c'}, {'rank': 1, 'name': 'a'}]),
+     (ListKeyOrderingValidator(element_type=dict, key=dict_rank_key,
+                               key_type=int, order=False, reverse=True),
+      [{'rank': 1, 'name': 'a'}, {'rank': 3, 'name': 'c'}],
+      [{'rank': 3, 'name': 'c'}, {'rank': 1, 'name': 'a'}]),
+     (ListKeyOrderingValidator(element_type=dict, key=dict_rank_key,
+                               key_type=int, order=False,
+                               keep_only_unique=True),
+      [{'rank': 3, 'name': 'first'}, {'rank': 1, 'name': 'one'},
+       {'rank': 3, 'name': 'second'}],
+      [{'rank': 3, 'name': 'first'}, {'rank': 1, 'name': 'one'}]),
+     (ListKeyOrderingValidator(element_type=dict, key=dict_rank_key,
+                               key_type=int, keep_only_unique=True),
+      [{'rank': 3, 'name': 'first'}, {'rank': 1, 'name': 'one'},
+       {'rank': 3, 'name': 'second'}],
+      [{'rank': 1, 'name': 'one'}, {'rank': 3, 'name': 'first'}]),
+     (ListKeyOrderingValidator(element_type=dict, key=dict_name_key,
+                               key_type=str, lt_comparator=casefold_lt),
+      [{'name': 'bravo'}, {'name': 'Alpha'}],
+      [{'name': 'Alpha'}, {'name': 'bravo'}]),
+     (ListKeyOrderingValidator(element_type=dict, key=dict_rank_key,
+                               key_type=int, order=False),
+      [{'rank': True}, {'rank': 2}], [{'rank': True}, {'rank': 2}])])
+def test_key_ordering_ok(capsys: CaptureFixture[str],
+                         validator: MemberValidator, member_value: object,
+                         expected: object) -> None:
+    """Test OK cases of ListKeyOrderingValidator."""
+    assert_validate_member_ok(capsys, validator, member_value, expected)
+
+
+@pytest.mark.parametrize(
+    'validator, member_value, exc_type, message',
+    [(ListKeyOrderingValidator(element_type=dict, key=dict_rank_key,
+                               key_type=int),
+      (1, 2), InvalidConfiguration, 'Value for value is not a list'),
+     (ListKeyOrderingValidator(element_type=dict, key=dict_rank_key,
+                               key_type=int),
+      [{'rank': 1}, ['not-a-dict']], InvalidConfiguration,
+      "Value ['not-a-dict'] for value at index 1 is not of type dict"),
+     (ListKeyOrderingValidator(element_type=dict, key=unchecked_dict_rank_key,
+                               key_type=int),
+      [{'rank': 'high'}], InvalidListKeyType,
+      'Key value high for value at index 0 is not of type int')])
+def test_key_ordering_rejects(capsys: CaptureFixture[str],
+                              validator: MemberValidator, member_value: object,
+                              exc_type: type[Exception], message: str) \
+        -> None:
+    """Test ListKeyOrderingValidator validation failures."""
+    assert_validate_member_failure(capsys, validator, member_value, exc_type,
+                                   message)
+
+
+def test_key_ordering_key_details(capsys: CaptureFixture[str]) -> None:
+    """Test details stored on InvalidListKeyType."""
+    validator = ListKeyOrderingValidator(element_type=dict,
+                                         key=unchecked_dict_rank_key,
+                                         key_type=int)
+    with pytest.raises(InvalidListKeyType) as exc:
+        validator.validate_member(EmptyValidationConfig(), 'value',
+                                  [{'rank': 'high'}], sys.stderr)
+    out, err = capsys.readouterr()
+    assert exc.value.member_name == 'value'
+    assert exc.value.member_index == 0
+    assert exc.value.key_value == 'high'
+    assert exc.value.key_type is int
+    assert out == ''
+    assert 'Key value high for value at index 0 is not of type int' in err
+
+
+def test_key_ordering_key_error(capsys: CaptureFixture[str]) -> None:
+    """Test that key callable exceptions are not wrapped."""
+    validator = ListKeyOrderingValidator(element_type=dict,
+                                         key=missing_dict_rank_key,
+                                         key_type=int)
+    with pytest.raises(KeyError):
+        validator.validate_member(EmptyValidationConfig(), 'value',
+                                  [{'rank': 1}], sys.stderr)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''
+
+
+def test_key_ordering_parsed_json(capsys: CaptureFixture[str]) -> None:
+    """Test ListKeyOrderingValidator integration through Config.validate()."""
+    validator = ListKeyOrderingValidator(element_type=dict, key=dict_rank_key,
+                                         key_type=int, keep_only_unique=True)
+    json_text = '{"value": [{"rank": 3, "name": "c"}, '
+    json_text += '{"rank": 1, "name": "a"}, '
+    json_text += '{"rank": 3, "name": "again"}]}'
+    cfg = SingleMemberValidationConfig('value', [{'rank': 3}], validator,
+                                       from_json_data_text=json_text)
+    out, err = capsys.readouterr()
+    assert getattr(cfg, 'value') == [{'rank': 1, 'name': 'a'},
+                                     {'rank': 3, 'name': 'c'}]
     assert out == ''
     assert err == ''
 

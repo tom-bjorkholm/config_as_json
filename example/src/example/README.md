@@ -985,6 +985,38 @@ The command line accepts both values as text:
 The file written by the example contains the normalized forms: an integer
 retry count and integer story points.
 
+## e26_key_ordering_validator.py
+
+[Source code for e26_key_ordering_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e26_key_ordering_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e26_key_ordering_validator.py)
+
+This example teaches `ListKeyOrderingValidator`. Use it when a configuration
+member stores a list of complex elements, such as dictionaries, but the list
+should be normalized by one scalar key from each element.
+
+The configuration member is `release_steps`. Each list element is a dict with
+these keys:
+
+- `step` is the integer ordering key
+- `name` is the release step name
+- `owner` is optional
+
+The application programmer provides the key function. The key function must
+either handle the element shape itself or be used after earlier validators
+have checked that shape. This example uses the usually clearer pattern: first
+validate the list and dict contents, then keep the key function small and
+focused on extracting the ordering value. After that,
+`ListKeyOrderingValidator` calls the key function for each dict, sorts the
+original dicts by the returned integer key, and removes duplicate `step`
+entries because `keep_only_unique=True`.
+
+The file written by the example contains the normalized list of dicts. The
+dicts themselves are kept; only their list order and duplicate-key entries
+are changed.
+
+The command line accepts the list of dicts as JSON:
+
+`--release-steps '[{"step":20,"name":"test"},{"step":10,"name":"build"}]'`
+
 ## e30_optional_user_preference.py
 
 [Source code for e30_optional_user_preference.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py)

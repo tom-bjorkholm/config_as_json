@@ -41,7 +41,8 @@ from config_as_json.str_validators import StrValidator, StrLenValidator, \
     StrCaseSpec, StrPositionSpec, StrCaseValidator, StrCaseChangeValidator
 from config_as_json.list_validators import ListValueValidator, \
     ListSizeValidator, ListIsOrderedValidator, ListOrderingValidator, \
-    ListValueTypeValidator, ListForEachValidator, ListOfDictsKeysValidator
+    ListKeyOrderingValidator, ListValueTypeValidator, ListForEachValidator, \
+    ListOfDictsKeysValidator, InvalidListKeyType
 from config_as_json.dict_validators import DictKeysValidator, DictRule, \
     DictForEachValidator, DictKeyValueTypesValidator, accept_all_keys
 from config_as_json.discriminated_dict_validators import DictVariant, \
@@ -124,9 +125,11 @@ __all__ = ['Config',
            'ListSizeValidator',
            'ListIsOrderedValidator',
            'ListOrderingValidator',
+           'ListKeyOrderingValidator',
            'ListValueTypeValidator',
            'ListForEachValidator',
            'ListOfDictsKeysValidator',
+           'InvalidListKeyType',
            'DictKeysValidator',
            'DictRule',
            'DictForEachValidator',
