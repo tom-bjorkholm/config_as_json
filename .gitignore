@@ -33,3 +33,7 @@ non_cursor_AGENTS.md
 *.pdf
 example/result/*
 config_in_json_changes.md
+CLAUDE.md
+AGENTS.md.old
+CLAUDE.md.old
+.cursor.old
