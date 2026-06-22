@@ -4416,10 +4416,12 @@ Check that a required input file exists before continuing.
 ```python
 def file_must_exist(filename: PathOrStr,
                     with_content_txt: Optional[str] = None,
-                    stderr_file: TextIO = sys.stderr) -> None
+                    stderr_file: TextIO = sys.stderr,
+                    *,
+                    exit_if_missing: bool = True) -> None
 ```
 
-Terminate with a helpful message when an expected file is missing.
+Terminate job with a helpful message when an expected file is missing.
 
 **Arguments**:
 
@@ -4432,7 +4434,9 @@ Terminate with a helpful message when an expected file is missing.
 
 **Raises**:
 
-- `SystemExit` - The file does not exist.
+- `SystemExit` - The file does not exist, and exit_if_missing is True.
+- `FileNotFoundError` - The file does not exist, and exit_if_missing is
+  False.
 
 <a id="config_as_json.migrate_cfg_warn_hook"></a>
 

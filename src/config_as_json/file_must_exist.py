@@ -13,8 +13,9 @@ from config_as_json.commontypes import PathOrStr
 
 def file_must_exist(filename: PathOrStr,
                     with_content_txt: Optional[str] = None,
-                    stderr_file: TextIO = sys.stderr) -> None:
-    """Terminate with a helpful message when an expected file is missing.
+                    stderr_file: TextIO = sys.stderr, *,
+                    exit_if_missing: bool = True) -> None:
+    """Terminate job with a helpful message when an expected file is missing.
 
     Args:
         filename: Path to the file that must exist.
@@ -24,7 +25,9 @@ def file_must_exist(filename: PathOrStr,
                      ``sys.stderr``.
 
     Raises:
-        SystemExit: The file does not exist.
+        SystemExit: The file does not exist, and exit_if_missing is True.
+        FileNotFoundError: The file does not exist, and exit_if_missing is
+                           False.
     """
     if not isinstance(filename, Path):
         filename = Path(filename)
@@ -34,4 +37,6 @@ def file_must_exist(filename: PathOrStr,
             msg += 'with ' + with_content_txt + ' '
         msg += 'does not exist. Cannot proceed.'
         print(msg, file=stderr_file)
-        sys.exit(1)
+        if exit_if_missing:
+            sys.exit(1)
+        raise FileNotFoundError(msg)
