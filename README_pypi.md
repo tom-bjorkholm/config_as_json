@@ -35,7 +35,7 @@ attribute. The values assigned in `__init__()` are the default
 configuration.
 
 The fuller
-[e01_simple_config.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e01_simple_config.py)
+[e01_simple_config.py example](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e01_simple_config.py)
 explains this pattern more thoroughly.
 
 ````python
@@ -83,7 +83,7 @@ the third-party class before `Config`, so its attributes are present when
 `Config` reads or writes JSON.
 
 The fuller
-[e04_third_party_class.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py)
+[e04_third_party_class.py example](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e04_third_party_class.py)
 explains this pattern more thoroughly.
 
 ````python
@@ -140,9 +140,9 @@ values. It also shows creating a config with defaults first, then calling
 `read()` only when a file should be read.
 
 The fuller
-[e03_scalar_validators.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e03_scalar_validators.py)
+[e03_scalar_validators.py example](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e03_scalar_validators.py)
 explains predefined validators more thoroughly. The
-[e04_third_party_class.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py)
+[e04_third_party_class.py example](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e04_third_party_class.py)
 shows the same idea with a third-party class.
 
 ````python
@@ -329,10 +329,10 @@ public objects are defined.
 
 ## Documentation and examples
 
-- Example directory: [example/src/example/README.md](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/README.md)
-- Public API notes: [doc/api.md](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/doc/api.md)
-- Protected/internal API notes: [doc/protected_api.md](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/doc/protected_api.md)
-- Source repository: [config_as_json](https://bitbucket.org/tom-bjorkholm/config_as_json/)
+- Example directory: [example/src/example/README.md](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/README.md)
+- Public API notes: [doc/api.md](https://github.com/tom-bjorkholm/config_as_json/blob/master/doc/api.md)
+- Protected/internal API notes: [doc/protected_api.md](https://github.com/tom-bjorkholm/config_as_json/blob/master/doc/protected_api.md)
+- Source repository: [config_as_json](https://github.com/tom-bjorkholm/config_as_json/)
 
 The example directory contains worked examples for new users. It is not
 included in the package installed from PyPI.
@@ -343,7 +343,7 @@ MIT
 
 ## Test summary
 
-- Test result: 4482 passed in 18s
+- Test result: 4482 passed in 16s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

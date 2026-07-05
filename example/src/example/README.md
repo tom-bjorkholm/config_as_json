@@ -29,7 +29,7 @@ pip install --upgrade config-as-json
 The example programs are *not* included in the package you install.
 
 The example programs are intended to be read in a browser in the
-Bitbucket repository, and you can download them from Bitbucket to run
+GitHub repository, and you can download them from GitHub to run
 them locally, or to run variations you want to test.
 There is no package with the example programs.
 
@@ -52,7 +52,7 @@ attribute. The values assigned in `__init__()` are the default
 configuration.
 
 The complete
-[e01_simple_config.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e01_simple_config.py)
+[e01_simple_config.py example](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e01_simple_config.py)
 explains this pattern more thoroughly.
 
 ````python
@@ -94,7 +94,7 @@ def application(config_filename: PathOrStr, update_config: bool) -> None:
 
 ## e01_simple_config.py
 
-[Source code for e01_simple_config.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e01_simple_config.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e01_simple_config.py)
+[Source code for e01_simple_config.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e01_simple_config.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e01_simple_config.py)
 
 This example keeps the configuration deliberately small so that the main
 ideas are easy to see:
@@ -122,7 +122,7 @@ beginner.
 
 ## e02_simple_config_get_setattr.py
 
-[Source code for e02_simple_config_get_setattr.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e02_simple_config_get_setattr.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e02_simple_config_get_setattr.py)
+[Source code for e02_simple_config_get_setattr.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e02_simple_config_get_setattr.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e02_simple_config_get_setattr.py)
 
 This second example is very similar to the first example and it shares much
 of the code by importing from the first example.
@@ -133,7 +133,7 @@ configuration variables) this approach needs less code.
 
 ## e03_scalar_validators.py
 
-[Source code for e03_scalar_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e03_scalar_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e03_scalar_validators.py)
+[Source code for e03_scalar_validators.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e03_scalar_validators.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e03_scalar_validators.py)
 
 We introduce the concept of validators in the third example.
 The application programmer can use the predefined validator classes to
@@ -171,7 +171,7 @@ the third-party class before `Config`, so its attributes are present when
 `Config` reads or writes JSON.
 
 The complete
-[e04_third_party_class.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py)
+[e04_third_party_class.py example](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e04_third_party_class.py)
 explains this pattern more thoroughly.
 
 ````python
@@ -228,9 +228,9 @@ values. It also shows creating a config with defaults first, then calling
 `read()` only when a file should be read.
 
 The complete
-[e03_scalar_validators.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e03_scalar_validators.py)
+[e03_scalar_validators.py example](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e03_scalar_validators.py)
 explains predefined validators more thoroughly. The
-[e04_third_party_class.py example](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py)
+[e04_third_party_class.py example](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e04_third_party_class.py)
 shows the same idea with a third-party class.
 
 ````python
@@ -288,7 +288,7 @@ def application(config_filename: PathOrStr, update_config: bool,
 
 ## e04_third_party_class.py
 
-[Source code for e04_third_party_class.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e04_third_party_class.py)
+[Source code for e04_third_party_class.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e04_third_party_class.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e04_third_party_class.py)
 
 This example shows how to work with a third-party parameter class that
 already defines the configuration members and their default values.
@@ -307,7 +307,7 @@ third-party base class instead of being created directly in the
 
 ## e05_custom_validator.py
 
-[Source code for e05_custom_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e05_custom_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e05_custom_validator.py)
+[Source code for e05_custom_validator.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e05_custom_validator.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e05_custom_validator.py)
 
 This example shows how to derive your own validator class from
 `WholeConfigValidator`, and when that is useful.
@@ -343,7 +343,7 @@ errors by the application programmer.
 
 ## e06_list_basic_validators.py
 
-[Source code for e06_list_basic_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e06_list_basic_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e06_list_basic_validators.py)
+[Source code for e06_list_basic_validators.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e06_list_basic_validators.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e06_list_basic_validators.py)
 
 This is the first teaching example that uses list-valued configuration
 members. It is meant for readers who already understand the basic
@@ -373,7 +373,7 @@ so an application can calculate the allowed choices from runtime state.
 
 ## e07_list_order_vs_normalize.py
 
-[Source code for e07_list_order_vs_normalize.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e07_list_order_vs_normalize.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e07_list_order_vs_normalize.py)
+[Source code for e07_list_order_vs_normalize.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e07_list_order_vs_normalize.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e07_list_order_vs_normalize.py)
 
 This example teaches 2 closely related validators that make different
 design choices:
@@ -398,7 +398,7 @@ that your application should normalize automatically.
 
 ## e08_combined_list_validators.py
 
-[Source code for e08_combined_list_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e08_combined_list_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e08_combined_list_validators.py)
+[Source code for e08_combined_list_validators.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e08_combined_list_validators.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e08_combined_list_validators.py)
 
 This example is the first one where the order of the validation steps is
 itself an important teaching point.
@@ -421,7 +421,7 @@ form rather than to the raw user input.
 
 ## e09_list_for_each.py
 
-[Source code for e09_list_for_each.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e09_list_for_each.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e09_list_for_each.py)
+[Source code for e09_list_for_each.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e09_list_for_each.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e09_list_for_each.py)
 
 This example introduces the general composition tool for per-element
 validation, `ListForEachValidator`. It iterates the outer list and
@@ -477,7 +477,7 @@ that lets those validators reach inside one level of nesting.
 
 ## e10_dict_basic_validators.py
 
-[Source code for e10_dict_basic_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e10_dict_basic_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e10_dict_basic_validators.py)
+[Source code for e10_dict_basic_validators.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e10_dict_basic_validators.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e10_dict_basic_validators.py)
 
 This is the first teaching example that uses dict-valued configuration
 members. It introduces the smallest dict validator,
@@ -511,7 +511,7 @@ The command line for this example uses the `dict_kv=True` flag on
 
 ## e11_dict_for_each.py
 
-[Source code for e11_dict_for_each.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e11_dict_for_each.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e11_dict_for_each.py)
+[Source code for e11_dict_for_each.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e11_dict_for_each.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e11_dict_for_each.py)
 
 This example builds on `e10_dict_basic_validators.py` and adds
 per-key value validation. It introduces `DictForEachValidator` and
@@ -543,7 +543,7 @@ guessing per-key types. A full override looks like
 
 ## e12_dict_for_each_ordering.py
 
-[Source code for e12_dict_for_each_ordering.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e12_dict_for_each_ordering.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e12_dict_for_each_ordering.py)
+[Source code for e12_dict_for_each_ordering.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e12_dict_for_each_ordering.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e12_dict_for_each_ordering.py)
 
 This example is the dict counterpart of `e08_combined_list_validators`.
 The teaching point is that `DictForEachValidator` runs its rules in
@@ -575,7 +575,7 @@ what ends up in the configuration file.
 
 ## e13_list_of_dicts.py
 
-[Source code for e13_list_of_dicts.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e13_list_of_dicts.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e13_list_of_dicts.py)
+[Source code for e13_list_of_dicts.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e13_list_of_dicts.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e13_list_of_dicts.py)
 
 This is one of the advanced examples in the validator series. It is for
 readers who already understood the earlier list and dict examples
@@ -610,7 +610,7 @@ document for the whole `--maintenance-windows` value.
 
 ## e14_discriminated_dict_validator.py
 
-[Source code for e14_discriminated_dict_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e14_discriminated_dict_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e14_discriminated_dict_validator.py)
+[Source code for e14_discriminated_dict_validator.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e14_discriminated_dict_validator.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e14_discriminated_dict_validator.py)
 
 This example teaches `DiscriminatedDictValidator`. It is useful when one
 dict-valued configuration member has several allowed shapes, and one key in
@@ -636,7 +636,7 @@ line uses `json_value=True` because the value is a mixed-type dict.
 
 ## e15_projected_member_validator.py
 
-[Source code for e15_projected_member_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e15_projected_member_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e15_projected_member_validator.py)
+[Source code for e15_projected_member_validator.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e15_projected_member_validator.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e15_projected_member_validator.py)
 
 This example teaches `ProjectedMemberValidator`. It is useful when a
 configuration member should be stored in one shape, but one validation rule
@@ -669,7 +669,7 @@ this member, but keep this member as it is". The command line uses
 
 ## e16_type_and_list_of_dicts_validators.py
 
-[Source code for e16_type_and_list_of_dicts_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e16_type_and_list_of_dicts_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e16_type_and_list_of_dicts_validators.py)
+[Source code for e16_type_and_list_of_dicts_validators.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e16_type_and_list_of_dicts_validators.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e16_type_and_list_of_dicts_validators.py)
 
 This example teaches 3 small predefined validators that are about data
 shape rather than values:
@@ -696,7 +696,7 @@ dicts. A small override looks like:
 
 ## e17_csv_dialect_and_encoding.py
 
-[Source code for e17_csv_dialect_and_encoding.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e17_csv_dialect_and_encoding.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e17_csv_dialect_and_encoding.py)
+[Source code for e17_csv_dialect_and_encoding.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e17_csv_dialect_and_encoding.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e17_csv_dialect_and_encoding.py)
 
 This example teaches 2 validators for common file-format settings:
 
@@ -720,7 +720,7 @@ The command line accepts the dialect as one JSON value. For example:
 
 ## e18_replacing_config_check_helpers.py
 
-[Source code for e18_replacing_config_check_helpers.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e18_replacing_config_check_helpers.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e18_replacing_config_check_helpers.py)
+[Source code for e18_replacing_config_check_helpers.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e18_replacing_config_check_helpers.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e18_replacing_config_check_helpers.py)
 
 This example shows how to replace older direct `Config` check helper
 patterns with validators.
@@ -746,7 +746,7 @@ members are nested list-of-dicts structures.
 
 ## e19_config_method_validators.py
 
-[Source code for e19_config_method_validators.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e19_config_method_validators.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e19_config_method_validators.py)
+[Source code for e19_config_method_validators.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e19_config_method_validators.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e19_config_method_validators.py)
 
 This example shows how to reuse validation and normalization methods that
 already exist on the configuration object, often because they come from a
@@ -774,7 +774,7 @@ spelling.
 
 ## e20_dynamic_dict_rules.py
 
-[Source code for e20_dynamic_dict_rules.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e20_dynamic_dict_rules.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e20_dynamic_dict_rules.py)
+[Source code for e20_dynamic_dict_rules.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e20_dynamic_dict_rules.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e20_dynamic_dict_rules.py)
 
 This example returns to `DictForEachValidator` and teaches rules for open
 dictionaries where the exact keys are not known in advance.
@@ -806,7 +806,7 @@ The command line accepts both dict members as JSON values. For example:
 
 ## e21_as_dict_view_validator.py
 
-[Source code for e21_as_dict_view_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e21_as_dict_view_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e21_as_dict_view_validator.py)
+[Source code for e21_as_dict_view_validator.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e21_as_dict_view_validator.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e21_as_dict_view_validator.py)
 
 This example teaches `AsDictViewValidator`. It is useful when one
 configuration member may be either a real `dict` or an application-defined
@@ -845,7 +845,7 @@ The command line accepts the retry policy as one JSON value. For example:
 
 ## e22_dict_key_value_types.py
 
-[Source code for e22_dict_key_value_types.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e22_dict_key_value_types.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e22_dict_key_value_types.py)
+[Source code for e22_dict_key_value_types.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e22_dict_key_value_types.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e22_dict_key_value_types.py)
 
 This example teaches `DictKeyValueTypesValidator`, the compact validator for
 uniform dictionaries. Use it when every key has one runtime type and every
@@ -878,7 +878,7 @@ The command line uses the simplest shape for each member:
 
 ## e23_projected_whole_config_validator.py
 
-[Source code for e23_projected_whole_config_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e23_projected_whole_config_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e23_projected_whole_config_validator.py)
+[Source code for e23_projected_whole_config_validator.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e23_projected_whole_config_validator.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e23_projected_whole_config_validator.py)
 
 This example teaches `ProjectedWholeConfigValidator`. Use it when a rule is
 best expressed against a value calculated from the complete configuration
@@ -913,7 +913,7 @@ depends on several members or on the whole object.
 
 ## e24_list_relation_validator.py
 
-[Source code for e24_list_relation_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e24_list_relation_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e24_list_relation_validator.py)
+[Source code for e24_list_relation_validator.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e24_list_relation_validator.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e24_list_relation_validator.py)
 
 This example teaches `ListRelationValidator`. Use it when two list-like
 values must have a declared relation, such as equal order, equal multisets,
@@ -946,7 +946,7 @@ uniqueness.
 
 ## e25_value_as_type_validator.py
 
-[Source code for e25_value_as_type_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e25_value_as_type_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e25_value_as_type_validator.py)
+[Source code for e25_value_as_type_validator.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e25_value_as_type_validator.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e25_value_as_type_validator.py)
 
 This example teaches `ValueAsTypeValidator`. Use it when configuration input
 may arrive in a friendly or old representation, but application code should
@@ -987,7 +987,7 @@ retry count and integer story points.
 
 ## e26_key_ordering_validator.py
 
-[Source code for e26_key_ordering_validator.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e26_key_ordering_validator.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e26_key_ordering_validator.py)
+[Source code for e26_key_ordering_validator.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e26_key_ordering_validator.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e26_key_ordering_validator.py)
 
 This example teaches `ListKeyOrderingValidator`. Use it when a configuration
 member stores a list of complex elements, such as dictionaries, but the list
@@ -1019,7 +1019,7 @@ The command line accepts the list of dicts as JSON:
 
 ## e30_optional_user_preference.py
 
-[Source code for e30_optional_user_preference.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e30_optional_user_preference.py)
+[Source code for e30_optional_user_preference.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e30_optional_user_preference.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e30_optional_user_preference.py)
 
 This example is for configuration values where most users have no opinion,
 but expert users may want to pin a choice. When the value is not configured,
@@ -1061,7 +1061,7 @@ configuration member as `None`, and use a small method such as
 
 ## e31_read_old_configuration_file.py
 
-[Source code for e31_read_old_configuration_file.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e31_read_old_configuration_file.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e31_read_old_configuration_file.py)
+[Source code for e31_read_old_configuration_file.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e31_read_old_configuration_file.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e31_read_old_configuration_file.py)
 
 This example is for applications that need to keep reading configuration
 files written by older releases. It teaches the "Read Old Configuration File"
@@ -1128,7 +1128,7 @@ file, which is usually the right behavior for a migration command.
 
 ## e32_config_factory.py
 
-[Source code for e32_config_factory.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e32_config_factory.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e32_config_factory.py)
+[Source code for e32_config_factory.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e32_config_factory.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e32_config_factory.py)
 
 This example is for applications that can run in more than one mode, where
 each mode has its own configuration class. A CAD program is used as the
@@ -1250,7 +1250,7 @@ is reserved for `DICT_VALUE_BY_KEY`; use a direct `ConfigNesting` value for
 
 ## e33_nested_configs.py
 
-[Source code for e33_nested_configs.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e33_nested_configs.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e33_nested_configs.py)
+[Source code for e33_nested_configs.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e33_nested_configs.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e33_nested_configs.py)
 
 This example shows how to put a repeated group of related settings in its
 own `Config` class and then use that class as a nested Config object inside
@@ -1292,7 +1292,7 @@ base class uses when it parses a nested JSON object.
 
 ## e34_list_nested_configs.py
 
-[Source code for e34_list_nested_configs.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e34_list_nested_configs.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e34_list_nested_configs.py)
+[Source code for e34_list_nested_configs.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e34_list_nested_configs.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e34_list_nested_configs.py)
 
 This example shows how to use a list where every element is a nested
 `Config` object.
@@ -1333,7 +1333,7 @@ command-line syntax for objects inside lists.
 
 ## e35_dict_nested_configs.py
 
-[Source code for e35_dict_nested_configs.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e35_dict_nested_configs.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e35_dict_nested_configs.py)
+[Source code for e35_dict_nested_configs.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e35_dict_nested_configs.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e35_dict_nested_configs.py)
 
 This example shows how to use a dictionary where every value is a nested
 `Config` object.
@@ -1371,7 +1371,7 @@ inventing a separate command-line syntax for fields inside named objects.
 
 ## e36_dict_by_key_nested_configs.py
 
-[Source code for e36_dict_by_key_nested_configs.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e36_dict_by_key_nested_configs.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e36_dict_by_key_nested_configs.py)
+[Source code for e36_dict_by_key_nested_configs.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e36_dict_by_key_nested_configs.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e36_dict_by_key_nested_configs.py)
 
 This example shows how to use one dictionary where selected keys are nested
 `Config` objects and the remaining keys are plain JSON values.
@@ -1416,7 +1416,7 @@ instead of inventing a separate command-line syntax for a mixed dictionary.
 
 ## e37_read_old_nested_configuration_file.py
 
-[Source code for e37_read_old_nested_configuration_file.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e37_read_old_nested_configuration_file.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e37_read_old_nested_configuration_file.py)
+[Source code for e37_read_old_nested_configuration_file.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e37_read_old_nested_configuration_file.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e37_read_old_nested_configuration_file.py)
 
 This example extends e31 to a structural migration with nested Config
 objects. The old file format has one optional direct `output` object. The
@@ -1464,7 +1464,7 @@ python3 -m example.e37_read_old_nested_configuration_file migrate --input old.cf
 
 ## e38_write_side_hook.py
 
-[Source code for e38_write_side_hook.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e38_write_side_hook.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e38_write_side_hook.py)
+[Source code for e38_write_side_hook.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e38_write_side_hook.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e38_write_side_hook.py)
 
 This example teaches the write-side JSON conversion hook
 (`serialize_converters`). The hook runs before `json.dumps` and replaces
@@ -1517,7 +1517,7 @@ python3 -m example.e38_write_side_hook print --input config.cfg
 
 ## e39_neutral_base_class.py
 
-[Source code for e39_neutral_base_class.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e39_neutral_base_class.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e39_neutral_base_class.py)
+[Source code for e39_neutral_base_class.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e39_neutral_base_class.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e39_neutral_base_class.py)
 
 This example is for applications that already have a framework-neutral
 data class describing the configuration shape. The neutral class is not
@@ -1574,7 +1574,7 @@ python3 -m example.e39_neutral_base_class print --input config.cfg
 
 ## e40_value_migration.py
 
-[Source code for e40_value_migration.py: https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e40_value_migration.py](https://bitbucket.org/tom-bjorkholm/config_as_json/src/master/example/src/example/e40_value_migration.py)
+[Source code for e40_value_migration.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e40_value_migration.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e40_value_migration.py)
 
 This example teaches `RocfValueMigration`, which is the declarative
 read-old-configuration rule for cases where one old value produces zero,

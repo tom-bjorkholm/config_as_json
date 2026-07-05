@@ -86,7 +86,7 @@ This repository uses submodules. Clone it with:
 
 ```sh
 git clone --recurse-submodules \
-  git@bitbucket.org:tom-bjorkholm/config_as_json.git
+  git@github.com:tom-bjorkholm/config_as_json.git
 ```
 
 If you already cloned without submodules, initialize them with:
@@ -138,7 +138,7 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 4482 passed in 18s
+- Test result: 4482 passed in 16s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.
