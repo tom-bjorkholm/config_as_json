@@ -4,8 +4,7 @@
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / 'common_build_tools' / 'src'))
-# pylint: disable-next=wrong-import-position
-from clean import clean_cmd  # noqa: E402
+from clean import clean_cmd    # noqa: E402
 
 
 if __name__ == '__main__':
