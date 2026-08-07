@@ -23,6 +23,19 @@ def read_json_data(config_file: str) -> dict[str, object]:
     return cast(dict[str, object], loaded)
 
 
+def old_file_warning() -> str:
+    """Return the full stderr text expected when reading an old e31 file."""
+    change_report = '\n'.join([
+        'Automatic configuration changes were applied:',
+        '  pruned old key   debug_trace',
+        '  renamed key      title -> report_name',
+        '  renamed key      refresh_interval -> refresh_seconds',
+        '  supplied value   format_version = 2',
+        '  supplied value   max_items = 25'
+    ]) + '\n'
+    return Example31MigrateWarnHook.migrate_warn_msg() + change_report
+
+
 def assert_migration_refused_existing_output(err: str) -> None:
     """Assert the standard message for refusing migration overwrite."""
     expected_fragments = [
@@ -88,7 +101,7 @@ def test_e31_print_reads_old_file_with_custom_warning(
         'Refresh seconds: 300',
         'Max items: 25'
     ]) + '\n'
-    assert err == Example31MigrateWarnHook.migrate_warn_msg()
+    assert err == old_file_warning()
     assert 'e31_read_old_configuration_file migrate' in err
 
 
@@ -186,7 +199,7 @@ def test_e31_main_write_old_and_print(
     assert 'Report name: operations\n' in out
     assert 'Output format: TEXT\n' in out
     assert 'Refresh seconds: 120\n' in out
-    assert err == Example31MigrateWarnHook.migrate_warn_msg()
+    assert err == old_file_warning()
 
 
 def test_e31_main_migrate(capsys: pytest.CaptureFixture[str]) -> None:

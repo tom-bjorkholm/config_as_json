@@ -12,6 +12,13 @@ converters for both old and current key names when a migration moves or
 renames those keys. This example also shows how ``transform_value`` on a
 move rule can translate an old enum member into a current enum member when
 the enum names changed between application versions.
+
+This example further shows how an application reads the structured records
+in ``ConfigAutoChangeHook.changes`` from its own hook object after parsing,
+instead of only printing them, and how ``check_data_version()`` protects
+such code from silently misreading a future data structure. See
+``e31_read_old_configuration_file`` for ``print_changes()``, the ready-made
+printout for hooks that do not need the records as data.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -19,16 +26,22 @@ the enum names changed between application versions.
 
 import argparse
 import sys
+from collections import Counter
 from enum import Enum, auto
 from typing import Callable, Optional, TextIO, cast, override
 from config_as_json import Config, ConfigAutoChangeHook, ConfigNesting, \
     ConfigNestingKind, ConfigPath, MigrateCfgWarnHook, NestedConfigs, \
-    ParseConverter, PathOrStr, ReadOldConfiguration, RocfKeyMove, \
-    RocfKeyRename, ValidationPlan, migrate_cfg, string_to_enum_best_match
+    ParseConverter, PathOrStr, ReadOldConfiguration, RocfChange, \
+    RocfChangeKind, RocfKeyMove, RocfKeyRename, ValidationPlan, migrate_cfg, \
+    string_to_enum_best_match
 
 
 CURRENT_FORMAT_VERSION = 2
 """Current configuration file format version used by this example."""
+
+
+HOOK_DATA_VERSION = 1
+"""Recorded hook data structure version this example was written for."""
 
 
 class OutputFormat(Enum):
@@ -273,6 +286,76 @@ class ExampleConfig37(Config):
         return []
 
 
+def kind_count_lines(changes: list[RocfChange]) -> list[str]:
+    """Return one summary line per kind of automatic change that happened.
+
+    Args:
+        changes: Records of the automatic changes that were applied.
+
+    Returns:
+        Sorted report lines, one per kind of change that occurred.
+    """
+    # Every record says which kind of change it describes. Counting the kinds
+    # is something that only the records make possible: neither the summary
+    # arguments of auto_changed() nor a printout can be aggregated like this.
+    counted = Counter(change.kind.name for change in changes)
+    return [f'  {count} x {kind_name}'
+            for kind_name, count in sorted(counted.items())]
+
+
+def supplied_value_lines(changes: list[RocfChange]) -> list[str]:
+    """Return one line per current value the old file did not contain.
+
+    Args:
+        changes: Records of the automatic changes that were applied.
+
+    Returns:
+        Report lines naming each supplied current path and its value.
+    """
+    # MISSING_VALUE_ADDED records also carry the inserted value. That value is
+    # reachable only from the records, which makes this a good example of when
+    # reading the records is worth more than printing them. A configuration
+    # editor uses exactly this to show the user which settings it filled in.
+    return [f'Value supplied by this application version: '
+            f'{change.new_path} = {change.value!r}' for change in changes
+            if change.kind is RocfChangeKind.MISSING_VALUE_ADDED]
+
+
+def report_change_records(hook: ConfigAutoChangeHook,
+                          stderr_file: TextIO) -> None:
+    """Report old-file compatibility from the structured change records.
+
+    Args:
+        hook: Hook holding the automatic changes of the most recent parse.
+        stderr_file: Stream used for user-facing diagnostics.
+    """
+    # This function reads hook.changes, so it depends on how the hook records
+    # automatic changes. ConfigAutoChangeHook steps DATA_STRUCTURE_VERSION
+    # whenever those recorded members change, including purely additive
+    # changes. Checking it turns "a future config_as_json records something
+    # else" into one clear error instead of a report that silently says the
+    # wrong thing. An application may equally well check it once at startup.
+    # Code that only calls print_changes(), as e31_read_old_configuration_file
+    # does, needs no such check at all, because that method needs no knowledge
+    # of how the records are stored.
+    hook.check_data_version(written_for=HOOK_DATA_VERSION)
+    # has_changes() is false when the input file already used the current
+    # shape, so nothing at all should be reported then.
+    if not hook.has_changes():
+        return
+    # hook.changes holds one RocfChange per automatic change that really
+    # happened, in the order the rules were applied. Paths inside nested
+    # Config objects are already rewritten as paths in the top-level
+    # configuration, for example ``outputs[0][encoding]``, so one hook on the
+    # top-level Config covers the whole configuration.
+    print('Old-file compatibility changed this configuration:',
+          file=stderr_file)
+    for line in kind_count_lines(hook.changes):
+        print(line, file=stderr_file)
+    for line in supplied_value_lines(hook.changes):
+        print(line, file=stderr_file)
+
+
 class Example37MigrateWarnHook(MigrateCfgWarnHook):
     """Show an application-specific migration instruction message."""
 
@@ -399,10 +482,15 @@ def e37_print_config(config_file: PathOrStr) -> None:
     """Read either old or current configuration and print current values."""
     # The application reads through the current Config class even when the
     # file on disk is old. If migration rules were used, the hook prints a
-    # migration hint.
-    config = ExampleConfig37(from_json_filename=config_file,
-                             auto_ch_hook=Example37MigrateWarnHook(),
+    # migration hint while the file is parsed.
+    hook = Example37MigrateWarnHook()
+    config = ExampleConfig37(from_json_filename=config_file, auto_ch_hook=hook,
                              stderr_file=sys.stderr)
+    # Config keeps the hook object this application passed to it, so the
+    # records of the parse can be read afterwards from the application's own
+    # object. An application that does not want to create a hook of its own
+    # can read the very same records from config.auto_change_hook().changes.
+    report_change_records(hook=hook, stderr_file=sys.stderr)
     print(f'Configuration read from {config_file}')
     print(f'Format version: {config.format_version}')
     print(f'Course name: {config.course_name}')

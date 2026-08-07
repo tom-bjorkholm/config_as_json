@@ -16,6 +16,11 @@ also has ``debug_trace``, which no longer exists in the current
 configuration. The current configuration class declares the compatibility
 rules, so application code can read either file shape and work with the
 current member names.
+
+This example also shows the easy way to tell the user exactly what was
+changed: ``ConfigAutoChangeHook.print_changes()``. See
+``e37_read_old_nested_configuration_file`` for the other way, where the
+application reads the structured change records itself.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -24,7 +29,7 @@ current member names.
 import argparse
 import sys
 from enum import Enum, auto
-from typing import Optional, TextIO, cast
+from typing import Optional, TextIO, cast, override
 from config_as_json import Config, ConfigAutoChangeHook, MigrateCfgWarnHook, \
     ConfigPath, ParseConverter, PathOrStr, ReadOldConfiguration, \
     RocfKeyRename, ValidationPlan, string_to_enum_best_match, migrate_cfg
@@ -149,7 +154,7 @@ class ExampleConfig31(Config):
 
 
 class Example31MigrateWarnHook(MigrateCfgWarnHook):
-    """Show an application-specific migration instruction message."""
+    """Warn about old files and print what was changed automatically."""
 
     @classmethod
     def migrate_instructions(cls) -> str:
@@ -162,6 +167,40 @@ class Example31MigrateWarnHook(MigrateCfgWarnHook):
         txt += 'python3 -m example.e31_read_old_configuration_file '
         txt += 'migrate --input OLD.cfg --output NEW.cfg\n\n'
         return txt
+
+    @override
+    def auto_changed(self, old_keys_handled: list[str],
+                     rocf_vals_handled: list[str],
+                     stderr_file: TextIO) -> None:
+        """Print the migration warning and then every automatic change.
+
+        Args:
+            old_keys_handled: Old keys and paths that were accepted.
+            rocf_vals_handled: Current paths that received a value.
+            stderr_file: Stream used for user-facing diagnostics.
+        """
+        # Config calls this once after parsing, but only when at least one
+        # automatic change was actually applied. MigrateCfgWarnHook already
+        # implements it and prints the standard "please migrate" warning, so
+        # call it through super() before adding anything of our own.
+        super().auto_changed(old_keys_handled=old_keys_handled,
+                             rocf_vals_handled=rocf_vals_handled,
+                             stderr_file=stderr_file)
+        # The two list arguments above are the old summary form. They are kept
+        # unchanged forever, so old hook classes keep working, but they cannot
+        # say whether "old_name -> new_name" means a real move or an old value
+        # that was thrown away because the current value won.
+        #
+        # print_changes() prints one line per actual change, with that
+        # distinction included. It is the recommended way to report details:
+        # it needs no knowledge at all of how the hook stores its records, so
+        # it keeps working unchanged when a future config_as_json records
+        # more details than it does today.
+        #
+        # A hook that wants the details as data instead of as text reads the
+        # records in self.changes. That is shown in
+        # e37_read_old_nested_configuration_file.
+        self.print_changes(stderr_file=stderr_file)
 
 
 def output_format_from_text(text: str) -> OutputFormat:

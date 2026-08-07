@@ -1113,6 +1113,34 @@ The example also derives an application-specific class from
 the exact command for migrating this example's configuration file. Reading an
 old file with the `print` command succeeds, but also prints that warning.
 
+That hook class also overrides `auto_changed()` and calls `print_changes()`
+after the standard warning. The two list arguments that `auto_changed()`
+receives are the older summary form. They are kept unchanged forever so that
+old hook classes keep working, but they are only a summary: they cannot say
+whether an `old_name -> new_name` entry was a real move or an old value that
+was thrown away because a current value won.
+
+`print_changes()` writes one line per automatic change that really happened,
+including that distinction:
+
+```text
+Automatic configuration changes were applied:
+  pruned old key   debug_trace
+  renamed key      title -> report_name
+  renamed key      refresh_interval -> refresh_seconds
+  supplied value   format_version = 2
+  supplied value   max_items = 25
+```
+
+It prints nothing at all when no automatic change was applied, so it is safe
+to call unconditionally. It needs no knowledge of how the hook stores its
+records, so a hook that only calls `print_changes()` keeps working unchanged
+when a future config_as_json version records more detail than it does today.
+
+An application that wants those details as data instead of as text reads the
+records in `ConfigAutoChangeHook.changes`. That is shown in
+`e37_read_old_nested_configuration_file.py`.
+
 The command line is deliberately different from the earlier examples because
 migration needs a few distinct workflows:
 
@@ -1451,6 +1479,65 @@ use the old enum converter. The move rules then pass
 `transform_value=output_format_from_old`, so the value arriving at the current
 path already has the current enum type before nested Config conversion and
 validation.
+
+The function `report_change_records()` shows the other way to report
+automatic changes. Instead of printing the ready-made report that
+`e31_read_old_configuration_file.py` uses, it reads the structured records in
+`ConfigAutoChangeHook.changes`. Each record is a `RocfChange` with:
+
+- `kind`, a `RocfChangeKind` saying what kind of change happened
+- `old_path` and `new_path`, the actual paths that were involved
+- `value`, the inserted value for `MISSING_VALUE_ADDED` records
+
+Reading the records makes two things possible that a printout cannot do. The
+example counts how many changes of each kind happened, and it reports the
+values this application version supplied for settings that the old file did
+not contain. That value is only available from the records:
+
+```text
+Old-file compatibility changed this configuration:
+  1 x KEY_PRUNED
+  1 x KEY_RENAMED
+  1 x MISSING_VALUE_ADDED
+  3 x PATH_MOVED
+Value supplied by this application version: format_version = 2
+```
+
+Paths inside nested `Config` objects are rewritten as paths in the top-level
+configuration, for example `outputs[0][encoding]`, so one hook on the
+top-level `Config` reports the whole configuration.
+
+Code that reads the records depends on how those records are built.
+`ConfigAutoChangeHook.DATA_STRUCTURE_VERSION` is stepped whenever the
+recorded members change, including purely additive changes. Such code
+therefore declares the version it was written for and checks it:
+
+```python
+HOOK_DATA_VERSION = 1
+"""Recorded hook data structure version this example was written for."""
+
+
+def report_change_records(hook: ConfigAutoChangeHook,
+                          stderr_file: TextIO) -> None:
+    """Report old-file compatibility from the structured change records."""
+    hook.check_data_version(written_for=HOOK_DATA_VERSION)
+    if not hook.has_changes():
+        return
+    ...
+```
+
+`check_data_version()` raises `HookDataVersionError` when the installed
+config_as_json records another version. An incompatible upgrade then fails
+with one clear message instead of producing a report that silently says the
+wrong thing. Code that only calls `print_changes()` does not need this check.
+`has_changes()` is false when the file already used the current shape, so
+nothing at all is reported for a current file.
+
+Note where the records are read: not inside the hook class, but in the
+application code that constructed the configuration. `Config` keeps the hook
+object that the application passed to it, so the records of the parse are
+still there afterwards. An application that does not want a hook class of its
+own can read the very same records from `config.auto_change_hook().changes`.
 
 The command line mirrors e31:
 

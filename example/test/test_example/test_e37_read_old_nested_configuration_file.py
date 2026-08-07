@@ -25,6 +25,32 @@ def read_json_data(config_file: str) -> dict[str, object]:
     return cast(dict[str, object], loaded)
 
 
+def old_file_warning(kind_counts: list[str], supplied: list[str]) -> str:
+    """Return the full stderr text expected when reading an old e37 file.
+
+    Args:
+        kind_counts: Expected ``count x KIND`` texts in sorted kind order.
+        supplied: Expected ``path = value`` texts for supplied values.
+
+    Returns:
+        The complete expected stderr text.
+    """
+    lines = ['Old-file compatibility changed this configuration:']
+    lines.extend(f'  {count}' for count in kind_counts)
+    lines.extend(f'Value supplied by this application version: {text}'
+                 for text in supplied)
+    return Example37MigrateWarnHook.migrate_warn_msg() + \
+        '\n'.join(lines) + '\n'
+
+
+def old_file_with_output_warning() -> str:
+    """Return the expected stderr for an old file that has an output."""
+    return old_file_warning(
+        kind_counts=['1 x KEY_PRUNED', '1 x KEY_RENAMED',
+                     '1 x MISSING_VALUE_ADDED', '3 x PATH_MOVED'],
+        supplied=['format_version = 2'])
+
+
 def run_old_print_roundtrip(
         config_file: str,
         capsys: pytest.CaptureFixture[str]) -> tuple[str, str]:
@@ -125,7 +151,7 @@ def test_e37_print_old_warns(capsys: pytest.CaptureFixture[str]) -> None:
         'Output 0 format: CSV',
         'Output 0 encoding: utf-8'
     ]) + '\n'
-    assert err == Example37MigrateWarnHook.migrate_warn_msg()
+    assert err == old_file_with_output_warning()
     assert 'e37_read_old_nested_configuration_file migrate' in err
 
 
@@ -144,7 +170,12 @@ def test_e37_print_no_output(capsys: pytest.CaptureFixture[str]) -> None:
         'Default output format: CSV',
         'Output count: 0'
     ]) + '\n'
-    assert err == Example37MigrateWarnHook.migrate_warn_msg()
+    # Without an old output object the current empty ``outputs`` list is also
+    # supplied, so one more missing value is recorded and one move less.
+    assert err == old_file_warning(
+        kind_counts=['1 x KEY_PRUNED', '1 x KEY_RENAMED',
+                     '2 x MISSING_VALUE_ADDED', '1 x PATH_MOVED'],
+        supplied=['format_version = 2', 'outputs = []'])
 
 
 def test_e37_config_reads_old(capsys: pytest.CaptureFixture[str]) -> None:
@@ -229,7 +260,7 @@ def assert_e37_main_print(out: str, err: str) -> None:
     assert 'Default output format: TXT\n' in out
     assert 'Output 0 name: audit\n' in out
     assert 'Output 0 format: TXT\n' in out
-    assert err == Example37MigrateWarnHook.migrate_warn_msg()
+    assert err == old_file_with_output_warning()
 
 
 def test_e37_main_old_print(capsys: pytest.CaptureFixture[str]) -> None:
