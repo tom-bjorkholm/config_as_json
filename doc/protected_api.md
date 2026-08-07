@@ -123,13 +123,30 @@
   * [\_validate\_dict\_by\_key](#config_as_json._config_nesting_io._validate_dict_by_key)
   * [\_validate\_nested\_config](#config_as_json._config_nesting_io._validate_nested_config)
 * [config\_as\_json.config\_auto\_change\_hook](#config_as_json.config_auto_change_hook)
+  * [\_MERGED\_AS\_MOVED](#config_as_json.config_auto_change_hook._MERGED_AS_MOVED)
   * [ConfigAutoChangeHook](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook)
+    * [DATA\_STRUCTURE\_VERSION](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.DATA_STRUCTURE_VERSION)
     * [\_\_init\_\_](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.__init__)
+    * [check\_data\_version](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.check_data_version)
     * [auto\_changed](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.auto_changed)
+    * [\_add](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook._add)
+    * [\_legacy\_moved](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook._legacy_moved)
     * [old\_key\_handled](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_key_handled)
     * [rocf\_missing\_value\_provided](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.rocf_missing_value_provided)
     * [old\_path\_moved](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_path_moved)
+    * [key\_pruned](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.key_pruned)
+    * [path\_removed](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.path_removed)
+    * [key\_renamed](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.key_renamed)
+    * [move\_discarded](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.move_discarded)
+    * [value\_migrated](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.value_migrated)
+    * [migration\_discarded](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.migration_discarded)
+    * [missing\_value\_added](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.missing_value_added)
+    * [merge\_nested](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.merge_nested)
+    * [\_merge\_one](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook._merge_one)
+    * [has\_changes](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.has_changes)
     * [all\_autochanges\_done](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.all_autochanges_done)
+    * [print\_changes](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.print_changes)
+    * [clear](#config_as_json.config_auto_change_hook.ConfigAutoChangeHook.clear)
 * [config\_as\_json.list\_ordering\_validators](#config_as_json.list_ordering_validators)
   * [InvalidListKeyType](#config_as_json.list_ordering_validators.InvalidListKeyType)
     * [\_\_init\_\_](#config_as_json.list_ordering_validators.InvalidListKeyType.__init__)
@@ -159,6 +176,7 @@
   * [ParseConverter](#config_as_json.config.ParseConverter)
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
+    * [auto\_change\_hook](#config_as_json.config.Config.auto_change_hook)
     * [parse\_converters](#config_as_json.config.Config.parse_converters)
     * [serialize\_converters](#config_as_json.config.Config.serialize_converters)
     * [nested\_configs](#config_as_json.config.Config.nested_configs)
@@ -312,6 +330,22 @@
     * [validate\_member](#config_as_json.dict_validators.DictKeyValueTypesValidator.validate_member)
 * [config\_as\_json.file\_extension](#config_as_json.file_extension)
   * [fix\_file\_extension](#config_as_json.file_extension.fix_file_extension)
+* [config\_as\_json.rocf\_change](#config_as_json.rocf_change)
+  * [HookDataVersionError](#config_as_json.rocf_change.HookDataVersionError)
+  * [RocfChangeKind](#config_as_json.rocf_change.RocfChangeKind)
+    * [KEY\_PRUNED](#config_as_json.rocf_change.RocfChangeKind.KEY_PRUNED)
+    * [PATH\_REMOVED](#config_as_json.rocf_change.RocfChangeKind.PATH_REMOVED)
+    * [KEY\_RENAMED](#config_as_json.rocf_change.RocfChangeKind.KEY_RENAMED)
+    * [PATH\_MOVED](#config_as_json.rocf_change.RocfChangeKind.PATH_MOVED)
+    * [VALUE\_MIGRATED](#config_as_json.rocf_change.RocfChangeKind.VALUE_MIGRATED)
+    * [OLD\_VALUE\_DISCARDED](#config_as_json.rocf_change.RocfChangeKind.OLD_VALUE_DISCARDED)
+    * [MISSING\_VALUE\_ADDED](#config_as_json.rocf_change.RocfChangeKind.MISSING_VALUE_ADDED)
+    * [OLD\_KEY\_HANDLED](#config_as_json.rocf_change.RocfChangeKind.OLD_KEY_HANDLED)
+  * [RocfChange](#config_as_json.rocf_change.RocfChange)
+  * [\_CHANGE\_LABELS](#config_as_json.rocf_change._CHANGE_LABELS)
+  * [change\_report\_line](#config_as_json.rocf_change.change_report_line)
+  * [nested\_change](#config_as_json.rocf_change.nested_change)
+  * [\_absolute\_path](#config_as_json.rocf_change._absolute_path)
 * [config\_as\_json.char\_encoding](#config_as_json.char_encoding)
   * [valid\_char\_encoding](#config_as_json.char_encoding.valid_char_encoding)
   * [check\_char\_encoding](#config_as_json.char_encoding.check_char_encoding)
@@ -342,6 +376,7 @@
   * [RocfKeyRename](#config_as_json.read_old_configuration.RocfKeyRename)
   * [\_validate\_move](#config_as_json.read_old_configuration._validate_move)
   * [\_remove\_key\_recursive](#config_as_json.read_old_configuration._remove_key_recursive)
+  * [\_rename\_one\_key](#config_as_json.read_old_configuration._rename_one_key)
   * [\_rename\_key\_recursive](#config_as_json.read_old_configuration._rename_key_recursive)
   * [\_wrap\_prefix](#config_as_json.read_old_configuration._wrap_prefix)
   * [\_remove\_list\_path](#config_as_json.read_old_configuration._remove_list_path)
@@ -2321,17 +2356,25 @@ Serialize enum members using their symbolic names.
 
 ```python
 def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
-                    stderr_file: TextIO) -> 'Config'
+                    stderr_file: TextIO,
+                    auto_ch_hook: ConfigAutoChangeHook) -> 'Config'
 ```
 
 Construct one nested Config from one parsed JSON object.
 
+Additionally the automatic changes that the nested Config recorded about
+its own JSON data are merged into ``auto_ch_hook`` using paths in the
+parent, so the application learns about old-file compatibility inside
+nested objects.
+
 **Arguments**:
 
-- `name` - Diagnostic name for the nested Config.
+- `name` - Diagnostic name for the nested Config. It is also the path text
+  of the nested object inside the parent.
 - `json_data` - Parsed JSON object for the nested Config.
 - `nesting` - Nested Config declaration for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `auto_ch_hook` - Parent hook receiving the nested automatic changes.
 
 
 **Returns**:
@@ -2350,8 +2393,8 @@ Construct one nested Config from one parsed JSON object.
 
 ```python
 def _list_from_json(member_name: str, json_data: object,
-                    nesting: ConfigNesting,
-                    stderr_file: TextIO) -> list['Config']
+                    nesting: ConfigNesting, stderr_file: TextIO,
+                    auto_ch_hook: ConfigAutoChangeHook) -> list['Config']
 ```
 
 Construct a list of nested Config objects from parsed JSON.
@@ -2362,6 +2405,7 @@ Construct a list of nested Config objects from parsed JSON.
 - `json_data` - Parsed JSON value for the member.
 - `nesting` - Nested Config declaration for the list elements.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `auto_ch_hook` - Parent hook receiving the nested automatic changes.
 
 
 **Returns**:
@@ -2379,8 +2423,8 @@ Construct a list of nested Config objects from parsed JSON.
 
 ```python
 def _dict_from_json(member_name: str, json_data: object,
-                    nesting: ConfigNesting,
-                    stderr_file: TextIO) -> dict[str, 'Config']
+                    nesting: ConfigNesting, stderr_file: TextIO,
+                    auto_ch_hook: ConfigAutoChangeHook) -> dict[str, 'Config']
 ```
 
 Construct a dict of nested Config objects from parsed JSON.
@@ -2391,6 +2435,7 @@ Construct a dict of nested Config objects from parsed JSON.
 - `json_data` - Parsed JSON value for the member.
 - `nesting` - Nested Config declaration for the dict values.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `auto_ch_hook` - Parent hook receiving the nested automatic changes.
 
 
 **Returns**:
@@ -2417,9 +2462,10 @@ Return DICT_VALUE_BY_KEY declarations keyed by discriminator_key.
 #### \_dict\_by\_key\_from\_json
 
 ```python
-def _dict_by_key_from_json(member_name: str, json_data: object,
-                           nestings: list[ConfigNesting],
-                           stderr_file: TextIO) -> dict[str, object]
+def _dict_by_key_from_json(
+        member_name: str, json_data: object, nestings: list[ConfigNesting],
+        stderr_file: TextIO,
+        auto_ch_hook: ConfigAutoChangeHook) -> dict[str, object]
 ```
 
 Construct selected dict values as nested Config objects.
@@ -2430,6 +2476,7 @@ Construct selected dict values as nested Config objects.
 - `json_data` - Parsed JSON value for the member.
 - `nestings` - Nested Config declarations for selected dict keys.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `auto_ch_hook` - Parent hook receiving the nested automatic changes.
 
 
 **Returns**:
@@ -2470,7 +2517,8 @@ Return the single declaration for non-keyed nesting kinds.
 ```python
 def _nested_config_from_json(member_name: str, json_data: object,
                              nestings: list[ConfigNesting],
-                             stderr_file: TextIO) -> object
+                             stderr_file: TextIO,
+                             auto_ch_hook: ConfigAutoChangeHook) -> object
 ```
 
 Construct nested Config data from parsed JSON data.
@@ -2481,6 +2529,7 @@ Construct nested Config data from parsed JSON data.
 - `json_data` - Parsed JSON value for the member.
 - `nestings` - Nested Config declarations for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `auto_ch_hook` - Parent hook receiving the nested automatic changes.
 
 
 **Returns**:
@@ -2768,6 +2817,12 @@ Hooks let an application learn that configuration input needed help while it
 was parsed, for example because old-file compatibility renamed a key, moved a
 path, removed an obsolete key, or supplied a missing current value.
 
+<a id="config_as_json.config_auto_change_hook._MERGED_AS_MOVED"></a>
+
+#### \_MERGED\_AS\_MOVED
+
+Nested change kinds recorded as moves in the backward-compatible members.
+
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook"></a>
 
 ## ConfigAutoChangeHook Objects
@@ -2781,6 +2836,26 @@ Collect and report automatic configuration changes during parsing.
 Applications that want to react when configuration data is normalized
 should derive from this class and pass an instance to ``Config``.
 
+``Config`` keeps a reference to the instance it is given, so the
+application can read the recorded changes from its own object after
+parsing. ``Config.parse_json`` calls :meth:`clear` before each parse, so
+one instance can be reused for several parses and each :meth:`auto_changed`
+call then reports only the changes of the current parse. One instance
+shared by several ``Config`` objects therefore holds the changes of the
+most recent parse only, and one instance must not be used for parsing in
+several threads at the same time.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.DATA_STRUCTURE_VERSION"></a>
+
+#### DATA\_STRUCTURE\_VERSION
+
+Version of the recorded data structure read by derived classes.
+
+The version is stepped whenever the recorded data members change,
+including purely additive changes, so that a derived class reading the
+data members is forced to review the new structure. Derived classes that
+read the data members should call :meth:`check_data_version`.
+
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.__init__"></a>
 
 #### \_\_init\_\_
@@ -2790,6 +2865,32 @@ def __init__() -> None
 ```
 
 Initialize empty change tracking state.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.check_data_version"></a>
+
+#### check\_data\_version
+
+```python
+@classmethod
+def check_data_version(cls, written_for: int) -> None
+```
+
+Check that the recorded data structure has the expected version.
+
+Derived classes that read the recorded data members directly should
+call this with the version they were written for. An incompatible
+library version then fails with a clear message instead of silently
+reporting details that no longer mean what the derived class expects.
+
+**Arguments**:
+
+- `written_for` - Value of :attr:`DATA_STRUCTURE_VERSION` that the
+  derived class was written for.
+
+
+**Raises**:
+
+- `HookDataVersionError` - The library records another version.
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.auto_changed"></a>
 
@@ -2805,6 +2906,20 @@ React after parsing finished with one or more automatic changes.
 Derived classes override this method to log, warn, or otherwise react
 when configuration input was normalized.
 
+The arguments are fixed because of unknown old derived classes that
+we have no control over. If only a printout or logging is needed, and
+you want it to be detailed and version independent, call
+:meth:`print_changes`.
+
+Derived classes that want more specific structured information should
+read it from the object members, primarily ``self.changes``. The
+members ``self.old_keys``, ``self.rocf_val_keys`` and
+``self.old_paths_moved`` are kept for backward compatibility and hold
+the same summary as the arguments of this method. A derived class that
+reads the object members directly should call
+:meth:`check_data_version` to ensure that the derived class is
+up-to-date for the currently recorded data structure.
+
 **Arguments**:
 
 - `old_keys_handled` - Old keys or paths that were accepted during
@@ -2817,6 +2932,29 @@ when configuration input was normalized.
   not contain them.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook._add"></a>
+
+#### \_add
+
+```python
+def _add(kind: RocfChangeKind,
+         old_path: Optional[str] = None,
+         new_path: Optional[str] = None,
+         value: object = None) -> None
+```
+
+Append one detailed record describing one automatic change.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook._legacy_moved"></a>
+
+#### \_legacy\_moved
+
+```python
+def _legacy_moved(old_path: str, new_path: str) -> None
+```
+
+Record one moved path in the backward-compatible members.
+
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.old_key_handled"></a>
 
 #### old\_key\_handled
@@ -2827,9 +2965,14 @@ def old_key_handled(old_key: str) -> None
 
 Record that one legacy key name was accepted and handled.
 
+Application code in ``ReadOldConfiguration.pre_process_json`` and
+``post_process_json`` calls this for old data it handles itself. The
+library uses the more specific recording methods instead.
+
 **Arguments**:
 
-- `old_key` - Legacy key name that was handled by renaming or removal.
+- `old_key` - Legacy key name or path that was handled by renaming or
+  removal.
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.rocf_missing_value_provided"></a>
 
@@ -2840,6 +2983,10 @@ def rocf_missing_value_provided(rocf_val_key: str) -> None
 ```
 
 Record that parsing supplied a compatibility value for one key.
+
+Application code that supplies missing current values itself calls
+this. The library calls :meth:`missing_value_added` instead, because
+the library also knows the inserted value.
 
 **Arguments**:
 
@@ -2859,8 +3006,167 @@ Record that one old path was moved to a current path.
 **Arguments**:
 
 - `old_path` - Actual old path that was accepted and removed.
-- `new_path` - Actual current path that received the old value, or
-  already had a current value that won.
+- `new_path` - Actual current path that received the old value.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.key_pruned"></a>
+
+#### key\_pruned
+
+```python
+def key_pruned(key: str, at_paths: list[str]) -> None
+```
+
+Record where one old key name was pruned recursively.
+
+**Arguments**:
+
+- `key` - Old key name from the prune rule.
+- `at_paths` - Actual paths where the old key name was removed. An
+  empty list records nothing, because the rule then did not
+  change the input data.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.path_removed"></a>
+
+#### path\_removed
+
+```python
+def path_removed(path: str) -> None
+```
+
+Record that one old path was accepted and removed.
+
+**Arguments**:
+
+- `path` - Actual old path that was removed from the input data.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.key_renamed"></a>
+
+#### key\_renamed
+
+```python
+def key_renamed(old_key: str, at_paths: list[tuple[str,
+                                                   Optional[str]]]) -> None
+```
+
+Record where one old key name was replaced by the current name.
+
+**Arguments**:
+
+- `old_key` - Old key name from the rename rule.
+- `at_paths` - One ``(old actual path, new actual path)`` pair for every
+  place where the old key name was found. The new path is
+  ``None`` when the current key name already existed there, so
+  the current value won and the old value was discarded. An
+  empty list records nothing.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.move_discarded"></a>
+
+#### move\_discarded
+
+```python
+def move_discarded(old_path: str, new_path: str) -> None
+```
+
+Record that a current value won over an old value that could move.
+
+**Arguments**:
+
+- `old_path` - Actual old path that was accepted and removed.
+- `new_path` - Actual current path whose existing value won.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.value_migrated"></a>
+
+#### value\_migrated
+
+```python
+def value_migrated(old_path: str, new_path: str) -> None
+```
+
+Record that a value migration produced one current value.
+
+**Arguments**:
+
+- `old_path` - Actual old path that was accepted and removed.
+- `new_path` - Actual current path that received a produced value.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.migration_discarded"></a>
+
+#### migration\_discarded
+
+```python
+def migration_discarded(old_path: str, new_paths: list[str]) -> None
+```
+
+Record that a value migration produced no current value.
+
+**Arguments**:
+
+- `old_path` - Actual old path that was accepted and removed.
+- `new_paths` - Existing current paths that won over the old value. An
+  empty list means that the migration itself produced no value.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.missing_value_added"></a>
+
+#### missing\_value\_added
+
+```python
+def missing_value_added(path: str, value: object) -> None
+```
+
+Record that one absent current path received a value.
+
+**Arguments**:
+
+- `path` - Actual current path that received the value.
+- `value` - Value that was inserted at ``path``. It is copied so later
+  changes to the configuration data do not change the record.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.merge_nested"></a>
+
+#### merge\_nested
+
+```python
+def merge_nested(nested: 'ConfigAutoChangeHook', path_prefix: str) -> None
+```
+
+Merge changes recorded by a nested Config object into this hook.
+
+``Config`` calls this after a nested ``Config`` object has parsed its
+own JSON data, so that automatic changes inside nested objects reach
+the hook the application passed to the top-level ``Config``. The
+nested paths are rewritten as paths in the parent configuration data.
+
+In the backward-compatible members, merged moved and migrated values
+are recorded as ``old -> new`` entries and every other merged change
+is recorded with its absolute old path.
+
+**Arguments**:
+
+- `nested` - Hook that recorded the nested object's changes. Merging a
+  hook into itself is a no-op, which keeps an application
+  factory function that reuses the parent hook harmless.
+- `path_prefix` - Path text of the nested object inside the parent, for
+  example ``outputs[0]``.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook._merge_one"></a>
+
+#### \_merge\_one
+
+```python
+def _merge_one(change: RocfChange) -> None
+```
+
+Record one already rewritten change from a nested Config object.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.has_changes"></a>
+
+#### has\_changes
+
+```python
+def has_changes() -> bool
+```
+
+Return whether at least one automatic change has been recorded.
 
 <a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.all_autochanges_done"></a>
 
@@ -2878,6 +3184,45 @@ least one automatic change was recorded.
 **Arguments**:
 
 - `stderr_file` - Stream used for user-facing diagnostics.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.print_changes"></a>
+
+#### print\_changes
+
+```python
+def print_changes(stderr_file: TextIO) -> None
+```
+
+Print a detailed report of all automatic changes to the stream.
+
+This is the version-independent way to report automatic changes, and
+is safe to call from derived classes that override :meth:`auto_changed`
+and do not want to be affected by future changes in the data structure
+of the object members. Nothing at all is printed when no automatic
+change was recorded, so the method can be called unconditionally.
+Derived classes may override this method to change the report format.
+
+**Arguments**:
+
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+<a id="config_as_json.config_auto_change_hook.ConfigAutoChangeHook.clear"></a>
+
+#### clear
+
+```python
+def clear() -> None
+```
+
+Clear all recorded automatic changes.
+
+This is called when a new parsing session starts, so that the hook
+can be reused for multiple parsing sessions, and still in each
+call to :meth:`auto_changed` only report the changes that happened
+during the current parsing session.
+
+A derived class that adds data members of its own should override this
+method, clear its own members, and call ``super().clear()``.
 
 <a id="config_as_json.list_ordering_validators"></a>
 
@@ -3587,7 +3932,10 @@ parsed data is applied to the same attributes instead.
 - `from_json_filename` - Optional path to a JSON file to read.
 - `auto_ch_hook` - Hook that is notified about automatic changes such
   as filled, renamed, moved, or removed values when reading old
-  configuration files.
+  configuration files. The object is kept by reference, so the
+  application can read the recorded changes from its own object
+  after parsing. See :class:`ConfigAutoChangeHook` for what
+  reusing or sharing one hook instance means.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
   Dict-valued members are checked against the default key set by the
@@ -3608,6 +3956,25 @@ parsed data is applied to the same attributes instead.
   into the expected configuration structure.
 - `NotImplementedError` - The derived class did not implement
   ``get_validation_plan``.
+
+<a id="config_as_json.config.Config.auto_change_hook"></a>
+
+#### auto\_change\_hook
+
+```python
+def auto_change_hook() -> ConfigAutoChangeHook
+```
+
+Return the hook that recorded automatic changes for this object.
+
+This is the hook supplied to the constructor, or the default hook
+created there when the application supplied none. It holds the
+automatic changes of the most recent parse, including changes inside
+declared nested ``Config`` objects.
+
+**Returns**:
+
+  The automatic-change hook used by this configuration object.
 
 <a id="config_as_json.config.Config.parse_converters"></a>
 
@@ -4068,6 +4435,11 @@ def parse_json(from_json_text: str,
 ```
 
 Parse JSON text and apply it to the configuration object.
+
+The automatic-change hook is cleared before parsing starts, and it is
+notified once after every declared nested ``Config`` object has been
+parsed, so the report covers old-file compatibility in nested objects
+too. Nothing is reported when parsing fails before that point.
 
 **Arguments**:
 
@@ -7003,6 +7375,181 @@ Return ``filename`` with the desired extension normalization applied.
 
   The normalized filename.
 
+<a id="config_as_json.rocf_change"></a>
+
+# config\_as\_json.rocf\_change
+
+Describe detailed automatic changes recorded while reading old input.
+
+Read Old Configuration File (ROCF) processing records one :class:`RocfChange`
+for every actual change it applies. Applications that want structured details
+about those changes read the records from
+:class:`config_as_json.config_auto_change_hook.ConfigAutoChangeHook`.
+
+<a id="config_as_json.rocf_change.HookDataVersionError"></a>
+
+## HookDataVersionError Objects
+
+```python
+class HookDataVersionError(RuntimeError)
+```
+
+Raised when a hook subclass expects another data structure version.
+
+A derived ``ConfigAutoChangeHook`` that reads the recorded data members
+declares the version it was written for. This exception reports that the
+installed config_as_json records another version, so the derived class
+needs to be reviewed before it can trust the recorded details.
+
+<a id="config_as_json.rocf_change.RocfChangeKind"></a>
+
+## RocfChangeKind Objects
+
+```python
+class RocfChangeKind(Enum)
+```
+
+Classify one automatic change applied while reading old input.
+
+<a id="config_as_json.rocf_change.RocfChangeKind.KEY_PRUNED"></a>
+
+#### KEY\_PRUNED
+
+An old key name was removed recursively from the input data.
+
+<a id="config_as_json.rocf_change.RocfChangeKind.PATH_REMOVED"></a>
+
+#### PATH\_REMOVED
+
+An old path was removed from the input data.
+
+<a id="config_as_json.rocf_change.RocfChangeKind.KEY_RENAMED"></a>
+
+#### KEY\_RENAMED
+
+An old key name was replaced by the current key name.
+
+<a id="config_as_json.rocf_change.RocfChangeKind.PATH_MOVED"></a>
+
+#### PATH\_MOVED
+
+An old value was moved to the current path.
+
+<a id="config_as_json.rocf_change.RocfChangeKind.VALUE_MIGRATED"></a>
+
+#### VALUE\_MIGRATED
+
+A value migration produced one current value from an old value.
+
+<a id="config_as_json.rocf_change.RocfChangeKind.OLD_VALUE_DISCARDED"></a>
+
+#### OLD\_VALUE\_DISCARDED
+
+An old value was accepted and removed without producing a value.
+
+<a id="config_as_json.rocf_change.RocfChangeKind.MISSING_VALUE_ADDED"></a>
+
+#### MISSING\_VALUE\_ADDED
+
+A current path that was absent from the input received a value.
+
+<a id="config_as_json.rocf_change.RocfChangeKind.OLD_KEY_HANDLED"></a>
+
+#### OLD\_KEY\_HANDLED
+
+Application code reported old data that it handled itself.
+
+<a id="config_as_json.rocf_change.RocfChange"></a>
+
+## RocfChange Objects
+
+```python
+class RocfChange(NamedTuple)
+```
+
+Record one automatic change applied while reading old input.
+
+Paths are rendered in the same text style as the paths reported to
+``ConfigAutoChangeHook.auto_changed``, for example
+``outputs[2][csv_params][delimiter]``.
+
+**Attributes**:
+
+- `kind` - What kind of automatic change this record describes.
+- `old_path` - Actual old path that was accepted and handled, or ``None``
+  when the change did not consume an old value.
+- `new_path` - Actual current path that received a value, or ``None`` when
+  the change did not produce a current value. For
+  ``OLD_VALUE_DISCARDED`` it names the existing current path that
+  won over the old value, when that path is known.
+- `value` - Value inserted for ``MISSING_VALUE_ADDED`` records created by
+  the library. It is ``None`` for every other kind, and also for
+  records created through the legacy
+  ``ConfigAutoChangeHook.rocf_missing_value_provided`` entry point,
+  which does not receive the inserted value.
+
+<a id="config_as_json.rocf_change._CHANGE_LABELS"></a>
+
+#### \_CHANGE\_LABELS
+
+Aligned report labels used by ``ConfigAutoChangeHook.print_changes``.
+
+<a id="config_as_json.rocf_change.change_report_line"></a>
+
+#### change\_report\_line
+
+```python
+def change_report_line(change: RocfChange) -> str
+```
+
+Return one report line describing one automatic change.
+
+**Arguments**:
+
+- `change` - Recorded automatic change to describe.
+
+
+**Returns**:
+
+  One indented report line without a trailing newline.
+
+<a id="config_as_json.rocf_change.nested_change"></a>
+
+#### nested\_change
+
+```python
+def nested_change(change: RocfChange, path_prefix: str) -> RocfChange
+```
+
+Return one nested change record using parent-absolute paths.
+
+**Arguments**:
+
+- `change` - Change recorded by a nested ``Config`` object about its own
+  JSON data.
+- `path_prefix` - Path text of the nested object inside the parent, for
+  example ``outputs[0]``.
+
+
+**Returns**:
+
+  The same change with both paths rewritten as paths in the parent.
+
+<a id="config_as_json.rocf_change._absolute_path"></a>
+
+#### \_absolute\_path
+
+```python
+def _absolute_path(path_prefix: str, path: Optional[str]) -> Optional[str]
+```
+
+Return one nested path text as a parent-absolute path text.
+
+The first step of a nested path is a plain dictionary key, and every
+later step is already bracketed. Prefixing therefore only has to bracket
+that first step, so ``csv_params[delimiter]`` below ``outputs[0]``
+becomes ``outputs[0][csv_params][delimiter]``.
+
 <a id="config_as_json.char_encoding"></a>
 
 # config\_as\_json.char\_encoding
@@ -7573,21 +8120,50 @@ Validate one application-supplied move rule before applying it.
 #### \_remove\_key\_recursive
 
 ```python
-def _remove_key_recursive(data: object, key: str) -> bool
+def _remove_key_recursive(data: object, key: str,
+                          actual: list[str | int]) -> list[str]
 ```
 
 Remove an old key name from every dictionary below ``data``.
+
+**Returns**:
+
+  The actual path of every removed occurrence of the old key name.
+
+<a id="config_as_json.read_old_configuration._rename_one_key"></a>
+
+#### \_rename\_one\_key
+
+```python
+def _rename_one_key(rename: RocfKeyRename, dict_data: dict[str, object],
+                    actual: list[str | int],
+                    stderr_file: TextIO) -> tuple[str, Optional[str]]
+```
+
+Rename or discard one found old key name in one dictionary.
+
+**Returns**:
+
+  The actual old path, and the actual current path that received the
+  value. The current path is ``None`` when the current key name already
+  existed, so the current value won and the old value was discarded.
 
 <a id="config_as_json.read_old_configuration._rename_key_recursive"></a>
 
 #### \_rename\_key\_recursive
 
 ```python
-def _rename_key_recursive(rename: RocfKeyRename, data: object,
-                          stderr_file: TextIO) -> bool
+def _rename_key_recursive(
+        rename: RocfKeyRename, data: object, stderr_file: TextIO,
+        actual: list[str | int]) -> list[tuple[str, Optional[str]]]
 ```
 
 Apply one recursive old-name to current-name rename rule.
+
+**Returns**:
+
+  One ``(old actual path, current actual path)`` pair for every place
+  where the old key name was found.
 
 <a id="config_as_json.read_old_configuration._wrap_prefix"></a>
 
@@ -7708,9 +8284,13 @@ This method may mutate ``json_data`` in place. The caller must use the
 returned object because overrides may return another dictionary.
 
 The library reports actual performed compatibility changes to
-``auto_ch_hook``. A wildcard move over three list elements is therefore
-reported as three individual moved paths. Moved paths use the same
-text style as member names used by member validators, for example
+``auto_ch_hook``, both as the backward-compatible summary passed to
+``ConfigAutoChangeHook.auto_changed`` and as detailed
+``config_as_json.RocfChange`` records in
+``ConfigAutoChangeHook.changes``. A wildcard move over three list
+elements is therefore reported as three individual moved paths. Moved
+paths use the same text style as member names used by member
+validators, for example
 ``outputs[2][csv_params][delimiter]``. ROCF traverses plain JSON
 dictionaries and lists, so every step after the top-level key is
 rendered with ``[...]``; the ``.member`` dot syntax is reserved for
@@ -8583,8 +9163,11 @@ records the actual old path as handled old-schema data. When current
 values win, the hook records the actual old path as handled and the
 diagnostic written to ``stderr_file`` lists the old path, the declared
 current paths considered, and the existing current paths that caused the
-conflict. Future implementations may add detailed hook attributes, but
-the summary passed to ``auto_changed()`` must remain backward-compatible.
+conflict. The hook also records one detailed
+``config_as_json.RocfChange`` for every produced current value and for
+every discarded old value, so application code can tell those two cases
+apart. The summary passed to ``auto_changed()`` stays
+backward-compatible.
 
 **Arguments**:
 

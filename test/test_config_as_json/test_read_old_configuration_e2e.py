@@ -30,10 +30,11 @@ class RecordingHook(ConfigAutoChangeHook):
         super().__init__()
         self.calls: list[tuple[list[str], list[str]]] = []
 
-    def __deepcopy__(self, memo: dict[int, object]) -> 'RecordingHook':
-        """Return this recorder so tests can inspect callback results."""
-        _ = memo
-        return self
+    @override
+    def clear(self) -> None:
+        """Clear the recorded calls together with the recorded changes."""
+        self.calls.clear()
+        super().clear()
 
     def auto_changed(self, old_keys_handled: list[str],
                      rocf_vals_handled: list[str],

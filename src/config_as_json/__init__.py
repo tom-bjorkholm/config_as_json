@@ -18,6 +18,8 @@ from config_as_json.commontypes import JsonType, PathOrStr, ConfigPath
 from config_as_json.config_factory import config_factory_from_json, \
     MatchConfig, MatchConfigSeq, JsonValueMatcher
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.rocf_change import HookDataVersionError, RocfChange, \
+    RocfChangeKind
 from config_as_json.read_old_configuration import ReadOldConfiguration, \
     RocfKeyMove, RocfKeyRename, RocfPath
 from config_as_json.rocf_value_migration import RocfConflictError, \
@@ -87,6 +89,9 @@ __all__ = ['Config',
            'apply_serialize_converters',
            'ParseConverter',
            'ConfigAutoChangeHook',
+           'RocfChange',
+           'RocfChangeKind',
+           'HookDataVersionError',
            'CsvDialectConfig',
            'CsvDialectValidator',
            'get_csv_dialect',

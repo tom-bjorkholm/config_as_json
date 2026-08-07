@@ -317,7 +317,12 @@ pip install --upgrade config-as-json
 - `config_as_json.config_factory_from_json`
   Select the correct configuration class by inspecting JSON input.
 - `config_as_json.ConfigAutoChangeHook`
-  Receive notifications about automatic changes during parsing.
+  Receive notifications about automatic changes during parsing, and read the
+  detailed records of what was changed.
+- `config_as_json.RocfChange`, `config_as_json.RocfChangeKind`
+  Detailed records of the individual automatic changes that were applied.
+- `config_as_json.HookDataVersionError`
+  Raised when a hook subclass expects another recorded data structure.
 - `config_as_json.MigrateCfgWarnHook`
   Warn when backward compatibility was used.
 - `config_as_json.migrate_cfg`
@@ -343,7 +348,7 @@ MIT
 
 ## Test summary
 
-- Test result: 4482 passed in 17s
+- Test result: 4510 passed in 17s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

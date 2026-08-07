@@ -184,8 +184,11 @@ class RocfValueMigration(NamedTuple):
     values win, the hook records the actual old path as handled and the
     diagnostic written to ``stderr_file`` lists the old path, the declared
     current paths considered, and the existing current paths that caused the
-    conflict. Future implementations may add detailed hook attributes, but
-    the summary passed to ``auto_changed()`` must remain backward-compatible.
+    conflict. The hook also records one detailed
+    ``config_as_json.RocfChange`` for every produced current value and for
+    every discarded old value, so application code can tell those two cases
+    apart. The summary passed to ``auto_changed()`` stays
+    backward-compatible.
 
     Args:
         old_path: Absolute path to the old value in the root configuration
@@ -630,18 +633,20 @@ def _process_one_value_migration(context: _MoveContext,
         _value_conflict_diag(old_text, [info.path_text for info in infos],
                              current_conflicts, context.stderr_file)
         _delete_path(context.json_data, moved_value.actual_path)
-        context.auto_ch_hook.old_key_handled(old_text)
+        context.auto_ch_hook.migration_discarded(old_path=old_text,
+                                                 new_paths=current_conflicts)
         return
     prepared = _prepared_writes(migration, moved_value, infos)
     _verify_writes(context.json_data, moved_value.actual_path, prepared)
     _remove_old_path(context.json_data, moved_value.actual_path, prepared)
     if not prepared:
-        context.auto_ch_hook.old_key_handled(old_text)
+        context.auto_ch_hook.migration_discarded(old_path=old_text,
+                                                 new_paths=[])
         return
     for item in prepared:
         _write_path(context.json_data, item.path, item.value)
         context.written_paths.add(item.path_text)
-        context.auto_ch_hook.old_path_moved(old_path=old_text,
+        context.auto_ch_hook.value_migrated(old_path=old_text,
                                             new_path=item.path_text)
 
 

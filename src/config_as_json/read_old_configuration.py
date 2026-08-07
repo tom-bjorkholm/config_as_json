@@ -170,52 +170,76 @@ def _validate_move(move: RocfKeyMove) -> None:
     raise ValueError(msg)
 
 
-def _remove_key_recursive(data: object, key: str) -> bool:
-    """Remove an old key name from every dictionary below ``data``."""
+def _remove_key_recursive(data: object, key: str,
+                          actual: list[str | int]) -> list[str]:
+    """Remove an old key name from every dictionary below ``data``.
+
+    Returns:
+        The actual path of every removed occurrence of the old key name.
+    """
+    removed: list[str] = []
     dict_data = _as_dict(data)
     if dict_data is not None:
-        found = key in dict_data
-        if found:
+        if key in dict_data:
+            removed.append(_path_text(actual + [key]))
             del dict_data[key]
-        for value in list(dict_data.values()):
-            found = _remove_key_recursive(value, key) or found
-        return found
+        for name, value in list(dict_data.items()):
+            removed.extend(_remove_key_recursive(value, key, actual + [name]))
+        return removed
     list_data = _as_list(data)
     if list_data is not None:
-        found = False
-        for value in list_data:
-            found = _remove_key_recursive(value, key) or found
-        return found
-    return False
+        for index, value in enumerate(list_data):
+            removed.extend(_remove_key_recursive(value, key, actual + [index]))
+    return removed
+
+
+def _rename_one_key(rename: RocfKeyRename, dict_data: dict[str, object],
+                    actual: list[str | int],
+                    stderr_file: TextIO) -> tuple[str, Optional[str]]:
+    """Rename or discard one found old key name in one dictionary.
+
+    Returns:
+        The actual old path, and the actual current path that received the
+        value. The current path is ``None`` when the current key name already
+        existed, so the current value won and the old value was discarded.
+    """
+    old_text = _path_text(actual + [rename.old])
+    if rename.new in dict_data:
+        _conflict_diag(rename.old, rename.new, stderr_file)
+        return (old_text, None)
+    dict_data[rename.new] = rename.transform_value(dict_data[rename.old])
+    return (old_text, _path_text(actual + [rename.new]))
 
 
 def _rename_key_recursive(rename: RocfKeyRename, data: object,
-                          stderr_file: TextIO) -> bool:
-    """Apply one recursive old-name to current-name rename rule."""
+                          stderr_file: TextIO, actual: list[str | int]) \
+        -> list[tuple[str, Optional[str]]]:
+    """Apply one recursive old-name to current-name rename rule.
+
+    Returns:
+        One ``(old actual path, current actual path)`` pair for every place
+        where the old key name was found.
+    """
     assert rename.old is not None
     assert rename.new is not None
     assert rename.old != rename.new
+    found: list[tuple[str, Optional[str]]] = []
     dict_data = _as_dict(data)
     if dict_data is not None:
-        found = False
         if rename.old in dict_data:
-            found = True
-            if rename.new in dict_data:
-                _conflict_diag(rename.old, rename.new, stderr_file)
-            else:
-                dict_data[rename.new] = \
-                    rename.transform_value(dict_data[rename.old])
+            found.append(_rename_one_key(rename, dict_data, actual,
+                                         stderr_file))
             del dict_data[rename.old]
-        for value in list(dict_data.values()):
-            found = _rename_key_recursive(rename, value, stderr_file) or found
+        for name, value in list(dict_data.items()):
+            found.extend(_rename_key_recursive(rename, value, stderr_file,
+                                               actual + [name]))
         return found
     list_data = _as_list(data)
     if list_data is not None:
-        found = False
-        for value in list_data:
-            found = _rename_key_recursive(rename, value, stderr_file) or found
-        return found
-    return False
+        for index, value in enumerate(list_data):
+            found.extend(_rename_key_recursive(rename, value, stderr_file,
+                                               actual + [index]))
+    return found
 
 
 def _wrap_prefix(move: RocfKeyMove,
@@ -347,9 +371,13 @@ class ReadOldConfiguration:
         returned object because overrides may return another dictionary.
 
         The library reports actual performed compatibility changes to
-        ``auto_ch_hook``. A wildcard move over three list elements is therefore
-        reported as three individual moved paths. Moved paths use the same
-        text style as member names used by member validators, for example
+        ``auto_ch_hook``, both as the backward-compatible summary passed to
+        ``ConfigAutoChangeHook.auto_changed`` and as detailed
+        ``config_as_json.RocfChange`` records in
+        ``ConfigAutoChangeHook.changes``. A wildcard move over three list
+        elements is therefore reported as three individual moved paths. Moved
+        paths use the same text style as member names used by member
+        validators, for example
         ``outputs[2][csv_params][delimiter]``. ROCF traverses plain JSON
         dictionaries and lists, so every step after the top-level key is
         rendered with ``[...]``; the ``.member`` dot syntax is reserved for
@@ -388,8 +416,8 @@ class ReadOldConfiguration:
         for key in self._get_keys_to_prune():
             if not isinstance(key, str):
                 raise TypeError('recursive remove keys must be strings')
-            if _remove_key_recursive(json_data, key):
-                auto_ch_hook.old_key_handled(old_key=key)
+            pruned = _remove_key_recursive(json_data, key, [])
+            auto_ch_hook.key_pruned(key=key, at_paths=pruned)
 
     def _remove_keys_by_path(self, json_data: dict[str, object],
                              auto_ch_hook: ConfigAutoChangeHook) -> None:
@@ -397,15 +425,15 @@ class ReadOldConfiguration:
         for path in self.get_keys_to_remove():
             _validate_path(path, 'remove path')
             for old_path in _remove_path(json_data, path, []):
-                auto_ch_hook.old_key_handled(old_key=old_path)
+                auto_ch_hook.path_removed(path=old_path)
 
     def _rename_json_keys(self, json_data: dict[str, object],
                           auto_ch_hook: ConfigAutoChangeHook,
                           stderr_file: TextIO) -> None:
         """Apply application-declared recursive key renames."""
         for rename in self.get_json_key_renames():
-            if _rename_key_recursive(rename, json_data, stderr_file):
-                auto_ch_hook.old_key_handled(old_key=rename.old)
+            renamed = _rename_key_recursive(rename, json_data, stderr_file, [])
+            auto_ch_hook.key_renamed(old_key=rename.old, at_paths=renamed)
 
     def _move_json_keys(self, json_data: dict[str, object],
                         auto_ch_hook: ConfigAutoChangeHook,
@@ -442,7 +470,7 @@ class ReadOldConfiguration:
         wrap_prefix = _wrap_prefix(move, target)
         if self._target_is_current(context, moved_value, wrap_prefix, target):
             _delete_path(context.json_data, moved_value.actual_path)
-            context.auto_ch_hook.old_path_moved(old_path=old_text,
+            context.auto_ch_hook.move_discarded(old_path=old_text,
                                                 new_path=new_text)
             return
         new_value = move.transform_value(deepcopy(moved_value.value))
@@ -478,7 +506,8 @@ class ReadOldConfiguration:
         for path, value in self._get_missing_path_values().items():
             _validate_path(path, 'missing-value path')
             for applied_path in _apply_missing(json_data, path, value, []):
-                auto_ch_hook.rocf_missing_value_provided(applied_path)
+                auto_ch_hook.missing_value_added(path=applied_path,
+                                                 value=value)
 
     def _get_keys_to_prune(self) -> list[str]:
         """Return recursive remove keys from the active public hook."""

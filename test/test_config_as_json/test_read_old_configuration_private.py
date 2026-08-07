@@ -176,41 +176,44 @@ def test_conflict_diag() -> None:
 
 
 @pytest.mark.parametrize(
-    'data, key, expected_data, expected_found',
-    [({'drop': 1, 'keep': {'drop': 2}}, 'drop', {'keep': {}}, True),
+    'data, key, expected_data, expected_paths',
+    [({'drop': 1, 'keep': {'drop': 2}}, 'drop', {'keep': {}},
+      ['drop', 'keep[drop]']),
      ({'items': [{'drop': 1}, {'keep': 2}]}, 'drop',
-      {'items': [{}, {'keep': 2}]}, True),
-     ({'keep': 1}, 'drop', {'keep': 1}, False)])
+      {'items': [{}, {'keep': 2}]}, ['items[0][drop]']),
+     ({'keep': 1}, 'drop', {'keep': 1}, [])])
 def test_remove_key_recursive(data: dict[str, object], key: str,
                               expected_data: dict[str, object],
-                              expected_found: bool) -> None:
+                              expected_paths: list[str]) -> None:
     """Test recursive key removal through dictionaries and lists."""
-    assert read_mod._remove_key_recursive(data, key) == expected_found
+    assert read_mod._remove_key_recursive(data, key, []) == expected_paths
     assert data == expected_data
 
 
 @pytest.mark.parametrize('data', ['text', 7, None])
 def test_remove_key_recursive_bad(data: object) -> None:
     """Test recursive key removal on non-container data."""
-    assert not read_mod._remove_key_recursive(data, 'drop')
+    assert not read_mod._remove_key_recursive(data, 'drop', [])
 
 
 @pytest.mark.parametrize(
     'data, expected_data, expected_found, expected_err',
-    [({'old': 1}, {'new': 1}, True, ''),
-     ({'items': [{'old': 1}]}, {'items': [{'new': 1}]}, True, ''),
-     ({'old': 1, 'new': 2}, {'new': 2}, True,
+    [({'old': 1}, {'new': 1}, [('old', 'new')], ''),
+     ({'items': [{'old': 1}]}, {'items': [{'new': 1}]},
+      [('items[0][old]', 'items[0][new]')], ''),
+     ({'old': 1, 'new': 2}, {'new': 2}, [('old', None)],
       'Inconsistent configuration:\n'
       'Both new config parameter new and old old present.\n'
       'Ignoring old parameter old\n'),
-     ({'keep': 1}, {'keep': 1}, False, '')])
+     ({'keep': 1}, {'keep': 1}, [], '')])
 def test_rename_key_recursive(data: dict[str, object],
                               expected_data: dict[str, object],
-                              expected_found: bool, expected_err: str) -> None:
+                              expected_found: list[tuple[str, Optional[str]]],
+                              expected_err: str) -> None:
     """Test recursive key rename behavior."""
     stderr_file = StringIO()
     rename = read_mod.RocfKeyRename(old='old', new='new')
-    assert read_mod._rename_key_recursive(rename, data, stderr_file) == \
+    assert read_mod._rename_key_recursive(rename, data, stderr_file, []) == \
         expected_found
     assert data == expected_data
     assert stderr_file.getvalue() == expected_err
@@ -220,7 +223,7 @@ def test_rename_key_recursive_bad() -> None:
     """Test invalid recursive key rename input."""
     rename = read_mod.RocfKeyRename(old='same', new='same')
     with pytest.raises(AssertionError):
-        read_mod._rename_key_recursive(rename, {}, StringIO())
+        read_mod._rename_key_recursive(rename, {}, StringIO(), [])
 
 
 def test_rename_recursive_transform() -> None:
@@ -234,7 +237,7 @@ def test_rename_recursive_transform() -> None:
     data: dict[str, object] = {'old': 'old-text'}
     rename = read_mod.RocfKeyRename(old='old', new='new',
                                     transform_value=old_text_to_new)
-    assert read_mod._rename_key_recursive(rename, data, StringIO())
+    assert read_mod._rename_key_recursive(rename, data, StringIO(), [])
     assert data == {'new': 'new-text'}
 
 

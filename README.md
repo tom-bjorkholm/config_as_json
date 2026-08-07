@@ -60,6 +60,10 @@ to hide the application's schema behind a large generic framework.
   Select among several configuration classes by inspecting JSON input.
 - `config_as_json.ConfigAutoChangeHook`
   Hook interface for reporting automatic changes applied during parsing.
+- `config_as_json.RocfChange`, `config_as_json.RocfChangeKind`
+  Detailed records of the individual automatic changes that were applied.
+- `config_as_json.HookDataVersionError`
+  Raised when a hook subclass expects another recorded data structure.
 - `config_as_json.migrate_cfg`
   Helper for reading an older configuration file and writing it back in the
   newest supported format.
@@ -138,7 +142,7 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 4482 passed in 17s
+- Test result: 4510 passed in 17s
 - No flake8 warnings.
 - No mypy errors found.
 - No python layout warnings.

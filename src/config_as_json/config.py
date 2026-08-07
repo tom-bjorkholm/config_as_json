@@ -137,7 +137,10 @@ class Config():
             from_json_filename: Optional path to a JSON file to read.
             auto_ch_hook: Hook that is notified about automatic changes such
                 as filled, renamed, moved, or removed values when reading old
-                configuration files.
+                configuration files. The object is kept by reference, so the
+                application can read the recorded changes from its own object
+                after parsing. See :class:`ConfigAutoChangeHook` for what
+                reusing or sharing one hook instance means.
             stderr_file: Stream used for user-facing diagnostics.
 
         Dict-valued members are checked against the default key set by the
@@ -159,8 +162,7 @@ class Config():
         """
         if auto_ch_hook is None:
             auto_ch_hook = ConfigAutoChangeHook()
-        self._hook_cfg_autochange: ConfigAutoChangeHook = \
-            deepcopy(auto_ch_hook)
+        self._hook_cfg_autochange: ConfigAutoChangeHook = auto_ch_hook
         if '_nested_configs' in vars(self):
             # Remove this transition check after the API migration.
             raise TypeError('_nested_configs is no longer supported')
@@ -193,6 +195,19 @@ class Config():
             self.read(from_json_filename, stderr_file=stderr_file)
         else:
             self.validate(stderr_file=stderr_file)
+
+    def auto_change_hook(self) -> ConfigAutoChangeHook:
+        """Return the hook that recorded automatic changes for this object.
+
+        This is the hook supplied to the constructor, or the default hook
+        created there when the application supplied none. It holds the
+        automatic changes of the most recent parse, including changes inside
+        declared nested ``Config`` objects.
+
+        Returns:
+            The automatic-change hook used by this configuration object.
+        """
+        return self._hook_cfg_autochange
 
     def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
         """Return post-load conversion rules for parsed JSON values.
@@ -668,6 +683,11 @@ class Config():
                    stderr_file: TextIO = sys.stderr) -> None:
         """Parse JSON text and apply it to the configuration object.
 
+        The automatic-change hook is cleared before parsing starts, and it is
+        notified once after every declared nested ``Config`` object has been
+        parsed, so the report covers old-file compatibility in nested objects
+        too. Nothing is reported when parsing fails before that point.
+
         Args:
             from_json_text: JSON document describing configuration values.
             ok_to_use_defaults: Whether missing declared keys may remain at
@@ -686,6 +706,7 @@ class Config():
         hook = self._json_parse_obj_hook if self._hook_dict is not None \
             else None
         data: Optional[dict[str, object]] = None
+        self._hook_cfg_autochange.clear()
         try:
             data = json.loads(from_json_text, object_hook=hook)
         except Exception as exc:
@@ -709,7 +730,6 @@ class Config():
         data_obj = rocf.process_json(json_data=data,
                                      auto_ch_hook=self._hook_cfg_autochange,
                                      stderr_file=stderr_file)
-        self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
         assert data_obj is not None
         assert isinstance(data_obj, dict)
         data = data_obj
@@ -728,13 +748,15 @@ class Config():
                 if i in nested_configs:
                     nested_value = _nested_config_from_json(
                         member_name=i, json_data=data[i],
-                        nestings=nested_configs[i], stderr_file=stderr_file)
+                        nestings=nested_configs[i], stderr_file=stderr_file,
+                        auto_ch_hook=self._hook_cfg_autochange)
                     setattr(self, i, nested_value)
                 else:
                     self.check_dict_parse(getattr(self, i), data[i], i,
                                           ok_to_use_defaults,
                                           self._unchecked_dicts, stderr_file)
                     setattr(self, i, data[i])
+        self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
         self.validate(stderr_file=stderr_file)
 
     def _child_owned_paths(self) -> list[ConfigPath]:

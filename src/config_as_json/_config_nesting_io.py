@@ -8,6 +8,7 @@ from enum import Enum, IntEnum
 import json
 from typing import TextIO, TYPE_CHECKING, cast
 from config_as_json.commontypes import JsonType
+from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
 
 
@@ -26,14 +27,22 @@ class _NestedConfigEncoder(json.JSONEncoder):
 
 
 def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
-                    stderr_file: TextIO) -> 'Config':
+                    stderr_file: TextIO,
+                    auto_ch_hook: ConfigAutoChangeHook) -> 'Config':
     """Construct one nested Config from one parsed JSON object.
 
+    Additionally the automatic changes that the nested Config recorded about
+    its own JSON data are merged into ``auto_ch_hook`` using paths in the
+    parent, so the application learns about old-file compatibility inside
+    nested objects.
+
     Args:
-        name: Diagnostic name for the nested Config.
+        name: Diagnostic name for the nested Config. It is also the path text
+            of the nested object inside the parent.
         json_data: Parsed JSON object for the nested Config.
         nesting: Nested Config declaration for the member.
         stderr_file: Stream used for user-facing diagnostics.
+        auto_ch_hook: Parent hook receiving the nested automatic changes.
 
     Returns:
         A new nested Config instance.
@@ -60,12 +69,14 @@ def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
         msg += nesting.config_type.__name__
         print(msg, file=stderr_file)
         raise TypeError(msg)
+    auto_ch_hook.merge_nested(nested=nested_config.auto_change_hook(),
+                              path_prefix=name)
     return nested_config
 
 
 def _list_from_json(member_name: str, json_data: object,
-                    nesting: ConfigNesting,
-                    stderr_file: TextIO) -> list['Config']:
+                    nesting: ConfigNesting, stderr_file: TextIO,
+                    auto_ch_hook: ConfigAutoChangeHook) -> list['Config']:
     """Construct a list of nested Config objects from parsed JSON.
 
     Args:
@@ -73,6 +84,7 @@ def _list_from_json(member_name: str, json_data: object,
         json_data: Parsed JSON value for the member.
         nesting: Nested Config declaration for the list elements.
         stderr_file: Stream used for user-facing diagnostics.
+        auto_ch_hook: Parent hook receiving the nested automatic changes.
 
     Returns:
         A list containing one nested Config for each JSON element.
@@ -90,13 +102,14 @@ def _list_from_json(member_name: str, json_data: object,
         nested_configs.append(_item_from_json(name=element_name,
                                               json_data=element_data,
                                               nesting=nesting,
-                                              stderr_file=stderr_file))
+                                              stderr_file=stderr_file,
+                                              auto_ch_hook=auto_ch_hook))
     return nested_configs
 
 
 def _dict_from_json(member_name: str, json_data: object,
-                    nesting: ConfigNesting,
-                    stderr_file: TextIO) -> dict[str, 'Config']:
+                    nesting: ConfigNesting, stderr_file: TextIO,
+                    auto_ch_hook: ConfigAutoChangeHook) -> dict[str, 'Config']:
     """Construct a dict of nested Config objects from parsed JSON.
 
     Args:
@@ -104,6 +117,7 @@ def _dict_from_json(member_name: str, json_data: object,
         json_data: Parsed JSON value for the member.
         nesting: Nested Config declaration for the dict values.
         stderr_file: Stream used for user-facing diagnostics.
+        auto_ch_hook: Parent hook receiving the nested automatic changes.
 
     Returns:
         A dict containing one nested Config for each JSON value.
@@ -125,7 +139,8 @@ def _dict_from_json(member_name: str, json_data: object,
         nested_configs[key] = _item_from_json(name=value_name,
                                               json_data=value_data,
                                               nesting=nesting,
-                                              stderr_file=stderr_file)
+                                              stderr_file=stderr_file,
+                                              auto_ch_hook=auto_ch_hook)
     return nested_configs
 
 
@@ -141,8 +156,9 @@ def _nesting_by_key(nestings: list[ConfigNesting]) \
 
 
 def _dict_by_key_from_json(member_name: str, json_data: object,
-                           nestings: list[ConfigNesting],
-                           stderr_file: TextIO) -> dict[str, object]:
+                           nestings: list[ConfigNesting], stderr_file: TextIO,
+                           auto_ch_hook: ConfigAutoChangeHook) \
+        -> dict[str, object]:
     """Construct selected dict values as nested Config objects.
 
     Args:
@@ -150,6 +166,7 @@ def _dict_by_key_from_json(member_name: str, json_data: object,
         json_data: Parsed JSON value for the member.
         nestings: Nested Config declarations for selected dict keys.
         stderr_file: Stream used for user-facing diagnostics.
+        auto_ch_hook: Parent hook receiving the nested automatic changes.
 
     Returns:
         A dictionary where declared keys contain nested Config objects and
@@ -175,7 +192,8 @@ def _dict_by_key_from_json(member_name: str, json_data: object,
             nested_configs[key] = _item_from_json(name=value_name,
                                                   json_data=value_data,
                                                   nesting=nesting_by_key[key],
-                                                  stderr_file=stderr_file)
+                                                  stderr_file=stderr_file,
+                                                  auto_ch_hook=auto_ch_hook)
         else:
             nested_configs[key] = value_data
     return nested_configs
@@ -194,7 +212,8 @@ def _single_nesting(nestings: list[ConfigNesting]) -> ConfigNesting:
 
 def _nested_config_from_json(member_name: str, json_data: object,
                              nestings: list[ConfigNesting],
-                             stderr_file: TextIO) -> object:
+                             stderr_file: TextIO,
+                             auto_ch_hook: ConfigAutoChangeHook) -> object:
     """Construct nested Config data from parsed JSON data.
 
     Args:
@@ -202,6 +221,7 @@ def _nested_config_from_json(member_name: str, json_data: object,
         json_data: Parsed JSON value for the member.
         nestings: Nested Config declarations for the member.
         stderr_file: Stream used for user-facing diagnostics.
+        auto_ch_hook: Parent hook receiving the nested automatic changes.
 
     Returns:
         A nested Config, ``None`` for optional JSON null, a list of nested
@@ -210,18 +230,22 @@ def _nested_config_from_json(member_name: str, json_data: object,
     if _is_dict_value_by_key(nestings):
         return _dict_by_key_from_json(member_name=member_name,
                                       json_data=json_data, nestings=nestings,
-                                      stderr_file=stderr_file)
+                                      stderr_file=stderr_file,
+                                      auto_ch_hook=auto_ch_hook)
     nesting = _single_nesting(nestings)
     if nesting.kind == ConfigNestingKind.LIST_ELEMENT:
         return _list_from_json(member_name=member_name, json_data=json_data,
-                               nesting=nesting, stderr_file=stderr_file)
+                               nesting=nesting, stderr_file=stderr_file,
+                               auto_ch_hook=auto_ch_hook)
     if nesting.kind == ConfigNestingKind.DICT_VALUE:
         return _dict_from_json(member_name=member_name, json_data=json_data,
-                               nesting=nesting, stderr_file=stderr_file)
+                               nesting=nesting, stderr_file=stderr_file,
+                               auto_ch_hook=auto_ch_hook)
     if json_data is None and nesting.kind == ConfigNestingKind.OPTIONAL_MEMBER:
         return None
     return _item_from_json(name=member_name, json_data=json_data,
-                           nesting=nesting, stderr_file=stderr_file)
+                           nesting=nesting, stderr_file=stderr_file,
+                           auto_ch_hook=auto_ch_hook)
 
 
 def _item_json_data(member_name: str, member_value: object,
