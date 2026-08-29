@@ -28,6 +28,8 @@ from config_as_json.csv_dialect import CsvDialectConfig, \
     CsvDialectValidator, get_csv_dialect
 from config_as_json.char_encoding import check_char_encoding, \
     CharEncodingValidator, valid_char_encoding
+from config_as_json.hexadecimal_number import HexadecimalNumber, \
+    HexadecimalStringValidator
 from config_as_json.migrate_cfg_warn_hook import MigrateCfgWarnHook
 from config_as_json.migrate_cfg import migrate_cfg
 from config_as_json.optional_validator import OptionalMemberValidator
@@ -98,6 +100,8 @@ __all__ = ['Config',
            'check_char_encoding',
            'CharEncodingValidator',
            'valid_char_encoding',
+           'HexadecimalNumber',
+           'HexadecimalStringValidator',
            'MigrateCfgWarnHook',
            'migrate_cfg',
            'config_factory_from_json',

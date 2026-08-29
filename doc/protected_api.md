@@ -170,6 +170,30 @@
   * [ListKeyOrderingValidator](#config_as_json.list_ordering_validators.ListKeyOrderingValidator)
     * [\_\_init\_\_](#config_as_json.list_ordering_validators.ListKeyOrderingValidator.__init__)
     * [validate\_member](#config_as_json.list_ordering_validators.ListKeyOrderingValidator.validate_member)
+* [config\_as\_json.hexadecimal\_number](#config_as_json.hexadecimal_number)
+  * [\_HEX\_DIGITS](#config_as_json.hexadecimal_number._HEX_DIGITS)
+  * [HexadecimalNumber](#config_as_json.hexadecimal_number.HexadecimalNumber)
+    * [Prefix](#config_as_json.hexadecimal_number.HexadecimalNumber.Prefix)
+    * [\_\_init\_\_](#config_as_json.hexadecimal_number.HexadecimalNumber.__init__)
+    * [prefix](#config_as_json.hexadecimal_number.HexadecimalNumber.prefix)
+    * [digits](#config_as_json.hexadecimal_number.HexadecimalNumber.digits)
+    * [set](#config_as_json.hexadecimal_number.HexadecimalNumber.set)
+    * [get](#config_as_json.hexadecimal_number.HexadecimalNumber.get)
+    * [\_cache](#config_as_json.hexadecimal_number.HexadecimalNumber._cache)
+    * [factory](#config_as_json.hexadecimal_number.HexadecimalNumber.factory)
+    * [strip\_prefix](#config_as_json.hexadecimal_number.HexadecimalNumber.strip_prefix)
+    * [get\_validation\_plan](#config_as_json.hexadecimal_number.HexadecimalNumber.get_validation_plan)
+  * [\_checked\_digits](#config_as_json.hexadecimal_number._checked_digits)
+  * [\_invalid\_hex](#config_as_json.hexadecimal_number._invalid_hex)
+  * [\_format\_hex](#config_as_json.hexadecimal_number._format_hex)
+  * [\_checked\_int](#config_as_json.hexadecimal_number._checked_int)
+  * [\_hex\_to\_int](#config_as_json.hexadecimal_number._hex_to_int)
+  * [\_value\_to\_int](#config_as_json.hexadecimal_number._value_to_int)
+  * [HexadecimalStringValidator](#config_as_json.hexadecimal_number.HexadecimalStringValidator)
+    * [\_\_init\_\_](#config_as_json.hexadecimal_number.HexadecimalStringValidator.__init__)
+    * [validate\_member](#config_as_json.hexadecimal_number.HexadecimalStringValidator.validate_member)
+  * [\_HexCacheBuilder](#config_as_json.hexadecimal_number._HexCacheBuilder)
+    * [validate](#config_as_json.hexadecimal_number._HexCacheBuilder.validate)
 * [config\_as\_json.config](#config_as_json.config)
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [\_over\_ride\_needed](#config_as_json.config._over_ride_needed)
@@ -3801,6 +3825,539 @@ Validate and normalize one list member by projected key.
   has the wrong runtime type.
 - `InvalidListKeyType` - If ``key`` returns a value whose runtime type
   is not accepted by ``key_type``.
+
+<a id="config_as_json.hexadecimal_number"></a>
+
+# config\_as\_json.hexadecimal\_number
+
+A configuration value that should format as a hexadecimal number.
+
+<a id="config_as_json.hexadecimal_number._HEX_DIGITS"></a>
+
+#### \_HEX\_DIGITS
+
+The characters allowed in the digit part of a hexadecimal string.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber"></a>
+
+## HexadecimalNumber Objects
+
+```python
+class HexadecimalNumber(Config)
+```
+
+A configuration value that should format as a hexadecimal number.
+
+The value is used as an integer, but when serialized to JSON it is
+formatted as a hexadecimal string with an optional leading prefix and
+with leading zeros up to a declared minimum number of digits. Display
+colours are the typical use: ``Prefix.HASH`` with six digits gives the
+hash sign followed by six digits that Tk expects, and ``Prefix.ZERO_X``
+gives the ``'0xff'`` notation of C-like languages. Reading and editing
+keep that notation, because that is the notation the user of the
+configuration file expects to see and to type.
+
+The public member ``hex_str`` holds the hexadecimal string, and it is the
+only member written to and read from JSON. The integer is cached, because
+an application reads a configured value far more often than it reads or
+writes a configuration file. :meth:`get` rebuilds the cache whenever
+``hex_str`` was assigned since the cache was built, so assigning to
+``hex_str`` directly stays correct.
+
+The prefix and the digit count describe how the application wants the
+value written, and they are not stored in the JSON file. The base class
+rebuilds a nested Config member from its own constructor whenever JSON is
+parsed, so a declaration that says nothing about the format would be
+rebuilt with the default format. Say the format either by deriving a
+subclass that supplies it, or by giving :meth:`factory` to
+``ConfigNesting(factory_function=...)``.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.Prefix"></a>
+
+## Prefix Objects
+
+```python
+class Prefix(Enum)
+```
+
+The prefix to use when formatting the hexadecimal number.
+
+The value of each member is the prefix text itself, in lower case.
+Any of them is accepted when a value is read, whichever one this
+object formats with, so a hand-edited file is normalized instead of
+refused.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.Prefix.NONE"></a>
+
+#### NONE
+
+No prefix.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.Prefix.ZERO_X"></a>
+
+#### ZERO\_X
+
+The prefix '0x'.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.Prefix.HASH"></a>
+
+#### HASH
+
+The prefix '#'.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(from_json_data_text: Optional[str] = None,
+             from_json_filename: Optional[PathOrStr] = None,
+             auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
+             stderr_file: TextIO = sys.stderr,
+             *,
+             value: Optional[int | str] = None,
+             prefix: Prefix = Prefix.NONE,
+             digits: int = 0) -> None
+```
+
+Initialize the HexadecimalNumber configuration value.
+
+**Arguments**:
+
+- `from_json_data_text` - Optional JSON text to parse directly.
+- `from_json_filename` - Optional path to a JSON file to read.
+- `auto_ch_hook` - Hook that is notified about automatic changes such
+  as filled, renamed, moved, or removed values when reading old
+  configuration files. The object is kept by reference, so the
+  application can read the recorded changes from its own object
+  after parsing. See :class:`ConfigAutoChangeHook` for what
+  reusing or sharing one hook instance means.
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `value` - Optional initial value, either a non-negative integer or a
+  string formatted as a hexadecimal number. The value zero is
+  used when this is ``None``. If both ``value`` and JSON data
+  are provided, the JSON data takes precedence.
+- `prefix` - The prefix to use when formatting the hexadecimal number.
+- `digits` - The smallest number of hexadecimal digits to write. The
+  digits are padded with leading zeros up to this count. Zero,
+  the default, writes as few digits as the value needs.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - ``value`` is negative, or is a string that
+  does not hold a hexadecimal number.
+- `InvalidConfigurationType` - ``value`` is neither an integer nor a
+  string.
+- `ValueError` - ``digits`` is negative, or both JSON text and a JSON
+  file were supplied.
+- `KeyError` - Parsed data is missing required keys or contains
+  unexpected keys.
+- `ConfigBadJson` - The supplied JSON could not be decoded or converted
+  into the expected configuration structure.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.prefix"></a>
+
+#### prefix
+
+```python
+@property
+def prefix() -> 'HexadecimalNumber.Prefix'
+```
+
+Return the prefix that this value is formatted with.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.digits"></a>
+
+#### digits
+
+```python
+@property
+def digits() -> int
+```
+
+Return the smallest number of hexadecimal digits written.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.set"></a>
+
+#### set
+
+```python
+def set(value: int | str) -> None
+```
+
+Set the value from an integer or from a hexadecimal string.
+
+The stored ``hex_str`` is always formatted with the prefix and the
+digit count of this object, whatever notation the argument used.
+
+**Arguments**:
+
+- `value` - A non-negative integer, or a string holding hexadecimal
+  digits with an optional prefix and optional surrounding
+  whitespace.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - The value is negative, or is a string that
+  does not hold a hexadecimal number.
+- `InvalidConfigurationType` - The value is neither an integer nor a
+  string.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.get"></a>
+
+#### get
+
+```python
+def get() -> int
+```
+
+Return the value as an integer.
+
+The integer is taken from the cache, which is rebuilt first if
+``hex_str`` was assigned since the cache was built.
+
+**Raises**:
+
+- `InvalidConfiguration` - ``hex_str`` was assigned a string that does
+  not hold a hexadecimal number.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber._cache"></a>
+
+#### \_cache
+
+```python
+def _cache(number: int) -> None
+```
+
+Remember the integer that the current ``hex_str`` holds.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.factory"></a>
+
+#### factory
+
+```python
+@classmethod
+def factory(cls,
+            prefix: Prefix,
+            digits: int = 0,
+            value: Optional[int | str] = None) -> ConfigFactory
+```
+
+Return a factory constructing values with one declared format.
+
+Give the returned callable to ``ConfigNesting(factory_function=...)``
+so that reading a file, and every parse that an editor such as
+edit-cfg-json makes, rebuilds the nested member with this format
+instead of with the default format. Deriving a subclass whose
+``__init__`` supplies the format says the same thing, and needs no
+factory in the declaration.
+
+Calling the factory without arguments constructs the declared default
+of the member, so that the same call says the format once for both
+the default and every later parse.
+
+The class this is called on is the class constructed, so it has to
+be one that accepts ``prefix`` and ``digits``. A subclass that fixes
+its own format instead does not, and needs no factory.
+
+**Arguments**:
+
+- `prefix` - The prefix that constructed values are formatted with.
+- `digits` - The smallest number of hexadecimal digits to write.
+- `value` - The value of a constructed object when no JSON is given.
+
+
+**Returns**:
+
+  A :class:`ConfigFactory` constructing one object of the class
+  this is called on.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - ``value`` is negative, or is a string that
+  does not hold a hexadecimal number.
+- `InvalidConfigurationType` - ``value`` is neither an integer nor a
+  string.
+- `ValueError` - ``digits`` is negative.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.strip_prefix"></a>
+
+#### strip\_prefix
+
+```python
+@staticmethod
+def strip_prefix(value: str) -> str
+```
+
+Strip the prefix from a hexadecimal string.
+
+Any of the prefixes that :class:`HexadecimalNumber.Prefix` describes
+is removed, ignoring case, whichever prefix an object formats with.
+
+**Arguments**:
+
+- `value` - The hexadecimal string to strip.
+
+
+**Returns**:
+
+  The hexadecimal string without the prefix, unchanged when it has
+  no recognized prefix.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.get_validation_plan"></a>
+
+#### get\_validation\_plan
+
+```python
+def get_validation_plan(stderr_file: TextIO) -> ValidationPlan
+```
+
+Return the validation plan for the Config object.
+
+The plan first validates the value read from JSON and normalizes it
+to the prefix and the digit count of this object, and then rebuilds
+the cached integer from the normalized text.
+
+**Arguments**:
+
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  An ordered list of validation steps describing the validations for
+  the Config object. The order of the steps in the list is
+  significant as a previous validation may normalize or change a
+  configuration value that is used in a later validation.
+
+<a id="config_as_json.hexadecimal_number._checked_digits"></a>
+
+#### \_checked\_digits
+
+```python
+def _checked_digits(digits: int) -> int
+```
+
+Return one checked smallest number of hexadecimal digits.
+
+<a id="config_as_json.hexadecimal_number._invalid_hex"></a>
+
+#### \_invalid\_hex
+
+```python
+def _invalid_hex(
+        message: str,
+        stderr_file: Optional[TextIO],
+        error: type[InvalidConfiguration] = InvalidConfiguration) -> NoReturn
+```
+
+Report one invalid hexadecimal value and raise.
+
+**Arguments**:
+
+- `message` - The diagnostic text describing what is invalid.
+- `stderr_file` - Stream used for user-facing diagnostics, ``None`` to
+  raise without reporting, which is what a direct call from the
+  application does.
+- `error` - The exception class to raise.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - Always, as the given exception class.
+
+<a id="config_as_json.hexadecimal_number._format_hex"></a>
+
+#### \_format\_hex
+
+```python
+def _format_hex(value: int, prefix: HexadecimalNumber.Prefix,
+                digits: int) -> str
+```
+
+Return one integer as hexadecimal text with prefix and padding.
+
+The value has to be one that :func:`_checked_int` accepted, as
+hexadecimal text without a sign cannot hold a negative number.
+
+<a id="config_as_json.hexadecimal_number._checked_int"></a>
+
+#### \_checked\_int
+
+```python
+def _checked_int(value: int, member_name: str,
+                 stderr_file: Optional[TextIO]) -> int
+```
+
+Return one integer accepted as a hexadecimal value.
+
+Booleans are rejected although Python counts them as integers, because a
+JSON ``true`` is a mistake here and not the value one.
+
+**Raises**:
+
+- `InvalidConfiguration` - The value is a bool or is negative.
+
+<a id="config_as_json.hexadecimal_number._hex_to_int"></a>
+
+#### \_hex\_to\_int
+
+```python
+def _hex_to_int(text: str, member_name: str,
+                stderr_file: Optional[TextIO]) -> int
+```
+
+Return the integer that one hexadecimal string holds.
+
+Surrounding whitespace and any recognized prefix are removed before the
+remaining digits are read.
+
+**Raises**:
+
+- `InvalidConfiguration` - The string holds no digits, or holds something
+  that is not a hexadecimal digit.
+
+<a id="config_as_json.hexadecimal_number._value_to_int"></a>
+
+#### \_value\_to\_int
+
+```python
+def _value_to_int(value: object, member_name: str,
+                  stderr_file: Optional[TextIO]) -> int
+```
+
+Return the integer that one configured hexadecimal value holds.
+
+A string holds it in hexadecimal notation, and an integer holds it
+directly, which is what a configuration file that stored a plain number
+before it stored hexadecimal text has in it.
+
+**Raises**:
+
+- `InvalidConfigurationType` - The value is neither a string nor an
+  integer.
+- `InvalidConfiguration` - The value is negative, or is a string that does
+  not hold a hexadecimal number.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalStringValidator"></a>
+
+## HexadecimalStringValidator Objects
+
+```python
+class HexadecimalStringValidator(MemberValidator)
+```
+
+A validator for a hexadecimal string configuration value.
+
+The member value must be a string holding hexadecimal digits, optionally
+preceded by any of the prefixes that
+:class:`HexadecimalNumber.Prefix` describes, and optionally surrounded by
+whitespace. A non-negative integer is accepted as well, which is what a
+configuration file that stored a plain number before it stored
+hexadecimal text has in it. The validated value is returned formatted
+with the configured prefix and padded with leading zeros to the
+configured number of digits, so that a file written by hand is normalized
+to the notation the application declared.
+
+The validator is used by :class:`HexadecimalNumber`, and it validates any
+plain string member of any Config class just as well.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalStringValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(prefix: HexadecimalNumber.Prefix, digits: int = 0) -> None
+```
+
+Initialize the HexadecimalStringValidator.
+
+**Arguments**:
+
+- `prefix` - The prefix that validated values are formatted with.
+- `digits` - The smallest number of hexadecimal digits to write. The
+  digits are padded with leading zeros up to this count. Zero,
+  the default, writes as few digits as the value needs.
+
+
+**Raises**:
+
+- `ValueError` - ``digits`` is negative.
+
+<a id="config_as_json.hexadecimal_number.HexadecimalStringValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate that the member value is a valid hexadecimal string.
+
+**Arguments**:
+
+- `config` - The complete Config object (might be needed if the
+  validator needs to access other members of the Config
+  object).
+- `member_name` - The name of the member to validate.
+- `member_value` - The value of the member to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The value formatted with the configured prefix and padded to the
+  configured number of digits.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - The member value is neither a string
+  nor an integer.
+- `InvalidConfiguration` - The member value is negative, or is a
+  string that does not hold a hexadecimal number.
+
+<a id="config_as_json.hexadecimal_number._HexCacheBuilder"></a>
+
+## \_HexCacheBuilder Objects
+
+```python
+class _HexCacheBuilder(WholeConfigValidator)
+```
+
+A normalizer for a HexadecimalNumber configuration value.
+
+The normalizer makes sure the cached integer matches the ``hex_str``
+value. It is the last step of the validation plan, so that the value a
+parse or an earlier step produced is cached at once instead of on the
+first read of the value.
+
+<a id="config_as_json.hexadecimal_number._HexCacheBuilder.validate"></a>
+
+#### validate
+
+```python
+def validate(config: Config, stderr_file: TextIO = sys.stderr) -> None
+```
+
+Rebuild the cached integer of the HexadecimalNumber.
+
+**Arguments**:
+
+- `config` - The HexadecimalNumber object to normalize.
+- `stderr_file` - The file to write error messages to.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - The ``hex_str`` member does not hold a
+  hexadecimal number.
 
 <a id="config_as_json.config"></a>
 
