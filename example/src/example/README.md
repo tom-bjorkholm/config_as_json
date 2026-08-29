@@ -1704,3 +1704,88 @@ python3 -m example.e40_value_migration write-new --output new.cfg
 python3 -m example.e40_value_migration print --input old.cfg
 python3 -m example.e40_value_migration migrate --input old.cfg --output migrated.cfg
 ```
+
+## e41_hex_and_octal.py
+
+[Source code for e41_hex_and_octal.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e41_hex_and_octal.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e41_hex_and_octal.py)
+
+This example teaches `OctalNumber` and `HexadecimalNumber`. They are for
+configuration values that are integers to the application, but that the
+user of the configuration file reads and writes in another notation:
+
+- a file mode is `0644`, and not the integer 420
+- a umask is `0o022`, and not the integer 18
+- a Tk colour is `#204060`, and not the integer 2113632
+- a bit mask is `0x0000000f`, and not the integer 15
+
+Each such value is a small nested `Config` object with one single public
+member holding the written text: `oct_str` for an octal value and `hex_str`
+for a hexadecimal one. The configuration file of the example therefore looks
+like this:
+
+```json
+{
+    "feature_bits": {"hex_str": "0x0000000f"},
+    "file_mode": {"oct_str": "0644"},
+    "report_name": "monthly-report",
+    "umask": {"oct_str": "0o022"},
+    "window_colour": {"hex_str": "#204060"}
+}
+```
+
+Storing the written text, and not the integer, is what keeps the notation
+through a write, a read, and every parse that an editor makes. An editor
+such as `edit-cfg-json-tk` shows the member `oct_str` or `hex_str`, so the
+user edits `0644` and never sees the integer 420.
+
+The application asks for the integer with `get()`, and gives a new value
+with `set()`. The integer is cached, so asking for it often is cheap.
+`set()` accepts any of the notations of its class, so `0o644`, `0644`, and
+`644` all set the same file mode, and all three are stored as `0644`. A
+hand-edited file is normalized in the same way when it is read, and a value
+that is not written in the notation of its class is refused with a message
+telling what is wrong with it.
+
+The prefix and the smallest number of digits are a decision of the
+application, so they are not stored in the file. The example shows the two
+ways of saying them:
+
+- `FileMode` and `TkColour` are subclasses whose `__init__` supplies the
+  format. The nested declaration then needs nothing but the class.
+- `umask` and `feature_bits` use `OctalNumber.factory()` and
+  `HexadecimalNumber.factory()`. The nested declaration gives the factory as
+  `ConfigNesting(factory_function=...)`, so the library builds every parsed
+  value with that same format.
+
+Both ways matter, because the base class constructs a fresh nested object
+every time JSON is parsed. A declaration that says nothing about the format
+would be rebuilt with the default format, which is no prefix and as few
+digits as the value needs.
+
+The octal prefixes are `Prefix.NONE`, `Prefix.ZERO_O` for the `0o755` of
+Python, and `Prefix.ZERO` for the `0755` of the chmod documentation. The
+leading zero of `Prefix.ZERO` is kept when a value is read, because it
+cannot be told from the padding zeros of a written value, and the value
+reads as the same number either way. Declare at least three digits with
+that prefix, because the prefix is always written, and the value zero would
+otherwise be written as the odd looking `00`. The hexadecimal prefixes are
+`Prefix.NONE`, `Prefix.ZERO_X` for `0xff`, and `Prefix.HASH` for the
+`#204060` that Tk expects.
+
+Two more things are worth knowing, although the example does not need them:
+
+- `OctalStringValidator` and `HexadecimalStringValidator` validate and
+  normalize any plain string member of any `Config` class, for an
+  application that wants the written text and not the integer.
+- `RadixNumber`, `RadixValidator`, and `RadixSpec` are the shared base of
+  the two notations. An application that needs another notation, such as
+  binary, declares one `RadixSpec` and derives its own pair of classes.
+
+The command line takes every written number as text, in any accepted
+notation:
+
+```sh
+python3 -m example.e41_hex_and_octal set --output config.cfg \
+  --file-mode 600 --umask 0o077 --window-colour ffffff --feature-bits 0x10
+python3 -m example.e41_hex_and_octal print --input config.cfg
+```

@@ -62,6 +62,11 @@
   * [ListOfDictsKeysValidator](#config_as_json.list_element_validators.ListOfDictsKeysValidator)
     * [\_\_init\_\_](#config_as_json.list_element_validators.ListOfDictsKeysValidator.__init__)
     * [validate\_member](#config_as_json.list_element_validators.ListOfDictsKeysValidator.validate_member)
+* [config\_as\_json.octal\_number](#config_as_json.octal_number)
+  * [OctalStringValidator](#config_as_json.octal_number.OctalStringValidator)
+  * [OctalNumber](#config_as_json.octal_number.OctalNumber)
+    * [oct\_str](#config_as_json.octal_number.OctalNumber.oct_str)
+    * [Prefix](#config_as_json.octal_number.OctalNumber.Prefix)
 * [config\_as\_json.optional\_validator](#config_as_json.optional_validator)
   * [OptionalMemberValidator](#config_as_json.optional_validator.OptionalMemberValidator)
     * [\_\_init\_\_](#config_as_json.optional_validator.OptionalMemberValidator.__init__)
@@ -100,19 +105,10 @@
     * [\_\_init\_\_](#config_as_json.list_ordering_validators.ListKeyOrderingValidator.__init__)
     * [validate\_member](#config_as_json.list_ordering_validators.ListKeyOrderingValidator.validate_member)
 * [config\_as\_json.hexadecimal\_number](#config_as_json.hexadecimal_number)
-  * [HexadecimalNumber](#config_as_json.hexadecimal_number.HexadecimalNumber)
-    * [Prefix](#config_as_json.hexadecimal_number.HexadecimalNumber.Prefix)
-    * [\_\_init\_\_](#config_as_json.hexadecimal_number.HexadecimalNumber.__init__)
-    * [prefix](#config_as_json.hexadecimal_number.HexadecimalNumber.prefix)
-    * [digits](#config_as_json.hexadecimal_number.HexadecimalNumber.digits)
-    * [set](#config_as_json.hexadecimal_number.HexadecimalNumber.set)
-    * [get](#config_as_json.hexadecimal_number.HexadecimalNumber.get)
-    * [factory](#config_as_json.hexadecimal_number.HexadecimalNumber.factory)
-    * [strip\_prefix](#config_as_json.hexadecimal_number.HexadecimalNumber.strip_prefix)
-    * [get\_validation\_plan](#config_as_json.hexadecimal_number.HexadecimalNumber.get_validation_plan)
   * [HexadecimalStringValidator](#config_as_json.hexadecimal_number.HexadecimalStringValidator)
-    * [\_\_init\_\_](#config_as_json.hexadecimal_number.HexadecimalStringValidator.__init__)
-    * [validate\_member](#config_as_json.hexadecimal_number.HexadecimalStringValidator.validate_member)
+  * [HexadecimalNumber](#config_as_json.hexadecimal_number.HexadecimalNumber)
+    * [hex\_str](#config_as_json.hexadecimal_number.HexadecimalNumber.hex_str)
+    * [Prefix](#config_as_json.hexadecimal_number.HexadecimalNumber.Prefix)
 * [config\_as\_json.config](#config_as_json.config)
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [ParseConverter](#config_as_json.config.ParseConverter)
@@ -137,6 +133,23 @@
   * [string\_to\_enum\_best\_match](#config_as_json.str_to_enum.string_to_enum_best_match)
 * [config\_as\_json.migrate\_cfg](#config_as_json.migrate_cfg)
   * [migrate\_cfg](#config_as_json.migrate_cfg.migrate_cfg)
+* [config\_as\_json.radix\_number](#config_as_json.radix_number)
+  * [RadixSpec](#config_as_json.radix_number.RadixSpec)
+  * [PrefixT](#config_as_json.radix_number.PrefixT)
+  * [RadixValidator](#config_as_json.radix_number.RadixValidator)
+    * [\_\_init\_\_](#config_as_json.radix_number.RadixValidator.__init__)
+    * [prefix](#config_as_json.radix_number.RadixValidator.prefix)
+    * [digits](#config_as_json.radix_number.RadixValidator.digits)
+    * [validate\_member](#config_as_json.radix_number.RadixValidator.validate_member)
+  * [RadixNumber](#config_as_json.radix_number.RadixNumber)
+    * [\_\_init\_\_](#config_as_json.radix_number.RadixNumber.__init__)
+    * [prefix](#config_as_json.radix_number.RadixNumber.prefix)
+    * [digits](#config_as_json.radix_number.RadixNumber.digits)
+    * [set](#config_as_json.radix_number.RadixNumber.set)
+    * [get](#config_as_json.radix_number.RadixNumber.get)
+    * [factory](#config_as_json.radix_number.RadixNumber.factory)
+    * [strip\_prefix](#config_as_json.radix_number.RadixNumber.strip_prefix)
+    * [get\_validation\_plan](#config_as_json.radix_number.RadixNumber.get_validation_plan)
 * [config\_as\_json.file\_must\_exist](#config_as_json.file_must_exist)
   * [file\_must\_exist](#config_as_json.file_must_exist.file_must_exist)
 * [config\_as\_json.migrate\_cfg\_warn\_hook](#config_as_json.migrate_cfg_warn_hook)
@@ -1546,6 +1559,105 @@ Validate one list-of-dicts member against the configured keys.
   not a dict, one dict misses a mandatory key, or one dict has
   an unknown key while ``allow_extra_dict_keys`` is ``False``.
 
+<a id="config_as_json.octal_number"></a>
+
+# config\_as\_json.octal\_number
+
+A configuration value that should format as an octal number.
+
+<a id="config_as_json.octal_number.OctalStringValidator"></a>
+
+## OctalStringValidator Objects
+
+```python
+class OctalStringValidator(RadixValidator['OctalNumber.Prefix'])
+```
+
+A validator for an octal string configuration value.
+
+The member value must be a string holding octal digits, optionally
+preceded by any of the prefixes that :class:`OctalNumber.Prefix`
+describes, and optionally surrounded by whitespace. A non-negative
+integer is accepted as well, which is what a configuration file that
+stored a plain number before it stored octal text has in it. The
+validated value is returned formatted with the configured prefix and
+padded with leading zeros to the configured number of digits, so that a
+file written by hand is normalized to the notation the application
+declared.
+
+The validator is used by :class:`OctalNumber`, and it validates any
+plain string member of any Config class just as well. See
+:class:`RadixValidator` for the constructor and the validation method.
+
+<a id="config_as_json.octal_number.OctalNumber"></a>
+
+## OctalNumber Objects
+
+```python
+class OctalNumber(RadixNumber['OctalNumber.Prefix'])
+```
+
+A configuration value that should format as an octal number.
+
+The value is used as an integer, but when serialized to JSON it is
+formatted as an octal string with an optional leading prefix and with
+leading zeros up to a declared minimum number of digits. File modes are
+the typical use: ``Prefix.ZERO`` with three digits gives the ``'0755'``
+notation that the chmod documentation uses, and ``Prefix.ZERO_O`` gives
+the ``'0o755'`` notation of Python. Reading and editing keep that
+notation, because that is the notation the user of the configuration
+file expects to see and to type.
+
+The public member ``oct_str`` holds the octal string, and it is the only
+member written to and read from JSON. See :class:`RadixNumber` for the
+constructor, for :meth:`RadixNumber.set` and :meth:`RadixNumber.get`,
+and for the two ways of declaring the format of a nested member.
+
+Declare at least as many digits as the file mode has when writing with
+``Prefix.ZERO``, as the prefix is written whatever the value is. The
+default of no digits then writes the value zero as ``'00'``.
+
+<a id="config_as_json.octal_number.OctalNumber.oct_str"></a>
+
+#### oct\_str
+
+The octal string, and the only member stored in JSON.
+
+<a id="config_as_json.octal_number.OctalNumber.Prefix"></a>
+
+## Prefix Objects
+
+```python
+class Prefix(Enum)
+```
+
+The prefix to use when formatting the octal number.
+
+The value of each member is the prefix text itself, in lower case.
+Any of them is accepted when a value is read, whichever one this
+object formats with, so a hand-edited file is normalized instead of
+refused. The leading zero of ``ZERO`` is kept when a value is read,
+as it cannot be told from the padding zeros of a written value, and
+the value reads as the same number either way.
+
+<a id="config_as_json.octal_number.OctalNumber.Prefix.NONE"></a>
+
+#### NONE
+
+No prefix.
+
+<a id="config_as_json.octal_number.OctalNumber.Prefix.ZERO_O"></a>
+
+#### ZERO\_O
+
+The prefix '0o', the notation of Python.
+
+<a id="config_as_json.octal_number.OctalNumber.Prefix.ZERO"></a>
+
+#### ZERO
+
+The leading zero of the traditional file mode notation.
+
 <a id="config_as_json.optional_validator"></a>
 
 # config\_as\_json.optional\_validator
@@ -2322,12 +2434,36 @@ Validate and normalize one list member by projected key.
 
 A configuration value that should format as a hexadecimal number.
 
+<a id="config_as_json.hexadecimal_number.HexadecimalStringValidator"></a>
+
+## HexadecimalStringValidator Objects
+
+```python
+class HexadecimalStringValidator(RadixValidator['HexadecimalNumber.Prefix'])
+```
+
+A validator for a hexadecimal string configuration value.
+
+The member value must be a string holding hexadecimal digits, optionally
+preceded by any of the prefixes that
+:class:`HexadecimalNumber.Prefix` describes, and optionally surrounded by
+whitespace. A non-negative integer is accepted as well, which is what a
+configuration file that stored a plain number before it stored
+hexadecimal text has in it. The validated value is returned formatted
+with the configured prefix and padded with leading zeros to the
+configured number of digits, so that a file written by hand is normalized
+to the notation the application declared.
+
+The validator is used by :class:`HexadecimalNumber`, and it validates any
+plain string member of any Config class just as well. See
+:class:`RadixValidator` for the constructor and the validation method.
+
 <a id="config_as_json.hexadecimal_number.HexadecimalNumber"></a>
 
 ## HexadecimalNumber Objects
 
 ```python
-class HexadecimalNumber(Config)
+class HexadecimalNumber(RadixNumber['HexadecimalNumber.Prefix'])
 ```
 
 A configuration value that should format as a hexadecimal number.
@@ -2342,19 +2478,16 @@ keep that notation, because that is the notation the user of the
 configuration file expects to see and to type.
 
 The public member ``hex_str`` holds the hexadecimal string, and it is the
-only member written to and read from JSON. The integer is cached, because
-an application reads a configured value far more often than it reads or
-writes a configuration file. :meth:`get` rebuilds the cache whenever
-``hex_str`` was assigned since the cache was built, so assigning to
-``hex_str`` directly stays correct.
+only member written to and read from JSON. See :class:`RadixNumber` for
+the constructor, for :meth:`RadixNumber.set` and
+:meth:`RadixNumber.get`, and for the two ways of declaring the format of
+a nested member.
 
-The prefix and the digit count describe how the application wants the
-value written, and they are not stored in the JSON file. The base class
-rebuilds a nested Config member from its own constructor whenever JSON is
-parsed, so a declaration that says nothing about the format would be
-rebuilt with the default format. Say the format either by deriving a
-subclass that supplies it, or by giving :meth:`factory` to
-``ConfigNesting(factory_function=...)``.
+<a id="config_as_json.hexadecimal_number.HexadecimalNumber.hex_str"></a>
+
+#### hex\_str
+
+The hexadecimal string, and the only member stored in JSON.
 
 <a id="config_as_json.hexadecimal_number.HexadecimalNumber.Prefix"></a>
 
@@ -2388,305 +2521,6 @@ The prefix '0x'.
 #### HASH
 
 The prefix '#'.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalNumber.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(from_json_data_text: Optional[str] = None,
-             from_json_filename: Optional[PathOrStr] = None,
-             auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-             stderr_file: TextIO = sys.stderr,
-             *,
-             value: Optional[int | str] = None,
-             prefix: Prefix = Prefix.NONE,
-             digits: int = 0) -> None
-```
-
-Initialize the HexadecimalNumber configuration value.
-
-**Arguments**:
-
-- `from_json_data_text` - Optional JSON text to parse directly.
-- `from_json_filename` - Optional path to a JSON file to read.
-- `auto_ch_hook` - Hook that is notified about automatic changes such
-  as filled, renamed, moved, or removed values when reading old
-  configuration files. The object is kept by reference, so the
-  application can read the recorded changes from its own object
-  after parsing. See :class:`ConfigAutoChangeHook` for what
-  reusing or sharing one hook instance means.
-- `stderr_file` - Stream used for user-facing diagnostics.
-- `value` - Optional initial value, either a non-negative integer or a
-  string formatted as a hexadecimal number. The value zero is
-  used when this is ``None``. If both ``value`` and JSON data
-  are provided, the JSON data takes precedence.
-- `prefix` - The prefix to use when formatting the hexadecimal number.
-- `digits` - The smallest number of hexadecimal digits to write. The
-  digits are padded with leading zeros up to this count. Zero,
-  the default, writes as few digits as the value needs.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - ``value`` is negative, or is a string that
-  does not hold a hexadecimal number.
-- `InvalidConfigurationType` - ``value`` is neither an integer nor a
-  string.
-- `ValueError` - ``digits`` is negative, or both JSON text and a JSON
-  file were supplied.
-- `KeyError` - Parsed data is missing required keys or contains
-  unexpected keys.
-- `ConfigBadJson` - The supplied JSON could not be decoded or converted
-  into the expected configuration structure.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalNumber.prefix"></a>
-
-#### prefix
-
-```python
-@property
-def prefix() -> 'HexadecimalNumber.Prefix'
-```
-
-Return the prefix that this value is formatted with.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalNumber.digits"></a>
-
-#### digits
-
-```python
-@property
-def digits() -> int
-```
-
-Return the smallest number of hexadecimal digits written.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalNumber.set"></a>
-
-#### set
-
-```python
-def set(value: int | str) -> None
-```
-
-Set the value from an integer or from a hexadecimal string.
-
-The stored ``hex_str`` is always formatted with the prefix and the
-digit count of this object, whatever notation the argument used.
-
-**Arguments**:
-
-- `value` - A non-negative integer, or a string holding hexadecimal
-  digits with an optional prefix and optional surrounding
-  whitespace.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - The value is negative, or is a string that
-  does not hold a hexadecimal number.
-- `InvalidConfigurationType` - The value is neither an integer nor a
-  string.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalNumber.get"></a>
-
-#### get
-
-```python
-def get() -> int
-```
-
-Return the value as an integer.
-
-The integer is taken from the cache, which is rebuilt first if
-``hex_str`` was assigned since the cache was built.
-
-**Raises**:
-
-- `InvalidConfiguration` - ``hex_str`` was assigned a string that does
-  not hold a hexadecimal number.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalNumber.factory"></a>
-
-#### factory
-
-```python
-@classmethod
-def factory(cls,
-            prefix: Prefix,
-            digits: int = 0,
-            value: Optional[int | str] = None) -> ConfigFactory
-```
-
-Return a factory constructing values with one declared format.
-
-Give the returned callable to ``ConfigNesting(factory_function=...)``
-so that reading a file, and every parse that an editor such as
-edit-cfg-json makes, rebuilds the nested member with this format
-instead of with the default format. Deriving a subclass whose
-``__init__`` supplies the format says the same thing, and needs no
-factory in the declaration.
-
-Calling the factory without arguments constructs the declared default
-of the member, so that the same call says the format once for both
-the default and every later parse.
-
-The class this is called on is the class constructed, so it has to
-be one that accepts ``prefix`` and ``digits``. A subclass that fixes
-its own format instead does not, and needs no factory.
-
-**Arguments**:
-
-- `prefix` - The prefix that constructed values are formatted with.
-- `digits` - The smallest number of hexadecimal digits to write.
-- `value` - The value of a constructed object when no JSON is given.
-
-
-**Returns**:
-
-  A :class:`ConfigFactory` constructing one object of the class
-  this is called on.
-
-
-**Raises**:
-
-- `InvalidConfiguration` - ``value`` is negative, or is a string that
-  does not hold a hexadecimal number.
-- `InvalidConfigurationType` - ``value`` is neither an integer nor a
-  string.
-- `ValueError` - ``digits`` is negative.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalNumber.strip_prefix"></a>
-
-#### strip\_prefix
-
-```python
-@staticmethod
-def strip_prefix(value: str) -> str
-```
-
-Strip the prefix from a hexadecimal string.
-
-Any of the prefixes that :class:`HexadecimalNumber.Prefix` describes
-is removed, ignoring case, whichever prefix an object formats with.
-
-**Arguments**:
-
-- `value` - The hexadecimal string to strip.
-
-
-**Returns**:
-
-  The hexadecimal string without the prefix, unchanged when it has
-  no recognized prefix.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalNumber.get_validation_plan"></a>
-
-#### get\_validation\_plan
-
-```python
-def get_validation_plan(stderr_file: TextIO) -> ValidationPlan
-```
-
-Return the validation plan for the Config object.
-
-The plan first validates the value read from JSON and normalizes it
-to the prefix and the digit count of this object, and then rebuilds
-the cached integer from the normalized text.
-
-**Arguments**:
-
-- `stderr_file` - Stream used for user-facing diagnostics.
-
-
-**Returns**:
-
-  An ordered list of validation steps describing the validations for
-  the Config object. The order of the steps in the list is
-  significant as a previous validation may normalize or change a
-  configuration value that is used in a later validation.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalStringValidator"></a>
-
-## HexadecimalStringValidator Objects
-
-```python
-class HexadecimalStringValidator(MemberValidator)
-```
-
-A validator for a hexadecimal string configuration value.
-
-The member value must be a string holding hexadecimal digits, optionally
-preceded by any of the prefixes that
-:class:`HexadecimalNumber.Prefix` describes, and optionally surrounded by
-whitespace. A non-negative integer is accepted as well, which is what a
-configuration file that stored a plain number before it stored
-hexadecimal text has in it. The validated value is returned formatted
-with the configured prefix and padded with leading zeros to the
-configured number of digits, so that a file written by hand is normalized
-to the notation the application declared.
-
-The validator is used by :class:`HexadecimalNumber`, and it validates any
-plain string member of any Config class just as well.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalStringValidator.__init__"></a>
-
-#### \_\_init\_\_
-
-```python
-def __init__(prefix: HexadecimalNumber.Prefix, digits: int = 0) -> None
-```
-
-Initialize the HexadecimalStringValidator.
-
-**Arguments**:
-
-- `prefix` - The prefix that validated values are formatted with.
-- `digits` - The smallest number of hexadecimal digits to write. The
-  digits are padded with leading zeros up to this count. Zero,
-  the default, writes as few digits as the value needs.
-
-
-**Raises**:
-
-- `ValueError` - ``digits`` is negative.
-
-<a id="config_as_json.hexadecimal_number.HexadecimalStringValidator.validate_member"></a>
-
-#### validate\_member
-
-```python
-def validate_member(config: 'Config',
-                    member_name: str,
-                    member_value: object,
-                    stderr_file: TextIO = sys.stderr) -> Optional[object]
-```
-
-Validate that the member value is a valid hexadecimal string.
-
-**Arguments**:
-
-- `config` - The complete Config object (might be needed if the
-  validator needs to access other members of the Config
-  object).
-- `member_name` - The name of the member to validate.
-- `member_value` - The value of the member to validate.
-- `stderr_file` - The file to write error messages to.
-
-
-**Returns**:
-
-  The value formatted with the configured prefix and padded to the
-  configured number of digits.
-
-
-**Raises**:
-
-- `InvalidConfigurationType` - The member value is neither a string
-  nor an integer.
-- `InvalidConfiguration` - The member value is negative, or is a
-  string that does not hold a hexadecimal number.
 
 <a id="config_as_json.config"></a>
 
@@ -3327,6 +3161,418 @@ same variant.
   or no matcher accepts ``infile``.
 - `TypeError` - ``config_class`` is neither a ``Config`` subclass nor a
   non-empty sequence of ``MatchConfig`` items.
+
+<a id="config_as_json.radix_number"></a>
+
+# config\_as\_json.radix\_number
+
+A configuration value that should format as a number in one notation.
+
+<a id="config_as_json.radix_number.RadixSpec"></a>
+
+## RadixSpec Objects
+
+```python
+class RadixSpec(NamedTuple)
+```
+
+Describe one notation that a number is written in.
+
+The specification holds everything that is the same for every value of
+one notation. The prefix and the digit count differ from value to value
+and are held by the value itself.
+
+**Attributes**:
+
+- `radix` - The base that the digits are read with, such as 16 for the
+  hexadecimal notation and 8 for the octal notation.
+- `digit_chars` - Every character accepted in the digit part of a written
+  value, in both letter cases where they differ.
+- `format_letter` - The presentation letter of the Python format
+  specification writing this notation, such as ``'x'`` or ``'o'``.
+- `member_name` - The name of the public member that holds the written
+  value of a :class:`RadixNumber`.
+- `adjective` - The name of the notation in lower case, as it is used in
+  diagnostics, such as ``'hexadecimal'``.
+- `article` - The indefinite article of ``adjective``, ``'a'`` or
+  ``'an'``, as it is used in diagnostics.
+
+<a id="config_as_json.radix_number.PrefixT"></a>
+
+#### PrefixT
+
+The enum describing the prefixes of one notation.
+
+<a id="config_as_json.radix_number.RadixValidator"></a>
+
+## RadixValidator Objects
+
+```python
+class RadixValidator(MemberValidator, Generic[PrefixT])
+```
+
+A validator for a configuration value written as a number.
+
+The member value must be a string holding the digits of the notation,
+optionally preceded by any of the prefixes that the notation describes,
+and optionally surrounded by whitespace. A non-negative integer is
+accepted as well, which is what a configuration file that stored a plain
+number before it stored written text has in it. The validated value is
+returned written with the configured prefix and padded with leading
+zeros to the configured number of digits, so that a file written by hand
+is normalized to the notation that the application declared.
+
+A derived class says the notation by setting the class member ``_SPEC``
+to one :class:`RadixSpec`, and derives from this class with the prefix
+enum of that notation as its type argument.
+:class:`HexadecimalStringValidator` and :class:`OctalStringValidator`
+are the two notations that this package predefines.
+
+The validator is used by :class:`RadixNumber`, and it validates any
+plain string member of any Config class just as well.
+
+<a id="config_as_json.radix_number.RadixValidator.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(prefix: PrefixT, digits: int = 0) -> None
+```
+
+Initialize the validator.
+
+**Arguments**:
+
+- `prefix` - The prefix that validated values are written with.
+- `digits` - The smallest number of digits to write. The digits are
+  padded with leading zeros up to this count. Zero, the
+  default, writes as few digits as the value needs.
+
+
+**Raises**:
+
+- `ValueError` - ``digits`` is negative.
+
+<a id="config_as_json.radix_number.RadixValidator.prefix"></a>
+
+#### prefix
+
+```python
+@property
+def prefix() -> PrefixT
+```
+
+Return the prefix that validated values are written with.
+
+<a id="config_as_json.radix_number.RadixValidator.digits"></a>
+
+#### digits
+
+```python
+@property
+def digits() -> int
+```
+
+Return the smallest number of digits written.
+
+<a id="config_as_json.radix_number.RadixValidator.validate_member"></a>
+
+#### validate\_member
+
+```python
+def validate_member(config: 'Config',
+                    member_name: str,
+                    member_value: object,
+                    stderr_file: TextIO = sys.stderr) -> Optional[object]
+```
+
+Validate that the member value is written in the notation.
+
+**Arguments**:
+
+- `config` - The complete Config object (might be needed if the
+  validator needs to access other members of the Config
+  object).
+- `member_name` - The name of the member to validate.
+- `member_value` - The value of the member to validate.
+- `stderr_file` - The file to write error messages to.
+
+
+**Returns**:
+
+  The value written with the configured prefix and padded to the
+  configured number of digits.
+
+
+**Raises**:
+
+- `InvalidConfigurationType` - The member value is neither a string
+  nor an integer.
+- `InvalidConfiguration` - The member value is negative, or is a
+  string that does not hold a number in the notation.
+
+<a id="config_as_json.radix_number.RadixNumber"></a>
+
+## RadixNumber Objects
+
+```python
+class RadixNumber(Config, Generic[PrefixT])
+```
+
+A configuration value that should format as a number.
+
+The value is used as an integer, but when serialized to JSON it is
+formatted as text with an optional leading prefix and with leading zeros
+up to a declared minimum number of digits. Reading and editing keep that
+notation, because that is the notation the user of the configuration
+file expects to see and to type. :class:`HexadecimalNumber` and
+:class:`OctalNumber` are the two notations that this package
+predefines.
+
+A derived class says its notation by setting three class members:
+``_SPEC`` is the :class:`RadixSpec` describing the notation,
+``_no_prefix`` is the member of its prefix enum that writes no prefix,
+and ``_validator_class`` is its :class:`RadixValidator` class. The class
+also declares the public member named by ``_SPEC.member_name``, which
+holds the written value and is the only member written to and read from
+JSON.
+
+The integer is cached, because an application reads a configured value
+far more often than it reads or writes a configuration file. :meth:`get`
+rebuilds the cache whenever the written member was assigned since the
+cache was built, so assigning to that member directly stays correct.
+
+The prefix and the digit count describe how the application wants the
+value written, and they are not stored in the JSON file. The base class
+rebuilds a nested Config member from its own constructor whenever JSON
+is parsed, so a declaration that says nothing about the format would be
+rebuilt with the default format. Say the format either by deriving a
+subclass that supplies it, or by giving :meth:`factory` to
+``ConfigNesting(factory_function=...)``.
+
+<a id="config_as_json.radix_number.RadixNumber.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(from_json_data_text: Optional[str] = None,
+             from_json_filename: Optional[PathOrStr] = None,
+             auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
+             stderr_file: TextIO = sys.stderr,
+             *,
+             value: Optional[int | str] = None,
+             prefix: Optional[PrefixT] = None,
+             digits: int = 0) -> None
+```
+
+Initialize the written number configuration value.
+
+**Arguments**:
+
+- `from_json_data_text` - Optional JSON text to parse directly.
+- `from_json_filename` - Optional path to a JSON file to read.
+- `auto_ch_hook` - Hook that is notified about automatic changes such
+  as filled, renamed, moved, or removed values when reading old
+  configuration files. The object is kept by reference, so the
+  application can read the recorded changes from its own object
+  after parsing. See :class:`ConfigAutoChangeHook` for what
+  reusing or sharing one hook instance means.
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `value` - Optional initial value, either a non-negative integer or a
+  string written in the notation of this class. The value zero
+  is used when this is ``None``. If both ``value`` and JSON
+  data are provided, the JSON data takes precedence.
+- `prefix` - The prefix to use when formatting the number. ``None``,
+  the default, writes no prefix at all.
+- `digits` - The smallest number of digits to write. The digits are
+  padded with leading zeros up to this count. Zero, the
+  default, writes as few digits as the value needs.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - ``value`` is negative, or is a string that
+  does not hold a number in the notation of this class.
+- `InvalidConfigurationType` - ``value`` is neither an integer nor a
+  string.
+- `ValueError` - ``digits`` is negative, or both JSON text and a JSON
+  file were supplied.
+- `KeyError` - Parsed data is missing required keys or contains
+  unexpected keys.
+- `ConfigBadJson` - The supplied JSON could not be decoded or
+  converted into the expected configuration structure.
+
+<a id="config_as_json.radix_number.RadixNumber.prefix"></a>
+
+#### prefix
+
+```python
+@property
+def prefix() -> PrefixT
+```
+
+Return the prefix that this value is written with.
+
+<a id="config_as_json.radix_number.RadixNumber.digits"></a>
+
+#### digits
+
+```python
+@property
+def digits() -> int
+```
+
+Return the smallest number of digits written.
+
+<a id="config_as_json.radix_number.RadixNumber.set"></a>
+
+#### set
+
+```python
+def set(value: int | str) -> None
+```
+
+Set the value from an integer or from a written number.
+
+The stored written member is always formatted with the prefix and
+the digit count of this object, whatever notation the argument used.
+
+**Arguments**:
+
+- `value` - A non-negative integer, or a string holding the digits of
+  the notation with an optional prefix and optional
+  surrounding whitespace.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - The value is negative, or is a string that
+  does not hold a number in the notation of this class.
+- `InvalidConfigurationType` - The value is neither an integer nor a
+  string.
+
+<a id="config_as_json.radix_number.RadixNumber.get"></a>
+
+#### get
+
+```python
+def get() -> int
+```
+
+Return the value as an integer.
+
+The integer is taken from the cache, which is rebuilt first if the
+written member was assigned since the cache was built.
+
+**Raises**:
+
+- `InvalidConfiguration` - The written member was assigned a string
+  that does not hold a number in the notation of this class.
+- `InvalidConfigurationType` - The written member was assigned
+  something that is neither an integer nor a string.
+
+<a id="config_as_json.radix_number.RadixNumber.factory"></a>
+
+#### factory
+
+```python
+@classmethod
+def factory(cls,
+            prefix: PrefixT,
+            digits: int = 0,
+            value: Optional[int | str] = None) -> ConfigFactory
+```
+
+Return a factory constructing values with one declared format.
+
+Give the returned callable to ``ConfigNesting(factory_function=...)``
+so that reading a file, and every parse that an editor such as
+edit-cfg-json makes, rebuilds the nested member with this format
+instead of with the default format. Deriving a subclass whose
+``__init__`` supplies the format says the same thing, and needs no
+factory in the declaration.
+
+Calling the factory without arguments constructs the declared default
+of the member, so that the same call says the format once for both
+the default and every later parse.
+
+The class this is called on is the class constructed, so it has to
+be one that accepts ``prefix`` and ``digits``. A subclass that fixes
+its own format instead does not, and needs no factory.
+
+**Arguments**:
+
+- `prefix` - The prefix that constructed values are written with.
+- `digits` - The smallest number of digits to write.
+- `value` - The value of a constructed object when no JSON is given.
+
+
+**Returns**:
+
+  A :class:`ConfigFactory` constructing one object of the class
+  this is called on.
+
+
+**Raises**:
+
+- `InvalidConfiguration` - ``value`` is negative, or is a string that
+  does not hold a number in the notation of this class.
+- `InvalidConfigurationType` - ``value`` is neither an integer nor a
+  string.
+- `ValueError` - ``digits`` is negative.
+
+<a id="config_as_json.radix_number.RadixNumber.strip_prefix"></a>
+
+#### strip\_prefix
+
+```python
+@classmethod
+def strip_prefix(cls, value: str) -> str
+```
+
+Strip the prefix from one written number.
+
+Any of the prefixes that the prefix enum of this class describes is
+removed, ignoring case, whichever prefix an object writes with. A
+prefix that is itself a digit of the notation, such as the leading
+zero of the file mode ``'0755'``, is kept, as it cannot be told from
+the padding zeros of a written value.
+
+**Arguments**:
+
+- `value` - The written number to strip.
+
+
+**Returns**:
+
+  The written number without the prefix, unchanged when it has no
+  prefix that is removed before the digits are read.
+
+<a id="config_as_json.radix_number.RadixNumber.get_validation_plan"></a>
+
+#### get\_validation\_plan
+
+```python
+def get_validation_plan(stderr_file: TextIO) -> ValidationPlan
+```
+
+Return the validation plan for the Config object.
+
+The plan first validates the value read from JSON and normalizes it
+to the prefix and the digit count of this object, and then rebuilds
+the cached integer from the normalized text.
+
+**Arguments**:
+
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  An ordered list of validation steps describing the validations for
+  the Config object. The order of the steps in the list is
+  significant as a previous validation may normalize or change a
+  configuration value that is used in a later validation.
 
 <a id="config_as_json.file_must_exist"></a>
 
