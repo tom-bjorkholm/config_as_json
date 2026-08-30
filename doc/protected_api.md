@@ -69,6 +69,7 @@
     * [\_\_init\_\_](#config_as_json.validator.IntFloatValidator.__init__)
     * [validate\_member](#config_as_json.validator.IntFloatValidator.validate_member)
   * [\_copy\_method\_other\_args](#config_as_json.validator._copy_method_other_args)
+  * [\_at\_path](#config_as_json.validator._at_path)
   * [\_get\_config\_method](#config_as_json.validator._get_config_method)
   * [\_check\_validation\_only\_method\_result](#config_as_json.validator._check_validation_only_method_result)
   * [CallingMemberValidator](#config_as_json.validator.CallingMemberValidator)
@@ -194,8 +195,6 @@
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [\_over\_ride\_needed](#config_as_json.config._over_ride_needed)
   * [ParseConverter](#config_as_json.config.ParseConverter)
-  * [\_member\_path](#config_as_json.config._member_path)
-  * [\_dict\_value\_path](#config_as_json.config._dict_value_path)
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [auto\_change\_hook](#config_as_json.config.Config.auto_change_hook)
@@ -256,10 +255,12 @@
     * [\_\_init\_\_](#config_as_json.radix_number.RadixNumber.__init__)
     * [\_write\_text](#config_as_json.radix_number.RadixNumber._write_text)
     * [\_read\_text](#config_as_json.radix_number.RadixNumber._read_text)
+    * [written\_member\_name](#config_as_json.radix_number.RadixNumber.written_member_name)
     * [prefix](#config_as_json.radix_number.RadixNumber.prefix)
     * [digits](#config_as_json.radix_number.RadixNumber.digits)
     * [set](#config_as_json.radix_number.RadixNumber.set)
     * [get](#config_as_json.radix_number.RadixNumber.get)
+    * [\_rebuild\_cache](#config_as_json.radix_number.RadixNumber._rebuild_cache)
     * [\_cache](#config_as_json.radix_number.RadixNumber._cache)
     * [factory](#config_as_json.radix_number.RadixNumber.factory)
     * [strip\_prefix](#config_as_json.radix_number.RadixNumber.strip_prefix)
@@ -336,6 +337,9 @@
   * [ProjectedWholeConfigValidator](#config_as_json.projected_validators.ProjectedWholeConfigValidator)
     * [\_\_init\_\_](#config_as_json.projected_validators.ProjectedWholeConfigValidator.__init__)
     * [validate](#config_as_json.projected_validators.ProjectedWholeConfigValidator.validate)
+* [config\_as\_json.member\_path](#config_as_json.member_path)
+  * [member\_path](#config_as_json.member_path.member_path)
+  * [\_indexed\_path](#config_as_json.member_path._indexed_path)
 * [config\_as\_json.type\_validators](#config_as_json.type_validators)
   * [\_validate\_type\_spec](#config_as_json.type_validators._validate_type_spec)
   * [\_copy\_type\_spec](#config_as_json.type_validators._copy_type_spec)
@@ -1322,7 +1326,13 @@ the exception is raised.
 - `config` - The complete Config object (might be needed if the
   validator needs to access other members of the Config
   object).
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported name of the member to validate. It is
+  the dotted and indexed path for reaching the member by
+  traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].kind``. A member of the top level is reported by
+  its plain attribute name. The name is what diagnostics call
+  the member, and it is not a name to read the attribute by.
 - `member_value` - The value of the member to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -1753,13 +1763,26 @@ def _copy_method_other_args(
 
 Validate and copy additional keyword arguments for a method call.
 
+<a id="config_as_json.validator._at_path"></a>
+
+#### \_at\_path
+
+```python
+def _at_path(config_path: Optional[str]) -> str
+```
+
+Return where a Config object is, empty text for the top level.
+
 <a id="config_as_json.validator._get_config_method"></a>
 
 #### \_get\_config\_method
 
 ```python
-def _get_config_method(config: 'Config', method_name: str,
-                       stderr_file: TextIO) -> Callable[..., object]
+def _get_config_method(
+        config: 'Config',
+        method_name: str,
+        stderr_file: TextIO,
+        config_path: Optional[str] = None) -> Callable[..., object]
 ```
 
 Return one callable method from a Config object.
@@ -1769,8 +1792,11 @@ Return one callable method from a Config object.
 #### \_check\_validation\_only\_method\_result
 
 ```python
-def _check_validation_only_method_result(method_name: str, result: object,
-                                         stderr_file: TextIO) -> None
+def _check_validation_only_method_result(
+        method_name: str,
+        result: object,
+        stderr_file: TextIO,
+        config_path: Optional[str] = None) -> None
 ```
 
 Validate the return value from a validation-only method call.
@@ -2704,6 +2730,14 @@ Return whether a deprecated hook override should be used.
 
 Read, write, and validate nested Config declarations.
 
+Every traversal here names one nested member the same way. ``member_name``
+is the local name of the member in the object that holds it, with the list
+index or the dict key already in square brackets for an element. It is the
+name that the automatic-change hook composes its own paths from, one nesting
+level at a time. ``parent_path`` is the reported path of the object that
+holds the member, so ``member_path(parent_path, member_name)`` is the
+reported path of the nested member itself.
+
 <a id="config_as_json._config_nesting_io._NestedConfigEncoder"></a>
 
 ## \_NestedConfigEncoder Objects
@@ -2755,8 +2789,8 @@ Construct one nested Config object from its own JSON text.
 
 ```python
 def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
-                    stderr_file: TextIO,
-                    auto_ch_hook: ConfigAutoChangeHook) -> 'Config'
+                    stderr_file: TextIO, auto_ch_hook: ConfigAutoChangeHook, *,
+                    parent_path: Optional[str]) -> 'Config'
 ```
 
 Construct one nested Config from one parsed JSON object.
@@ -2764,17 +2798,17 @@ Construct one nested Config from one parsed JSON object.
 Additionally the automatic changes that the nested Config recorded about
 its own JSON data are merged into ``auto_ch_hook`` using paths in the
 parent, so the application learns about old-file compatibility inside
-nested objects.
+nested objects. That merge composes one nesting level at a time, which is
+why it is given the local ``name`` and not the whole reported path.
 
 **Arguments**:
 
-- `name` - Diagnostic name for the nested Config. It is also the path text
-  of the nested object inside the parent, and the ``member_name``
-  handed to the nested Config.
+- `name` - Local name of the nested Config in the object that holds it.
 - `json_data` - Parsed JSON object for the nested Config.
 - `nesting` - Nested Config declaration for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
 - `auto_ch_hook` - Parent hook receiving the nested automatic changes.
+- `parent_path` - Reported path of the object holding the nested Config.
 
 
 **Returns**:
@@ -2794,7 +2828,8 @@ nested objects.
 ```python
 def _list_from_json(member_name: str, json_data: object,
                     nesting: ConfigNesting, stderr_file: TextIO,
-                    auto_ch_hook: ConfigAutoChangeHook) -> list['Config']
+                    auto_ch_hook: ConfigAutoChangeHook, *,
+                    parent_path: Optional[str]) -> list['Config']
 ```
 
 Construct a list of nested Config objects from parsed JSON.
@@ -2806,6 +2841,7 @@ Construct a list of nested Config objects from parsed JSON.
 - `nesting` - Nested Config declaration for the list elements.
 - `stderr_file` - Stream used for user-facing diagnostics.
 - `auto_ch_hook` - Parent hook receiving the nested automatic changes.
+- `parent_path` - Reported path of the object holding the nested list.
 
 
 **Returns**:
@@ -2824,7 +2860,8 @@ Construct a list of nested Config objects from parsed JSON.
 ```python
 def _dict_from_json(member_name: str, json_data: object,
                     nesting: ConfigNesting, stderr_file: TextIO,
-                    auto_ch_hook: ConfigAutoChangeHook) -> dict[str, 'Config']
+                    auto_ch_hook: ConfigAutoChangeHook, *,
+                    parent_path: Optional[str]) -> dict[str, 'Config']
 ```
 
 Construct a dict of nested Config objects from parsed JSON.
@@ -2836,6 +2873,7 @@ Construct a dict of nested Config objects from parsed JSON.
 - `nesting` - Nested Config declaration for the dict values.
 - `stderr_file` - Stream used for user-facing diagnostics.
 - `auto_ch_hook` - Parent hook receiving the nested automatic changes.
+- `parent_path` - Reported path of the object holding the nested dict.
 
 
 **Returns**:
@@ -2862,10 +2900,10 @@ Return DICT_VALUE_BY_KEY declarations keyed by discriminator_key.
 #### \_dict\_by\_key\_from\_json
 
 ```python
-def _dict_by_key_from_json(
-        member_name: str, json_data: object, nestings: list[ConfigNesting],
-        stderr_file: TextIO,
-        auto_ch_hook: ConfigAutoChangeHook) -> dict[str, object]
+def _dict_by_key_from_json(member_name: str, json_data: object,
+                           nestings: list[ConfigNesting], stderr_file: TextIO,
+                           auto_ch_hook: ConfigAutoChangeHook, *,
+                           parent_path: Optional[str]) -> dict[str, object]
 ```
 
 Construct selected dict values as nested Config objects.
@@ -2877,6 +2915,7 @@ Construct selected dict values as nested Config objects.
 - `nestings` - Nested Config declarations for selected dict keys.
 - `stderr_file` - Stream used for user-facing diagnostics.
 - `auto_ch_hook` - Parent hook receiving the nested automatic changes.
+- `parent_path` - Reported path of the object holding the nested dict.
 
 
 **Returns**:
@@ -2918,7 +2957,8 @@ Return the single declaration for non-keyed nesting kinds.
 def _nested_config_from_json(member_name: str, json_data: object,
                              nestings: list[ConfigNesting],
                              stderr_file: TextIO,
-                             auto_ch_hook: ConfigAutoChangeHook) -> object
+                             auto_ch_hook: ConfigAutoChangeHook, *,
+                             parent_path: Optional[str]) -> object
 ```
 
 Construct nested Config data from parsed JSON data.
@@ -2930,6 +2970,7 @@ Construct nested Config data from parsed JSON data.
 - `nestings` - Nested Config declarations for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
 - `auto_ch_hook` - Parent hook receiving the nested automatic changes.
+- `parent_path` - Reported path of the object holding the nested data.
 
 
 **Returns**:
@@ -2943,18 +2984,20 @@ Construct nested Config data from parsed JSON data.
 
 ```python
 def _item_json_data(member_name: str, member_value: object,
-                    nesting: ConfigNesting,
-                    stderr_file: TextIO) -> dict[str, JsonType]
+                    nesting: ConfigNesting, stderr_file: TextIO, *,
+                    parent_path: Optional[str]) -> dict[str, JsonType]
 ```
 
 Return JSON data for one nested Config object.
 
 **Arguments**:
 
-- `member_name` - Diagnostic name for the nested Config.
+- `member_name` - Local name of the nested Config in the object that
+  holds it.
 - `member_value` - Current nested Config value.
 - `nesting` - Nested Config declaration for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Reported path of the object holding the nested Config.
 
 
 **Returns**:
@@ -2972,8 +3015,8 @@ Return JSON data for one nested Config object.
 
 ```python
 def _list_json_data(member_name: str, member_value: object,
-                    nesting: ConfigNesting,
-                    stderr_file: TextIO) -> list[JsonType]
+                    nesting: ConfigNesting, stderr_file: TextIO, *,
+                    parent_path: Optional[str]) -> list[JsonType]
 ```
 
 Return JSON data for a list of nested Config objects.
@@ -2984,6 +3027,7 @@ Return JSON data for a list of nested Config objects.
 - `member_value` - Current nested list value.
 - `nesting` - Nested Config declaration for the list elements.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Reported path of the object holding the nested list.
 
 
 **Returns**:
@@ -3001,8 +3045,8 @@ Return JSON data for a list of nested Config objects.
 
 ```python
 def _dict_json_data(member_name: str, member_value: object,
-                    nesting: ConfigNesting,
-                    stderr_file: TextIO) -> dict[str, JsonType]
+                    nesting: ConfigNesting, stderr_file: TextIO, *,
+                    parent_path: Optional[str]) -> dict[str, JsonType]
 ```
 
 Return JSON data for a dict of nested Config objects.
@@ -3013,6 +3057,7 @@ Return JSON data for a dict of nested Config objects.
 - `member_value` - Current nested dict value.
 - `nesting` - Nested Config declaration for the dict values.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Reported path of the object holding the nested dict.
 
 
 **Returns**:
@@ -3040,8 +3085,9 @@ Return whether value is a Config object without import-time cycles.
 
 ```python
 def _dict_by_key_json_data(member_name: str, member_value: object,
-                           nestings: list[ConfigNesting],
-                           stderr_file: TextIO) -> dict[str, JsonType]
+                           nestings: list[ConfigNesting], stderr_file: TextIO,
+                           *,
+                           parent_path: Optional[str]) -> dict[str, JsonType]
 ```
 
 Return JSON data for a dict with selected nested Config values.
@@ -3052,6 +3098,7 @@ Return JSON data for a dict with selected nested Config values.
 - `member_value` - Current nested dict value.
 - `nestings` - Nested Config declarations for selected dict keys.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Reported path of the object holding the nested dict.
 
 
 **Returns**:
@@ -3071,7 +3118,8 @@ Return JSON data for a dict with selected nested Config values.
 ```python
 def _nested_config_json_data(member_name: str, member_value: object,
                              nestings: list[ConfigNesting],
-                             stderr_file: TextIO) -> JsonType
+                             stderr_file: TextIO, *,
+                             parent_path: Optional[str]) -> JsonType
 ```
 
 Return JSON data for one nested Config declaration.
@@ -3082,6 +3130,7 @@ Return JSON data for one nested Config declaration.
 - `member_value` - Current value of that member.
 - `nestings` - Nested Config declarations for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Reported path of the object holding the nested data.
 
 
 **Returns**:
@@ -3094,17 +3143,20 @@ Return JSON data for one nested Config declaration.
 
 ```python
 def _validate_item(member_name: str, member_value: object,
-                   nesting: ConfigNesting, stderr_file: TextIO) -> None
+                   nesting: ConfigNesting, stderr_file: TextIO, *,
+                   parent_path: Optional[str]) -> None
 ```
 
 Validate one nested Config object.
 
 **Arguments**:
 
-- `member_name` - Diagnostic name for the nested Config.
+- `member_name` - Local name of the nested Config in the object that
+  holds it.
 - `member_value` - Current nested Config value.
 - `nesting` - Nested Config declaration for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Reported path of the object holding the nested Config.
 
 
 **Raises**:
@@ -3117,7 +3169,8 @@ Validate one nested Config object.
 
 ```python
 def _validate_list(member_name: str, member_value: object,
-                   nesting: ConfigNesting, stderr_file: TextIO) -> None
+                   nesting: ConfigNesting, stderr_file: TextIO, *,
+                   parent_path: Optional[str]) -> None
 ```
 
 Validate a list of nested Config objects.
@@ -3128,6 +3181,7 @@ Validate a list of nested Config objects.
 - `member_value` - Current nested list value.
 - `nesting` - Nested Config declaration for the list elements.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Reported path of the object holding the nested list.
 
 
 **Raises**:
@@ -3140,7 +3194,8 @@ Validate a list of nested Config objects.
 
 ```python
 def _validate_dict(member_name: str, member_value: object,
-                   nesting: ConfigNesting, stderr_file: TextIO) -> None
+                   nesting: ConfigNesting, stderr_file: TextIO, *,
+                   parent_path: Optional[str]) -> None
 ```
 
 Validate a dict of nested Config objects.
@@ -3151,6 +3206,7 @@ Validate a dict of nested Config objects.
 - `member_value` - Current nested dict value.
 - `nesting` - Nested Config declaration for the dict values.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Reported path of the object holding the nested dict.
 
 
 **Raises**:
@@ -3163,8 +3219,8 @@ Validate a dict of nested Config objects.
 
 ```python
 def _validate_dict_by_key(member_name: str, member_value: object,
-                          nestings: list[ConfigNesting],
-                          stderr_file: TextIO) -> None
+                          nestings: list[ConfigNesting], stderr_file: TextIO,
+                          *, parent_path: Optional[str]) -> None
 ```
 
 Validate a dict with selected nested Config values.
@@ -3175,6 +3231,7 @@ Validate a dict with selected nested Config values.
 - `member_value` - Current nested dict value.
 - `nestings` - Nested Config declarations for selected dict keys.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Reported path of the object holding the nested dict.
 
 
 **Raises**:
@@ -3189,8 +3246,8 @@ Validate a dict with selected nested Config values.
 
 ```python
 def _validate_nested_config(member_name: str, member_value: object,
-                            nestings: list[ConfigNesting],
-                            stderr_file: TextIO) -> None
+                            nestings: list[ConfigNesting], stderr_file: TextIO,
+                            *, parent_path: Optional[str]) -> None
 ```
 
 Validate one nested Config declaration.
@@ -3201,6 +3258,7 @@ Validate one nested Config declaration.
 - `member_value` - Current value of that member.
 - `nestings` - Nested Config declarations for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Reported path of the object holding the nested data.
 
 
 **Raises**:
@@ -4363,50 +4421,6 @@ real conversion recipes.
 
 Describe how one parsed JSON value should be converted after loading.
 
-<a id="config_as_json.config._member_path"></a>
-
-#### \_member\_path
-
-```python
-def _member_path(member_name: Optional[str], name: str) -> str
-```
-
-Return the path for reaching one attribute of a Config object.
-
-**Arguments**:
-
-- `member_name` - Path for reaching the object holding the attribute, or
-  ``None`` when that object is the top level and not a member of
-  anything.
-- `name` - Local attribute name of the member on that object.
-
-
-**Returns**:
-
-  The path for reaching the member, such as ``outputs[1].kind``.
-
-<a id="config_as_json.config._dict_value_path"></a>
-
-#### \_dict\_value\_path
-
-```python
-def _dict_value_path(member_name: Optional[str], key: str) -> str
-```
-
-Return the path for reaching one value of a plain dictionary.
-
-**Arguments**:
-
-- `member_name` - Path for reaching the dictionary holding the value, or
-  ``None`` when that dictionary is the top level and not a member
-  of anything.
-- `key` - Key of the value in that dictionary.
-
-
-**Returns**:
-
-  The path for reaching the value, such as ``limits[cpu]``.
-
 <a id="config_as_json.config.Config"></a>
 
 ## Config Objects
@@ -4668,7 +4682,8 @@ def check_key_match(expected_keys: list[str],
                     stderr_file: TextIO,
                     allowed_missing_keys: Optional[list[str]] = None,
                     *,
-                    member_name: Optional[str]) -> None
+                    member_name: Optional[str],
+                    dict_keys: bool = False) -> None
 ```
 
 Validate that parsed keys match the declared configuration keys.
@@ -4688,6 +4703,10 @@ Validate that parsed keys match the declared configuration keys.
   complete ``parse_json()`` operation, such as
   ``outputs[1].section``. ``None`` means that the keys are the
   keys of the top level and not of a member of anything.
+- `dict_keys` - Whether the keys are keys of a plain dictionary rather
+  than attribute names of a configuration object. Keys of a
+  dictionary are reported in square brackets, and attribute
+  names are reported after a dot.
 
 
 **Raises**:
@@ -4805,7 +4824,8 @@ Return validated omit-when-None member names.
 #### \_validate\_nested\_configs
 
 ```python
-def _validate_nested_configs(stderr_file: TextIO) -> None
+def _validate_nested_configs(stderr_file: TextIO, *,
+                             member_name: Optional[str]) -> None
 ```
 
 Validate all direct nested Config members before this object.
@@ -4813,6 +4833,11 @@ Validate all direct nested Config members before this object.
 **Arguments**:
 
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
 
 <a id="config_as_json.config.Config.copy_initial_data"></a>
 
@@ -5828,6 +5853,17 @@ Return what the public member of this value holds.
 The member is public, so the application may have assigned anything
 to it since it was written here.
 
+<a id="config_as_json.radix_number.RadixNumber.written_member_name"></a>
+
+#### written\_member\_name
+
+```python
+@classmethod
+def written_member_name(cls) -> str
+```
+
+Return the name of the public member holding the written value.
+
 <a id="config_as_json.radix_number.RadixNumber.prefix"></a>
 
 #### prefix
@@ -5889,6 +5925,33 @@ Return the value as an integer.
 
 The integer is taken from the cache, which is rebuilt first if the
 written member was assigned since the cache was built.
+
+**Raises**:
+
+- `InvalidConfiguration` - The written member was assigned a string
+  that does not hold a number in the notation of this class.
+- `InvalidConfigurationType` - The written member was assigned
+  something that is neither an integer nor a string.
+
+<a id="config_as_json.radix_number.RadixNumber._rebuild_cache"></a>
+
+#### \_rebuild\_cache
+
+```python
+def _rebuild_cache(reported_name: str, stderr_file: Optional[TextIO]) -> None
+```
+
+Rebuild the cached integer when the written member was assigned.
+
+**Arguments**:
+
+- `reported_name` - The name that a diagnostic about the written
+  member calls it. A validation names the whole path for
+  reaching the member, and a read of the value outside a
+  validation only knows the local member name.
+- `stderr_file` - Stream used for user-facing diagnostics, ``None``
+  to raise without reporting.
+
 
 **Raises**:
 
@@ -7118,7 +7181,7 @@ Initialize a list relation validator.
 #### \_relation\_value
 
 ```python
-def _relation_value(config: 'Config', member_name: str,
+def _relation_value(config: 'Config', local_name: str, reported_name: str,
                     projector: Optional[WholeConfigProjector],
                     stderr_file: TextIO) -> list[object]
 ```
@@ -7128,7 +7191,10 @@ Return one materialized relation value.
 **Arguments**:
 
 - `config` - The Config object to validate.
-- `member_name` - Real member name or pseudo-member name.
+- `local_name` - Real member name or pseudo-member name, as it is
+  named on ``config``.
+- `reported_name` - The same name as diagnostics report it, which is
+  the path for reaching it from the top level.
 - `projector` - Optional projector for the relation value.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
@@ -7485,8 +7551,10 @@ The final projected value is discarded when validation succeeds.
 
 The inner validators are called with these arguments:
 - config: The Config object to validate.
-- member_name: The name (which is the pseudo-member name) of the
-member to validate (which is the projected value).
+- member_name: The reported name of the member to validate (which
+is the projected value). It is the pseudo-member name, reached
+through the path of ``config``, such as
+``outputs[1].total_size``.
 - member_value: The projected value to validate.
 - stderr_file: The file to write error messages to.
 
@@ -7513,6 +7581,68 @@ member to validate (which is the projected value).
 
   None if the validation check passes, otherwise the exception
   is raised.
+
+<a id="config_as_json.member_path"></a>
+
+# config\_as\_json.member\_path
+
+Build the reported path of a value in a nested configuration.
+
+A diagnostic naming a configuration value names the whole path from the top
+level configuration down to that value, such as ``outputs[1].section.kind``.
+The path is built while the configuration is traversed, on the way in. Going
+into an attribute of a nested configuration object appends a dot and the
+attribute name. Indexing into a list or a dict appends the index or the key
+in square brackets.
+
+The path is text for a person to read, not text for a program to parse back
+into its parts. A dict key holding a dot or a square bracket therefore makes
+a path that cannot be taken apart again unambiguously.
+
+<a id="config_as_json.member_path.member_path"></a>
+
+#### member\_path
+
+```python
+def member_path(member_name: Optional[str], name: str) -> str
+```
+
+Return the path for reaching one attribute of a configuration object.
+
+**Arguments**:
+
+- `member_name` - Path for reaching the object holding the attribute, or
+  ``None`` when that object is the top level and not a member of
+  anything.
+- `name` - Local attribute name of the member on that object.
+
+
+**Returns**:
+
+  The path for reaching the member, such as ``outputs[1].kind``.
+
+<a id="config_as_json.member_path._indexed_path"></a>
+
+#### \_indexed\_path
+
+```python
+def _indexed_path(member_name: Optional[str], index: int | str) -> str
+```
+
+Return the path for reaching one element of a list or a dict.
+
+**Arguments**:
+
+- `member_name` - Path for reaching the list or the dict holding the
+  element, or ``None`` when that list or dict is the top level and
+  not a member of anything.
+- `index` - List index or dict key of the element.
+
+
+**Returns**:
+
+  The path for reaching the element, such as ``outputs[1]`` or
+  ``limits[cpu]``.
 
 <a id="config_as_json.type_validators"></a>
 

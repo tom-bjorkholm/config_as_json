@@ -14,6 +14,7 @@ from collections.abc import Sequence as SequenceABC
 from enum import Enum, auto
 from operator import eq, lt
 from typing import Callable, Optional, TextIO, TYPE_CHECKING, cast
+from config_as_json.member_path import member_path
 from config_as_json.validator import InvalidConfiguration, WholeConfigValidator
 from config_as_json.projected_validators import WholeConfigProjector
 if TYPE_CHECKING:
@@ -367,14 +368,19 @@ class ListRelationValidator(WholeConfigValidator):
         self.lt_comparator: Callable[[object, object], bool] = \
             _validate_comparator(lt_comparator, 'lt_comparator')
 
-    def _relation_value(self, config: 'Config', member_name: str,
+    # pylint: disable-next=too-many-arguments
+    def _relation_value(self, config: 'Config', local_name: str,
+                        reported_name: str,
                         projector: Optional[WholeConfigProjector],
                         stderr_file: TextIO) -> list[object]:
         """Return one materialized relation value.
 
         Args:
             config: The Config object to validate.
-            member_name: Real member name or pseudo-member name.
+            local_name: Real member name or pseudo-member name, as it is
+                named on ``config``.
+            reported_name: The same name as diagnostics report it, which is
+                the path for reaching it from the top level.
             projector: Optional projector for the relation value.
             stderr_file: Stream used for user-facing diagnostics.
 
@@ -387,14 +393,14 @@ class ListRelationValidator(WholeConfigValidator):
                 ``str``, ``bytes``, or ``bytearray``.
         """
         if projector is None:
-            if not hasattr(config, member_name):
+            if not hasattr(config, local_name):
                 msg = 'Invalid configuration: '
-                msg += f'Member {member_name} not found in Config object.'
+                msg += f'Member {reported_name} not found in Config object.'
                 _print_and_raise_key_error(msg, stderr_file)
-            value = getattr(config, member_name)
+            value = getattr(config, local_name)
         else:
             value = projector(config, stderr_file)
-        return _materialized_sequence(member_name, value, stderr_file)
+        return _materialized_sequence(reported_name, value, stderr_file)
 
     def _relation_holds(self, values_a: list[object],
                         values_b: list[object]) -> bool:
@@ -451,17 +457,20 @@ class ListRelationValidator(WholeConfigValidator):
                 ``str``, ``bytes``, or ``bytearray``.
             InvalidConfiguration: The relation does not hold.
         """
-        _ = member_name
+        reported_a = member_path(member_name, self.member_a_name)
+        reported_b = member_path(member_name, self.member_b_name)
         values_a = self._relation_value(config=config,
-                                        member_name=self.member_a_name,
+                                        local_name=self.member_a_name,
+                                        reported_name=reported_a,
                                         projector=self.a_projector,
                                         stderr_file=stderr_file)
         values_b = self._relation_value(config=config,
-                                        member_name=self.member_b_name,
+                                        local_name=self.member_b_name,
+                                        reported_name=reported_b,
                                         projector=self.b_projector,
                                         stderr_file=stderr_file)
         if not self._relation_holds(values_a, values_b):
             msg = 'Invalid configuration: '
             msg += f'Relation {self.kind.name} does not hold between '
-            msg += f'{self.member_a_name} and {self.member_b_name}.'
+            msg += f'{reported_a} and {reported_b}.'
             _print_and_raise_invalid(msg, stderr_file)

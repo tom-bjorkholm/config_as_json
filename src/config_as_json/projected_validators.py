@@ -7,6 +7,7 @@
 import sys
 from collections.abc import Callable, Sequence
 from typing import Optional, TextIO, TYPE_CHECKING
+from config_as_json.member_path import member_path
 from config_as_json.validator import MemberValidator, WholeConfigValidator
 if TYPE_CHECKING:
     from config_as_json.config import Config
@@ -276,8 +277,10 @@ class ProjectedWholeConfigValidator(WholeConfigValidator):
 
         The inner validators are called with these arguments:
         - config: The Config object to validate.
-        - member_name: The name (which is the pseudo-member name) of the
-            member to validate (which is the projected value).
+        - member_name: The reported name of the member to validate (which
+            is the projected value). It is the pseudo-member name, reached
+            through the path of ``config``, such as
+            ``outputs[1].total_size``.
         - member_value: The projected value to validate.
         - stderr_file: The file to write error messages to.
 
@@ -300,9 +303,10 @@ class ProjectedWholeConfigValidator(WholeConfigValidator):
             None if the validation check passes, otherwise the exception
             is raised.
         """
-        _ = member_name
+        reported = member_path(member_name, self.pseudo_member_name)
         current = self.projector(config, stderr_file)
         for validator in self.validators:
-            current = validator.validate_member(
-                config=config, member_name=self.pseudo_member_name,
-                member_value=current, stderr_file=stderr_file)
+            current = validator.validate_member(config=config,
+                                                member_name=reported,
+                                                member_value=current,
+                                                stderr_file=stderr_file)

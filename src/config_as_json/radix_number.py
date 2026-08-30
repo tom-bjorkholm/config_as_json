@@ -12,6 +12,7 @@ from config_as_json.config import Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigFactory
 from config_as_json.commontypes import PathOrStr
+from config_as_json.member_path import member_path
 from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
     WholeConfigValidationStep, MemberValidationStep, WholeConfigValidator, \
     MemberValidator
@@ -407,6 +408,11 @@ class RadixNumber(Config, Generic[PrefixT]):
         """
         return getattr(self, self._SPEC.member_name)
 
+    @classmethod
+    def written_member_name(cls) -> str:
+        """Return the name of the public member holding the written value."""
+        return cls._SPEC.member_name
+
     @property
     def prefix(self) -> PrefixT:
         """Return the prefix that this value is written with."""
@@ -450,11 +456,30 @@ class RadixNumber(Config, Generic[PrefixT]):
             InvalidConfigurationType: The written member was assigned
                 something that is neither an integer nor a string.
         """
+        self._rebuild_cache(self._SPEC.member_name, None)
+        return self._int_value
+
+    def _rebuild_cache(self, reported_name: str,
+                       stderr_file: Optional[TextIO]) -> None:
+        """Rebuild the cached integer when the written member was assigned.
+
+        Args:
+            reported_name: The name that a diagnostic about the written
+                member calls it. A validation names the whole path for
+                reaching the member, and a read of the value outside a
+                validation only knows the local member name.
+            stderr_file: Stream used for user-facing diagnostics, ``None``
+                to raise without reporting.
+
+        Raises:
+            InvalidConfiguration: The written member was assigned a string
+                that does not hold a number in the notation of this class.
+            InvalidConfigurationType: The written member was assigned
+                something that is neither an integer nor a string.
+        """
         text = self._read_text()
         if self._cached_text != text:
-            self._cache(self._notation.read(text, self._SPEC.member_name,
-                                            None))
-        return self._int_value
+            self._cache(self._notation.read(text, reported_name, stderr_file))
 
     def _cache(self, number: int) -> None:
         """Remember the integer that the current written member holds."""
@@ -624,7 +649,7 @@ class _RadixCacheBuilder(WholeConfigValidator):
             InvalidConfiguration: The written member does not hold a number
                 in the notation of the value.
         """
-        _ = stderr_file
-        _ = member_name
         assert isinstance(config, RadixNumber)
-        config.get()
+        written = member_path(member_name, config.written_member_name())
+        # pylint: disable-next=protected-access
+        config._rebuild_cache(written, stderr_file)

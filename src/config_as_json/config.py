@@ -35,6 +35,7 @@ from config_as_json._deprecated_support import DeprecatedHook, \
     warn_deprecated_hook
 from config_as_json.json_write_hooks import SerializeConverters, \
     apply_serialize_converters
+from config_as_json.member_path import member_path, _indexed_path
 from config_as_json.read_old_configuration import ReadOldConfiguration
 from config_as_json.validator import ValidationPlan
 
@@ -79,36 +80,6 @@ ParseConverter = NamedTuple('ParseConverter', [('result_type', type),
 _READ_OLD_CONFIG_HOOK = DeprecatedHook(owner_name='Config',
                                        old_name='_get_read_old_configuration',
                                        new_name='_get_read_old_config')
-
-
-def _member_path(member_name: Optional[str], name: str) -> str:
-    """Return the path for reaching one attribute of a Config object.
-
-    Args:
-        member_name: Path for reaching the object holding the attribute, or
-            ``None`` when that object is the top level and not a member of
-            anything.
-        name: Local attribute name of the member on that object.
-
-    Returns:
-        The path for reaching the member, such as ``outputs[1].kind``.
-    """
-    return name if member_name is None else f'{member_name}.{name}'
-
-
-def _dict_value_path(member_name: Optional[str], key: str) -> str:
-    """Return the path for reaching one value of a plain dictionary.
-
-    Args:
-        member_name: Path for reaching the dictionary holding the value, or
-            ``None`` when that dictionary is the top level and not a member
-            of anything.
-        key: Key of the value in that dictionary.
-
-    Returns:
-        The path for reaching the value, such as ``limits[cpu]``.
-    """
-    return key if member_name is None else f'{member_name}[{key}]'
 
 
 _T = TypeVar('_T', int, str, bool, float)
@@ -357,7 +328,8 @@ class Config():
     def check_key_match(expected_keys: list[str], j_keys: list[str],
                         ok_to_use_defaults: bool, stderr_file: TextIO,
                         allowed_missing_keys: Optional[list[str]] = None, *,
-                        member_name: Optional[str]) -> None:
+                        member_name: Optional[str],
+                        dict_keys: bool = False) -> None:
         """Validate that parsed keys match the declared configuration keys.
 
         Args:
@@ -374,23 +346,29 @@ class Config():
                 complete ``parse_json()`` operation, such as
                 ``outputs[1].section``. ``None`` means that the keys are the
                 keys of the top level and not of a member of anything.
+            dict_keys: Whether the keys are keys of a plain dictionary rather
+                than attribute names of a configuration object. Keys of a
+                dictionary are reported in square brackets, and attribute
+                names are reported after a dot.
 
         Raises:
             KeyError: The JSON data is missing a required key or contains an
                 unexpected key.
         """
-        _ = member_name
+        key_path = _indexed_path if dict_keys else member_path
         if allowed_missing_keys is None:
             allowed_missing_keys = []
         if not ok_to_use_defaults:
             for i in expected_keys:
                 if i not in j_keys and i not in allowed_missing_keys:
-                    errmsg = f'No value for {i} in JSON data'
+                    errmsg = f'No value for {key_path(member_name, i)} '
+                    errmsg += 'in JSON data'
                     print(errmsg, file=stderr_file)
                     raise KeyError(errmsg)
         for i in j_keys:
             if i not in expected_keys:
-                errmsg = f'Unexpected parameter {i} in JSON data'
+                errmsg = 'Unexpected parameter '
+                errmsg += f'{key_path(member_name, i)} in JSON data'
                 print(errmsg, file=stderr_file)
                 raise KeyError(errmsg)
 
@@ -423,16 +401,17 @@ class Config():
             KeyError: The JSON structure for the key does not match the
                 expected dictionary shape.
         """
+        value_name = key if member_name is None else member_name
         if not isinstance(self_data, dict) and \
                 not isinstance(json_data, dict):
             return
         if isinstance(self_data, dict):
             if not isinstance(json_data, dict):
-                errmsg = f'Not dictionary for {key} in JSON data'
+                errmsg = f'Not dictionary for {value_name} in JSON data'
                 print(errmsg, file=stderr_file)
                 raise KeyError(errmsg)
         if not isinstance(self_data, dict):
-            errmsg = f'Unexpected dictionary for {key} in JSON data'
+            errmsg = f'Unexpected dictionary for {value_name} in JSON data'
             print(errmsg, file=stderr_file)
             raise KeyError(errmsg)
         if key in unchecked_dicts:
@@ -441,10 +420,10 @@ class Config():
         assert isinstance(json_data, dict)
         Config.check_key_match(list(self_data.keys()), list(json_data.keys()),
                                ok_to_use_defaults, stderr_file,
-                               member_name=member_name)
+                               member_name=member_name, dict_keys=True)
         for i in self_data.keys():
             if i in json_data:
-                value_path = _dict_value_path(member_name, i)
+                value_path = _indexed_path(member_name, i)
                 Config.check_dict_parse(self_data[i], json_data[i], i,
                                         ok_to_use_defaults, unchecked_dicts,
                                         stderr_file, member_name=value_path)
@@ -516,18 +495,25 @@ class Config():
                 raise KeyError(msg)
         return omit_none_keys
 
-    def _validate_nested_configs(self, stderr_file: TextIO) -> None:
+    def _validate_nested_configs(self, stderr_file: TextIO, *,
+                                 member_name: Optional[str]) -> None:
         """Validate all direct nested Config members before this object.
 
         Args:
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching this object by
+                traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that this object is
+                the top level and not a member of anything.
         """
         nested_configs = self._nested_config_decls
-        for member_name, nesting in nested_configs.items():
-            member_value = getattr(self, member_name)
-            _validate_nested_config(member_name=member_name,
+        for local_name, nesting in nested_configs.items():
+            member_value = getattr(self, local_name)
+            _validate_nested_config(member_name=local_name,
                                     member_value=member_value,
-                                    nestings=nesting, stderr_file=stderr_file)
+                                    nestings=nesting, stderr_file=stderr_file,
+                                    parent_path=member_name)
 
     @staticmethod
     def copy_initial_data(source: object, target: 'Config') -> None:
@@ -686,10 +672,11 @@ class Config():
                     nested_value = _nested_config_from_json(
                         member_name=i, json_data=data[i],
                         nestings=nested_configs[i], stderr_file=stderr_file,
-                        auto_ch_hook=self._hook_cfg_autochange)
+                        auto_ch_hook=self._hook_cfg_autochange,
+                        parent_path=member_name)
                     setattr(self, i, nested_value)
                 else:
-                    item_path = _member_path(member_name, i)
+                    item_path = member_path(member_name, i)
                     self.check_dict_parse(getattr(self, i), data[i], i,
                                           ok_to_use_defaults,
                                           self._unchecked_dicts, stderr_file,
@@ -788,7 +775,8 @@ class Config():
             if i in nested_configs:
                 data[i] = _nested_config_json_data(
                     member_name=i, member_value=getattr(self, i),
-                    nestings=nested_configs[i], stderr_file=stderr_file)
+                    nestings=nested_configs[i], stderr_file=stderr_file,
+                    parent_path=member_name)
             else:
                 data[i] = getattr(self, i)
         converters = self.serialize_converters()
@@ -932,7 +920,8 @@ class Config():
                 ``outputs[1].section``. ``None`` means that this object is
                 the top level and not a member of anything.
         """
-        self._validate_nested_configs(stderr_file=stderr_file)
+        self._validate_nested_configs(stderr_file=stderr_file,
+                                      member_name=member_name)
         validation_plan = self.get_validation_plan(stderr_file=stderr_file)
         for validation_step in validation_plan:
             validation_step.apply(self, stderr_file, member_name=member_name)

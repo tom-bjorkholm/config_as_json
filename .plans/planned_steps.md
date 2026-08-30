@@ -205,7 +205,7 @@ What was decided while implementing this step:
 
 ## Step 4 — Build the path on the `validate()` traversal
 
-Status: **Not done yet**
+Status: **Implemented and committed**, and it absorbed parts of step 5
 
 The first step where reported names move.
 
@@ -242,9 +242,49 @@ The first step where reported names move.
 - The path reaching a diagnostic that is **printed without raising**, which
   is the case the discarded design could not serve.
 
+What was decided while implementing this step:
+
+- The joining helper lives in the new module `member_path.py`. It holds the
+  exported `member_path()` and, next to it, the private `_indexed_path()`
+  that `config.py` had as `_dict_value_path()`. The rename is because list
+  indices use it too, and using it for them removed about ten copies of the
+  same `f'{name}[{index}]'` in `_config_nesting_io.py`. Keeping the two
+  notations in one module means a reader finds the whole notation in one
+  place, and only one of the two is public.
+- **`_config_nesting_io` could not simply pass the whole path down.** Its
+  `_item_from_json` uses the name it computes for two different things: the
+  nested object's `member_name`, and the `path_prefix` for
+  `auto_ch_hook.merge_nested`. The automatic-change paths address JSON data,
+  they use their own bracket notation, and `rocf_change._absolute_path`
+  composes them one nesting level at a time. Handing that a dotted path
+  would have corrupted every automatic-change path below two nesting levels.
+  So all three traversals in that module keep `member_name` as the local
+  name and take the reported path of the holding object as a new
+  `parent_path` argument. `test_rocf_own_notation` locks that down. This also keeps decision 6 true.
+- `check_key_match` serves two callers with two notations: the keys of a
+  configuration object are reported after a dot, and the keys of a plain
+  dictionary in square brackets. It therefore took one more keyword argument,
+  `dict_keys: bool = False`, rather than guessing.
+- `CallingMemberValidator` needed no change at all. Its
+  `arg_name_member_name` is the *name of the keyword argument* in the call to
+  the application's method; the value handed under that name is
+  `validate_member`'s `member_name`, which becomes the path by the same rule
+  as for every other validator.
+- `CallingWholeConfigValidator` names the Config object it is about with a
+  ` at {path}` suffix built by `validator._at_path`, so that the four
+  messages are unchanged for a top level configuration.
+- `RadixNumber.get()` gave up its cache rebuild to a new protected
+  `_rebuild_cache(reported_name, stderr_file)`, so that `_RadixCacheBuilder`
+  can rebuild the cache naming the whole path. `written_member_name()` is a
+  new classmethod, because the cache builder needs that name to join.
+- Of the existing tests only `test_nested_config_io_private.py` needed
+  changing, and only because it calls the private traversal helpers
+  directly. No existing test asserted a reported name inside a nested
+  object, which is why the new test modules carry the whole proof.
+
 ## Step 5 — Build the path on the parse and write traversals
 
-Status: **Not done yet**
+Status: **Mostly imlemented tests remaining to do.**
 
 - `_item_from_json`, `_list_from_json`, `_dict_from_json` and
   `_dict_by_key_from_json` pass the name they already compute into the
@@ -261,6 +301,14 @@ Status: **Not done yet**
 reporting the whole path; an unknown key and a missing key inside a nested
 object reporting the path; a nested object two levels down failing while
 being parsed.
+
+The way the previous work was split into steps (adding arguments without
+passing values or without handling the received values) means that
+there is huge risk that we have forgotten to pass or handle member path
+values  in some scenario. Therefore, we must create a really
+comprehensive test suite to check that for every node or leaf being
+validated the dotted path member_name really has the correct value.
+This is a big test effort that must be done thoroughly.
 
 ## Step 6 — Backward compatibility for existing applications
 

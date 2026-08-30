@@ -11,6 +11,7 @@ from operator import lt as operator_lt
 import sys
 from typing import Callable, Optional, Sequence, TextIO, TYPE_CHECKING, \
     TypeVar, Generic, cast
+from config_as_json.member_path import member_path
 if TYPE_CHECKING:
     from config_as_json.config import Config
 
@@ -162,7 +163,13 @@ class MemberValidator(ABC):  # pylint: disable=too-few-public-methods
             config: The complete Config object (might be needed if the
                 validator needs to access other members of the Config
                 object).
-            member_name: The name of the member to validate.
+            member_name: The reported name of the member to validate. It is
+                the dotted and indexed path for reaching the member by
+                traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].kind``. A member of the top level is reported by
+                its plain attribute name. The name is what diagnostics call
+                the member, and it is not a name to read the attribute by.
             member_value: The value of the member to validate.
             stderr_file: The file to write error messages to.
 
@@ -311,7 +318,6 @@ class MemberValidationStep(ValidationStep):
             InvalidConfigurationValue: The supplied validator rejects one
                 configuration value.
         """
-        _ = member_name
         for local_name in self.member_names:
             if not hasattr(config, local_name):
                 msg = f'Member {local_name} '
@@ -322,8 +328,9 @@ class MemberValidationStep(ValidationStep):
                 print(msg, file=stderr_file)
                 raise AttributeError(msg)
             member_value = getattr(config, local_name)
+            reported = member_path(member_name, local_name)
             ret = self.validator.validate_member(config=config,
-                                                 member_name=local_name,
+                                                 member_name=reported,
                                                  member_value=member_value,
                                                  stderr_file=stderr_file)
             setattr(config, local_name, ret)
@@ -612,32 +619,42 @@ def _copy_method_other_args(other_args: Optional[Mapping[str, object]]) \
     return copied
 
 
-def _get_config_method(config: 'Config', method_name: str,
-                       stderr_file: TextIO) -> Callable[..., object]:
+def _at_path(config_path: Optional[str]) -> str:
+    """Return where a Config object is, empty text for the top level."""
+    return '' if config_path is None else f' at {config_path}'
+
+
+def _get_config_method(config: 'Config', method_name: str, stderr_file: TextIO,
+                       config_path: Optional[str] = None) \
+        -> Callable[..., object]:
     """Return one callable method from a Config object."""
+    where = _at_path(config_path)
     if not hasattr(config, method_name):
-        msg = f'Method {method_name} not found in Config object.'
+        msg = f'Method {method_name} not found in Config object{where}.'
         print(msg, file=stderr_file)
         raise AttributeError(msg)
     method = getattr(config, method_name)
     if not callable(method):
-        msg = f'Method {method_name} in Config object is not callable.'
+        msg = f'Method {method_name} in Config object{where} is not callable.'
         print(msg, file=stderr_file)
         raise TypeError(msg)
     return cast(Callable[..., object], method)
 
 
 def _check_validation_only_method_result(method_name: str, result: object,
-                                         stderr_file: TextIO) -> None:
+                                         stderr_file: TextIO,
+                                         config_path: Optional[str] = None) \
+        -> None:
     """Validate the return value from a validation-only method call."""
+    where = _at_path(config_path)
     if result is None or result is True:
         return
     if result is False:
         msg = 'Invalid configuration: '
-        msg += f'Method {method_name} returned False.'
+        msg += f'Method {method_name}{where} returned False.'
         print(msg, file=stderr_file)
         raise InvalidConfiguration(msg)
-    msg = f'Method {method_name} returned {type(result).__name__}; '
+    msg = f'Method {method_name}{where} returned {type(result).__name__}; '
     msg += 'expected None, True, or False.'
     print(msg, file=stderr_file)
     raise TypeError(msg)
@@ -825,11 +842,11 @@ class CallingWholeConfigValidator(WholeConfigValidator):
             InvalidConfiguration: The configuration is invalid.
             Any exception raised by the method in the Config object.
         """
-        _ = member_name
-        func = _get_config_method(config, self.method_name, stderr_file)
+        func = _get_config_method(config, self.method_name, stderr_file,
+                                  member_name)
         ret: object = func(**self.other_args)
         _check_validation_only_method_result(self.method_name, ret,
-                                             stderr_file)
+                                             stderr_file, member_name)
 
 
 # pylint: disable-next=too-few-public-methods

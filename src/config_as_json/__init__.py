@@ -66,6 +66,7 @@ from config_as_json.json_write_hooks import SerializeConverter, \
     SerializeSelector, SerializeConverters, JsonWriteHookError, \
     SerializeSelectorError, apply_serialize_converters
 from config_as_json.str_to_enum import string_to_enum_best_match
+from config_as_json.member_path import member_path
 from config_as_json.assert_dict_equal import assert_dict_equal
 
 
@@ -164,4 +165,5 @@ __all__ = ['Config',
            'ListRelationValidator',
            'AsDictViewValidator',
            'public_attrs_to_dict',
+           'member_path',
            'assert_dict_equal']

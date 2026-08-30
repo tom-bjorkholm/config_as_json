@@ -143,6 +143,7 @@
     * [validate\_member](#config_as_json.radix_number.RadixValidator.validate_member)
   * [RadixNumber](#config_as_json.radix_number.RadixNumber)
     * [\_\_init\_\_](#config_as_json.radix_number.RadixNumber.__init__)
+    * [written\_member\_name](#config_as_json.radix_number.RadixNumber.written_member_name)
     * [prefix](#config_as_json.radix_number.RadixNumber.prefix)
     * [digits](#config_as_json.radix_number.RadixNumber.digits)
     * [set](#config_as_json.radix_number.RadixNumber.set)
@@ -184,6 +185,8 @@
   * [ProjectedWholeConfigValidator](#config_as_json.projected_validators.ProjectedWholeConfigValidator)
     * [\_\_init\_\_](#config_as_json.projected_validators.ProjectedWholeConfigValidator.__init__)
     * [validate](#config_as_json.projected_validators.ProjectedWholeConfigValidator.validate)
+* [config\_as\_json.member\_path](#config_as_json.member_path)
+  * [member\_path](#config_as_json.member_path.member_path)
 * [config\_as\_json.type\_validators](#config_as_json.type_validators)
   * [InvalidConfigurationType](#config_as_json.type_validators.InvalidConfigurationType)
   * [ValueTypeValidator](#config_as_json.type_validators.ValueTypeValidator)
@@ -863,7 +866,13 @@ the exception is raised.
 - `config` - The complete Config object (might be needed if the
   validator needs to access other members of the Config
   object).
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported name of the member to validate. It is
+  the dotted and indexed path for reaching the member by
+  traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].kind``. A member of the top level is reported by
+  its plain attribute name. The name is what diagnostics call
+  the member, and it is not a name to read the attribute by.
 - `member_value` - The value of the member to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -2810,7 +2819,8 @@ def check_key_match(expected_keys: list[str],
                     stderr_file: TextIO,
                     allowed_missing_keys: Optional[list[str]] = None,
                     *,
-                    member_name: Optional[str]) -> None
+                    member_name: Optional[str],
+                    dict_keys: bool = False) -> None
 ```
 
 Validate that parsed keys match the declared configuration keys.
@@ -2830,6 +2840,10 @@ Validate that parsed keys match the declared configuration keys.
   complete ``parse_json()`` operation, such as
   ``outputs[1].section``. ``None`` means that the keys are the
   keys of the top level and not of a member of anything.
+- `dict_keys` - Whether the keys are keys of a plain dictionary rather
+  than attribute names of a configuration object. Keys of a
+  dictionary are reported in square brackets, and attribute
+  names are reported after a dot.
 
 
 **Raises**:
@@ -3498,6 +3512,17 @@ Initialize the written number configuration value.
   unexpected keys.
 - `ConfigBadJson` - The supplied JSON could not be decoded or
   converted into the expected configuration structure.
+
+<a id="config_as_json.radix_number.RadixNumber.written_member_name"></a>
+
+#### written\_member\_name
+
+```python
+@classmethod
+def written_member_name(cls) -> str
+```
+
+Return the name of the public member holding the written value.
 
 <a id="config_as_json.radix_number.RadixNumber.prefix"></a>
 
@@ -4399,8 +4424,10 @@ The final projected value is discarded when validation succeeds.
 
 The inner validators are called with these arguments:
 - config: The Config object to validate.
-- member_name: The name (which is the pseudo-member name) of the
-member to validate (which is the projected value).
+- member_name: The reported name of the member to validate (which
+is the projected value). It is the pseudo-member name, reached
+through the path of ``config``, such as
+``outputs[1].total_size``.
 - member_value: The projected value to validate.
 - stderr_file: The file to write error messages to.
 
@@ -4427,6 +4454,45 @@ member to validate (which is the projected value).
 
   None if the validation check passes, otherwise the exception
   is raised.
+
+<a id="config_as_json.member_path"></a>
+
+# config\_as\_json.member\_path
+
+Build the reported path of a value in a nested configuration.
+
+A diagnostic naming a configuration value names the whole path from the top
+level configuration down to that value, such as ``outputs[1].section.kind``.
+The path is built while the configuration is traversed, on the way in. Going
+into an attribute of a nested configuration object appends a dot and the
+attribute name. Indexing into a list or a dict appends the index or the key
+in square brackets.
+
+The path is text for a person to read, not text for a program to parse back
+into its parts. A dict key holding a dot or a square bracket therefore makes
+a path that cannot be taken apart again unambiguously.
+
+<a id="config_as_json.member_path.member_path"></a>
+
+#### member\_path
+
+```python
+def member_path(member_name: Optional[str], name: str) -> str
+```
+
+Return the path for reaching one attribute of a configuration object.
+
+**Arguments**:
+
+- `member_name` - Path for reaching the object holding the attribute, or
+  ``None`` when that object is the top level and not a member of
+  anything.
+- `name` - Local attribute name of the member on that object.
+
+
+**Returns**:
+
+  The path for reaching the member, such as ``outputs[1].kind``.
 
 <a id="config_as_json.type_validators"></a>
 
