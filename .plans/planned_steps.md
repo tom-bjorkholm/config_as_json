@@ -103,6 +103,8 @@ Steps 1 to 8 are each reviewed and committed before the next one starts.
 
 ## Step 1 — `member_name` on `Config.parse_json()` and `Config.validate()`
 
+Status: **Implemented and committed**
+
 Plumbing only. Nothing about what is reported changes yet.
 
 - Add `member_name: Optional[str]` **without a default value** to
@@ -126,6 +128,8 @@ No reported name has moved yet.
 
 ## Step 2 — `member_name` on the validation extension points
 
+Status: **Implemented and committed**
+
 Plumbing only.
 
 - Add `member_name: Optional[str]` without a default to
@@ -147,6 +151,8 @@ Plumbing only.
 **Verifies:** the build is clean, the test suite passes unchanged.
 
 ## Step 3 — `member_name` on the nested construction contract
+
+Status: **Not done yet**
 
 Plumbing only.
 
@@ -170,6 +176,8 @@ Plumbing only.
 the largest mechanical step; nothing about behaviour has changed yet.
 
 ## Step 4 — Build the path on the `validate()` traversal
+
+Status: **Not done yet**
 
 The first step where reported names move.
 
@@ -208,6 +216,8 @@ The first step where reported names move.
 
 ## Step 5 — Build the path on the parse and write traversals
 
+Status: **Not done yet**
+
 - `_item_from_json`, `_list_from_json`, `_dict_from_json` and
   `_dict_by_key_from_json` pass the name they already compute into the
   nested constructor or factory as `member_name`.
@@ -225,6 +235,8 @@ object reporting the path; a nested object two levels down failing while
 being parsed.
 
 ## Step 6 — Backward compatibility for existing applications
+
+Status: **Not done yet**
 
 The package becomes compatible with unchanged application code again.
 
@@ -253,6 +265,8 @@ change.
 
 ## Step 7 — Documentation and a teaching example
 
+Status: **Not done yet**
+
 - `README.md` and `README_pypi.md`: what a reported name looks like now.
 - A new `example/src/example/e42_nested_member_paths.py` and its test,
   showing a failure inside a list of nested objects and the path it reports.
@@ -262,6 +276,8 @@ change.
   the build; check that what they say about `member_name` reads well.
 
 ## Step 8 — Verify the downstream libraries
+
+Status: **Not done yet**
 
 `edit-cfg-json`, `edit-cfg-json-tk` and `edit-cfg-json-textual` call
 `Config.parse_json` and `Config.validate` directly and attribute a refusal
@@ -276,6 +292,8 @@ decide whether any of it changes this plan. No release before this is done.
 
 ## Step 9 — Release
 
+Status: **Not done yet**
+
 - Version bump in `setup.py`. Steps 1 to 6 leave the public API
   additive, so this is a minor release.
 - `README.md` test summary refreshed by the clean build.
@@ -283,6 +301,8 @@ decide whether any of it changes this plan. No release before this is done.
   that this design has proved itself.
 
 ## Step 10 — Six months after step 9: the warning becomes visible
+
+Status: **Not done yet**
 
 An override that does not accept `member_name` raises both a
 `DeprecationWarning` and an end user visible message printed to
@@ -294,9 +314,13 @@ per validated member.
 
 ## Step 11 — Release
 
+Status: **Not done yet**
+
 Version bump.
 
 ## Step 12 — Four months after step 11: remove the compatibility layer
+
+Status: **Not done yet**
 
 - Remove `Config._wrap_parse_json()` and `Config._wrap_validate()`; the calls
   to `parse_json` and `validate` are direct again.

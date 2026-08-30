@@ -81,6 +81,36 @@ _READ_OLD_CONFIG_HOOK = DeprecatedHook(owner_name='Config',
                                        new_name='_get_read_old_config')
 
 
+def _member_path(member_name: Optional[str], name: str) -> str:
+    """Return the path for reaching one attribute of a Config object.
+
+    Args:
+        member_name: Path for reaching the object holding the attribute, or
+            ``None`` when that object is the top level and not a member of
+            anything.
+        name: Local attribute name of the member on that object.
+
+    Returns:
+        The path for reaching the member, such as ``outputs[1].kind``.
+    """
+    return name if member_name is None else f'{member_name}.{name}'
+
+
+def _dict_value_path(member_name: Optional[str], key: str) -> str:
+    """Return the path for reaching one value of a plain dictionary.
+
+    Args:
+        member_name: Path for reaching the dictionary holding the value, or
+            ``None`` when that dictionary is the top level and not a member
+            of anything.
+        key: Key of the value in that dictionary.
+
+    Returns:
+        The path for reaching the value, such as ``limits[cpu]``.
+    """
+    return key if member_name is None else f'{member_name}[{key}]'
+
+
 _T = TypeVar('_T', int, str, bool, float)
 
 
@@ -316,10 +346,11 @@ class Config():
         return self._get_read_old_config()
 
     @staticmethod
-    def check_key_match(
-            expected_keys: list[str], j_keys: list[str],
-            ok_to_use_defaults: bool, stderr_file: TextIO,
-            allowed_missing_keys: Optional[list[str]] = None) -> None:
+    # pylint: disable-next=too-many-arguments
+    def check_key_match(expected_keys: list[str], j_keys: list[str],
+                        ok_to_use_defaults: bool, stderr_file: TextIO,
+                        allowed_missing_keys: Optional[list[str]] = None, *,
+                        member_name: Optional[str]) -> None:
         """Validate that parsed keys match the declared configuration keys.
 
         Args:
@@ -330,11 +361,18 @@ class Config():
             stderr_file: Stream used for user-facing diagnostics.
             allowed_missing_keys: Keys that may be omitted even when
                 ``ok_to_use_defaults`` is false.
+            member_name: Dotted and indexed path for reaching the object or
+                the dictionary that ``expected_keys`` are the keys of, by
+                traversing nested attributes from the top level of the
+                complete ``parse_json()`` operation, such as
+                ``outputs[1].section``. ``None`` means that the keys are the
+                keys of the top level and not of a member of anything.
 
         Raises:
             KeyError: The JSON data is missing a required key or contains an
                 unexpected key.
         """
+        _ = member_name
         if allowed_missing_keys is None:
             allowed_missing_keys = []
         if not ok_to_use_defaults:
@@ -353,7 +391,8 @@ class Config():
     # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def check_dict_parse(self_data: object, json_data: object, key: str,
                          ok_to_use_defaults: bool, unchecked_dicts: list[str],
-                         stderr_file: TextIO) -> None:
+                         stderr_file: TextIO, *,
+                         member_name: Optional[str]) -> None:
         """Recursively validate nested dictionaries against default values.
 
         Args:
@@ -365,6 +404,13 @@ class Config():
             unchecked_dicts: Keys whose nested dictionary contents should not
                 be validated recursively.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching the checked
+                value itself, by traversing nested attributes from the top
+                level of the complete ``parse_json()`` operation, such as
+                ``outputs[1].limits``. Values of a checked dictionary are
+                reached by appending the key in square brackets. ``None``
+                means that the checked value is the top level and not a
+                member of anything.
 
         Raises:
             KeyError: The JSON structure for the key does not match the
@@ -387,12 +433,14 @@ class Config():
         assert isinstance(self_data, dict)
         assert isinstance(json_data, dict)
         Config.check_key_match(list(self_data.keys()), list(json_data.keys()),
-                               ok_to_use_defaults, stderr_file)
+                               ok_to_use_defaults, stderr_file,
+                               member_name=member_name)
         for i in self_data.keys():
             if i in json_data:
+                value_path = _dict_value_path(member_name, i)
                 Config.check_dict_parse(self_data[i], json_data[i], i,
                                         ok_to_use_defaults, unchecked_dicts,
-                                        stderr_file)
+                                        stderr_file, member_name=value_path)
 
     def _json_parse_obj_hook(self, indict: dict[str, object]) \
             -> dict[str, object]:
@@ -619,7 +667,8 @@ class Config():
         omit_none_keys = self._checked_omit_none_from_json(self_keys)
         nested_configs = self._nested_config_decls
         self.check_key_match(self_keys, list(data.keys()), ok_to_use_defaults,
-                             stderr_file, omit_none_keys)
+                             stderr_file, omit_none_keys,
+                             member_name=member_name)
         if not ok_to_use_defaults:
             for i in omit_none_keys:
                 if i not in data:
@@ -633,9 +682,11 @@ class Config():
                         auto_ch_hook=self._hook_cfg_autochange)
                     setattr(self, i, nested_value)
                 else:
+                    item_path = _member_path(member_name, i)
                     self.check_dict_parse(getattr(self, i), data[i], i,
                                           ok_to_use_defaults,
-                                          self._unchecked_dicts, stderr_file)
+                                          self._unchecked_dicts, stderr_file,
+                                          member_name=item_path)
                     setattr(self, i, data[i])
         self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
         self._wrap_validate(stderr_file=stderr_file, member_name=member_name)
@@ -874,11 +925,10 @@ class Config():
                 ``outputs[1].section``. ``None`` means that this object is
                 the top level and not a member of anything.
         """
-        _ = member_name  # pylint: disable=unused-argument
         self._validate_nested_configs(stderr_file=stderr_file)
         validation_plan = self.get_validation_plan(stderr_file=stderr_file)
         for validation_step in validation_plan:
-            validation_step.apply(self, stderr_file)
+            validation_step.apply(self, stderr_file, member_name=member_name)
 
     def _wrap_validate(self, stderr_file: TextIO, *,
                        member_name: Optional[str]) -> None:

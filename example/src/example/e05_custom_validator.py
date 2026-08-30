@@ -65,9 +65,18 @@ class OutputLibraryStub:  # pylint: disable=too-few-public-methods
 class OutputFormatSubtypeValidator(WholeConfigValidator):
     """Validate that ``output_format`` and ``output_subtype`` match."""
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
-        """Validate the dependency between the 2 configuration values."""
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
+        """Validate the dependency between the 2 configuration values.
+
+        Args:
+            config: The complete Config object to validate.
+            stderr_file: The file to write error messages to.
+            member_name: Path for reaching ``config`` by traversing nested
+                attributes from the top level of the validation, or ``None``
+                when ``config`` is the top level of the validation.
+        """
+        _ = member_name
         # This validator uses validate() for the whole Config object, rather
         # than validate_member() for one member. That is the important
         # teaching point of this example: the rule depends on the combination

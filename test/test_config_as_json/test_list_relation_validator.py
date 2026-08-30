@@ -84,7 +84,7 @@ def assert_relation_ok(capsys: pytest.CaptureFixture[str],
                        validator: ListRelationValidator,
                        config: RelationConfig) -> None:
     """Assert that one relation validation succeeds silently."""
-    validator.validate(config, sys.stderr)
+    validator.validate(config, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -96,7 +96,7 @@ def assert_relation_failure(capsys: pytest.CaptureFixture[str],
                             message: str) -> None:
     """Assert that one relation validation fails with diagnostics."""
     with pytest.raises(exc_type) as exc:
-        validator.validate(config, sys.stderr)
+        validator.validate(config, sys.stderr, member_name=None)
     captured = capsys.readouterr()
     assert captured.out == ''
     assert message in captured.err

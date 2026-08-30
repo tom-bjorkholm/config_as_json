@@ -232,9 +232,10 @@ class ReportSection(Config):
 class ReportListValidator(WholeConfigValidator):
     """Validate that nested list elements were normalized first."""
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Validate normalized report formats on the parent object."""
+        _ = member_name
         assert isinstance(config, ReportListConfig)
         for report in config.reports:
             if report.output_format in ('CSV', 'TXT'):
@@ -445,9 +446,10 @@ def test_list_nested_bad_element(capsys: CaptureFixture[str]) -> None:
 class ReportDictValidator(WholeConfigValidator):
     """Validate that nested dict values were normalized first."""
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Validate normalized report formats on the parent object."""
+        _ = member_name
         assert isinstance(config, ReportDictConfig)
         for report_key, report in config.reports_by_id.items():
             if report.output_format in ('CSV', 'TXT'):
@@ -667,9 +669,10 @@ def test_dict_nested_bad_value(capsys: CaptureFixture[str]) -> None:
 class ReportByKeyValidator(WholeConfigValidator):
     """Validate that keyed nested dict values were normalized first."""
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Validate normalized report formats on the parent object."""
+        _ = member_name
         assert isinstance(config, ReportByKeyConfig)
         report = config.reports_by_id.get('participants')
         if report is None:

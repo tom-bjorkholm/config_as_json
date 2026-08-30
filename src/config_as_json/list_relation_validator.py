@@ -421,8 +421,8 @@ class ListRelationValidator(WholeConfigValidator):
             return _is_distinct_subset(values_a, values_b, self.eq_comparator)
         return _is_disjoint(values_a, values_b, self.eq_comparator)
 
-    def validate(self, config: 'Config',
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Validate the configured relation between two list-like values.
 
         If no projector is supplied for a side, that side is read from the
@@ -438,6 +438,11 @@ class ListRelationValidator(WholeConfigValidator):
         Args:
             config: The Config object to validate.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching ``config``
+                by traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that ``config`` is the
+                top level and not a member of anything.
 
         Raises:
             KeyError: A side has no projector and the named member is not
@@ -446,6 +451,7 @@ class ListRelationValidator(WholeConfigValidator):
                 ``str``, ``bytes``, or ``bytearray``.
             InvalidConfiguration: The relation does not hold.
         """
+        _ = member_name
         values_a = self._relation_value(config=config,
                                         member_name=self.member_a_name,
                                         projector=self.a_projector,

@@ -193,6 +193,8 @@
   * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [\_over\_ride\_needed](#config_as_json.config._over_ride_needed)
   * [ParseConverter](#config_as_json.config.ParseConverter)
+  * [\_member\_path](#config_as_json.config._member_path)
+  * [\_dict\_value\_path](#config_as_json.config._dict_value_path)
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [auto\_change\_hook](#config_as_json.config.Config.auto_change_hook)
@@ -1229,7 +1231,10 @@ Initialize the validator.
 
 ```python
 @abstractmethod
-def validate(config: 'Config', stderr_file: TextIO = sys.stderr) -> None
+def validate(config: 'Config',
+             stderr_file: TextIO = sys.stderr,
+             *,
+             member_name: Optional[str]) -> None
 ```
 
 Validate an aspect of the entire Config object.
@@ -1252,6 +1257,11 @@ to normalize the configuration.
 
 - `config` - The Config object to validate.
 - `stderr_file` - The file to write error messages to.
+- `member_name` - Dotted and indexed path for reaching ``config``
+  by traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that ``config`` is the
+  top level and not a member of anything.
 
 
 **Returns**:
@@ -1379,7 +1389,10 @@ Base class for one ordered validation step.
 
 ```python
 @abstractmethod
-def apply(config: 'Config', stderr_file: TextIO = sys.stderr) -> None
+def apply(config: 'Config',
+          stderr_file: TextIO = sys.stderr,
+          *,
+          member_name: Optional[str]) -> None
 ```
 
 Apply the validation step to one Config object.
@@ -1388,6 +1401,11 @@ Apply the validation step to one Config object.
 
 - `config` - The Config object to validate.
 - `stderr_file` - The file to write error messages to.
+- `member_name` - Dotted and indexed path for reaching ``config``
+  by traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that ``config`` is the
+  top level and not a member of anything.
 
 
 **Raises**:
@@ -1415,7 +1433,10 @@ Validation step that applies one whole-config validator.
 #### apply
 
 ```python
-def apply(config: 'Config', stderr_file: TextIO = sys.stderr) -> None
+def apply(config: 'Config',
+          stderr_file: TextIO = sys.stderr,
+          *,
+          member_name: Optional[str]) -> None
 ```
 
 Apply the whole-config validator to the Config object.
@@ -1424,6 +1445,11 @@ Apply the whole-config validator to the Config object.
 
 - `config` - The Config object to validate.
 - `stderr_file` - The file to write error messages to.
+- `member_name` - Dotted and indexed path for reaching ``config``
+  by traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that ``config`` is the
+  top level and not a member of anything.
 
 
 **Raises**:
@@ -1454,15 +1480,27 @@ Validation step that applies one member validator.
 #### apply
 
 ```python
-def apply(config: 'Config', stderr_file: TextIO = sys.stderr) -> None
+def apply(config: 'Config',
+          stderr_file: TextIO = sys.stderr,
+          *,
+          member_name: Optional[str]) -> None
 ```
 
 Apply the member validator to each named member.
+
+The names in ``member_names`` are the local attribute names on
+``config``, and they stay local names for reading and writing the
+attribute even once the validator is told the path to it.
 
 **Arguments**:
 
 - `config` - The Config object to validate.
 - `stderr_file` - The file to write error messages to.
+- `member_name` - Dotted and indexed path for reaching ``config``
+  by traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that ``config`` is the
+  top level and not a member of anything.
 
 
 **Raises**:
@@ -1905,7 +1943,10 @@ normalize the configuration.
 #### validate
 
 ```python
-def validate(config: 'Config', stderr_file: TextIO = sys.stderr) -> None
+def validate(config: 'Config',
+             stderr_file: TextIO = sys.stderr,
+             *,
+             member_name: Optional[str]) -> None
 ```
 
 Validate the entire Config object by calling a method in it.
@@ -1914,6 +1955,11 @@ Validate the entire Config object by calling a method in it.
 
 - `config` - The Config object to validate.
 - `stderr_file` - The file to write error messages to.
+- `member_name` - Dotted and indexed path for reaching ``config``
+  by traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that ``config`` is the
+  top level and not a member of anything.
 
 
 **Raises**:
@@ -4290,6 +4336,50 @@ real conversion recipes.
 
 Describe how one parsed JSON value should be converted after loading.
 
+<a id="config_as_json.config._member_path"></a>
+
+#### \_member\_path
+
+```python
+def _member_path(member_name: Optional[str], name: str) -> str
+```
+
+Return the path for reaching one attribute of a Config object.
+
+**Arguments**:
+
+- `member_name` - Path for reaching the object holding the attribute, or
+  ``None`` when that object is the top level and not a member of
+  anything.
+- `name` - Local attribute name of the member on that object.
+
+
+**Returns**:
+
+  The path for reaching the member, such as ``outputs[1].kind``.
+
+<a id="config_as_json.config._dict_value_path"></a>
+
+#### \_dict\_value\_path
+
+```python
+def _dict_value_path(member_name: Optional[str], key: str) -> str
+```
+
+Return the path for reaching one value of a plain dictionary.
+
+**Arguments**:
+
+- `member_name` - Path for reaching the dictionary holding the value, or
+  ``None`` when that dictionary is the top level and not a member
+  of anything.
+- `key` - Key of the value in that dictionary.
+
+
+**Returns**:
+
+  The path for reaching the value, such as ``limits[cpu]``.
+
 <a id="config_as_json.config.Config"></a>
 
 ## Config Objects
@@ -4542,7 +4632,9 @@ def check_key_match(expected_keys: list[str],
                     j_keys: list[str],
                     ok_to_use_defaults: bool,
                     stderr_file: TextIO,
-                    allowed_missing_keys: Optional[list[str]] = None) -> None
+                    allowed_missing_keys: Optional[list[str]] = None,
+                    *,
+                    member_name: Optional[str]) -> None
 ```
 
 Validate that parsed keys match the declared configuration keys.
@@ -4556,6 +4648,12 @@ Validate that parsed keys match the declared configuration keys.
 - `stderr_file` - Stream used for user-facing diagnostics.
 - `allowed_missing_keys` - Keys that may be omitted even when
   ``ok_to_use_defaults`` is false.
+- `member_name` - Dotted and indexed path for reaching the object or
+  the dictionary that ``expected_keys`` are the keys of, by
+  traversing nested attributes from the top level of the
+  complete ``parse_json()`` operation, such as
+  ``outputs[1].section``. ``None`` means that the keys are the
+  keys of the top level and not of a member of anything.
 
 
 **Raises**:
@@ -4571,7 +4669,8 @@ Validate that parsed keys match the declared configuration keys.
 @staticmethod
 def check_dict_parse(self_data: object, json_data: object, key: str,
                      ok_to_use_defaults: bool, unchecked_dicts: list[str],
-                     stderr_file: TextIO) -> None
+                     stderr_file: TextIO, *,
+                     member_name: Optional[str]) -> None
 ```
 
 Recursively validate nested dictionaries against default values.
@@ -4586,6 +4685,13 @@ Recursively validate nested dictionaries against default values.
 - `unchecked_dicts` - Keys whose nested dictionary contents should not
   be validated recursively.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching the checked
+  value itself, by traversing nested attributes from the top
+  level of the complete ``parse_json()`` operation, such as
+  ``outputs[1].limits``. Values of a checked dictionary are
+  reached by appending the key in square brackets. ``None``
+  means that the checked value is the top level and not a
+  member of anything.
 
 
 **Raises**:
@@ -5946,7 +6052,10 @@ of the value.
 #### validate
 
 ```python
-def validate(config: Config, stderr_file: TextIO = sys.stderr) -> None
+def validate(config: Config,
+             stderr_file: TextIO = sys.stderr,
+             *,
+             member_name: Optional[str]) -> None
 ```
 
 Rebuild the cached integer of the RadixNumber.
@@ -5955,6 +6064,11 @@ Rebuild the cached integer of the RadixNumber.
 
 - `config` - The RadixNumber object to normalize.
 - `stderr_file` - The file to write error messages to.
+- `member_name` - Dotted and indexed path for reaching ``config``
+  by traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that ``config`` is the
+  top level and not a member of anything.
 
 
 **Raises**:
@@ -7009,7 +7123,10 @@ Return whether the configured relation holds.
 #### validate
 
 ```python
-def validate(config: 'Config', stderr_file: TextIO = sys.stderr) -> None
+def validate(config: 'Config',
+             stderr_file: TextIO = sys.stderr,
+             *,
+             member_name: Optional[str]) -> None
 ```
 
 Validate the configured relation between two list-like values.
@@ -7028,6 +7145,11 @@ treated as a valid configuration relation.
 
 - `config` - The Config object to validate.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching ``config``
+  by traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that ``config`` is the
+  top level and not a member of anything.
 
 
 **Raises**:
@@ -7300,7 +7422,10 @@ Initialize the projected whole-config validator.
 #### validate
 
 ```python
-def validate(config: 'Config', stderr_file: TextIO = sys.stderr) -> None
+def validate(config: 'Config',
+             stderr_file: TextIO = sys.stderr,
+             *,
+             member_name: Optional[str]) -> None
 ```
 
 Validate an aspect of the entire Config object.
@@ -7331,6 +7456,11 @@ member to validate (which is the projected value).
 
 - `config` - The Config object to validate.
 - `stderr_file` - The file to write error messages to.
+- `member_name` - Dotted and indexed path for reaching ``config``
+  by traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that ``config`` is the
+  top level and not a member of anything.
 
 
 **Returns**:

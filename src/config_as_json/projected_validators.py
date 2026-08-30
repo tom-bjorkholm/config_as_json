@@ -263,8 +263,8 @@ class ProjectedWholeConfigValidator(WholeConfigValidator):
         self.projector: WholeConfigProjector = projector
         self.validators: list[MemberValidator] = list(validators)
 
-    def validate(self, config: 'Config',
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Validate an aspect of the entire Config object.
 
         The validator computes the projected value from the entire Config
@@ -290,11 +290,17 @@ class ProjectedWholeConfigValidator(WholeConfigValidator):
         Args:
             config: The Config object to validate.
             stderr_file: The file to write error messages to.
+            member_name: Dotted and indexed path for reaching ``config``
+                by traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that ``config`` is the
+                top level and not a member of anything.
 
         Returns:
             None if the validation check passes, otherwise the exception
             is raised.
         """
+        _ = member_name
         current = self.projector(config, stderr_file)
         for validator in self.validators:
             current = validator.validate_member(

@@ -98,8 +98,8 @@ class WholeConfigValidator(ABC):  # pylint: disable=too-few-public-methods
         """Initialize the validator."""
 
     @abstractmethod
-    def validate(self, config: 'Config',
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Validate an aspect of the entire Config object.
 
         The validate method must be implemented in a derived class.
@@ -117,11 +117,17 @@ class WholeConfigValidator(ABC):  # pylint: disable=too-few-public-methods
         Args:
             config: The Config object to validate.
             stderr_file: The file to write error messages to.
+            member_name: Dotted and indexed path for reaching ``config``
+                by traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that ``config`` is the
+                top level and not a member of anything.
 
         Returns:
             None if the validation check passes, otherwise the exception
             is raised.
         """
+        _ = member_name
         assert config is not None  # pylint: disable=unused-variable
         msg = 'WholeConfigValidator.validate() must be implemented in a '
         msg += 'derived class.'
@@ -211,18 +217,24 @@ class ValidationStep(ABC):  # pylint: disable=too-few-public-methods
     """Base class for one ordered validation step."""
 
     @abstractmethod
-    def apply(self, config: 'Config',
-              stderr_file: TextIO = sys.stderr) -> None:
+    def apply(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
+              member_name: Optional[str]) -> None:
         """Apply the validation step to one Config object.
 
         Args:
             config: The Config object to validate.
             stderr_file: The file to write error messages to.
+            member_name: Dotted and indexed path for reaching ``config``
+                by traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that ``config`` is the
+                top level and not a member of anything.
 
         Raises:
             NotImplementedError: A derived validation step did not implement
                 this method.
         """
+        _ = member_name
         assert config is not None  # pylint: disable=unused-variable
         msg = 'ValidationStep.apply() must be implemented in a derived '
         msg += 'class.'
@@ -240,13 +252,18 @@ class WholeConfigValidationStep(ValidationStep):
 
     validator: WholeConfigValidator
 
-    def apply(self, config: 'Config',
-              stderr_file: TextIO = sys.stderr) -> None:
+    def apply(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
+              member_name: Optional[str]) -> None:
         """Apply the whole-config validator to the Config object.
 
         Args:
             config: The Config object to validate.
             stderr_file: The file to write error messages to.
+            member_name: Dotted and indexed path for reaching ``config``
+                by traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that ``config`` is the
+                top level and not a member of anything.
 
         Raises:
             InvalidConfiguration: The supplied validator rejects the
@@ -254,7 +271,8 @@ class WholeConfigValidationStep(ValidationStep):
             InvalidConfigurationValue: The supplied validator rejects one
                 configuration value.
         """
-        self.validator.validate(config=config, stderr_file=stderr_file)
+        self.validator.validate(config=config, stderr_file=stderr_file,
+                                member_name=member_name)
 
 
 @dataclass
@@ -269,13 +287,22 @@ class MemberValidationStep(ValidationStep):
     member_names: list[str]
     validator: MemberValidator
 
-    def apply(self, config: 'Config',
-              stderr_file: TextIO = sys.stderr) -> None:
+    def apply(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
+              member_name: Optional[str]) -> None:
         """Apply the member validator to each named member.
+
+        The names in ``member_names`` are the local attribute names on
+        ``config``, and they stay local names for reading and writing the
+        attribute even once the validator is told the path to it.
 
         Args:
             config: The Config object to validate.
             stderr_file: The file to write error messages to.
+            member_name: Dotted and indexed path for reaching ``config``
+                by traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that ``config`` is the
+                top level and not a member of anything.
 
         Raises:
             AttributeError: One member name is not present on ``config``.
@@ -284,21 +311,22 @@ class MemberValidationStep(ValidationStep):
             InvalidConfigurationValue: The supplied validator rejects one
                 configuration value.
         """
-        for member_name in self.member_names:
-            if not hasattr(config, member_name):
-                msg = f'Member {member_name} '
+        _ = member_name
+        for local_name in self.member_names:
+            if not hasattr(config, local_name):
+                msg = f'Member {local_name} '
                 msg += 'not found in Config object '
                 msg += 'in validation of '
                 msg += f'{self.validator.__class__.__name__} '
                 msg += 'in Config.validate().'
                 print(msg, file=stderr_file)
                 raise AttributeError(msg)
-            member_value = getattr(config, member_name)
+            member_value = getattr(config, local_name)
             ret = self.validator.validate_member(config=config,
-                                                 member_name=member_name,
+                                                 member_name=local_name,
                                                  member_value=member_value,
                                                  stderr_file=stderr_file)
-            setattr(config, member_name, ret)
+            setattr(config, local_name, ret)
 
 
 type ValidationPlan = list[ValidationStep]
@@ -780,18 +808,24 @@ class CallingWholeConfigValidator(WholeConfigValidator):
         self.other_args: dict[str, object] = \
             _copy_method_other_args(other_args)
 
-    def validate(self, config: 'Config',
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Validate the entire Config object by calling a method in it.
 
         Args:
             config: The Config object to validate.
             stderr_file: The file to write error messages to.
+            member_name: Dotted and indexed path for reaching ``config``
+                by traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that ``config`` is the
+                top level and not a member of anything.
 
         Raises:
             InvalidConfiguration: The configuration is invalid.
             Any exception raised by the method in the Config object.
         """
+        _ = member_name
         func = _get_config_method(config, self.method_name, stderr_file)
         ret: object = func(**self.other_args)
         _check_validation_only_method_result(self.method_name, ret,

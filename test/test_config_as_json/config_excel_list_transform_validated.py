@@ -34,14 +34,17 @@ class ConfigMethodValidator(WholeConfigValidator):
         """Store the method name to call during validation."""
         self._method_name = method_name
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Validate by calling the named method on the Config object.
 
         Args:
             config: Config object whose method should be called.
             stderr_file: Stream passed through to the named method.
+            member_name: Path for reaching ``config`` from the top level of
+                the validation, or ``None`` when it is the top level.
         """
+        _ = member_name
         method = getattr(config, self._method_name)
         assert callable(method)
         method(stderr_file=stderr_file)

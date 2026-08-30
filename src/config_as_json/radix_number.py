@@ -594,18 +594,24 @@ class _RadixCacheBuilder(WholeConfigValidator):
     of the value.
     """
 
-    def validate(self, config: Config, stderr_file: TextIO = sys.stderr) \
-            -> None:
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Rebuild the cached integer of the RadixNumber.
 
         Args:
             config: The RadixNumber object to normalize.
             stderr_file: The file to write error messages to.
+            member_name: Dotted and indexed path for reaching ``config``
+                by traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that ``config`` is the
+                top level and not a member of anything.
 
         Raises:
             InvalidConfiguration: The written member does not hold a number
                 in the notation of the value.
         """
         _ = stderr_file
+        _ = member_name
         assert isinstance(config, RadixNumber)
         config.get()

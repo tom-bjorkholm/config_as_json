@@ -289,7 +289,7 @@ def test_whole_call_calls_method(capsys: CaptureFixture[str]) -> None:
     cfg = MethodCallConfig(whole_result=True)
     validator = CallingWholeConfigValidator(method_name='check_whole_config',
                                             other_args={'profile': 'fast'})
-    validator.validate(cfg, sys.stderr)
+    validator.validate(cfg, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert cfg.whole_calls() == [{'profile': 'fast'}]
     assert out == ''
@@ -301,7 +301,7 @@ def test_whole_call_allows_mutation(capsys: CaptureFixture[str]) -> None:
     cfg = MethodCallConfig(whole_result=None)
     validator = CallingWholeConfigValidator(method_name='mutate_whole_config',
                                             other_args={'suffix': '!'})
-    validator.validate(cfg, sys.stderr)
+    validator.validate(cfg, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert cfg.value == 'seed!'
     assert out == ''
@@ -313,7 +313,7 @@ def test_whole_call_rejects_false(capsys: CaptureFixture[str]) -> None:
     cfg = MethodCallConfig(whole_result=False)
     validator = CallingWholeConfigValidator(method_name='check_whole_config')
     with pytest.raises(InvalidConfiguration) as exc:
-        validator.validate(cfg, sys.stderr)
+        validator.validate(cfg, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert 'Method check_whole_config returned False' in str(exc.value)
     assert out == ''
@@ -325,7 +325,7 @@ def test_whole_call_rejects_other(capsys: CaptureFixture[str]) -> None:
     cfg = MethodCallConfig(whole_result='valid')
     validator = CallingWholeConfigValidator(method_name='check_whole_config')
     with pytest.raises(TypeError) as exc:
-        validator.validate(cfg, sys.stderr)
+        validator.validate(cfg, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert 'expected None, True, or False' in str(exc.value)
     assert out == ''

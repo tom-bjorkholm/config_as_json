@@ -75,11 +75,12 @@ class WholeConfigSuffixValidator(WholeConfigValidator):
         """Store the suffix to append."""
         self._suffix = suffix
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Validate the whole config by mutating one member."""
         assert isinstance(config, ValidationOrderConfig)
         _ = stderr_file
+        _ = member_name
         config.alias = config.alias + self._suffix
 
 
@@ -176,10 +177,11 @@ class NoneWriteBackConfig(Config):
 class CountValidation(WholeConfigValidator):
     """Whole-config validator that records completed validation."""
 
-    def validate(self, config: Config,
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Record one validation pass on ``LoadValidationConfig``."""
         _ = stderr_file
+        _ = member_name
         assert isinstance(config, LoadValidationConfig)
         config.mark_validated()
 
@@ -328,13 +330,15 @@ def test_validation_bases_abstract() -> None:
 
 @pytest.mark.parametrize('call, message', [
     (lambda cfg: WholeConfigValidator.validate(WholeConfigSuffixValidator('!'),
-                                               cfg, sys.stderr),
+                                               cfg, sys.stderr,
+                                               member_name=None),
      'WholeConfigValidator.validate() must be implemented'),
     (lambda cfg: MemberValidator.validate_member(IdentityValidator(), cfg,
                                                  'value', 'raw', sys.stderr),
      'MemberValidator.validate_member() must be implemented'),
     (lambda cfg: ValidationStep.apply(
-        MemberValidationStep(['value'], IdentityValidator()), cfg, sys.stderr),
+        MemberValidationStep(['value'], IdentityValidator()), cfg, sys.stderr,
+        member_name=None),
      'ValidationStep.apply() must be implemented')])
 def test_validation_base_not_impl(capsys: CaptureFixture[str],
                                   call: Callable[[Config], object],

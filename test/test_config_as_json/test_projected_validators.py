@@ -488,7 +488,7 @@ def test_whole_proj_validates_list(capsys: pytest.CaptureFixture[str]) -> None:
         projector=project_whole_route_names, pseudo_member_name='route_names',
         validators=[ListSizeValidator(1, 3)])
     config = WholeProjectedValidationConfig(validator=None)
-    validator.validate(config, sys.stderr)
+    validator.validate(config, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -504,7 +504,7 @@ def test_whole_proj_chains_values(capsys: pytest.CaptureFixture[str]) -> None:
             _RecordingValidator('first', recording, 'one'),
             _RecordingValidator('second', recording, 'two')])
     config = WholeProjectedValidationConfig(validator=None)
-    validator.validate(config, sys.stderr)
+    validator.validate(config, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert recording == [('first', 'whole_view', 'zero'),
                          ('second', 'whole_view', 'one')]
@@ -519,7 +519,7 @@ def test_whole_proj_passes_context(capsys: pytest.CaptureFixture[str]) -> None:
         projector=projector, pseudo_member_name='whole_view',
         validators=[ListSizeValidator(1, 1)])
     config = WholeProjectedValidationConfig(validator=None)
-    validator.validate(config=config, stderr_file=sys.stderr)
+    validator.validate(config=config, stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert projector.calls == [(config, sys.stderr)]
     assert out == ''
@@ -534,7 +534,7 @@ def test_whole_proj_projector_fails(
         validators=[ListSizeValidator(1, 1)])
     config = WholeProjectedValidationConfig(validator=None)
     with pytest.raises(InvalidConfiguration) as exc:
-        validator.validate(config, sys.stderr)
+        validator.validate(config, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert 'cannot project whole config' in str(exc.value)
     assert out == ''
@@ -548,7 +548,7 @@ def test_whole_proj_inner_fails(capsys: pytest.CaptureFixture[str]) -> None:
         pseudo_member_name='whole_view', validators=[_FailingValidator()])
     config = WholeProjectedValidationConfig(validator=None)
     with pytest.raises(InvalidConfiguration) as exc:
-        validator.validate(config, sys.stderr)
+        validator.validate(config, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert 'projected value failed for whole_view' in str(exc.value)
     assert out == ''
@@ -562,7 +562,7 @@ def test_whole_proj_value_fails(capsys: pytest.CaptureFixture[str]) -> None:
         validators=[StrValidator(allowed_values=['fast'], ignore_case=False)])
     config = WholeProjectedValidationConfig(validator=None)
     with pytest.raises(InvalidConfigurationValue) as exc:
-        validator.validate(config, sys.stderr)
+        validator.validate(config, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert 'Value slow for mode is not one of the allowed values' in \
         str(exc.value)
@@ -579,7 +579,7 @@ def test_whole_proj_exposes_mutation(
         pseudo_member_name='whole_view',
         validators=[_AppendValidator('mutated')])
     config = WholeProjectedValidationConfig(validator=None)
-    validator.validate(config, sys.stderr)
+    validator.validate(config, sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert projected_value == ['original', 'mutated']
     assert out == ''
