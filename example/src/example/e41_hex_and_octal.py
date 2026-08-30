@@ -51,7 +51,8 @@ class FileMode(OctalNumber):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 value: Optional[int | str] = None) -> None:
+                 value: Optional[int | str] = None,
+                 member_name: Optional[str] = None) -> None:
         """Initialize one file mode.
 
         Args:
@@ -59,6 +60,9 @@ class FileMode(OctalNumber):
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
             value: Optional initial value, an integer or a written value.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         # Prefix.ZERO writes the leading zero of '0644'. Three digits is the
         # smallest number of digits written, so '0006' is written for a mode
@@ -67,7 +71,8 @@ class FileMode(OctalNumber):
         # a value of zero would otherwise be written as the odd looking '00'.
         super().__init__(from_json_data_text, from_json_filename, None,
                          stderr_file, value=value,
-                         prefix=OctalNumber.Prefix.ZERO, digits=3)
+                         prefix=OctalNumber.Prefix.ZERO, digits=3,
+                         member_name=member_name)
 
 
 class TkColour(HexadecimalNumber):
@@ -81,7 +86,8 @@ class TkColour(HexadecimalNumber):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 value: Optional[int | str] = None) -> None:
+                 value: Optional[int | str] = None,
+                 member_name: Optional[str] = None) -> None:
         """Initialize one colour.
 
         Args:
@@ -89,10 +95,14 @@ class TkColour(HexadecimalNumber):
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
             value: Optional initial value, an integer or a written value.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         super().__init__(from_json_data_text, from_json_filename, None,
                          stderr_file, value=value,
-                         prefix=HexadecimalNumber.Prefix.HASH, digits=6)
+                         prefix=HexadecimalNumber.Prefix.HASH, digits=6,
+                         member_name=member_name)
 
 
 # This is the second way of declaring the format. One call says the prefix,
@@ -111,14 +121,14 @@ def _new_umask() -> OctalNumber:
     # A factory promises to construct some Config object, because that is
     # what ConfigNesting needs from it. The assert tells the type checker,
     # and checks while the example runs, what this factory really returns.
-    made = UMASK_FACTORY()
+    made = UMASK_FACTORY(member_name=None)
     assert isinstance(made, OctalNumber)
     return made
 
 
 def _new_features() -> HexadecimalNumber:
     """Return one feature bit mask constructed by the shared factory."""
-    made = FEATURE_FACTORY()
+    made = FEATURE_FACTORY(member_name=None)
     assert isinstance(made, HexadecimalNumber)
     return made
 
@@ -128,13 +138,17 @@ class ExampleConfig41(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the configuration.
 
         Args:
             from_json_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         # Every one of these four members is a nested Config object holding
         # one written number. The JSON file therefore looks like this:
@@ -152,7 +166,7 @@ class ExampleConfig41(Config):
         self.feature_bits: HexadecimalNumber = _new_features()
         super().__init__(from_json_data_text=from_json_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:

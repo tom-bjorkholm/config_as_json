@@ -101,7 +101,7 @@ def migrate_cfg(infile: PathOrStr, outfile: PathOrStr,
     if isinstance(config_class, type) and issubclass(config_class, Config):
         cfg = config_class(from_json_data_text=None, from_json_filename=infile,
                            auto_ch_hook=ConfigAutoChangeHook(),
-                           stderr_file=stderr_file)
+                           stderr_file=stderr_file, member_name=None)
         cfg.write(to_json_filename=outfile)
         return 0
     match_configs = _match_config_seq(config_class)
@@ -109,6 +109,6 @@ def migrate_cfg(infile: PathOrStr, outfile: PathOrStr,
                                    from_json_filename=infile,
                                    from_json_data_text=None,
                                    auto_ch_hook=ConfigAutoChangeHook(),
-                                   stderr_file=stderr_file)
+                                   stderr_file=stderr_file, member_name=None)
     cfg.write(to_json_filename=outfile)
     return 0

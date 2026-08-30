@@ -151,7 +151,8 @@ class TaskConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the example configuration with rich Python defaults."""
         self.project: str = 'config-as-json'
         self.output_file: Path = Path('reports/tasks.json')
@@ -159,7 +160,7 @@ class TaskConfig(Config):
         self.priority: Priority = Priority.MEDIUM
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:

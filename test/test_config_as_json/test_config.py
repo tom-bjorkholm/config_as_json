@@ -55,7 +55,8 @@ class ConfigSomething(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for test."""
         self.csv_dialect1: CsvDialectConfig = {'name': 'csv.excel',
                                                'delimiter': ',',
@@ -82,7 +83,7 @@ class ConfigSomething(Config):
                    {'gh': EnumInTesting.BARFOO, 'ij': 'uv', 'mn': 4}]}
         self._unchecked_dicts: list[str] = ['mno', 'pqr']
         super().__init__(from_json_text, from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
         self.check_array_configs(stderr_file=stderr_file)
 
     def get_csv_dialect1(self, stderr_file: TextIO) -> csv.Dialect:
@@ -703,11 +704,12 @@ class ConfigSomething2(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for test."""
         self.in_type: EnumInTesting = EnumInTesting.FOOBAR
         super().__init__(from_json_text, from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
@@ -731,11 +733,12 @@ class ConfigSomething3(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for test."""
         self.in_type: EnumInTesting = EnumInTesting.FOOBAR
         super().__init__(from_json_text, from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
         """Use no parse converters."""
@@ -763,11 +766,12 @@ class ConfigSomething4(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for test."""
         self.in_type: EnumInTesting = EnumInTesting.FOOBAR
         super().__init__(from_json_text, from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Use no parse converters."""
@@ -795,12 +799,13 @@ class ConfigSomething5(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for test."""
         self.in_type: EnumInTesting = EnumInTesting.FOOBAR
         self._unchecked_dicts = 'in_type'  # type: ignore[assignment]
         super().__init__(from_json_text, from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Use no parse converters."""
@@ -826,11 +831,12 @@ class ConfigEmpty(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for test."""
         self._unchecked_dictscfg: list[str] = ['in_type']
         super().__init__(from_json_text, from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def parse_converters(self) -> Optional[dict[str, ParseConverter]]:
         """Use no parse converters."""

@@ -159,7 +159,8 @@ class MySubA(NSubA, Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the bridge for section A."""
         # The neutral base class creates the public attributes that make
         # up the configuration schema for this bridge.
@@ -168,7 +169,7 @@ class MySubA(NSubA, Config):
         # reads JSON if any was supplied, validates, and so on.
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -182,7 +183,8 @@ class MySubB(NSubB, Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the bridge for section B using neutral defaults."""
         # The neutral arguments have defaults, so the bridge does not
         # need to duplicate them and can still call ``NSubB.__init__``
@@ -190,7 +192,7 @@ class MySubB(NSubB, Config):
         NSubB.__init__(self)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -220,7 +222,8 @@ class MyConfigEager(NConfigEager, Config):
     def __init__(self, *, neutral: Optional[NConfigEager] = None,
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the bridge from a supplied or default neutral.
 
         ``NConfigEager.__init__`` is intentionally not invoked here
@@ -240,7 +243,7 @@ class MyConfigEager(NConfigEager, Config):
         Config.copy_initial_data(neutral, self)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:

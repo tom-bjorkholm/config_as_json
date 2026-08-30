@@ -58,12 +58,13 @@ class MySubA(NSubA, Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the bridge for ``NSubA``."""
         NSubA.__init__(self)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -77,12 +78,13 @@ class MySubB(NSubB, Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the bridge for ``NSubB`` using neutral defaults."""
         NSubB.__init__(self)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -96,12 +98,13 @@ class MyConfigSimple(NConfigSimple, Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the simple bridge config."""
         NConfigSimple.__init__(self)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -132,14 +135,15 @@ class MyConfigEager(NConfigEager, Config):
     def __init__(self, *, neutral: Optional[NConfigEager] = None,
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the eager bridge config from a neutral source."""
         if neutral is None:
             neutral = NConfigEager(c1='example', b1p=False, b3p=1)
         Config.copy_initial_data(neutral, self)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -248,11 +252,13 @@ def test_copy_init_no_schema() -> None:
     class BareTarget(Config):  # pylint: disable=too-few-public-methods
         """Bridge that defers schema setup to ``copy_initial_data``."""
 
-        def __init__(self, source: object) -> None:
+        def __init__(self, source: object,
+                     member_name: Optional[str] = None) -> None:
             """Use ``copy_initial_data`` to seed the schema."""
             Config.copy_initial_data(source, self)
             Config.__init__(self, from_json_data_text=None,
-                            from_json_filename=None, stderr_file=sys.stderr)
+                            from_json_filename=None, stderr_file=sys.stderr,
+                            member_name=member_name)
 
         @override
         def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -358,12 +364,13 @@ class MySection(NSection, Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the section bridge."""
         NSection.__init__(self)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
@@ -378,12 +385,13 @@ class ListBridge(Config):
     def __init__(self, *, items: Optional[list[object]] = None,
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the list bridge with optional initial items."""
         self.items: list[object] = [] if items is None else items
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -438,13 +446,14 @@ class DictBridge(Config):
     def __init__(self, *, sections: Optional[dict[str, object]] = None,
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the dict bridge with optional initial sections."""
         self.sections: dict[str, object] = {} if sections is None \
             else sections
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -497,12 +506,13 @@ class DictByKeyBridge(Config):
     def __init__(self, *, mixed: Optional[dict[str, object]] = None,
                  from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the dict-by-key bridge with optional initial values."""
         self.mixed: dict[str, object] = {} if mixed is None else mixed
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:

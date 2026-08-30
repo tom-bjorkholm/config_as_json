@@ -343,7 +343,8 @@ class RadixNumber(Config, Generic[PrefixT]):
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr, *,
                  value: Optional[int | str] = None,
-                 prefix: Optional[PrefixT] = None, digits: int = 0) -> None:
+                 prefix: Optional[PrefixT] = None, digits: int = 0,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the written number configuration value.
 
         Args:
@@ -365,6 +366,11 @@ class RadixNumber(Config, Generic[PrefixT]):
             digits: The smallest number of digits to write. The digits are
                 padded with leading zeros up to this count. Zero, the
                 default, writes as few digits as the value needs.
+            member_name: Dotted and indexed path for reaching this value by
+                traversing nested attributes from the top level of the
+                complete construction, such as ``limits[cpu].mask``. ``None``
+                means that this value is the top level and not a member of
+                anything.
 
         Raises:
             InvalidConfiguration: ``value`` is negative, or is a string that
@@ -387,7 +393,7 @@ class RadixNumber(Config, Generic[PrefixT]):
         if value is not None:
             self.set(value)
         super().__init__(from_json_data_text, from_json_filename, auto_ch_hook,
-                         stderr_file)
+                         stderr_file, member_name=member_name)
 
     def _write_text(self, text: str) -> None:
         """Store one written number in the public member of this value."""
@@ -568,20 +574,27 @@ class _RadixFactory(Generic[PrefixT]):
 
     def __call__(self, *, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> 'RadixNumber[PrefixT]':
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> 'RadixNumber[PrefixT]':
         """Construct one written number with the declared format.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching the constructed
+                value by traversing nested attributes from the top level of
+                the complete construction, such as ``limits[cpu].mask``.
+                ``None`` means that the constructed value is the top level
+                and not a member of anything.
 
         Returns:
             The constructed value.
         """
         return self._config_type(from_json_data_text, from_json_filename, None,
                                  stderr_file, value=self._value,
-                                 prefix=self._prefix, digits=self._digits)
+                                 prefix=self._prefix, digits=self._digits,
+                                 member_name=member_name)
 
 
 # pylint: disable-next=too-few-public-methods

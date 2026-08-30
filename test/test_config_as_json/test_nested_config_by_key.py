@@ -32,12 +32,13 @@ class ShapeParentConfig(Config):
     """Parent config used for valid declaration-shape tests."""
 
     def __init__(self, nested_configs: NestedConfigs, child_value: object,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a parent with caller supplied nested declarations."""
         self.child = child_value
         self._nested_config_data = nested_configs
         super().__init__(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -54,12 +55,13 @@ class BadShapeParentConfig(Config):
     """Parent config used for invalid declaration-shape tests."""
 
     def __init__(self, nested_configs: object,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a parent with intentionally unchecked metadata."""
         self.child: dict[str, object] = {}
         self._nested_config_data = nested_configs
         super().__init__(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -75,56 +77,61 @@ class BadShapeParentConfig(Config):
 class OldNestedConfigsConfig(Config):
     """Configuration that still uses the removed member-variable API."""
 
-    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+    def __init__(self, stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a config with old nested declaration metadata."""
         self.name = 'old-api'
         self._nested_configs: NestedConfigs = {}
         super().__init__(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
 
 class UndeclaredDirectConfig(Config):
     """Configuration with an undeclared direct nested Config default."""
 
-    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+    def __init__(self, stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a config with an undeclared nested member."""
         self.child = NestedOutputConfig(stderr_file=stderr_file)
         super().__init__(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
 
 class UndeclaredListConfig(Config):
     """Configuration with an undeclared list nested Config default."""
 
-    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+    def __init__(self, stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a config with an undeclared nested list member."""
         self.children = [NestedOutputConfig(stderr_file=stderr_file)]
         super().__init__(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
 
 class UndeclaredDictConfig(Config):
     """Configuration with an undeclared dict nested Config default."""
 
-    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+    def __init__(self, stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a config with an undeclared nested dict member."""
         self.children_by_id = {
             'one': NestedOutputConfig(stderr_file=stderr_file)
         }
         super().__init__(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
 
 class EmptyNestedDefaultsConfig(Config):
     """Configuration whose nested intent cannot be inferred at runtime."""
 
-    def __init__(self, stderr_file: TextIO = sys.stderr) -> None:
+    def __init__(self, stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a config with empty or None nested defaults."""
         self.optional_child: Optional[NestedOutputConfig] = None
         self.children: list[NestedOutputConfig] = []
         self.children_by_id: dict[str, NestedOutputConfig] = {}
         super().__init__(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return no validation steps for empty-default tests."""

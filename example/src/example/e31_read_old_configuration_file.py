@@ -51,13 +51,17 @@ class OldExampleConfig31(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the old configuration shape.
 
         Args:
             from_json_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         # This class deliberately models the file shape produced by an older
         # application version. Real applications usually do not need to keep
@@ -69,7 +73,7 @@ class OldExampleConfig31(Config):
         self.debug_trace: bool = False
         super().__init__(from_json_data_text=from_json_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
@@ -114,7 +118,8 @@ class ExampleConfig31(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the current configuration shape.
 
         Args:
@@ -122,6 +127,9 @@ class ExampleConfig31(Config):
             from_json_filename: Optional path to a JSON file to read.
             auto_ch_hook: Hook notified if old-file compatibility was used.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         # The current Config class contains only the current public shape.
         # Old-file support is kept in Example31ReadOldConfig below, so normal
@@ -133,7 +141,8 @@ class ExampleConfig31(Config):
         self.max_items: int = 25
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old e31 files."""

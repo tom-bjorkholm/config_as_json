@@ -38,7 +38,7 @@ def _config_from_file(filename: str, auto_ch_hook: ConfigAutoChangeHook,
     cfg = config_factory_from_json(match_configs=_match_configs(),
                                    auto_ch_hook=auto_ch_hook,
                                    from_json_filename=filename,
-                                   stderr_file=stderr_file)
+                                   stderr_file=stderr_file, member_name=None)
     assert isinstance(cfg, (ConfigXlsListTransfName, ConfigXlsListTransfNum))
     return cfg
 
@@ -132,7 +132,7 @@ def test_factory_no_match(capsys: CaptureFixture[str]) -> None:
             match_configs=_match_configs(),
             auto_ch_hook=ConfigAutoChangeHook(),
             from_json_data_text='{"column_ref": "UNKNOWN"}',
-            stderr_file=sys.stderr)
+            stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'No matching config class found' in err
@@ -143,7 +143,7 @@ def test_factory_missing_input(capsys: CaptureFixture[str]) -> None:
     with pytest.raises(RuntimeError):
         config_factory_from_json(match_configs=_match_configs(),
                                  auto_ch_hook=ConfigAutoChangeHook(),
-                                 stderr_file=sys.stderr)
+                                 stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Either JSON text or JSON file needed' in err
@@ -156,7 +156,7 @@ def test_factory_both_inputs(capsys: CaptureFixture[str]) -> None:
                                  auto_ch_hook=ConfigAutoChangeHook(),
                                  from_json_filename='unused.cfg',
                                  from_json_data_text='{}',
-                                 stderr_file=sys.stderr)
+                                 stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Both cannot be given' in err

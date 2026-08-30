@@ -42,13 +42,19 @@ class ConfigFactory(Protocol):
 
     def __call__(self, *, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> 'Config':
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str]) -> 'Config':
         """Construct one nested Config object.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching the constructed
+                object by traversing nested attributes from the top level of
+                the complete construction, such as ``outputs[1].section``.
+                ``None`` means that the constructed object is the top level
+                and not a member of anything.
 
         Returns:
             The constructed nested Config object.
@@ -61,10 +67,10 @@ class ConfigNesting(NamedTuple):
 
     The nested class must derive from :class:`Config` and must be
     constructible with keyword arguments ``from_json_data_text``,
-    ``from_json_filename``, and ``stderr_file``. This is the constructor
-    shape used by the base class when it reads a nested JSON object. If
-    ``factory_function`` is set, that callable is used instead of the
-    ``config_type`` constructor. The factory must accept the same keyword
+    ``from_json_filename``, ``stderr_file``, and ``member_name``. This is the
+    constructor shape used by the base class when it reads a nested JSON
+    object. If ``factory_function`` is set, that callable is used instead of
+    the ``config_type`` constructor. The factory must accept the same keyword
     arguments and must return an instance of ``config_type`` or a subclass.
 
     Attributes:

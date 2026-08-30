@@ -144,18 +144,19 @@ class Config():
     list element has kind ``DICT_VALUE_BY_KEY`` and the entries describe
     selected keys inside the same dict member.
     Nested config classes must accept the constructor keyword arguments
-    ``from_json_data_text``,
-    ``from_json_filename``, and ``stderr_file`` because those are used when
-    nested JSON objects are parsed. As an alternative construction path, a
-    ``ConfigNesting`` declaration may provide ``factory_function`` with the
-    same keyword-argument contract. The returned object must be an instance of
+    ``from_json_data_text``, ``from_json_filename``, ``stderr_file``, and
+    ``member_name`` because those are used when nested JSON objects are
+    parsed. As an alternative construction path, a ``ConfigNesting``
+    declaration may provide ``factory_function`` with the same
+    keyword-argument contract. The returned object must be an instance of
     the declared ``config_type``.
     """
 
     def __init__(self, from_json_data_text: Optional[str],
                  from_json_filename: Optional[PathOrStr],
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr, *,
+                 member_name: Optional[str]) -> None:
         """Initialize a derived configuration object.
 
         A derived ``__init__`` is expected to assign every supported
@@ -174,6 +175,11 @@ class Config():
                 after parsing. See :class:`ConfigAutoChangeHook` for what
                 reusing or sharing one hook instance means.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching this object by
+                traversing nested attributes from the top level of the
+                complete construction, such as ``outputs[1].section``.
+                ``None`` means that this object is the top level and not a
+                member of anything.
 
         Dict-valued members are checked against the default key set by the
         base class unless listed in ``_unchecked_dicts``; see the class
@@ -226,12 +232,13 @@ class Config():
             raise ValueError(msg)
         if from_json_data_text is not None:
             self._wrap_parse_json(from_json_data_text, stderr_file=stderr_file,
-                                  member_name=None)
+                                  member_name=member_name)
         elif from_json_filename is not None:
             self.read(from_json_filename, stderr_file=stderr_file,
-                      member_name=None)
+                      member_name=member_name)
         else:
-            self._wrap_validate(stderr_file=stderr_file, member_name=None)
+            self._wrap_validate(stderr_file=stderr_file,
+                                member_name=member_name)
 
     def auto_change_hook(self) -> ConfigAutoChangeHook:
         """Return the hook that recorded automatic changes for this object.

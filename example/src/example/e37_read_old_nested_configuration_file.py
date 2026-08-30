@@ -75,7 +75,8 @@ class OldOutputConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the old nested output shape."""
         # The old shape has one direct nested object called ``output``. Its
         # members are written exactly as old application versions wrote them.
@@ -87,7 +88,7 @@ class OldOutputConfig(Config):
         self.encoding: str = 'utf-8'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
@@ -109,7 +110,8 @@ class OldExampleConfig37(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the old top-level configuration shape."""
         # The old file had no ``format_version`` and no ``outputs`` list.
         # Instead, it had one optional ``output`` object.
@@ -120,7 +122,7 @@ class OldExampleConfig37(Config):
         self.debug_trace: bool = False
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def _omit_none_from_json(self) -> list[str]:
@@ -157,7 +159,8 @@ class ReportOutputConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize one current report output configuration."""
         # This is the element type of the current ``outputs`` list. The old
         # ``format`` key has become the clearer ``output_format`` key here.
@@ -167,7 +170,7 @@ class ReportOutputConfig(Config):
         self.encoding: str = 'utf-8'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
@@ -233,7 +236,8 @@ class ExampleConfig37(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the current top-level configuration shape."""
         # The current shape is the only shape the rest of the application
         # should use. Old-file compatibility is isolated in
@@ -245,7 +249,8 @@ class ExampleConfig37(Config):
             ReportOutputConfig(stderr_file=stderr_file)]
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:

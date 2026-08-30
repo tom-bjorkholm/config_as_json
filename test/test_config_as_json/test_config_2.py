@@ -35,14 +35,15 @@ class AbcConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct test config object."""
         self.ab = 'a1b2'
         self.cd = 'c3d4'
         self.ef = 'e5f6'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old test files."""
@@ -61,15 +62,20 @@ class HookReadOldConfig(ReadOldConfiguration):
         return {('name',): 'legacy'}
 
 
+# The small one-member test configuration below is boilerplate that other
+# test modules write the same way for their own purposes.
+# pylint: disable=duplicate-code
 class HookConfigBase(Config):
     """Base configuration for read-old hook compatibility tests."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a simple configuration with one current member."""
         self.name = 'current'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=stderr_file)
+                         from_json_filename=None, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
@@ -77,6 +83,7 @@ class HookConfigBase(Config):
         return []
 
 
+# pylint: enable=duplicate-code
 class NewHookConfig(HookConfigBase):
     """Config using the current read-old hook name."""
 
@@ -116,14 +123,15 @@ class OmitNoneConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a config object with true optional members."""
         self.required_name = 'default'
         self.optional_text: Optional[str] = None
         self.optional_mode: Optional[OptionalOutputMode] = None
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def _omit_none_from_json(self) -> list[str]:
@@ -153,14 +161,16 @@ class OmitNoneNonNoneDefaultConfig(Config):
     """Class with omit-None members and visible teaching defaults."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a config object with omit-None teaching defaults."""
         self.required_name = 'default'
         self.optional_text: Optional[str] = 'visible'
         self.optional_mode: Optional[OptionalOutputMode] = \
             OptionalOutputMode.CAREFUL
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=stderr_file)
+                         from_json_filename=None, stderr_file=stderr_file,
+                         member_name=member_name)
 
     @override
     def _omit_none_from_json(self) -> list[str]:
@@ -180,11 +190,11 @@ class OmitNoneNonNoneDefaultConfig(Config):
 class OmitNoneBadReturnConfig(OmitNoneConfig):
     """Class with an invalid omit-None hook return value."""
 
-    def __init__(self, omitted_keys: object,
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def __init__(self, omitted_keys: object, stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct an invalid config object for omit-None hook tests."""
         self._omitted_keys = omitted_keys
-        super().__init__(stderr_file=stderr_file)
+        super().__init__(stderr_file=stderr_file, member_name=member_name)
 
     @override
     def _omit_none_from_json(self) -> list[str]:
@@ -215,12 +225,13 @@ class NestedOutputConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct the nested output configuration."""
         self.output_format = self._default_format()
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @staticmethod
     def _default_format() -> str:
@@ -259,13 +270,14 @@ class NestedParentConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a parent configuration with one nested child."""
         self.output = NestedOutputConfig(None, None, stderr_file=stderr_file)
         self.expected_format = 'CSV'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -291,13 +303,14 @@ class OptionalNestedParentConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a parent configuration with an optional child."""
         self.required_name = 'default'
         self.optional_output: Optional[NestedOutputConfig] = None
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -322,13 +335,13 @@ class OptionalNestedParentConfig(Config):
 class BadNestedParentConfig(Config):
     """Parent configuration with injected nested Config metadata."""
 
-    def __init__(self, nesting: object,
-                 stderr_file: TextIO = sys.stderr) -> None:
+    def __init__(self, nesting: object, stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a parent configuration using the supplied metadata."""
         self.child = NestedOutputConfig(None, None, stderr_file=stderr_file)
         self._nesting = nesting
         super().__init__(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -381,7 +394,8 @@ class RocfRemoveConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a config object with removed-key compatibility."""
         self.version = 2
         self.name = 'current'
@@ -395,7 +409,7 @@ class RocfRemoveConfig(Config):
         self.entries: list[JsonType] = []
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=None, auto_ch_hook=auto_ch_hook,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old test files."""

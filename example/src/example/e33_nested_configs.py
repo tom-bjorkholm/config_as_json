@@ -31,13 +31,17 @@ class TableOutputConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize one output section.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         # This class is itself a normal Config class. The values assigned
         # before super().__init__() are the defaults for one output section.
@@ -46,7 +50,7 @@ class TableOutputConfig(Config):
         self.encoding: str = 'utf-8'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for one output section."""
@@ -66,13 +70,17 @@ class ExampleConfig33(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the course export configuration.
 
         Args:
             from_json_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         self.course_name: str = 'python-intro'
         # The participant output is mandatory, so the default is a real
@@ -85,7 +93,7 @@ class ExampleConfig33(Config):
         self.audit_output: Optional[TableOutputConfig] = None
         super().__init__(from_json_data_text=from_json_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:

@@ -240,11 +240,19 @@ with these keyword arguments:
 ```python
 def __init__(self, from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
-             stderr_file: TextIO = sys.stderr) -> None:
+             stderr_file: TextIO = sys.stderr,
+             member_name: Optional[str] = None) -> None:
 ```
 
 They may have additional optional arguments, but the base class constructs
-nested objects from JSON using the three keyword names shown above.
+nested objects from JSON using the four keyword names shown above.
+
+`member_name` is the path for reaching the constructed object from the top
+level configuration, such as `outputs[1].section`. The base class supplies
+it when it constructs a nested object, and a nested class should pass it on
+to `super().__init__()` so that diagnostics about the nested object name the
+whole path. `None` means that the object is the top level configuration and
+not a member of anything.
 
 If construction needs application-specific logic, keep `config_type` as the
 expected runtime type and add `factory_function` to the `ConfigNesting`

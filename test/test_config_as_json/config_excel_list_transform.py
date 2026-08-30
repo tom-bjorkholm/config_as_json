@@ -129,7 +129,8 @@ class ConfigExcelListTransform(Config, Generic[Column]):
                  tinfo: Column, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for excel list transform."""
         if auto_ch_hook is None:
             auto_ch_hook = MigrateCfgWarnHook()
@@ -195,7 +196,8 @@ class ConfigExcelListTransform(Config, Generic[Column]):
               'case': CaseSensitivity.IGNORE_CASE}]
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
         self.check_array_configs(split_last=colinfo.split_last,
                                  insert_last=colinfo.insert_last,
                                  stderr_file=stderr_file)

@@ -26,13 +26,14 @@ class ParticipantSection(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct participant output settings."""
         self.file_name = 'participants.csv'
         self.columns = ['name', 'email']
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for participant output settings."""
@@ -45,13 +46,14 @@ class AuditSection(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct audit log output settings."""
         self.file_name = 'audit.csv'
         self.include_actor = True
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for audit log output settings."""
@@ -64,7 +66,8 @@ class MultiSectionConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a configuration with several nested sections."""
         self.course_name = 'python-intro'
         self.participants = ParticipantSection(stderr_file=stderr_file)
@@ -72,7 +75,7 @@ class MultiSectionConfig(Config):
         self.backup_participants: Optional[ParticipantSection] = None
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -210,14 +213,15 @@ class ReportSection(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct one report output configuration."""
         self.name = 'participants'
         self.file_name = 'participants.csv'
         self.output_format = 'CSV'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for one report output."""
@@ -251,14 +255,14 @@ class ReportListConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 default_reports: Optional[list[ReportSection]] = None
-                 ) -> None:
+                 default_reports: Optional[list[ReportSection]] = None,
+                 member_name: Optional[str] = None) -> None:
         """Construct a parent configuration with nested list elements."""
         self.course_name = 'python-intro'
         self.reports = [] if default_reports is None else default_reports
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -465,8 +469,8 @@ class ReportDictConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 default_reports: Optional[dict[str, ReportSection]] = None
-                 ) -> None:
+                 default_reports: Optional[dict[str, ReportSection]] = None,
+                 member_name: Optional[str] = None) -> None:
         """Construct a parent configuration with nested dict values."""
         self.course_name = 'python-intro'
         if default_reports is None:
@@ -475,7 +479,7 @@ class ReportDictConfig(Config):
             self.reports_by_id = default_reports
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -691,7 +695,8 @@ class ReportByKeyConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 default_reports: Optional[dict[str, object]] = None) -> None:
+                 default_reports: Optional[dict[str, object]] = None,
+                 member_name: Optional[str] = None) -> None:
         """Construct a parent configuration with keyed nested dict values."""
         self.course_name = 'python-intro'
         if default_reports is None:
@@ -701,7 +706,7 @@ class ReportByKeyConfig(Config):
             self.reports_by_id = default_reports
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:

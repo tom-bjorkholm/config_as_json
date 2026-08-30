@@ -20,7 +20,8 @@ class RelationConfig(Config):
     """Config class used to test list relation validators."""
 
     def __init__(self, validator: Optional[WholeConfigValidator] = None,
-                 from_json_data_text: Optional[str] = None) -> None:
+                 from_json_data_text: Optional[str] = None,
+                 member_name: Optional[str] = None) -> None:
         """Construct a small config object with relation values."""
         self._validator = validator
         self._unchecked_dicts: list[str] = ['handlers']
@@ -29,7 +30,8 @@ class RelationConfig(Config):
         self.handlers: dict[str, str] = {'api': 'api_handler',
                                          'admin': 'admin_handler'}
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=sys.stderr)
+                         from_json_filename=None, stderr_file=sys.stderr,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""

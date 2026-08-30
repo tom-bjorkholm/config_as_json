@@ -109,7 +109,8 @@ class ProjectedValidationConfig(Config):
     """Config class used to test projected validators through ``Config``."""
 
     def __init__(self, validator: MemberValidator,
-                 from_json_data_text: Optional[str] = None) -> None:
+                 from_json_data_text: Optional[str] = None,
+                 member_name: Optional[str] = None) -> None:
         """Construct one config object with route data."""
         self._validator = validator
         self.routes: list[dict[str, object]] = [{
@@ -120,7 +121,8 @@ class ProjectedValidationConfig(Config):
             'port': 9090
         }]
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=sys.stderr)
+                         from_json_filename=None, stderr_file=sys.stderr,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
@@ -135,7 +137,8 @@ class WholeProjectedValidationConfig(Config):
     """Config class used to test whole-config projected validators."""
 
     def __init__(self, validator: Optional[WholeConfigValidator],
-                 from_json_data_text: Optional[str] = None) -> None:
+                 from_json_data_text: Optional[str] = None,
+                 member_name: Optional[str] = None) -> None:
         """Construct one config object with route data."""
         self._validator = validator
         self.routes: list[dict[str, object]] = [{
@@ -146,7 +149,8 @@ class WholeProjectedValidationConfig(Config):
             'port': 9090
         }]
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=sys.stderr)
+                         from_json_filename=None, stderr_file=sys.stderr,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""

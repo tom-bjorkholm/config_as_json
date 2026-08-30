@@ -157,11 +157,13 @@ class JsonValueMatcher:
         return value_at_key == expected_value
 
 
+# pylint: disable-next=too-many-arguments
 def config_factory_from_json(match_configs: MatchConfigSeq,
                              auto_ch_hook: ConfigAutoChangeHook,
                              from_json_filename: Optional[PathOrStr] = None,
                              from_json_data_text: Optional[str] = None,
-                             stderr_file: TextIO = sys.stderr) -> Config:
+                             stderr_file: TextIO = sys.stderr, *,
+                             member_name: Optional[str]) -> Config:
     """Create the first configuration class whose matcher accepts the input.
 
     The function is intended for applications that support several related
@@ -176,6 +178,11 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
         from_json_filename: Optional file containing configuration JSON.
         from_json_data_text: Optional configuration JSON supplied directly.
         stderr_file: Stream used for user-facing diagnostics.
+        member_name: Dotted and indexed path for reaching the created object
+            by traversing nested attributes from the top level of the
+            complete construction, such as ``outputs[1].section``. ``None``
+            means that the created object is the top level and not a member
+            of anything.
 
     Returns:
         An instance of the selected ``Config`` subclass populated from the
@@ -194,6 +201,7 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
             return match_config.config_class(from_json_data_text=text,
                                              from_json_filename=None,
                                              auto_ch_hook=auto_ch_hook,
-                                             stderr_file=stderr_file)
+                                             stderr_file=stderr_file,
+                                             member_name=member_name)
     _config_factory_exit(msg='No matching config class found', exc=None,
                          stderr_file=stderr_file)

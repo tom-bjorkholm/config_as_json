@@ -116,6 +116,7 @@
 * [config\_as\_json.\_config\_nesting\_io](#config_as_json._config_nesting_io)
   * [\_NestedConfigEncoder](#config_as_json._config_nesting_io._NestedConfigEncoder)
     * [default](#config_as_json._config_nesting_io._NestedConfigEncoder.default)
+  * [\_constructed\_nested](#config_as_json._config_nesting_io._constructed_nested)
   * [\_item\_from\_json](#config_as_json._config_nesting_io._item_from_json)
   * [\_list\_from\_json](#config_as_json._config_nesting_io._list_from_json)
   * [\_dict\_from\_json](#config_as_json._config_nesting_io._dict_from_json)
@@ -2723,6 +2724,31 @@ def default(o: object) -> object
 
 Serialize enum members using their symbolic names.
 
+<a id="config_as_json._config_nesting_io._constructed_nested"></a>
+
+#### \_constructed\_nested
+
+```python
+def _constructed_nested(name: str, json_text: str, nesting: ConfigNesting,
+                        stderr_file: TextIO) -> 'Config'
+```
+
+Construct one nested Config object from its own JSON text.
+
+**Arguments**:
+
+- `name` - Path text for reaching the nested object. It is handed to the
+  constructed object as its ``member_name``.
+- `json_text` - JSON text describing the nested Config.
+- `nesting` - Nested Config declaration for the member.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  The nested Config made by the declared type, or by the declared
+  factory function when the declaration has one.
+
 <a id="config_as_json._config_nesting_io._item_from_json"></a>
 
 #### \_item\_from\_json
@@ -2743,7 +2769,8 @@ nested objects.
 **Arguments**:
 
 - `name` - Diagnostic name for the nested Config. It is also the path text
-  of the nested object inside the parent.
+  of the nested object inside the parent, and the ``member_name``
+  handed to the nested Config.
 - `json_data` - Parsed JSON object for the nested Config.
 - `nesting` - Nested Config declaration for the member.
 - `stderr_file` - Stream used for user-facing diagnostics.
@@ -4417,11 +4444,11 @@ keys inside a dict whose values are nested Config objects. Use a direct
 list element has kind ``DICT_VALUE_BY_KEY`` and the entries describe
 selected keys inside the same dict member.
 Nested config classes must accept the constructor keyword arguments
-``from_json_data_text``,
-``from_json_filename``, and ``stderr_file`` because those are used when
-nested JSON objects are parsed. As an alternative construction path, a
-``ConfigNesting`` declaration may provide ``factory_function`` with the
-same keyword-argument contract. The returned object must be an instance of
+``from_json_data_text``, ``from_json_filename``, ``stderr_file``, and
+``member_name`` because those are used when nested JSON objects are
+parsed. As an alternative construction path, a ``ConfigNesting``
+declaration may provide ``factory_function`` with the same
+keyword-argument contract. The returned object must be an instance of
 the declared ``config_type``.
 
 <a id="config_as_json.config.Config.__init__"></a>
@@ -4432,7 +4459,9 @@ the declared ``config_type``.
 def __init__(from_json_data_text: Optional[str],
              from_json_filename: Optional[PathOrStr],
              auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-             stderr_file: TextIO = sys.stderr) -> None
+             stderr_file: TextIO = sys.stderr,
+             *,
+             member_name: Optional[str]) -> None
 ```
 
 Initialize a derived configuration object.
@@ -4454,6 +4483,11 @@ parsed data is applied to the same attributes instead.
   after parsing. See :class:`ConfigAutoChangeHook` for what
   reusing or sharing one hook instance means.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete construction, such as ``outputs[1].section``.
+  ``None`` means that this object is the top level and not a
+  member of anything.
 
   Dict-valued members are checked against the default key set by the
   base class unless listed in ``_unchecked_dicts``; see the class
@@ -5725,7 +5759,8 @@ def __init__(from_json_data_text: Optional[str] = None,
              *,
              value: Optional[int | str] = None,
              prefix: Optional[PrefixT] = None,
-             digits: int = 0) -> None
+             digits: int = 0,
+             member_name: Optional[str] = None) -> None
 ```
 
 Initialize the written number configuration value.
@@ -5750,6 +5785,11 @@ Initialize the written number configuration value.
 - `digits` - The smallest number of digits to write. The digits are
   padded with leading zeros up to this count. Zero, the
   default, writes as few digits as the value needs.
+- `member_name` - Dotted and indexed path for reaching this value by
+  traversing nested attributes from the top level of the
+  complete construction, such as ``limits[cpu].mask``. ``None``
+  means that this value is the top level and not a member of
+  anything.
 
 
 **Raises**:
@@ -6016,7 +6056,8 @@ Remember the class and the format to construct with.
 def __call__(*,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
-             stderr_file: TextIO = sys.stderr) -> 'RadixNumber[PrefixT]'
+             stderr_file: TextIO = sys.stderr,
+             member_name: Optional[str] = None) -> 'RadixNumber[PrefixT]'
 ```
 
 Construct one written number with the declared format.
@@ -6026,6 +6067,11 @@ Construct one written number with the declared format.
 - `from_json_data_text` - Optional JSON text to parse directly.
 - `from_json_filename` - Optional path to a JSON file to read.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching the constructed
+  value by traversing nested attributes from the top level of
+  the complete construction, such as ``limits[cpu].mask``.
+  ``None`` means that the constructed value is the top level
+  and not a member of anything.
 
 
 **Returns**:
@@ -9192,7 +9238,9 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
                              auto_ch_hook: ConfigAutoChangeHook,
                              from_json_filename: Optional[PathOrStr] = None,
                              from_json_data_text: Optional[str] = None,
-                             stderr_file: TextIO = sys.stderr) -> Config
+                             stderr_file: TextIO = sys.stderr,
+                             *,
+                             member_name: Optional[str]) -> Config
 ```
 
 Create the first configuration class whose matcher accepts the input.
@@ -9210,6 +9258,11 @@ by inspecting the input document itself.
 - `from_json_filename` - Optional file containing configuration JSON.
 - `from_json_data_text` - Optional configuration JSON supplied directly.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching the created object
+  by traversing nested attributes from the top level of the
+  complete construction, such as ``outputs[1].section``. ``None``
+  means that the created object is the top level and not a member
+  of anything.
 
 
 **Returns**:
@@ -11966,7 +12019,8 @@ Construct one nested Config object from JSON input.
 def __call__(*,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
-             stderr_file: TextIO = sys.stderr) -> 'Config'
+             stderr_file: TextIO = sys.stderr,
+             member_name: Optional[str]) -> 'Config'
 ```
 
 Construct one nested Config object.
@@ -11976,6 +12030,11 @@ Construct one nested Config object.
 - `from_json_data_text` - Optional JSON text to parse directly.
 - `from_json_filename` - Optional path to a JSON file to read.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching the constructed
+  object by traversing nested attributes from the top level of
+  the complete construction, such as ``outputs[1].section``.
+  ``None`` means that the constructed object is the top level
+  and not a member of anything.
 
 
 **Returns**:
@@ -11994,10 +12053,10 @@ Describe one nested Config declaration.
 
 The nested class must derive from :class:`Config` and must be
 constructible with keyword arguments ``from_json_data_text``,
-``from_json_filename``, and ``stderr_file``. This is the constructor
-shape used by the base class when it reads a nested JSON object. If
-``factory_function`` is set, that callable is used instead of the
-``config_type`` constructor. The factory must accept the same keyword
+``from_json_filename``, ``stderr_file``, and ``member_name``. This is the
+constructor shape used by the base class when it reads a nested JSON
+object. If ``factory_function`` is set, that callable is used instead of
+the ``config_type`` constructor. The factory must accept the same keyword
 arguments and must return an instance of ``config_type`` or a subclass.
 
 **Attributes**:

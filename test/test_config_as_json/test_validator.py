@@ -28,11 +28,13 @@ class ConfigMissingValidationPlan(Config):
     """Config class used to test missing get_validation_plan()."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct test config object."""
         self.value = 'alpha'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=stderr_file)
+                         from_json_filename=None, stderr_file=stderr_file,
+                         member_name=member_name)
 
 
 # pylint: disable-next=too-few-public-methods
@@ -120,12 +122,14 @@ class ValidationOrderConfig(Config):
     """Config class used to test validation order and write-back."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct test config object."""
         self.name = 'alpha'
         self.alias = 'beta'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=stderr_file)
+                         from_json_filename=None, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
@@ -142,11 +146,12 @@ class ValidationOrderConfig(Config):
 class MissingMemberConfig(Config):
     """Config class used to test validation of a missing member."""
 
-    def __init__(self, stderr_file: TextIO) -> None:
+    def __init__(self, stderr_file: TextIO,
+                 member_name: Optional[str] = None) -> None:
         """Construct test config object."""
         self.value = 'alpha'
         super().__init__(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
@@ -159,11 +164,12 @@ class MissingMemberConfig(Config):
 class NoneWriteBackConfig(Config):
     """Config class used to test member write-back of None."""
 
-    def __init__(self, stderr_file: TextIO) -> None:
+    def __init__(self, stderr_file: TextIO,
+                 member_name: Optional[str] = None) -> None:
         """Construct test config object."""
         self.value = 'alpha'
         super().__init__(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
@@ -191,13 +197,14 @@ class LoadValidationConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct test config object."""
         self.value = 'alpha'
         self._validation_count = 0
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def mark_validated(self) -> None:
         """Record that validation reached the counting step."""

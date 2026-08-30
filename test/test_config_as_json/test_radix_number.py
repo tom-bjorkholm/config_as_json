@@ -58,14 +58,16 @@ class BinaryConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the BinaryConfig configuration."""
-        made = flags_factory()
+        made = flags_factory(member_name=None)
         assert isinstance(made, BinaryNumber)
         self.flags: BinaryNumber = made
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=None, stderr_file=stderr_file)
+                         auto_ch_hook=None, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def nested_configs(self) -> NestedConfigs:
         """Return nested Config declarations for this configuration."""

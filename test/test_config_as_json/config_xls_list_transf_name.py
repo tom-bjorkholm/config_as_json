@@ -41,7 +41,8 @@ class ConfigXlsListTransfName(ConfigExcelListTransform[str]):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for excel list transform."""
         if auto_ch_hook is None:
             auto_ch_hook = MigrateCfgWarnHook()
@@ -50,6 +51,7 @@ class ConfigXlsListTransfName(ConfigExcelListTransform[str]):
         super().__init__(col_ref=ColumnRef.BY_NAME, colinfo=colinfo, tinfo='a',
                          from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
         check_unique_values(self, self.s10_column_order, 's10_column_order',
                             'a', stderr_file)

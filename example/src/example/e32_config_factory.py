@@ -39,7 +39,8 @@ class Cad2DConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the 2D configuration.
 
         Args:
@@ -47,6 +48,9 @@ class Cad2DConfig(Config):
             from_json_filename: Optional path to a JSON file to read.
             auto_ch_hook: Hook notified if automatic changes are made.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         self.mode: str = MODE_2D
         self.project_name: str = 'demo-part'
@@ -54,7 +58,8 @@ class Cad2DConfig(Config):
         self.drawing_plane: str = 'XY'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return extra validation steps for this example configuration."""
@@ -68,7 +73,8 @@ class Cad3DConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the 3D configuration.
 
         Args:
@@ -76,6 +82,9 @@ class Cad3DConfig(Config):
             from_json_filename: Optional path to a JSON file to read.
             auto_ch_hook: Hook notified if automatic changes are made.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         self.space: str = MODE_3D
         self.project_name: str = 'demo-part'
@@ -84,7 +93,8 @@ class Cad3DConfig(Config):
         self.show_shadows: bool = True
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return extra validation steps for this example configuration."""
@@ -113,10 +123,12 @@ def e32_config_factory_print(config_file: PathOrStr) -> None:
     Args:
         config_file: Path to the configuration file to read.
     """
+    # The configuration read here is the whole configuration, so it is
+    # not a member of anything and its member_name is None.
     config = config_factory_from_json(match_configs=MATCH_CONFIGS,
                                       auto_ch_hook=ConfigAutoChangeHook(),
                                       from_json_filename=config_file,
-                                      stderr_file=sys.stderr)
+                                      stderr_file=sys.stderr, member_name=None)
     print(f'Configuration read from {config_file}')
     if isinstance(config, Cad2DConfig):
         print('Configuration class: Cad2DConfig')

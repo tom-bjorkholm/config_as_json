@@ -111,12 +111,14 @@ class AsDictConfig(Config):
     """Config class used for integration tests."""
 
     def __init__(self, validator: MemberValidator, member_value: object,
-                 from_json_data_text: Optional[str] = None) -> None:
+                 from_json_data_text: Optional[str] = None,
+                 member_name: Optional[str] = None) -> None:
         """Construct one config object with an injected member validator."""
         self._validator = validator
         self.settings = member_value
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=sys.stderr)
+                         from_json_filename=None, stderr_file=sys.stderr,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get the validation plan for this test config."""

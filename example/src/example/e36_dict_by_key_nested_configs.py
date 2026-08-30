@@ -37,7 +37,8 @@ class WebhookOutputConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 created_by_factory: bool = False) -> None:
+                 created_by_factory: bool = False,
+                 member_name: Optional[str] = None) -> None:
         """Initialize one webhook output configuration.
 
         Args:
@@ -45,6 +46,9 @@ class WebhookOutputConfig(Config):
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
             created_by_factory: Whether the example factory made this object.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         # These public attributes are the settings that will be written to
         # JSON. The private flag is only here so the example can demonstrate
@@ -55,7 +59,7 @@ class WebhookOutputConfig(Config):
         self._created_by_factory = created_by_factory
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def created_by_factory(self) -> bool:
         """Return whether the example factory constructed this object."""
@@ -72,13 +76,16 @@ class WebhookOutputConfig(Config):
 
 def _webhook_output_factory(*, from_json_data_text: Optional[str] = None,
                             from_json_filename: Optional[PathOrStr] = None,
-                            stderr_file: TextIO = sys.stderr) -> Config:
+                            stderr_file: TextIO = sys.stderr,
+                            member_name: Optional[str] = None) -> Config:
     """Construct the webhook nested Config for DICT_VALUE_BY_KEY.
 
     Args:
         from_json_data_text: Optional JSON text to parse directly.
         from_json_filename: Optional path to a JSON file to read.
         stderr_file: Stream used for user-facing diagnostics.
+        member_name: Path for reaching the constructed object from the top
+            level configuration, such as ``reports[audit]``.
 
     Returns:
         The webhook output configuration created by this factory.
@@ -86,10 +93,13 @@ def _webhook_output_factory(*, from_json_data_text: Optional[str] = None,
     # The factory has the same call shape as the nested Config constructor.
     # Here it only sets a teaching flag, but a real application could choose
     # a subclass, inject dependencies, or translate old construction rules.
+    # The member_name is part of that call shape, and is passed on so that
+    # a diagnostic about the nested object names the whole path to it.
     return WebhookOutputConfig(from_json_data_text=from_json_data_text,
                                from_json_filename=from_json_filename,
                                stderr_file=stderr_file,
-                               created_by_factory=True)
+                               created_by_factory=True,
+                               member_name=member_name)
 
 
 def _default_reports(stderr_file: TextIO) -> dict[str, object]:
@@ -121,13 +131,17 @@ class ExampleConfig36(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the course report configuration.
 
         Args:
             from_json_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         self.course_name: str = 'python-intro'
         # The dictionary deliberately mixes nested Config objects and plain
@@ -137,7 +151,7 @@ class ExampleConfig36(Config):
             stderr_file=stderr_file)
         super().__init__(from_json_data_text=from_json_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:

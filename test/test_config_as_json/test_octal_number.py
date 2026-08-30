@@ -31,15 +31,17 @@ class FileMode(OctalNumber):
     keeping it when the base class rebuilds the member from parsed JSON.
     """
 
+    # pylint: disable-next=too-many-arguments
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 value: Optional[int | str] = None) -> None:
+                 value: Optional[int | str] = None,
+                 member_name: Optional[str] = None) -> None:
         """Initialize one file mode value."""
         super().__init__(from_json_data_text, from_json_filename, auto_ch_hook,
                          stderr_file, value=value, prefix=Prefix.ZERO,
-                         digits=3)
+                         digits=3, member_name=member_name)
 
 
 umask_factory = OctalNumber.factory(Prefix.ZERO_O, 3, 0o22)
@@ -52,29 +54,37 @@ def _new_umask(json_text: Optional[str] = None) -> OctalNumber:
     The factory answers with the declared ``Config`` type of the protocol, so
     the test says here once what kind of object it really constructs.
     """
-    made = umask_factory(from_json_data_text=json_text)
+    made = umask_factory(from_json_data_text=json_text, member_name=None)
     assert isinstance(made, OctalNumber)
     return made
 
 
+# This test module and the hexadecimal one are deliberately parallel, so
+# the configuration below is written the same way in both of them.
+# pylint: disable=duplicate-code
 class TwoOctConfig(Config):
     """A configuration with two octal number values."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the TwoOctConfig configuration value.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
             from_json_filename: Optional path to a JSON file to read.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Path for reaching this object from the top level
+                configuration. ``None`` means that this object is the whole
+                configuration and not a member of anything.
         """
         self.mode: OctalNumber = FileMode(value=0o644)
         self.umask: OctalNumber = _new_umask()
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=None, stderr_file=stderr_file)
+                         auto_ch_hook=None, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def nested_configs(self) -> NestedConfigs:
         """Return nested Config declarations for this configuration."""
@@ -90,6 +100,7 @@ class TwoOctConfig(Config):
         """Return the validation plan for this configuration."""
         _ = stderr_file
         return []
+# pylint: enable=duplicate-code
 
 
 def _written_and_read(config: TwoOctConfig, tmp_path: Path) -> TwoOctConfig:

@@ -19,14 +19,15 @@ class MethodCallConfig(EmptyValidationConfig):
     """Config class with callable methods used by method-call validators."""
 
     def __init__(self, member_result: object = None,
-                 whole_result: object = None) -> None:
+                 whole_result: object = None,
+                 member_name: Optional[str] = None) -> None:
         """Construct the config object and store configured method results."""
         self._member_result = member_result
         self._whole_result = whole_result
         self._member_calls: list[dict[str, object]] = []
         self._whole_calls: list[dict[str, object]] = []
         self.non_callable = 'not callable'
-        super().__init__()
+        super().__init__(member_name=member_name)
 
     def member_calls(self) -> list[dict[str, object]]:
         """Return recorded member-method calls."""
@@ -63,12 +64,14 @@ class MethodCallValidationConfig(Config):
     """Config class that uses method-call validators in its plan."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct a config object with method-call validation."""
         self.name = ' alpha '
         self.count = 2
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=stderr_file)
+                         from_json_filename=None, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def normalize_name(self, value: object) -> object:
         """Normalize a name string."""

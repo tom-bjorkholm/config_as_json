@@ -16,11 +16,13 @@ class EmptyValidationConfig(Config):
     """Config class used as a small helper in validator tests."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct test config object."""
         self.value = 'seed'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=stderr_file)
+                         from_json_filename=None, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
@@ -31,20 +33,22 @@ class EmptyValidationConfig(Config):
 class SingleMemberValidationConfig(Config):
     """Config class used to test one member validator in integration."""
 
-    def __init__(self, member_name: str, member_value: object,
+    def __init__(self, attr_name: str, member_value: object,
                  validator: MemberValidator,
-                 from_json_data_text: Optional[str] = None) -> None:
+                 from_json_data_text: Optional[str] = None,
+                 member_name: Optional[str] = None) -> None:
         """Construct one-member config object with injected validation."""
-        self._member_name = member_name
+        self._attr_name = attr_name
         self._validator = validator
-        setattr(self, member_name, member_value)
+        setattr(self, attr_name, member_value)
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=sys.stderr)
+                         from_json_filename=None, stderr_file=sys.stderr,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
         _ = stderr_file
-        return [MemberValidationStep(member_names=[self._member_name],
+        return [MemberValidationStep(member_names=[self._attr_name],
                                      validator=self._validator)]
 
 

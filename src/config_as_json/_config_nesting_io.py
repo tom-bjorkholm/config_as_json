@@ -26,6 +26,30 @@ class _NestedConfigEncoder(json.JSONEncoder):
         return super().default(o)
 
 
+def _constructed_nested(name: str, json_text: str, nesting: ConfigNesting,
+                        stderr_file: TextIO) -> 'Config':
+    """Construct one nested Config object from its own JSON text.
+
+    Args:
+        name: Path text for reaching the nested object. It is handed to the
+            constructed object as its ``member_name``.
+        json_text: JSON text describing the nested Config.
+        nesting: Nested Config declaration for the member.
+        stderr_file: Stream used for user-facing diagnostics.
+
+    Returns:
+        The nested Config made by the declared type, or by the declared
+        factory function when the declaration has one.
+    """
+    if nesting.factory_function is None:
+        return nesting.config_type(from_json_data_text=json_text,
+                                   from_json_filename=None,
+                                   stderr_file=stderr_file, member_name=name)
+    return nesting.factory_function(from_json_data_text=json_text,
+                                    from_json_filename=None,
+                                    stderr_file=stderr_file, member_name=name)
+
+
 def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
                     stderr_file: TextIO,
                     auto_ch_hook: ConfigAutoChangeHook) -> 'Config':
@@ -38,7 +62,8 @@ def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
 
     Args:
         name: Diagnostic name for the nested Config. It is also the path text
-            of the nested object inside the parent.
+            of the nested object inside the parent, and the ``member_name``
+            handed to the nested Config.
         json_data: Parsed JSON object for the nested Config.
         nesting: Nested Config declaration for the member.
         stderr_file: Stream used for user-facing diagnostics.
@@ -56,14 +81,9 @@ def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
         print(msg, file=stderr_file)
         raise KeyError(msg)
     json_text = json.dumps(json_data, cls=_NestedConfigEncoder)
-    if nesting.factory_function is None:
-        nested_config = nesting.config_type(from_json_data_text=json_text,
-                                            from_json_filename=None,
-                                            stderr_file=stderr_file)
-    else:
-        nested_config = nesting.factory_function(from_json_data_text=json_text,
-                                                 from_json_filename=None,
-                                                 stderr_file=stderr_file)
+    nested_config = _constructed_nested(name=name, json_text=json_text,
+                                        nesting=nesting,
+                                        stderr_file=stderr_file)
     if not isinstance(nested_config, nesting.config_type):
         msg = f'Nested Config factory for {name} must return '
         msg += nesting.config_type.__name__

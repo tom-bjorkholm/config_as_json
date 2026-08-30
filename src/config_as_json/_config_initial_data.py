@@ -138,7 +138,7 @@ def _wrap_one_value(source: object, config_type: 'type[Config]', name: str,
             ``config_type`` does not declare.
     """
     bridge = config_type(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=None)
     try:
         copy_initial_data_impl(source=source, target=bridge)
     except TypeError as exc:

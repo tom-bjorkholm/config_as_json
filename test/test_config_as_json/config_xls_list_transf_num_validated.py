@@ -24,7 +24,8 @@ class ConfigXlsListTransfNumValidated(ConfigExcelTransformValidated[int]):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[str] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct validated configuration for excel list transform."""
         if auto_ch_hook is None:
             auto_ch_hook = MigrateCfgWarnHook()
@@ -33,7 +34,8 @@ class ConfigXlsListTransfNumValidated(ConfigExcelTransformValidated[int]):
                          colinfo=make_num_colinfo(), tinfo=2,
                          from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def sort_sx_hook(self, stderr_file: TextIO = sys.stderr) -> None:
         """Sort s[0-9]_ as needed as needed (hook)."""

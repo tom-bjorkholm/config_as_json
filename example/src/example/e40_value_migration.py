@@ -40,7 +40,8 @@ class OldExampleConfig40(Config):
 
     def __init__(self, from_json_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the old configuration shape."""
         # Old application versions stored the selected report kind as one
         # scalar string. There was no nested "reports" object in old files.
@@ -51,7 +52,7 @@ class OldExampleConfig40(Config):
         self.retention_days: int = 30
         super().__init__(from_json_data_text=from_json_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return extra validation steps for this example configuration."""
@@ -141,7 +142,8 @@ class ExampleConfig40(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the current configuration shape."""
         # Application code only sees the current shape. Old-file support is
         # declared in Example40ReadOldConfig, not scattered through the rest
@@ -158,7 +160,8 @@ class ExampleConfig40(Config):
         }
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def _get_read_old_config(self) -> ReadOldConfiguration:
         """Return the object that normalizes old e40 files."""

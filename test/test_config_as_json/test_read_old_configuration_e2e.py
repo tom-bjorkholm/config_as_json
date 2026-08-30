@@ -49,14 +49,15 @@ class OldE2EExportConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the old direct output object."""
         self.export_title: str = 'attendance'
         self.target_file: str = 'attendance.csv'
         self.format_name: E2EFormat = E2EFormat.CSV
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
@@ -73,7 +74,8 @@ class OldE2EConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the old top-level configuration object."""
         self.lesson_title: str = 'python-intro'
         self.fallback_format: E2EFormat = E2EFormat.TXT
@@ -89,7 +91,7 @@ class OldE2EConfig(Config):
         self.trace_enabled: bool = True
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -115,7 +117,8 @@ class E2EExportConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize one current output object."""
         self.export_title: str = 'attendance'
         self.target_file: str = 'attendance.csv'
@@ -123,7 +126,7 @@ class E2EExportConfig(Config):
         self.char_encoding: str = 'utf-8'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def parse_converters(self) -> dict[str, ParseConverter]:
         """Return conversions needed when reading enum values from JSON."""
@@ -194,13 +197,17 @@ class E2EReadOldConfig(ReadOldConfiguration):
                 ('empty_tags',): []}
 
 
+# The constructor and nested_configs boilerplate below is written the
+# same way in the teaching example e37, which is what it is testing here.
+# pylint: disable=duplicate-code
 class E2EConfig(Config):
     """Current top-level shape used for end-to-end ROCF tests."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Initialize the current top-level configuration object."""
         self.schema_version: int = 3
         self.lesson_name: str = 'python-intro'
@@ -211,7 +218,8 @@ class E2EConfig(Config):
         self.empty_tags: list[JsonType] = []
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+                         auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                         member_name=member_name)
 
     @override
     def nested_configs(self) -> NestedConfigs:
@@ -237,6 +245,7 @@ class E2EConfig(Config):
         """Return no extra validation for this test shape."""
         _ = stderr_file
         return []
+# pylint: enable=duplicate-code
 
 
 def old_shape_json() -> str:

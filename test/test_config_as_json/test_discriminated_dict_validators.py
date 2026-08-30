@@ -35,17 +35,22 @@ class _ConstantValidator(MemberValidator):
         return self.value
 
 
+# The one-member test configuration below is boilerplate that other test
+# modules write the same way for their own validators.
+# pylint: disable=duplicate-code
 class DictMemberValidationConfig(Config):
     """Config class used to test dict validators through ``Config``."""
 
     def __init__(self, validator: MemberValidator,
-                 from_json_data_text: Optional[str] = None) -> None:
+                 from_json_data_text: Optional[str] = None,
+                 member_name: Optional[str] = None) -> None:
         """Construct one dict-member config object."""
         self._validator = validator
         self._unchecked_dicts = ['value']
         self.value: dict[str, object] = {'kind': 'disk', 'path': 'local.json'}
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=sys.stderr)
+                         from_json_filename=None, stderr_file=sys.stderr,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""
@@ -54,6 +59,7 @@ class DictMemberValidationConfig(Config):
             MemberValidationStep(member_names=['value'],
                                  validator=self._validator)
         ]
+# pylint: enable=duplicate-code
 
 
 def make_export_target_validator() -> DiscriminatedDictValidator:

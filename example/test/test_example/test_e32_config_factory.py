@@ -31,7 +31,7 @@ def e32_config_factory_read(config_file: str) -> Config:
     return config_factory_from_json(match_configs=MATCH_CONFIGS,
                                     auto_ch_hook=ConfigAutoChangeHook(),
                                     from_json_filename=config_file,
-                                    stderr_file=sys.stderr)
+                                    stderr_file=sys.stderr, member_name=None)
 
 
 def test_e32_set_writes_default_2d_config(

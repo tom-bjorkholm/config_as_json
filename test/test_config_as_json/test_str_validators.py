@@ -35,12 +35,14 @@ class PaletteConfig(Config):
     """Config class used for StrValidator integration tests."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct test config object."""
         self.shade = 'GREEN'
         self.accent = 'blu'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=stderr_file)
+                         from_json_filename=None, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def accent_names(self) -> Sequence[str]:
         """Return the allowed accent names."""
@@ -65,12 +67,14 @@ class TextConfig(Config):
     """Config class used for string validator integration tests."""
 
     def __init__(self, from_json_data_text: Optional[str] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct test config object."""
         self.code = 'abc'
         self.title = 'hello WORLD. again? YES!'
         super().__init__(from_json_data_text=from_json_data_text,
-                         from_json_filename=None, stderr_file=stderr_file)
+                         from_json_filename=None, stderr_file=stderr_file,
+                         member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Get validation plan for use when validating the Config object."""

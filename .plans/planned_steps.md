@@ -152,7 +152,7 @@ Plumbing only.
 
 ## Step 3 — `member_name` on the nested construction contract
 
-Status: **Not done yet**
+Status: **Implemented and committed**
 
 Plumbing only.
 
@@ -174,6 +174,34 @@ Plumbing only.
 
 **Verifies:** the build is clean, the test suite passes unchanged. This is
 the largest mechanical step; nothing about behaviour has changed yet.
+
+What was decided while implementing this step:
+
+- `Config.__init__()`, the `ConfigFactory` protocol and
+  `config_factory_from_json()` take `member_name` without a default, which is
+  what forces every call site to be visited. Every other constructor that
+  gained the parameter took it with the default `None`: the roughly 140
+  `Config` derived classes in `test/` and `example/`, `RadixNumber`, and the
+  factories. Their own call sites therefore did not have to change.
+- The scope was wider than the classes listed above. A required parameter on
+  `Config.__init__()` means that every `Config` derived class in `src/`,
+  `test/` and `example/` has to pass `member_name` on to
+  `super().__init__()`, not only the ones that are used as nested configs.
+- `_constructed_nested()` hands the nested object the name that
+  `_item_from_json()` already computes, rather than `None`. No reported name
+  moves, because nothing builds a reported name out of `member_name` before
+  step 4. Step 5 therefore only has to make that computed name a whole path.
+- `_config_initial_data._wrap_one_value()` and `migrate_cfg()` pass `None`.
+  An auto-wrapped bridge default is replaced by the parsed object before any
+  path matters, and a migration reads a whole configuration file.
+- `SingleMemberValidationConfig` in `validator_test_helpers.py` already had a
+  parameter named `member_name` holding the local attribute name of its one
+  member. That parameter is now called `attr_name`.
+- Four new `duplicate-code` reports appeared, because the added
+  `member_name=member_name` line makes constructor boilerplate in unrelated
+  test modules four lines alike. They are suppressed with block local
+  `# pylint: disable=duplicate-code` in one module of each pair, the way the
+  repository already handles that kind of accidental similarity.
 
 ## Step 4 — Build the path on the `validate()` traversal
 
