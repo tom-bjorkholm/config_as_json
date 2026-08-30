@@ -5,13 +5,15 @@
 # MIT License
 
 import json
+import sys
 from io import StringIO
 from types import ModuleType
 from tempfile import TemporaryDirectory
 from typing import Callable, Generic, NamedTuple, Optional, Protocol, TextIO
-from typing import TypeVar
+from typing import TypeVar, cast
 import pytest
 from config_as_json.commontypes import PathOrStr
+from config_as_json.config import Config
 from example.cmd_line_handling import SetValues
 from example.e01_simple_config import SimpleConfig, YesNoAsk
 from example.e03_scalar_validators import Severity
@@ -153,6 +155,12 @@ def assert_write_command_output(capsys: pytest.CaptureFixture[str],
     out, err = capsys.readouterr()
     assert out == f'Configuration written to {config_file}\n'
     assert err == ''
+
+
+def config_json_data(config: Config) -> dict[str, object]:
+    """Return the JSON data that one config object writes."""
+    text = config.as_json_string(stderr_file=sys.stderr, member_name=None)
+    return cast(dict[str, object], json.loads(text))
 
 
 def write_json_file(config_file: str, json_data: dict[str, object]) -> None:

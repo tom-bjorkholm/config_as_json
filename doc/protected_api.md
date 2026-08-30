@@ -90,6 +90,13 @@
   * [ListOfDictsKeysValidator](#config_as_json.list_element_validators.ListOfDictsKeysValidator)
     * [\_\_init\_\_](#config_as_json.list_element_validators.ListOfDictsKeysValidator.__init__)
     * [validate\_member](#config_as_json.list_element_validators.ListOfDictsKeysValidator.validate_member)
+* [config\_as\_json.\_config\_nesting\_decl](#config_as_json._config_nesting_decl)
+  * [\_check\_config\_nesting](#config_as_json._config_nesting_decl._check_config_nesting)
+  * [\_check\_config\_nesting\_kinds](#config_as_json._config_nesting_decl._check_config_nesting_kinds)
+  * [\_checked\_config\_nesting\_list](#config_as_json._config_nesting_decl._checked_config_nesting_list)
+  * [\_checked\_nested\_configs](#config_as_json._config_nesting_decl._checked_nested_configs)
+  * [\_value\_has\_config](#config_as_json._config_nesting_decl._value_has_config)
+  * [\_check\_nested\_config\_members](#config_as_json._config_nesting_decl._check_nested_config_members)
 * [config\_as\_json.octal\_number](#config_as_json.octal_number)
   * [\_OCT\_SPEC](#config_as_json.octal_number._OCT_SPEC)
   * [OctalStringValidator](#config_as_json.octal_number.OctalStringValidator)
@@ -200,16 +207,12 @@
     * [\_json\_parse\_obj\_hook](#config_as_json.config.Config._json_parse_obj_hook)
     * [\_omit\_none\_from\_json](#config_as_json.config.Config._omit_none_from_json)
     * [\_checked\_omit\_none\_from\_json](#config_as_json.config.Config._checked_omit_none_from_json)
-    * [\_check\_config\_nesting](#config_as_json.config.Config._check_config_nesting)
-    * [\_checked\_config\_nesting\_list](#config_as_json.config.Config._checked_config_nesting_list)
-    * [\_check\_config\_nesting\_kinds](#config_as_json.config.Config._check_config_nesting_kinds)
-    * [\_checked\_nested\_configs](#config_as_json.config.Config._checked_nested_configs)
-    * [\_value\_has\_config](#config_as_json.config.Config._value_has_config)
-    * [\_check\_nested\_config\_members](#config_as_json.config.Config._check_nested_config_members)
     * [\_validate\_nested\_configs](#config_as_json.config.Config._validate_nested_configs)
     * [copy\_initial\_data](#config_as_json.config.Config.copy_initial_data)
     * [\_auto\_wrap\_nested\_defaults](#config_as_json.config.Config._auto_wrap_nested_defaults)
+    * [\_decoded\_json\_object](#config_as_json.config.Config._decoded_json_object)
     * [parse\_json](#config_as_json.config.Config.parse_json)
+    * [\_wrap\_parse\_json](#config_as_json.config.Config._wrap_parse_json)
     * [\_child\_owned\_paths](#config_as_json.config.Config._child_owned_paths)
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
     * [read](#config_as_json.config.Config.read)
@@ -218,6 +221,7 @@
     * [get\_converter\_dict](#config_as_json.config.Config.get_converter_dict)
     * [get\_validation\_plan](#config_as_json.config.Config.get_validation_plan)
     * [validate](#config_as_json.config.Config.validate)
+    * [\_wrap\_validate](#config_as_json.config.Config._wrap_validate)
 * [config\_as\_json.str\_to\_enum](#config_as_json.str_to_enum)
   * [string\_to\_enum\_best\_match](#config_as_json.str_to_enum.string_to_enum_best_match)
 * [config\_as\_json.migrate\_cfg](#config_as_json.migrate_cfg)
@@ -2246,6 +2250,173 @@ Validate one list-of-dicts member against the configured keys.
 - `InvalidConfiguration` - If the member is not a list, one element is
   not a dict, one dict misses a mandatory key, or one dict has
   an unknown key while ``allow_extra_dict_keys`` is ``False``.
+
+<a id="config_as_json._config_nesting_decl"></a>
+
+# config\_as\_json.\_config\_nesting\_decl
+
+Check the nested Config declarations returned by ``nested_configs()``.
+
+``Config.__init__`` runs these checks on whatever ``nested_configs()``
+returned, before any nested Config object is parsed, written, or validated.
+The checks cover the runtime types inside one ``ConfigNesting``, the
+combinations of nesting kinds that are allowed for one public member, and
+that every default value visibly holding a nested Config object was in fact
+declared.
+
+The ``Config`` base class is received as the ``config_base`` argument rather
+than imported, because ``config.py`` imports this module.
+
+<a id="config_as_json._config_nesting_decl._check_config_nesting"></a>
+
+#### \_check\_config\_nesting
+
+```python
+def _check_config_nesting(key: str, nesting: ConfigNesting,
+                          config_base: 'type[Config]') -> None
+```
+
+Validate one nested Config declaration.
+
+**Arguments**:
+
+- `key` - Public member name described by ``nesting``.
+- `nesting` - Nested configuration declaration to validate.
+- `config_base` - Base class that ``config_type`` must derive from.
+
+
+**Raises**:
+
+- `TypeError` - The declaration has the wrong runtime type.
+- `ValueError` - ``discriminator_key`` is used with the wrong kind.
+
+<a id="config_as_json._config_nesting_decl._check_config_nesting_kinds"></a>
+
+#### \_check\_config\_nesting\_kinds
+
+```python
+def _check_config_nesting_kinds(key: str, nestings: list[ConfigNesting],
+                                list_form: bool) -> None
+```
+
+Validate combinations of nested Config declaration kinds.
+
+**Arguments**:
+
+- `key` - Public member name described by the declarations.
+- `nestings` - Checked declarations for one public member.
+- `list_form` - Whether the declarations used list syntax.
+
+
+**Raises**:
+
+- `ValueError` - The declarations combine incompatible nesting kinds.
+
+<a id="config_as_json._config_nesting_decl._checked_config_nesting_list"></a>
+
+#### \_checked\_config\_nesting\_list
+
+```python
+def _checked_config_nesting_list(
+        key: str, nesting_raw: object,
+        config_base: 'type[Config]') -> list[ConfigNesting]
+```
+
+Return the checked declaration list for one nested member.
+
+**Arguments**:
+
+- `key` - Public member name described by the declarations.
+- `nesting_raw` - Raw value from ``nested_configs()``.
+- `config_base` - Base class that ``config_type`` must derive from.
+
+
+**Returns**:
+
+  One or more checked ``ConfigNesting`` declarations.
+
+
+**Raises**:
+
+- `TypeError` - The raw value or a list entry has the wrong type.
+- `ValueError` - The list shape is not valid for the declared kinds.
+
+<a id="config_as_json._config_nesting_decl._checked_nested_configs"></a>
+
+#### \_checked\_nested\_configs
+
+```python
+def _checked_nested_configs(
+        nested_raw: object, self_keys: list[str],
+        config_base: 'type[Config]') -> dict[str, list[ConfigNesting]]
+```
+
+Return validated and normalized nested Config declarations.
+
+**Arguments**:
+
+- `nested_raw` - Raw value returned by ``nested_configs()``.
+- `self_keys` - Public member names of the configuration object.
+- `config_base` - Base class that every ``config_type`` must derive from.
+
+
+**Returns**:
+
+  One checked declaration list per declared public member name.
+
+
+**Raises**:
+
+- `TypeError` - The returned value, one of its keys, or a declaration has
+  the wrong type.
+- `KeyError` - A declared key is not a public member name.
+- `ValueError` - The declarations combine incompatible nesting kinds.
+
+<a id="config_as_json._config_nesting_decl._value_has_config"></a>
+
+#### \_value\_has\_config
+
+```python
+def _value_has_config(value: object, config_base: 'type[Config]') -> bool
+```
+
+Return whether a default value visibly contains a Config object.
+
+**Arguments**:
+
+- `value` - Default value of one public configuration member.
+- `config_base` - Base class that a nested Config object derives from.
+
+
+**Returns**:
+
+  ``True`` when the value is, or directly contains, a Config object.
+
+<a id="config_as_json._config_nesting_decl._check_nested_config_members"></a>
+
+#### \_check\_nested\_config\_members
+
+```python
+def _check_nested_config_members(config: 'Config', self_keys: list[str],
+                                 nested_configs: dict[str,
+                                                      list[ConfigNesting]],
+                                 config_base: 'type[Config]') -> None
+```
+
+Validate that visible nested Config defaults are declared.
+
+**Arguments**:
+
+- `config` - Configuration object holding the default values.
+- `self_keys` - Public member names of the configuration object.
+- `nested_configs` - Checked declarations per public member name.
+- `config_base` - Base class that a nested Config object derives from.
+
+
+**Raises**:
+
+- `TypeError` - A default value contains a Config object for a member that
+  ``nested_configs()`` does not declare.
 
 <a id="config_as_json.octal_number"></a>
 
@@ -4489,113 +4660,6 @@ Return validated omit-when-None member names.
 - `TypeError` - The hook returned a value with the wrong type.
 - `KeyError` - The hook listed an unknown public member.
 
-<a id="config_as_json.config.Config._check_config_nesting"></a>
-
-#### \_check\_config\_nesting
-
-```python
-@staticmethod
-def _check_config_nesting(key: str, nesting: ConfigNesting) -> None
-```
-
-Validate one nested Config declaration.
-
-**Arguments**:
-
-- `key` - Public member name described by ``nesting``.
-- `nesting` - Nested configuration declaration to validate.
-
-
-**Raises**:
-
-- `TypeError` - The declaration has the wrong runtime type.
-- `ValueError` - ``discriminator_key`` is used with the wrong kind.
-
-<a id="config_as_json.config.Config._checked_config_nesting_list"></a>
-
-#### \_checked\_config\_nesting\_list
-
-```python
-@staticmethod
-def _checked_config_nesting_list(key: str,
-                                 nesting_raw: object) -> list[ConfigNesting]
-```
-
-Return the checked declaration list for one nested member.
-
-**Arguments**:
-
-- `key` - Public member name described by the declarations.
-- `nesting_raw` - Raw value from :meth:`nested_configs`.
-
-
-**Returns**:
-
-  One or more checked ``ConfigNesting`` declarations.
-
-
-**Raises**:
-
-- `TypeError` - The raw value or a list entry has the wrong type.
-- `ValueError` - The list shape is not valid for the declared kinds.
-
-<a id="config_as_json.config.Config._check_config_nesting_kinds"></a>
-
-#### \_check\_config\_nesting\_kinds
-
-```python
-@staticmethod
-def _check_config_nesting_kinds(key: str, nestings: list[ConfigNesting],
-                                list_form: bool) -> None
-```
-
-Validate combinations of nested Config declaration kinds.
-
-**Arguments**:
-
-- `key` - Public member name described by the declarations.
-- `nestings` - Checked declarations for one public member.
-- `list_form` - Whether the declarations used list syntax.
-
-
-**Raises**:
-
-- `ValueError` - The declarations combine incompatible nesting kinds.
-
-<a id="config_as_json.config.Config._checked_nested_configs"></a>
-
-#### \_checked\_nested\_configs
-
-```python
-def _checked_nested_configs(
-        self_keys: list[str]) -> dict[str, list[ConfigNesting]]
-```
-
-Return validated and normalized nested Config declarations.
-
-<a id="config_as_json.config.Config._value_has_config"></a>
-
-#### \_value\_has\_config
-
-```python
-@staticmethod
-def _value_has_config(value: object) -> bool
-```
-
-Return whether a default value visibly contains a Config object.
-
-<a id="config_as_json.config.Config._check_nested_config_members"></a>
-
-#### \_check\_nested\_config\_members
-
-```python
-def _check_nested_config_members(
-        self_keys: list[str],
-        nested_configs: dict[str, list[ConfigNesting]]) -> None
-```
-
-Validate that visible nested Config defaults are declared.
-
 <a id="config_as_json.config.Config._validate_nested_configs"></a>
 
 #### \_validate\_nested\_configs
@@ -4680,6 +4744,38 @@ in place for ``OPTIONAL_MEMBER`` declarations.
 
 - `stderr_file` - Stream used for user-facing diagnostics.
 
+<a id="config_as_json.config.Config._decoded_json_object"></a>
+
+#### \_decoded\_json\_object
+
+```python
+def _decoded_json_object(from_json_text: str,
+                         stderr_file: TextIO) -> dict[str, object]
+```
+
+Decode configuration JSON text into a JSON object.
+
+The conversions declared by :meth:`parse_converters` are applied by
+the object hook while the text is decoded.
+
+**Arguments**:
+
+- `from_json_text` - JSON document describing configuration values.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  The decoded JSON object.
+
+
+**Raises**:
+
+- `ConfigBadJson` - The text is not valid JSON, or its root is not a
+  JSON object.
+- `NotImplementedError` - A required custom converter was not supplied
+  by a derived class.
+
 <a id="config_as_json.config.Config.parse_json"></a>
 
 #### parse\_json
@@ -4687,7 +4783,9 @@ in place for ``OPTIONAL_MEMBER`` declarations.
 ```python
 def parse_json(from_json_text: str,
                ok_to_use_defaults: bool = False,
-               stderr_file: TextIO = sys.stderr) -> None
+               stderr_file: TextIO = sys.stderr,
+               *,
+               member_name: Optional[str]) -> None
 ```
 
 Parse JSON text and apply it to the configuration object.
@@ -4704,6 +4802,11 @@ too. Nothing is reported when parsing fails before that point.
   their already assigned default values.
 - `stderr_file` - Stream used for user-facing diagnostics. Defaults to
   ``sys.stderr``.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``parse_json()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
 
 
 **Raises**:
@@ -4713,6 +4816,38 @@ too. Nothing is reported when parsing fails before that point.
   keys or nested dictionary structure.
 - `NotImplementedError` - A required custom converter was not supplied
   by a derived class.
+
+<a id="config_as_json.config.Config._wrap_parse_json"></a>
+
+#### \_wrap\_parse\_json
+
+```python
+def _wrap_parse_json(from_json_text: str,
+                     ok_to_use_defaults: bool = False,
+                     stderr_file: TextIO = sys.stderr,
+                     *,
+                     member_name: Optional[str]) -> None
+```
+
+Call :meth:`parse_json` on behalf of the library itself.
+
+Every call the library makes to ``parse_json`` on a Config object
+goes through this wrapper, so that support for derived classes that
+do not accept every argument has a single place to live. An
+application calls :meth:`parse_json` directly instead.
+
+**Arguments**:
+
+- `from_json_text` - JSON document describing configuration values.
+- `ok_to_use_defaults` - Whether missing declared keys may remain at
+  their already assigned default values.
+- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
+  ``sys.stderr``.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``parse_json()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
 
 <a id="config_as_json.config.Config._child_owned_paths"></a>
 
@@ -4740,7 +4875,7 @@ notation.
 #### as\_json\_string
 
 ```python
-def as_json_string(stderr_file: TextIO) -> str
+def as_json_string(stderr_file: TextIO, *, member_name: Optional[str]) -> str
 ```
 
 Serialize the current configuration object to formatted JSON.
@@ -4749,6 +4884,11 @@ Serialize the current configuration object to formatted JSON.
 
 - `stderr_file` - Stream used for user-facing diagnostics during
   validation.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``as_json_string()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
 
 
 **Returns**:
@@ -4763,7 +4903,9 @@ Serialize the current configuration object to formatted JSON.
 ```python
 def read(from_json_filename: PathOrStr,
          ok_to_use_defaults: bool = False,
-         stderr_file: TextIO = sys.stderr) -> None
+         stderr_file: TextIO = sys.stderr,
+         *,
+         member_name: Optional[str]) -> None
 ```
 
 Read configuration JSON from a file and apply it to the object.
@@ -4775,6 +4917,11 @@ Read configuration JSON from a file and apply it to the object.
   their already assigned default values.
 - `stderr_file` - Stream used for user-facing diagnostics. Defaults to
   ``sys.stderr``.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``read()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
 
 <a id="config_as_json.config.Config.write"></a>
 
@@ -4873,7 +5020,7 @@ validation and only want to return an empty list.
 #### validate
 
 ```python
-def validate(stderr_file: TextIO) -> None
+def validate(stderr_file: TextIO, *, member_name: Optional[str]) -> None
 ```
 
 Validate the Config object.
@@ -4903,6 +5050,35 @@ directly.
 **Arguments**:
 
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
+
+<a id="config_as_json.config.Config._wrap_validate"></a>
+
+#### \_wrap\_validate
+
+```python
+def _wrap_validate(stderr_file: TextIO, *, member_name: Optional[str]) -> None
+```
+
+Call :meth:`validate` on behalf of the library itself.
+
+Every call the library makes to ``validate`` on a Config object goes
+through this wrapper, so that support for derived classes that do not
+accept every argument has a single place to live. An application
+calls :meth:`validate` directly instead.
+
+**Arguments**:
+
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
 
 <a id="config_as_json.str_to_enum"></a>
 

@@ -355,7 +355,7 @@ def test_read_validates_file(capsys: CaptureFixture[str],
     cfg = LoadValidationConfig(stderr_file=sys.stderr)
     config_file = tmp_path / 'config.json'
     write_json_file(config_file, '{"value": "Beta"}')
-    cfg.read(config_file, stderr_file=sys.stderr)
+    cfg.read(config_file, stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert cfg.value == 'BETA'
     assert cfg.validation_count() == 2
@@ -370,7 +370,7 @@ def test_read_rejects_invalid(capsys: CaptureFixture[str],
     config_file = tmp_path / 'config.json'
     write_json_file(config_file, '{"value": 7}')
     with pytest.raises(InvalidConfiguration) as exc:
-        cfg.read(config_file, stderr_file=sys.stderr)
+        cfg.read(config_file, stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert 'Value for value is not of type str' in str(exc.value)
     assert out == ''
@@ -380,7 +380,8 @@ def test_read_rejects_invalid(capsys: CaptureFixture[str],
 def test_parse_json_validates(capsys: CaptureFixture[str]) -> None:
     """Test that explicit parse_json() validates parsed JSON."""
     cfg = LoadValidationConfig(stderr_file=sys.stderr)
-    cfg.parse_json('{"value": "Beta"}', stderr_file=sys.stderr)
+    cfg.parse_json('{"value": "Beta"}', stderr_file=sys.stderr,
+                   member_name=None)
     out, err = capsys.readouterr()
     assert cfg.value == 'BETA'
     assert cfg.validation_count() == 2
@@ -419,7 +420,8 @@ def test_read_defaults_validate(capsys: CaptureFixture[str],
     cfg = LoadValidationConfig(stderr_file=sys.stderr)
     config_file = tmp_path / 'config.json'
     write_json_file(config_file, '{}')
-    cfg.read(config_file, ok_to_use_defaults=True, stderr_file=sys.stderr)
+    cfg.read(config_file, ok_to_use_defaults=True, stderr_file=sys.stderr,
+             member_name=None)
     out, err = capsys.readouterr()
     assert cfg.value == 'ALPHA'
     assert cfg.validation_count() == 2

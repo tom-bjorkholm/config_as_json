@@ -190,7 +190,7 @@ def application(config_filename: PathOrStr, update_config: bool,
     """Simulate a simple application that uses MyConfig."""
     config = MyConfig(stderr_file=sys.stderr)
     if read_file:
-        config.read(config_filename, stderr_file=sys.stderr)
+        config.read(config_filename, stderr_file=sys.stderr, member_name=None)
     # A lot of application code not shown here
     print(f'Report name: {config.report_name}')
     # ...

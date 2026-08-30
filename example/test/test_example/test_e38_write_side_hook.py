@@ -28,7 +28,7 @@ def read_json_data(config_file: str) -> dict[str, object]:
 def test_e38_default_writes_names() -> None:
     """``IntEnum`` values become symbolic names in the JSON file."""
     cfg = TaskConfig()
-    text = cfg.as_json_string(stderr_file=sys.stderr)
+    text = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)
     payload = json.loads(text)
     assert payload == {
         'project': 'config-as-json',
@@ -43,7 +43,7 @@ def test_e38_roundtrip_values() -> None:
     cfg.priority = Priority.HIGH
     cfg.output_file = Path('/var/log/tasks.json')
     cfg.review_state = ReviewState.PUBLISHED
-    text = cfg.as_json_string(stderr_file=sys.stderr)
+    text = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)
     cfg2 = TaskConfig(from_json_data_text=text)
     assert cfg2.priority is Priority.HIGH
     assert cfg2.output_file == Path('/var/log/tasks.json')

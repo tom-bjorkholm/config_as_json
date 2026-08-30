@@ -80,10 +80,10 @@ def test_legacy_name_stderr(capsys: CaptureFixture[str]) -> None:
     template.s07_rename_columns[0]['column'] = 'last name'
     stderr_file = StringIO()
     with pytest.raises(InvalidConfiguration):
-        _ = ConfigXlsListTransfName(
-            from_json_data_text=template.as_json_string(stderr_file=stderr_file
-                                                        ),
-            stderr_file=stderr_file)
+        json_text = template.as_json_string(stderr_file=stderr_file,
+                                            member_name=None)
+        _ = ConfigXlsListTransfName(from_json_data_text=json_text,
+                                    stderr_file=stderr_file)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -99,10 +99,10 @@ def test_validated_name_stderr(capsys: CaptureFixture[str]) -> None:
     template.s07_rename_columns[0]['extra'] = 'boom'
     stderr_file = StringIO()
     with pytest.raises(InvalidConfiguration):
-        _ = ConfigXlsListTransfNameValidated(
-            from_json_data_text=template.as_json_string(stderr_file=stderr_file
-                                                        ),
-            stderr_file=stderr_file)
+        json_text = template.as_json_string(stderr_file=stderr_file,
+                                            member_name=None)
+        _ = ConfigXlsListTransfNameValidated(from_json_data_text=json_text,
+                                             stderr_file=stderr_file)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -115,7 +115,7 @@ def test_name_cfg_duplicate_columns(capsys: CaptureFixture[str]) -> None:
     template = ConfigXlsListTransfNameValidated()
     stderr_file = StringIO()
     json_data: JsonType = json.loads(template.as_json_string(
-        stderr_file=stderr_file))
+        stderr_file=stderr_file, member_name=None))
     assert isinstance(json_data, dict)
     rename_columns = json_data['s07_rename_columns']
     assert isinstance(rename_columns, list)
@@ -137,7 +137,7 @@ def test_num_cfg_decreasing_merge(capsys: CaptureFixture[str]) -> None:
     template = ConfigXlsListTransfNumValidated()
     stderr_file = StringIO()
     json_data: JsonType = json.loads(template.as_json_string(
-        stderr_file=stderr_file))
+        stderr_file=stderr_file, member_name=None))
     assert isinstance(json_data, dict)
     merge_columns = json_data['s05_merge_columns']
     assert isinstance(merge_columns, list)

@@ -229,7 +229,7 @@ def test_json_round_trip(tmp_path: Path,
     config.ccolor.set(10)
     assert config.pycolor.hex_str == '#000005'
     assert config.ccolor.hex_str == '0x0000000a'
-    text = config.as_json_string(stderr_file=sys.stderr)
+    text = config.as_json_string(stderr_file=sys.stderr, member_name=None)
     assert '#000005' in text
     assert '0x0000000a' in text
     other = _written_and_read(config, tmp_path)

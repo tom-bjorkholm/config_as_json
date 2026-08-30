@@ -242,7 +242,7 @@ class E2EConfig(Config):
 def old_shape_json() -> str:
     """Return JSON text written by the old shape."""
     cfg = OldE2EConfig(stderr_file=StringIO())
-    return cfg.as_json_string(stderr_file=StringIO())
+    return cfg.as_json_string(stderr_file=StringIO(), member_name=None)
 
 
 def current_shape_json() -> str:
@@ -253,7 +253,7 @@ def current_shape_json() -> str:
     cfg.export_items[0].export_title = 'summary'
     cfg.export_items[0].char_encoding = 'latin-1'
     cfg.sections = [{'name': 'current', 'minutes': 30, 'required': False}]
-    return cfg.as_json_string(stderr_file=StringIO())
+    return cfg.as_json_string(stderr_file=StringIO(), member_name=None)
 
 
 def assert_old_shape_result(cfg: E2EConfig) -> None:

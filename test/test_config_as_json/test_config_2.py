@@ -408,7 +408,7 @@ class RocfRemoveConfig(Config):
 def test_cfg_abc_dump_ok(capsys: CaptureFixture[str]) -> None:
     """Test dump of default constructed AbcConfig."""
     abc = AbcConfig(stderr_file=sys.stderr)
-    jstext = abc.as_json_string(stderr_file=sys.stderr)
+    jstext = abc.as_json_string(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -459,7 +459,8 @@ def test_rocf_hook_conflict() -> None:
 def test_omit_none_defaults(capsys: CaptureFixture[str]) -> None:
     """Test that default None members are omitted from JSON."""
     cfg = OmitNoneConfig(stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -470,7 +471,8 @@ def test_omit_none_missing(capsys: CaptureFixture[str]) -> None:
     """Test that missing omit-None members remain None."""
     cfg = OmitNoneConfig(from_json_data_text='{"required_name": "read"}',
                          stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -485,7 +487,8 @@ def test_omit_none_explicit_null(capsys: CaptureFixture[str]) -> None:
     cfg = OmitNoneConfig(from_json_data_text='{"required_name": "read", '
                          '"optional_text": null, '
                          '"optional_mode": null}', stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -499,7 +502,8 @@ def test_omit_none_values(capsys: CaptureFixture[str]) -> None:
     cfg = OmitNoneConfig(from_json_data_text='{"required_name": "read", '
                          '"optional_text": "note", '
                          '"optional_mode": "FAST"}', stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -536,7 +540,8 @@ def test_omit_none_unknown_member(capsys: CaptureFixture[str]) -> None:
 def test_omit_none_visible_defaults(capsys: CaptureFixture[str]) -> None:
     """Test that omit-None members may use visible defaults."""
     cfg = OmitNoneNonNoneDefaultConfig(stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -554,7 +559,8 @@ def test_omit_none_omits_later_none(capsys: CaptureFixture[str]) -> None:
     cfg = OmitNoneNonNoneDefaultConfig(stderr_file=sys.stderr)
     cfg.optional_text = None
     cfg.optional_mode = None
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -566,7 +572,8 @@ def test_omit_none_missing_is_none(capsys: CaptureFixture[str]) -> None:
     cfg = OmitNoneNonNoneDefaultConfig(
         from_json_data_text='{"required_name": "read"}',
         stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -580,8 +587,9 @@ def test_omit_none_defaults_allowed(capsys: CaptureFixture[str]) -> None:
     """Test that ok_to_use_defaults preserves omitted listed defaults."""
     cfg = OmitNoneNonNoneDefaultConfig(stderr_file=sys.stderr)
     cfg.parse_json('{"required_name": "read"}', ok_to_use_defaults=True,
-                   stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+                   stderr_file=sys.stderr, member_name=None)
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -603,8 +611,9 @@ def test_omit_none_null_is_none(capsys: CaptureFixture[str],
     cfg.parse_json('{"required_name": "read", "optional_text": null, '
                    '"optional_mode": null}',
                    ok_to_use_defaults=ok_to_use_defaults,
-                   stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+                   stderr_file=sys.stderr, member_name=None)
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -636,7 +645,8 @@ def test_nested_member_parse_write(capsys: CaptureFixture[str]) -> None:
         from_json_data_text='{"expected_format": "TXT", '
         '"output": {"output_format": "txt"}}',
         stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -655,7 +665,7 @@ def test_nested_validation_order(capsys: CaptureFixture[str]) -> None:
     cfg = NestedParentConfig(stderr_file=sys.stderr)
     cfg.output.output_format = 'txt'
     cfg.expected_format = 'TXT'
-    cfg.validate(stderr_file=sys.stderr)
+    cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -666,7 +676,7 @@ def test_nested_optional_omit_none(capsys: CaptureFixture[str]) -> None:
     """Test omitted, null, and present optional nested Config values."""
     default_cfg = OptionalNestedParentConfig(stderr_file=sys.stderr)
     default_json = json.loads(default_cfg.as_json_string(
-        stderr_file=sys.stderr))
+        stderr_file=sys.stderr, member_name=None))
     missing_cfg = OptionalNestedParentConfig(
         from_json_data_text='{"required_name": "read"}',
         stderr_file=sys.stderr)
@@ -677,7 +687,8 @@ def test_nested_optional_omit_none(capsys: CaptureFixture[str]) -> None:
         from_json_data_text='{"required_name": "read", '
         '"optional_output": {"output_format": "txt"}}',
         stderr_file=sys.stderr)
-    value_json = json.loads(value_cfg.as_json_string(stderr_file=sys.stderr))
+    value_json = json.loads(value_cfg.as_json_string(stderr_file=sys.stderr,
+                                                     member_name=None))
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err

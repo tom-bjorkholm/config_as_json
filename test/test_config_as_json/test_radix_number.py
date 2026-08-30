@@ -103,7 +103,8 @@ def test_json_round_trip(capsys: pytest.CaptureFixture[str]) -> None:
     assert parsed.flags.bin_str == '0b00000011'
     assert parsed.flags.get() == 3
     assert parsed.flags.digits == 8
-    assert '0b00000011' in parsed.as_json_string(stderr_file=sys.stderr)
+    assert '0b00000011' in parsed.as_json_string(stderr_file=sys.stderr,
+                                                 member_name=None)
     check_capsys(capsys)
 
 

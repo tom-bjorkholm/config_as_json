@@ -269,8 +269,9 @@ def _item_json_data(member_name: str, member_value: object,
         msg = f'Nested Config member {member_name} must be '
         msg += nesting.config_type.__name__
         raise TypeError(msg)
-    json_data = json.loads(member_value.as_json_string(
-        stderr_file=stderr_file))
+    json_text = member_value.as_json_string(stderr_file=stderr_file,
+                                            member_name=None)
+    json_data = json.loads(json_text)
     assert isinstance(json_data, dict)
     return cast(dict[str, JsonType], json_data)
 
@@ -439,7 +440,8 @@ def _validate_item(member_name: str, member_value: object,
         msg += nesting.config_type.__name__
         print(msg, file=stderr_file)
         raise TypeError(msg)
-    member_value.validate(stderr_file=stderr_file)
+    # pylint: disable-next=protected-access
+    member_value._wrap_validate(stderr_file=stderr_file, member_name=None)
 
 
 def _validate_list(member_name: str, member_value: object,

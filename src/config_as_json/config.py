@@ -26,6 +26,8 @@ from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
     NestedConfigs
 from config_as_json._config_nesting_io import _nested_config_from_json, \
     _nested_config_json_data, _validate_nested_config
+from config_as_json._config_nesting_decl import _checked_nested_configs, \
+    _check_nested_config_members
 from config_as_json._config_initial_data import copy_initial_data_impl, \
     auto_wrap_nested_defaults_impl
 from config_as_json._deprecated_support import DeprecatedHook, \
@@ -175,9 +177,12 @@ class Config():
             raise AttributeError(msg)
         self._checked_omit_none_from_json(self_keys)
         self._nested_config_decls: dict[str, list[ConfigNesting]] = \
-            self._checked_nested_configs(self_keys)
+            _checked_nested_configs(nested_raw=self.nested_configs(),
+                                    self_keys=self_keys, config_base=Config)
         self._auto_wrap_nested_defaults(stderr_file=stderr_file)
-        self._check_nested_config_members(self_keys, self._nested_config_decls)
+        _check_nested_config_members(config=self, self_keys=self_keys,
+                                     nested_configs=self._nested_config_decls,
+                                     config_base=Config)
         unchecked = getattr(self, '_unchecked_dicts', None)
         if unchecked is None:
             self._unchecked_dicts: list[str] = []
@@ -190,11 +195,13 @@ class Config():
             msg += 'both.'
             raise ValueError(msg)
         if from_json_data_text is not None:
-            self.parse_json(from_json_data_text, stderr_file=stderr_file)
+            self._wrap_parse_json(from_json_data_text, stderr_file=stderr_file,
+                                  member_name=None)
         elif from_json_filename is not None:
-            self.read(from_json_filename, stderr_file=stderr_file)
+            self.read(from_json_filename, stderr_file=stderr_file,
+                      member_name=None)
         else:
-            self.validate(stderr_file=stderr_file)
+            self._wrap_validate(stderr_file=stderr_file, member_name=None)
 
     def auto_change_hook(self) -> ConfigAutoChangeHook:
         """Return the hook that recorded automatic changes for this object.
@@ -454,160 +461,6 @@ class Config():
                 raise KeyError(msg)
         return omit_none_keys
 
-    @staticmethod
-    def _check_config_nesting(key: str, nesting: ConfigNesting) -> None:
-        """Validate one nested Config declaration.
-
-        Args:
-            key: Public member name described by ``nesting``.
-            nesting: Nested configuration declaration to validate.
-
-        Raises:
-            TypeError: The declaration has the wrong runtime type.
-            ValueError: ``discriminator_key`` is used with the wrong kind.
-        """
-        if not isinstance(nesting.kind, ConfigNestingKind):
-            msg = f'nested_configs()[{key}].kind must be ConfigNestingKind'
-            raise TypeError(msg)
-        if not isinstance(nesting.config_type, type):
-            msg = f'nested_configs()[{key}].config_type must be a type'
-            raise TypeError(msg)
-        if not issubclass(nesting.config_type, Config):
-            msg = 'nested_configs()'
-            msg += f'[{key}].config_type must derive from Config'
-            raise TypeError(msg)
-        if nesting.factory_function is not None and \
-                not callable(nesting.factory_function):
-            msg = f'nested_configs()[{key}].factory_function must be callable'
-            raise TypeError(msg)
-        discriminator = nesting.discriminator_key
-        if discriminator is not None and not isinstance(discriminator, str):
-            msg = 'nested_configs()'
-            msg += f'[{key}].discriminator_key must be a string'
-            raise TypeError(msg)
-        if discriminator is not None and \
-                nesting.kind != ConfigNestingKind.DICT_VALUE_BY_KEY:
-            msg = 'nested_configs() discriminator_key is reserved for '
-            msg += 'DICT_VALUE_BY_KEY'
-            raise ValueError(msg)
-
-    @staticmethod
-    def _checked_config_nesting_list(key: str, nesting_raw: object) \
-            -> list[ConfigNesting]:
-        """Return the checked declaration list for one nested member.
-
-        Args:
-            key: Public member name described by the declarations.
-            nesting_raw: Raw value from :meth:`nested_configs`.
-
-        Returns:
-            One or more checked ``ConfigNesting`` declarations.
-
-        Raises:
-            TypeError: The raw value or a list entry has the wrong type.
-            ValueError: The list shape is not valid for the declared kinds.
-        """
-        if isinstance(nesting_raw, ConfigNesting):
-            nestings = [nesting_raw]
-        elif isinstance(nesting_raw, list):
-            if not nesting_raw:
-                msg = f'nested_configs()[{key}] list must not be empty'
-                raise ValueError(msg)
-            nestings = []
-            for nesting in nesting_raw:
-                if not isinstance(nesting, ConfigNesting):
-                    msg = f'nested_configs()[{key}] list entries must be '
-                    msg += 'ConfigNesting'
-                    raise TypeError(msg)
-                nestings.append(nesting)
-        else:
-            msg = f'nested_configs()[{key}] must be ConfigNesting or list'
-            raise TypeError(msg)
-        for nesting in nestings:
-            Config._check_config_nesting(key=key, nesting=nesting)
-        list_form = isinstance(nesting_raw, list)
-        Config._check_config_nesting_kinds(key=key, nestings=nestings,
-                                           list_form=list_form)
-        return nestings
-
-    @staticmethod
-    def _check_config_nesting_kinds(key: str, nestings: list[ConfigNesting],
-                                    list_form: bool) -> None:
-        """Validate combinations of nested Config declaration kinds.
-
-        Args:
-            key: Public member name described by the declarations.
-            nestings: Checked declarations for one public member.
-            list_form: Whether the declarations used list syntax.
-
-        Raises:
-            ValueError: The declarations combine incompatible nesting kinds.
-        """
-        by_key_kind = ConfigNestingKind.DICT_VALUE_BY_KEY
-        by_key_nestings = [
-            nesting for nesting in nestings if nesting.kind == by_key_kind]
-        if list_form and len(by_key_nestings) != len(nestings):
-            msg = f'nested_configs()[{key}] list '
-            msg += 'may only contain DICT_VALUE_BY_KEY declarations'
-            raise ValueError(msg)
-        if not by_key_nestings:
-            return
-        used_keys: set[str] = set()
-        for nesting in by_key_nestings:
-            discriminator = nesting.discriminator_key
-            if discriminator is None:
-                msg = f'nested_configs()[{key}] DICT_VALUE_BY_KEY '
-                msg += 'requires discriminator_key'
-                raise ValueError(msg)
-            if discriminator in used_keys:
-                msg = f'nested_configs()[{key}] duplicate '
-                msg += f'discriminator_key {discriminator}'
-                raise ValueError(msg)
-            used_keys.add(discriminator)
-
-    def _checked_nested_configs(self, self_keys: list[str]) \
-            -> dict[str, list[ConfigNesting]]:
-        """Return validated and normalized nested Config declarations."""
-        nested_raw: object = self.nested_configs()
-        if not isinstance(nested_raw, dict):
-            msg = 'nested_configs() must return a dict'
-            raise TypeError(msg)
-        nested_configs: dict[str, list[ConfigNesting]] = {}
-        for key, nesting_raw in nested_raw.items():
-            if not isinstance(key, str):
-                msg = 'nested_configs() keys must be strings'
-                raise TypeError(msg)
-            if key not in self_keys:
-                msg = f'nested_configs() returned unknown key {key}'
-                raise KeyError(msg)
-            nestings = self._checked_config_nesting_list(
-                key=key, nesting_raw=nesting_raw)
-            nested_configs[key] = nestings
-        return nested_configs
-
-    @staticmethod
-    def _value_has_config(value: object) -> bool:
-        """Return whether a default value visibly contains a Config object."""
-        if isinstance(value, Config):
-            return True
-        if isinstance(value, list):
-            return any(isinstance(item, Config) for item in value)
-        if isinstance(value, dict):
-            return any(isinstance(item, Config) for item in value.values())
-        return False
-
-    def _check_nested_config_members(
-            self, self_keys: list[str],
-            nested_configs: dict[str, list[ConfigNesting]]) -> None:
-        """Validate that visible nested Config defaults are declared."""
-        for key in self_keys:
-            if key in nested_configs:
-                continue
-            if self._value_has_config(getattr(self, key)):
-                msg = f'Nested Config member {key} is not returned from '
-                msg += 'nested_configs()'
-                raise TypeError(msg)
-
     def _validate_nested_configs(self, stderr_file: TextIO) -> None:
         """Validate all direct nested Config members before this object.
 
@@ -679,34 +532,29 @@ class Config():
                                        nested_decls=self._nested_config_decls,
                                        stderr_file=stderr_file)
 
-    def parse_json(self, from_json_text: str, ok_to_use_defaults: bool = False,
-                   stderr_file: TextIO = sys.stderr) -> None:
-        """Parse JSON text and apply it to the configuration object.
+    def _decoded_json_object(self, from_json_text: str,
+                             stderr_file: TextIO) -> dict[str, object]:
+        """Decode configuration JSON text into a JSON object.
 
-        The automatic-change hook is cleared before parsing starts, and it is
-        notified once after every declared nested ``Config`` object has been
-        parsed, so the report covers old-file compatibility in nested objects
-        too. Nothing is reported when parsing fails before that point.
+        The conversions declared by :meth:`parse_converters` are applied by
+        the object hook while the text is decoded.
 
         Args:
             from_json_text: JSON document describing configuration values.
-            ok_to_use_defaults: Whether missing declared keys may remain at
-                their already assigned default values.
-            stderr_file: Stream used for user-facing diagnostics. Defaults to
-                ``sys.stderr``.
+            stderr_file: Stream used for user-facing diagnostics.
+
+        Returns:
+            The decoded JSON object.
 
         Raises:
-            ConfigBadJson: The text is not valid configuration JSON.
-            KeyError: The parsed configuration does not match the declared
-                keys or nested dictionary structure.
+            ConfigBadJson: The text is not valid JSON, or its root is not a
+                JSON object.
             NotImplementedError: A required custom converter was not supplied
                 by a derived class.
         """
-        self._hook_dict = self.parse_converters()
         hook = self._json_parse_obj_hook if self._hook_dict is not None \
             else None
         data: Optional[dict[str, object]] = None
-        self._hook_cfg_autochange.clear()
         try:
             data = json.loads(from_json_text, object_hook=hook)
         except Exception as exc:
@@ -724,8 +572,41 @@ class Config():
             msg = 'Configuration JSON root must be a JSON object.'
             print(msg, file=stderr_file)
             raise ConfigBadJson(msg=msg, doc=from_json_text, pos=0)
-        assert data is not None  # runtime checked above, tell mypy it's ok
-        assert isinstance(data, dict)  # tell mypy it's ok
+        return data
+
+    def parse_json(self, from_json_text: str, ok_to_use_defaults: bool = False,
+                   stderr_file: TextIO = sys.stderr, *,
+                   member_name: Optional[str]) -> None:
+        """Parse JSON text and apply it to the configuration object.
+
+        The automatic-change hook is cleared before parsing starts, and it is
+        notified once after every declared nested ``Config`` object has been
+        parsed, so the report covers old-file compatibility in nested objects
+        too. Nothing is reported when parsing fails before that point.
+
+        Args:
+            from_json_text: JSON document describing configuration values.
+            ok_to_use_defaults: Whether missing declared keys may remain at
+                their already assigned default values.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
+            member_name: Dotted and indexed path for reaching this object by
+                traversing nested attributes from the top level of the
+                complete ``parse_json()`` operation, such as
+                ``outputs[1].section``. ``None`` means that this object is
+                the top level and not a member of anything.
+
+        Raises:
+            ConfigBadJson: The text is not valid configuration JSON.
+            KeyError: The parsed configuration does not match the declared
+                keys or nested dictionary structure.
+            NotImplementedError: A required custom converter was not supplied
+                by a derived class.
+        """
+        self._hook_dict = self.parse_converters()
+        self._hook_cfg_autochange.clear()
+        data = self._decoded_json_object(from_json_text=from_json_text,
+                                         stderr_file=stderr_file)
         rocf = self._get_active_rocf()
         data_obj = rocf.process_json(json_data=data,
                                      auto_ch_hook=self._hook_cfg_autochange,
@@ -757,7 +638,33 @@ class Config():
                                           self._unchecked_dicts, stderr_file)
                     setattr(self, i, data[i])
         self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
-        self.validate(stderr_file=stderr_file)
+        self._wrap_validate(stderr_file=stderr_file, member_name=member_name)
+
+    def _wrap_parse_json(self, from_json_text: str,
+                         ok_to_use_defaults: bool = False,
+                         stderr_file: TextIO = sys.stderr, *,
+                         member_name: Optional[str]) -> None:
+        """Call :meth:`parse_json` on behalf of the library itself.
+
+        Every call the library makes to ``parse_json`` on a Config object
+        goes through this wrapper, so that support for derived classes that
+        do not accept every argument has a single place to live. An
+        application calls :meth:`parse_json` directly instead.
+
+        Args:
+            from_json_text: JSON document describing configuration values.
+            ok_to_use_defaults: Whether missing declared keys may remain at
+                their already assigned default values.
+            stderr_file: Stream used for user-facing diagnostics. Defaults to
+                ``sys.stderr``.
+            member_name: Dotted and indexed path for reaching this object by
+                traversing nested attributes from the top level of the
+                complete ``parse_json()`` operation, such as
+                ``outputs[1].section``. ``None`` means that this object is
+                the top level and not a member of anything.
+        """
+        self.parse_json(from_json_text, ok_to_use_defaults,
+                        stderr_file=stderr_file, member_name=member_name)
 
     def _child_owned_paths(self) -> list[ConfigPath]:
         """Return paths to nested ``Config`` subtrees owned by children.
@@ -792,12 +699,18 @@ class Config():
             child_owned.append((member,))
         return child_owned
 
-    def as_json_string(self, stderr_file: TextIO) -> str:
+    def as_json_string(self, stderr_file: TextIO, *,
+                       member_name: Optional[str]) -> str:
         """Serialize the current configuration object to formatted JSON.
 
         Args:
             stderr_file: Stream used for user-facing diagnostics during
                 validation.
+            member_name: Dotted and indexed path for reaching this object by
+                traversing nested attributes from the top level of the
+                complete ``as_json_string()`` operation, such as
+                ``outputs[1].section``. ``None`` means that this object is
+                the top level and not a member of anything.
 
         Returns:
             A JSON document containing every public, non-callable instance
@@ -805,7 +718,7 @@ class Config():
         """
         # We validate the configuration before writing it to JSON,
         # to make sure that the configuration is valid so it can be read back
-        self.validate(stderr_file=stderr_file)
+        self._wrap_validate(stderr_file=stderr_file, member_name=member_name)
         data: dict[str, object] = {}
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
@@ -828,7 +741,8 @@ class Config():
 
     def read(self, from_json_filename: PathOrStr,
              ok_to_use_defaults: bool = False,
-             stderr_file: TextIO = sys.stderr) -> None:
+             stderr_file: TextIO = sys.stderr, *,
+             member_name: Optional[str]) -> None:
         """Read configuration JSON from a file and apply it to the object.
 
         Args:
@@ -837,13 +751,20 @@ class Config():
                 their already assigned default values.
             stderr_file: Stream used for user-facing diagnostics. Defaults to
                 ``sys.stderr``.
+            member_name: Dotted and indexed path for reaching this object by
+                traversing nested attributes from the top level of the
+                complete ``read()`` operation, such as
+                ``outputs[1].section``. ``None`` means that this object is
+                the top level and not a member of anything.
         """
         file_must_exist(filename=from_json_filename,
                         with_content_txt='configuration JSON input',
                         stderr_file=stderr_file)
         with open(file=from_json_filename, mode='r', encoding='UTF-8') as file:
             data = file.read()
-            self.parse_json(data, ok_to_use_defaults, stderr_file=stderr_file)
+            self._wrap_parse_json(data, ok_to_use_defaults,
+                                  stderr_file=stderr_file,
+                                  member_name=member_name)
 
     def write(self, to_json_filename: PathOrStr,
               stderr_file: TextIO = sys.stderr) -> None:
@@ -855,7 +776,7 @@ class Config():
             stderr_file: Stream used for user-facing diagnostics during
                 validation.
         """
-        text = self.as_json_string(stderr_file=stderr_file)
+        text = self.as_json_string(stderr_file=stderr_file, member_name=None)
         with open(file=to_json_filename, mode='w', encoding='UTF-8') as file:
             file.write(text)
 
@@ -921,7 +842,8 @@ class Config():
         raise NotImplementedError(msg)
         return []  # pylint: disable=unreachable
 
-    def validate(self, stderr_file: TextIO) -> None:
+    def validate(self, stderr_file: TextIO, *,
+                 member_name: Optional[str]) -> None:
         """Validate the Config object.
 
         The validation is performed by the validation plan returned by
@@ -946,8 +868,33 @@ class Config():
 
         Args:
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching this object by
+                traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that this object is
+                the top level and not a member of anything.
         """
+        _ = member_name  # pylint: disable=unused-argument
         self._validate_nested_configs(stderr_file=stderr_file)
         validation_plan = self.get_validation_plan(stderr_file=stderr_file)
         for validation_step in validation_plan:
             validation_step.apply(self, stderr_file)
+
+    def _wrap_validate(self, stderr_file: TextIO, *,
+                       member_name: Optional[str]) -> None:
+        """Call :meth:`validate` on behalf of the library itself.
+
+        Every call the library makes to ``validate`` on a Config object goes
+        through this wrapper, so that support for derived classes that do not
+        accept every argument has a single place to live. An application
+        calls :meth:`validate` directly instead.
+
+        Args:
+            stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching this object by
+                traversing nested attributes from the top level of the
+                complete ``validate()`` operation, such as
+                ``outputs[1].section``. ``None`` means that this object is
+                the top level and not a member of anything.
+        """
+        self.validate(stderr_file=stderr_file, member_name=member_name)

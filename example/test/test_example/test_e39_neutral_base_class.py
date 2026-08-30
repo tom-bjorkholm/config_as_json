@@ -109,7 +109,7 @@ def test_e39_json_roundtrip(capsys: pytest.CaptureFixture[str]) -> None:
     """Reading back JSON gives bridge-typed nested members."""
     neutral = NConfigEager(c1='roundtrip', b1p=True, b3p=7)
     config = MyConfigEager(neutral=neutral)
-    json_text = config.as_json_string(stderr_file=sys.stderr)
+    json_text = config.as_json_string(stderr_file=sys.stderr, member_name=None)
     again = MyConfigEager(from_json_data_text=json_text)
     out, err = capsys.readouterr()
     assert out == ''

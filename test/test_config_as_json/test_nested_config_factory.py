@@ -339,7 +339,8 @@ def _dict_by_key_expected_json() -> dict[str, object]:
 def _json_data_from_config(config: Config,
                            capsys: CaptureFixture[str]) -> dict[str, object]:
     """Serialize one config and verify that it was silent."""
-    loaded = json.loads(config.as_json_string(stderr_file=sys.stderr))
+    loaded = json.loads(config.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -531,7 +532,7 @@ def test_factory_checks_member_type(capsys: CaptureFixture[str]) -> None:
                               stderr_file=sys.stderr)
     cfg.output = cast(FactoryOutputConfig, WrongOutputConfig())
     with pytest.raises(TypeError, match='output must be FactoryOutputConfig'):
-        cfg.validate(stderr_file=sys.stderr)
+        cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Nested Config member output must be FactoryOutputConfig' in err

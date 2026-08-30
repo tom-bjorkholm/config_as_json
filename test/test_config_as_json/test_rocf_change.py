@@ -388,6 +388,6 @@ def test_reparse_same_object() -> None:
     hook = ConfigAutoChangeHook()
     cfg = TopConfig(from_json_data_text=OLD_JSON, auto_ch_hook=hook,
                     stderr_file=StringIO())
-    cfg.parse_json(NEW_JSON, stderr_file=StringIO())
+    cfg.parse_json(NEW_JSON, stderr_file=StringIO(), member_name=None)
     assert not hook.changes
     assert cfg.report_name == 'new'

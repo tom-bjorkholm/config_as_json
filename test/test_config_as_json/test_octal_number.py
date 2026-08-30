@@ -248,7 +248,7 @@ def test_json_round_trip(tmp_path: Path,
     config.umask.set(0o27)
     assert config.mode.oct_str == '0755'
     assert config.umask.oct_str == '0o027'
-    text = config.as_json_string(stderr_file=sys.stderr)
+    text = config.as_json_string(stderr_file=sys.stderr, member_name=None)
     assert '0755' in text
     assert '0o027' in text
     other = _written_and_read(config, tmp_path)

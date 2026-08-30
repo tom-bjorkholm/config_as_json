@@ -293,7 +293,7 @@ def test_simple_bridge_round_trip(capsys: CaptureFixture[str]) -> None:
     cfg = MyConfigSimple(stderr_file=sys.stderr)
     cfg.suba = MySubA(stderr_file=sys.stderr)
     cfg.suba.a1param = 'xyz'
-    json_text = cfg.as_json_string(stderr_file=sys.stderr)
+    json_text = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)
     again = MyConfigSimple(from_json_data_text=json_text,
                            stderr_file=sys.stderr)
     out, err = capsys.readouterr()
@@ -322,7 +322,7 @@ def test_eager_round_trip(capsys: CaptureFixture[str]) -> None:
     """A bridge built from a neutral instance round-trips through JSON."""
     cfg = MyConfigEager(neutral=NConfigEager(c1='hello', b1p=True, b3p=4),
                         stderr_file=sys.stderr)
-    json_text = cfg.as_json_string(stderr_file=sys.stderr)
+    json_text = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)
     again = MyConfigEager(from_json_data_text=json_text,
                           stderr_file=sys.stderr)
     out, err = capsys.readouterr()

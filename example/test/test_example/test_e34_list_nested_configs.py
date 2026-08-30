@@ -5,7 +5,6 @@
 # MIT License
 
 import json
-import sys
 from tempfile import TemporaryDirectory
 from typing import cast
 import pytest
@@ -14,7 +13,8 @@ from example.e34_list_nested_configs import ExampleConfig34, \
     ReportOutputConfig, e34_list_nested_configs_print, \
     e34_list_nested_configs_set
 from example.e34_list_nested_configs import main as e34_main
-from .helpers import assert_rt_out, assert_write_command_output
+from .helpers import assert_rt_out, assert_write_command_output, \
+    config_json_data
 
 
 def read_json_data(config_file: str) -> dict[str, object]:
@@ -97,7 +97,7 @@ def test_e34_reads_empty_report_list(
     """Read an explicit empty list of nested Config objects."""
     config = ExampleConfig34(
         from_json_text='{"course_name": "advanced-python", "reports": []}')
-    json_data = json.loads(config.as_json_string(stderr_file=sys.stderr))
+    json_data = config_json_data(config)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''

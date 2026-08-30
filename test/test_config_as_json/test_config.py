@@ -154,7 +154,7 @@ def test_config_something_def(capsys: CaptureFixture[str]) -> None:
     assert len(xst.pqr['qr']) == 2
     assert 'mn' in xst.pqr['qr'][0]
     assert xst.pqr['qr'][0]['mn'] == 3
-    scfg = xst.as_json_string(stderr_file=sys.stderr)
+    scfg = xst.as_json_string(stderr_file=sys.stderr, member_name=None)
     assert len(scfg) > 1
     assert 'pqr' in scfg
     assert 'FOOBAR' in scfg
@@ -191,7 +191,7 @@ def test_config_something_changed(capsys: CaptureFixture[str], indel: str,
     xst = ConfigSomething()
     xst.csv_dialect1['delimiter'] = indel
     xst.csv_dialect2['delimiter'] = outdel
-    scfg = xst.as_json_string(stderr_file=sys.stderr)
+    scfg = xst.as_json_string(stderr_file=sys.stderr, member_name=None)
     yst = ConfigSomething(from_json_text=scfg)
     assert yst.csv_dialect1['delimiter'] == indel
     assert yst.csv_dialect2['delimiter'] == outdel
@@ -220,7 +220,7 @@ def test_config_changed_dicts(capsys: CaptureFixture[str], mno_not_pqr: bool,
         xst.mno = cast(dict[str, int], value)
     else:
         xst.pqr = cast(dict[str, list[dict[str, object]]], value)
-    scfg = xst.as_json_string(stderr_file=sys.stderr)
+    scfg = xst.as_json_string(stderr_file=sys.stderr, member_name=None)
     yst = ConfigSomething(from_json_text=scfg)
     out, err = capsys.readouterr()
     assert_dict_equal(xst.__dict__, yst.__dict__, ['_hook_cfg_autochange'],
@@ -273,7 +273,7 @@ def test_config_something_cha_bad(capsys: CaptureFixture[str],
         xst.abc = cast(list[dict[str, object]], value)
     else:
         xst.pqr = cast(dict[str, list[dict[str, object]]], value)
-    scfg = xst.as_json_string(stderr_file=sys.stderr)
+    scfg = xst.as_json_string(stderr_file=sys.stderr, member_name=None)
     with pytest.raises(InvalidConfiguration):
         _ = ConfigSomething(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
@@ -293,7 +293,7 @@ def test_config_something_writeread(capsys: CaptureFixture[str], indel: str,
         tfile.close()
         xst.write(fname)
         yst = ConfigSomething()
-        yst.read(fname)
+        yst.read(fname, member_name=None)
     os_remove(fname)
     assert yst.csv_dialect1['delimiter'] == indel
     assert yst.csv_dialect2['delimiter'] == outdel
@@ -331,7 +331,8 @@ def test_config_smt_read_incompl1(capsys: CaptureFixture[str], txt: str,
     yst = ConfigSomething(stderr_file=sys.stderr)
     outdelold = yst.csv_dialect2['delimiter']
     indelold = yst.csv_dialect1['delimiter']
-    yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
+    yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
+                   member_name=None)
     assert yst.csv_dialect1['delimiter'] == indel
     assert yst.csv_dialect2['delimiter'] == outdelold
     assert yst.csv_dialect1['delimiter'] != indelold
@@ -348,7 +349,8 @@ def test_config_smt_read_incompl2(capsys: CaptureFixture[str],
     """Test ConfigSomething read incomplete 2."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=False, stderr_file=sys.stderr)
+        yst.parse_json(txt, ok_to_use_defaults=False, stderr_file=sys.stderr,
+                       member_name=None)
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
     assert out == ''
@@ -360,7 +362,8 @@ def test_config_smt_read_nonexist(capsys: CaptureFixture[str]) -> None:
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(SystemExit) as exc_info:
         yst.read(from_json_filename='file-that-does-not-exist',
-                 ok_to_use_defaults=True, stderr_file=sys.stderr)
+                 ok_to_use_defaults=True, stderr_file=sys.stderr,
+                 member_name=None)
     assert exc_info.type is SystemExit
     out, err = capsys.readouterr()
     assert out == ''
@@ -378,7 +381,8 @@ def test_config_read_custom_stderr(capsys: CaptureFixture[str]) -> None:
         tfile.write('not valid json')
     try:
         with pytest.raises(ConfigBadJson):
-            yst.read(from_json_filename=filename, stderr_file=stderr_file)
+            yst.read(from_json_filename=filename, stderr_file=stderr_file,
+                     member_name=None)
     finally:
         assert filename is not None
         os_remove(filename)
@@ -412,7 +416,8 @@ def test_config_something_read_bad(capsys: CaptureFixture[str],
     """Test ConfigSomething read bad."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
+                       member_name=None)
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
     assert out == ''
@@ -427,7 +432,8 @@ def test_config_something_read_bad2(capsys: CaptureFixture[str],
     """Test ConfigSomething read bad 2."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
+                       member_name=None)
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
     assert out == ''
@@ -442,7 +448,8 @@ def test_config_something_read_bad3(capsys: CaptureFixture[str],
     """Test ConfigSomething read bad 3."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(ConfigBadJson) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
+                       member_name=None)
     out, err = capsys.readouterr()
     assert exc_info.type is ConfigBadJson
     assert 'failed to load JSON' in str(exc_info)
@@ -455,7 +462,8 @@ def test_reject_non_object_root(capsys: CaptureFixture[str], txt: str) -> None:
     """Test that the JSON root value must be an object."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(ConfigBadJson) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
+                       member_name=None)
     out, err = capsys.readouterr()
     assert exc_info.type is ConfigBadJson
     assert 'Configuration JSON root must be a JSON object.' in str(exc_info)
@@ -472,7 +480,8 @@ def test_config_something_read_bad4(capsys: CaptureFixture[str],
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(ConfigBadJson) as exc_info:
         yst.parse_json(txt,  # type: ignore[arg-type]
-                       ok_to_use_defaults=True, stderr_file=sys.stderr)
+                       ok_to_use_defaults=True, stderr_file=sys.stderr,
+                       member_name=None)
     out, err = capsys.readouterr()
     assert exc_info.type is ConfigBadJson
     assert 'decode byte 0xff in position 0' in str(exc_info)
@@ -489,7 +498,8 @@ def test_config_smt_read_dict_mism(capsys: CaptureFixture[str], txt: str,
     """Test ConfigSomething read dict mismatch."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
+        yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
+                       member_name=None)
     assert exc_info.type is KeyError
     out, err = capsys.readouterr()
     assert out == ''
@@ -502,7 +512,8 @@ def test_config_something_csv_ok_1(capsys: CaptureFixture[str]) -> None:
     txt = """{"csv_dialect2": {"name": "csv.excel", "delimiter": "+",
     "quoting": null, "quotechar": "'",
     "lineterminator": null, "escapechar": null}}"""
-    yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr)
+    yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
+                   member_name=None)
     dial = yst.get_csv_dialect2(stderr_file=sys.stderr)
     assert dial.delimiter == '+'
     assert dial.__module__ == 'csv'
@@ -519,7 +530,7 @@ def test_config_something_csv_bad_1(capsys: CaptureFixture[str]) -> None:
     "quoting": null, "quotechar": "'",
     "lineterminator": null, "escapechar": null}}"""
     with pytest.raises(KeyError) as exc_info:
-        yst.parse_json(txt, ok_to_use_defaults=True)
+        yst.parse_json(txt, ok_to_use_defaults=True, member_name=None)
         dial = yst.get_csv_dialect2(stderr_file=sys.stderr)
         assert dial.delimiter == '+'
     assert exc_info.type is KeyError
@@ -563,12 +574,12 @@ def csv_combinations_chcker(nam: Optional[str], dlm: Optional[str],
     yst = ConfigSomething()
     if err:
         with pytest.raises(KeyError) as exc_info:
-            yst.parse_json(scfg, ok_to_use_defaults=True)
+            yst.parse_json(scfg, ok_to_use_defaults=True, member_name=None)
             dial = yst.get_csv_dialect2(stderr_file=sys.stderr)
             assert dial.delimiter == dlm
         assert exc_info.type is KeyError
     else:
-        yst.parse_json(scfg, ok_to_use_defaults=True)
+        yst.parse_json(scfg, ok_to_use_defaults=True, member_name=None)
         dial = yst.get_csv_dialect2(stderr_file=sys.stderr)
         if dlm is not None:
             assert dial.delimiter == dlm
@@ -706,7 +717,7 @@ class ConfigSomething2(Config):
 def test_config_something2_bad(capsys: CaptureFixture[str]) -> None:
     """Test error handling no parsse_converters."""
     xst = ConfigSomething2()
-    scfg = xst.as_json_string(stderr_file=sys.stderr)
+    scfg = xst.as_json_string(stderr_file=sys.stderr, member_name=None)
     with pytest.raises(NotImplementedError) as exc:
         _ = ConfigSomething2(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
@@ -738,7 +749,7 @@ class ConfigSomething3(Config):
 def test_config_something3_bad(capsys: CaptureFixture[str]) -> None:
     """Test error handling no parsse_converters."""
     xst = ConfigSomething3(stderr_file=sys.stderr)
-    scfg = xst.as_json_string(stderr_file=sys.stderr)
+    scfg = xst.as_json_string(stderr_file=sys.stderr, member_name=None)
     yst = ConfigSomething3(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert xst.in_type != yst.in_type
@@ -770,7 +781,7 @@ class ConfigSomething4(Config):
 def test_config_something4_ok(capsys: CaptureFixture[str]) -> None:
     """Test error handling no parsse_converters."""
     xst = ConfigSomething4(stderr_file=sys.stderr)
-    scfg = xst.as_json_string(stderr_file=sys.stderr)
+    scfg = xst.as_json_string(stderr_file=sys.stderr, member_name=None)
     yst = ConfigSomething4(from_json_text=scfg, stderr_file=sys.stderr)
     out, err = capsys.readouterr()
     assert isinstance(xst.in_type, type(yst.in_type))

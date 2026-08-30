@@ -109,7 +109,8 @@ def test_multi_nested_parse(capsys: CaptureFixture[str]) -> None:
         '"backup_participants": {"file_name": "backup.txt", '
         '"columns": ["email"]}}',
         stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -154,7 +155,8 @@ def test_multi_nested_optional_omit(capsys: CaptureFixture[str],
                  '"include_actor": false}' + backup_json + '}')
     cfg = MultiSectionConfig(from_json_data_text=json_text,
                              stderr_file=sys.stderr)
-    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr))
+    json_data = json.loads(cfg.as_json_string(stderr_file=sys.stderr,
+                                              member_name=None))
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -274,7 +276,7 @@ class ReportListConfig(Config):
 def _reports_json(config: ReportListConfig,
                   capsys: CaptureFixture[str]) -> dict[str, object]:
     """Serialize one report-list configuration and verify silence."""
-    json_text = config.as_json_string(stderr_file=sys.stderr)
+    json_text = config.as_json_string(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -380,7 +382,7 @@ def test_list_nested_order(capsys: CaptureFixture[str]) -> None:
     cfg = ReportListConfig(default_reports=[ReportSection()],
                            stderr_file=sys.stderr)
     cfg.reports[0].output_format = 'txt'
-    cfg.validate(stderr_file=sys.stderr)
+    cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -420,7 +422,7 @@ def test_list_nested_bad_member(capsys: CaptureFixture[str]) -> None:
     cfg = ReportListConfig(stderr_file=sys.stderr)
     cfg.reports = cast(list[ReportSection], 'not-a-list')
     with pytest.raises(TypeError) as exc:
-        cfg.validate(stderr_file=sys.stderr)
+        cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Nested Config member reports must be a list' in err
@@ -432,7 +434,7 @@ def test_list_nested_bad_element(capsys: CaptureFixture[str]) -> None:
     cfg = ReportListConfig(stderr_file=sys.stderr)
     cfg.reports = cast(list[ReportSection], [object()])
     with pytest.raises(TypeError) as exc:
-        cfg.validate(stderr_file=sys.stderr)
+        cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Nested Config member reports[0] must be ReportSection' in err
@@ -490,7 +492,7 @@ class ReportDictConfig(Config):
 def _report_dict_json(config: ReportDictConfig,
                       capsys: CaptureFixture[str]) -> dict[str, object]:
     """Serialize one report-dict configuration and verify silence."""
-    json_text = config.as_json_string(stderr_file=sys.stderr)
+    json_text = config.as_json_string(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -589,7 +591,7 @@ def test_dict_nested_order(capsys: CaptureFixture[str]) -> None:
     cfg = ReportDictConfig(default_reports={'audit': ReportSection()},
                            stderr_file=sys.stderr)
     cfg.reports_by_id['audit'].output_format = 'txt'
-    cfg.validate(stderr_file=sys.stderr)
+    cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -629,7 +631,7 @@ def test_dict_nested_bad_member(capsys: CaptureFixture[str]) -> None:
     cfg = ReportDictConfig(stderr_file=sys.stderr)
     cfg.reports_by_id = cast(dict[str, ReportSection], 'not-a-dict')
     with pytest.raises(TypeError) as exc:
-        cfg.validate(stderr_file=sys.stderr)
+        cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Nested Config member reports_by_id must be a dict' in err
@@ -642,7 +644,7 @@ def test_dict_nested_bad_key(capsys: CaptureFixture[str]) -> None:
     cfg.reports_by_id = cast(dict[str, ReportSection],
                              {7: ReportSection(stderr_file=sys.stderr)})
     with pytest.raises(TypeError) as exc:
-        cfg.validate(stderr_file=sys.stderr)
+        cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Nested Config member reports_by_id keys must be strings' in err
@@ -654,7 +656,7 @@ def test_dict_nested_bad_value(capsys: CaptureFixture[str]) -> None:
     cfg = ReportDictConfig(stderr_file=sys.stderr)
     cfg.reports_by_id = cast(dict[str, ReportSection], {'audit': object()})
     with pytest.raises(TypeError) as exc:
-        cfg.validate(stderr_file=sys.stderr)
+        cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'reports_by_id[audit] must be ReportSection' in err
@@ -737,7 +739,7 @@ class ReportByKeyConfig(Config):
 def _report_by_key_json(config: ReportByKeyConfig,
                         capsys: CaptureFixture[str]) -> dict[str, object]:
     """Serialize one keyed report-dict config and verify silence."""
-    json_text = config.as_json_string(stderr_file=sys.stderr)
+    json_text = config.as_json_string(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
@@ -854,7 +856,7 @@ def test_dict_by_key_bad_member(capsys: CaptureFixture[str]) -> None:
     cfg = ReportByKeyConfig(stderr_file=sys.stderr)
     cfg.reports_by_id = cast(dict[str, object], 'not-a-dict')
     with pytest.raises(TypeError) as exc:
-        cfg.validate(stderr_file=sys.stderr)
+        cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Nested Config member reports_by_id must be a dict' in err
@@ -869,7 +871,7 @@ def test_dict_by_key_bad_key(capsys: CaptureFixture[str]) -> None:
         'participants': ReportSection(stderr_file=sys.stderr)
     })
     with pytest.raises(TypeError) as exc:
-        cfg.validate(stderr_file=sys.stderr)
+        cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Nested Config member reports_by_id keys must be strings' in err
@@ -881,7 +883,7 @@ def test_by_key_bad_declared(capsys: CaptureFixture[str]) -> None:
     cfg = ReportByKeyConfig(stderr_file=sys.stderr)
     cfg.reports_by_id['participants'] = AuditSection(stderr_file=sys.stderr)
     with pytest.raises(TypeError) as exc:
-        cfg.validate(stderr_file=sys.stderr)
+        cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'reports_by_id[participants] must be ReportSection' in err
@@ -893,7 +895,7 @@ def test_by_key_unlisted_config(capsys: CaptureFixture[str]) -> None:
     cfg = ReportByKeyConfig(stderr_file=sys.stderr)
     cfg.reports_by_id['summary'] = ReportSection(stderr_file=sys.stderr)
     with pytest.raises(TypeError) as exc:
-        cfg.validate(stderr_file=sys.stderr)
+        cfg.validate(stderr_file=sys.stderr, member_name=None)
     out, err = capsys.readouterr()
     assert out == ''
     assert 'reports_by_id[summary] has no DICT_VALUE_BY_KEY' in err

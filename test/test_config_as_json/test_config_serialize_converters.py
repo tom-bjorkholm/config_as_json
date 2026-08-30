@@ -68,7 +68,7 @@ def test_intenum_serialized_as_name() -> None:
     """A subclass converter turns IntEnum into its name in JSON output."""
     cfg = PriorityCfg()
     cfg.priority = Priority.HIGH
-    text = cfg.as_json_string(stderr_file=sys.stderr)
+    text = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)
     payload = json.loads(text)
     assert payload == {'task': 'review', 'priority': 'HIGH'}
 
@@ -77,7 +77,7 @@ def test_intenum_round_trips() -> None:
     """Writing and reading back recovers the IntEnum member."""
     cfg = PriorityCfg()
     cfg.priority = Priority.LOW
-    text = cfg.as_json_string(stderr_file=sys.stderr)
+    text = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)
     cfg2 = PriorityCfg(from_json_data_text=text)
     assert cfg2.priority is Priority.LOW
     assert cfg2.task == cfg.task
@@ -117,7 +117,7 @@ def test_plain_enum_fallback() -> None:
     """Without an explicit converter the Enum fallback writes the name."""
     cfg = SeverityCfg()
     cfg.severity = Severity.HIGH
-    text = cfg.as_json_string(stderr_file=sys.stderr)
+    text = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)
     payload = json.loads(text)
     assert payload == {'label': 'incident', 'severity': 'HIGH'}
 
@@ -205,7 +205,7 @@ def test_parent_converter_bounded() -> None:
     cfg = ParentWithChild()
     cfg.parent_note = 'quiet'
     cfg.section.severity = Severity.HIGH
-    text = cfg.as_json_string(stderr_file=sys.stderr)
+    text = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)
     payload = json.loads(text)
     assert payload == {'label': 'parent',
                        'parent_note': 'QUIET',
@@ -232,7 +232,7 @@ def test_parent_path_rejected() -> None:
     """A parent path-selector aimed at child data raises at write time."""
     cfg = ParentTargetingChild()
     with pytest.raises(SerializeSelectorError, match='child-owned'):
-        _ = cfg.as_json_string(stderr_file=sys.stderr)
+        _ = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)
 
 
 # ----------------------------------------------------------------------
@@ -304,7 +304,7 @@ def test_list_children_serialize() -> None:
     cfg.reports = [ReportEntry(), ReportEntry()]
     cfg.reports[0].priority = Priority.LOW
     cfg.reports[1].priority = Priority.HIGH
-    text = cfg.as_json_string(stderr_file=sys.stderr)
+    text = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)
     payload = json.loads(text)
     assert payload == {
         'title': 'monthly',
@@ -326,4 +326,4 @@ def test_parent_into_list_rejected() -> None:
 
     cfg = WrongParent()
     with pytest.raises(SerializeSelectorError, match='child-owned'):
-        _ = cfg.as_json_string(stderr_file=sys.stderr)
+        _ = cfg.as_json_string(stderr_file=sys.stderr, member_name=None)

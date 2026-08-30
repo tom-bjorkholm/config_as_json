@@ -5,7 +5,6 @@
 # MIT License
 
 import json
-import sys
 from tempfile import TemporaryDirectory
 from typing import cast
 import pytest
@@ -16,6 +15,7 @@ from example.e30_optional_user_preference import DeliveryFormat, \
 from example.e30_optional_user_preference import main as e30_main
 from .helpers import assert_rt_out
 from .helpers import assert_write_command_output
+from .helpers import config_json_data
 
 
 def read_json_data(config_file: str) -> dict[str, object]:
@@ -73,7 +73,7 @@ def test_e30_reads_missing_optional_values(
     config = ExampleConfig30(
         from_json_text='{"delivery_format": "TEXT", '
                        '"report_name": "monthly"}')
-    json_data = json.loads(config.as_json_string(stderr_file=sys.stderr))
+    json_data = config_json_data(config)
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err
@@ -92,7 +92,7 @@ def test_e30_reads_explicit_null_as_missing(
                        '"delivery_format": "TEXT", '
                        '"palette": null, '
                        '"report_name": "monthly"}')
-    json_data = json.loads(config.as_json_string(stderr_file=sys.stderr))
+    json_data = config_json_data(config)
     out, err = capsys.readouterr()
     assert '' == out
     assert '' == err

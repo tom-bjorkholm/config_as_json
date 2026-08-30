@@ -2864,7 +2864,9 @@ hands it to the bridge.
 ```python
 def parse_json(from_json_text: str,
                ok_to_use_defaults: bool = False,
-               stderr_file: TextIO = sys.stderr) -> None
+               stderr_file: TextIO = sys.stderr,
+               *,
+               member_name: Optional[str]) -> None
 ```
 
 Parse JSON text and apply it to the configuration object.
@@ -2881,6 +2883,11 @@ too. Nothing is reported when parsing fails before that point.
   their already assigned default values.
 - `stderr_file` - Stream used for user-facing diagnostics. Defaults to
   ``sys.stderr``.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``parse_json()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
 
 
 **Raises**:
@@ -2896,7 +2903,7 @@ too. Nothing is reported when parsing fails before that point.
 #### as\_json\_string
 
 ```python
-def as_json_string(stderr_file: TextIO) -> str
+def as_json_string(stderr_file: TextIO, *, member_name: Optional[str]) -> str
 ```
 
 Serialize the current configuration object to formatted JSON.
@@ -2905,6 +2912,11 @@ Serialize the current configuration object to formatted JSON.
 
 - `stderr_file` - Stream used for user-facing diagnostics during
   validation.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``as_json_string()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
 
 
 **Returns**:
@@ -2919,7 +2931,9 @@ Serialize the current configuration object to formatted JSON.
 ```python
 def read(from_json_filename: PathOrStr,
          ok_to_use_defaults: bool = False,
-         stderr_file: TextIO = sys.stderr) -> None
+         stderr_file: TextIO = sys.stderr,
+         *,
+         member_name: Optional[str]) -> None
 ```
 
 Read configuration JSON from a file and apply it to the object.
@@ -2931,6 +2945,11 @@ Read configuration JSON from a file and apply it to the object.
   their already assigned default values.
 - `stderr_file` - Stream used for user-facing diagnostics. Defaults to
   ``sys.stderr``.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``read()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
 
 <a id="config_as_json.config.Config.write"></a>
 
@@ -3029,7 +3048,7 @@ validation and only want to return an empty list.
 #### validate
 
 ```python
-def validate(stderr_file: TextIO) -> None
+def validate(stderr_file: TextIO, *, member_name: Optional[str]) -> None
 ```
 
 Validate the Config object.
@@ -3059,6 +3078,11 @@ directly.
 **Arguments**:
 
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``validate()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything.
 
 <a id="config_as_json.str_to_enum"></a>
 

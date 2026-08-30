@@ -5,7 +5,6 @@
 # MIT License
 
 import json
-import sys
 from tempfile import TemporaryDirectory
 from typing import cast
 import pytest
@@ -13,7 +12,8 @@ from example.cmd_line_handling import SetValues
 from example.e33_nested_configs import ExampleConfig33, TableOutputConfig, \
     e33_nested_configs_print, e33_nested_configs_set
 from example.e33_nested_configs import main as e33_main
-from .helpers import assert_rt_out, assert_write_command_output
+from .helpers import assert_rt_out, assert_write_command_output, \
+    config_json_data
 
 
 def read_json_data(config_file: str) -> dict[str, object]:
@@ -89,7 +89,7 @@ def test_e33_reads_null_audit(capsys: pytest.CaptureFixture[str]) -> None:
         '"course_name": "advanced-python", '
         '"participant_output": {"encoding": "utf-8", '
         '"file_name": "participants.txt", "output_format": "txt"}}')
-    json_data = json.loads(config.as_json_string(stderr_file=sys.stderr))
+    json_data = config_json_data(config)
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
