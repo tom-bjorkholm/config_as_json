@@ -332,9 +332,19 @@ pip install --upgrade config-as-json
 The generated API reference also shows the implementation modules where these
 public objects are defined.
 
+## Related
+
+A developer of an application that uses `config-as-json` might want to have
+a look at [edit-cfg-json](https://pypi.org/project/edit-cfg-json/),
+[edit-cfg-json-tk/](https://pypi.org/project/edit-cfg-json-tk/) and
+[edit-cfg-json-textual](https://pypi.org/project/edit-cfg-json-textual/).
+They offer an editor with descriptions and validation for any configuration
+expressed as `config_as_json.Config`.
+
 ## Documentation and examples
 
 - Example directory: [example/src/example/README.md](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/README.md)
+- Predefined validator guide: [doc/predefined_validators.md](https://github.com/tom-bjorkholm/config_as_json/blob/master/doc/predefined_validators.md)
 - Public API notes: [doc/api.md](https://github.com/tom-bjorkholm/config_as_json/blob/master/doc/api.md)
 - Protected/internal API notes: [doc/protected_api.md](https://github.com/tom-bjorkholm/config_as_json/blob/master/doc/protected_api.md)
 - Source repository: [config_as_json](https://github.com/tom-bjorkholm/config_as_json/)
@@ -348,7 +358,7 @@ MIT
 
 ## Test summary
 
-- Test result: 4545 passed in 6s
+- Test result: 4545 passed in 7s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

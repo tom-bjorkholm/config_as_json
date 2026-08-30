@@ -77,6 +77,7 @@ to hide the application's schema behind a large generic framework.
 
 - User-facing package overview: [README_pypi.md](README_pypi.md)
 - Example directory: [example/src/example/README.md](example/src/example/README.md)
+- Predefined validator guide: [doc/predefined_validators.md](doc/predefined_validators.md)
 - Public API notes: [doc/api.md](doc/api.md)
 - Protected/internal API notes: [doc/protected_api.md](doc/protected_api.md)
 - Build system design: [common_build_tools/README.md](common_build_tools/README.md)
@@ -142,7 +143,7 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 4545 passed in 6s
+- Test result: 4545 passed in 7s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

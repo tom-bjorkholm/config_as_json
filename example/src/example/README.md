@@ -6,6 +6,12 @@ possible configuration example to more advanced topics.
 A good way to learn the API is to read the examples in order and run
 the ones that match the configuration case you are interested in.
 
+Many of these examples use the predefined validators that come with
+the package. For the complete catalogue of those validators, grouped
+by the kind of problem they solve and with the combinations they are
+built for, see the
+[predefined validator guide](https://github.com/tom-bjorkholm/config_as_json/blob/master/doc/predefined_validators.md).
+
 ## Command lines and running examples
 
 All examples use the shared command-line helper in
