@@ -69,7 +69,12 @@ class LeafReadOldConfig(ReadOldConfiguration):
 
 
 class Leaf(Config):
-    """Innermost nested configuration holding one validated value each."""
+    """Innermost nested configuration holding one validated value each.
+
+    ``deep`` holds a dictionary inside a dictionary, which is what the
+    recursive default-shape check of ``Config`` walks into. It has no
+    validator of its own; the shape check is what reports about it.
+    """
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
@@ -79,6 +84,7 @@ class Leaf(Config):
         self.kind = 'csv'
         self.tags: list[str] = ['plain']
         self.limits: dict[str, int] = {'cpu': 1}
+        self.deep: dict[str, dict[str, int]] = {'outer': {'inner': 1}}
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
                          stderr_file=stderr_file, member_name=member_name)

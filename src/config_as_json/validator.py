@@ -300,7 +300,9 @@ class MemberValidationStep(ValidationStep):
 
         The names in ``member_names`` are the local attribute names on
         ``config``, and they stay local names for reading and writing the
-        attribute even once the validator is told the path to it.
+        attribute even once the validator is told the path to it. A
+        diagnostic about a missing member names the path, like every other
+        diagnostic naming a configuration member.
 
         Args:
             config: The Config object to validate.
@@ -319,8 +321,9 @@ class MemberValidationStep(ValidationStep):
                 configuration value.
         """
         for local_name in self.member_names:
+            reported = member_path(member_name, local_name)
             if not hasattr(config, local_name):
-                msg = f'Member {local_name} '
+                msg = f'Member {reported} '
                 msg += 'not found in Config object '
                 msg += 'in validation of '
                 msg += f'{self.validator.__class__.__name__} '
@@ -328,7 +331,6 @@ class MemberValidationStep(ValidationStep):
                 print(msg, file=stderr_file)
                 raise AttributeError(msg)
             member_value = getattr(config, local_name)
-            reported = member_path(member_name, local_name)
             ret = self.validator.validate_member(config=config,
                                                  member_name=reported,
                                                  member_value=member_value,

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 import pytest
 from pytest import CaptureFixture
+from config_as_json.config import Config
 from config_as_json.validator import InvalidConfigurationValue
 from .check_capsys import check_capsys
 from .member_path_test_configs import Leaf, Top
@@ -24,7 +25,8 @@ def _leaf_data(kind: str = 'csv', limits: Optional[JsonDict] = None,
     """Return JSON data for one Leaf, optionally shaped like a bad file."""
     kind_key = 'old_kind' if old_kind else 'kind'
     data: JsonDict = {kind_key: kind, 'tags': ['plain'],
-                      'limits': {'cpu': 1} if limits is None else limits}
+                      'limits': {'cpu': 1} if limits is None else limits,
+                      'deep': {'outer': {'inner': 1}}}
     if extra_key is not None:
         data[extra_key] = 1
     if dropped_key is not None:
@@ -32,8 +34,14 @@ def _leaf_data(kind: str = 'csv', limits: Optional[JsonDict] = None,
     return data
 
 
-def _top_text(leaf: object = None, leaves: Optional[list[object]] = None) \
-        -> str:
+def _leaf_at(key: str, value: object) -> JsonDict:
+    """Return JSON data for one Leaf with one key holding another value."""
+    data = _leaf_data()
+    data[key] = value
+    return data
+
+
+def _top_text(leaf: object = None, leaves: object = None) -> str:
     """Return JSON text for one Top holding the given nested leaf data."""
     section: JsonDict = {
         'leaf': _leaf_data() if leaf is None else leaf,
@@ -55,7 +63,15 @@ def _top_text(leaf: object = None, leaves: Optional[list[object]] = None) \
     (_leaf_data(limits={}), KeyError,
      'No value for section.leaf.limits[cpu] in JSON data'),
     ('not an object', KeyError,
-     'Nested Config member section.leaf must be a JSON object')
+     'Nested Config member section.leaf must be a JSON object'),
+    (_leaf_at('deep', {'outer': {'inner': 1, 'zz': 2}}), KeyError,
+     'Unexpected parameter section.leaf.deep[outer][zz] in JSON data'),
+    (_leaf_at('deep', {'outer': {}}), KeyError,
+     'No value for section.leaf.deep[outer][inner] in JSON data'),
+    (_leaf_at('deep', {'outer': 5}), KeyError,
+     'Not dictionary for section.leaf.deep[outer] in JSON data'),
+    (_leaf_at('kind', {}), KeyError,
+     'Unexpected dictionary for section.leaf.kind in JSON data')
 ])
 def test_parse_json_paths(leaf_data: object, error_type: type[Exception],
                           expected: str, capsys: CaptureFixture[str]) -> None:
@@ -157,4 +173,82 @@ def test_parse_plain_names(capsys: CaptureFixture[str]) -> None:
         Leaf(from_json_data_text=json.dumps(_leaf_data(extra_key='zzz')),
              stderr_file=stderr_file)
     assert 'Unexpected parameter zzz in JSON data' in str(key_exc.value)
+    check_capsys(capsys)
+
+
+def test_nested_list_shape_path(capsys: CaptureFixture[str]) -> None:
+    """Test that a list member holding no JSON list is named by its path."""
+    stderr_file = StringIO()
+    with pytest.raises(KeyError) as exc:
+        Top(from_json_data_text=_top_text(leaves='nope'),
+            stderr_file=stderr_file)
+    told = 'Nested Config member section.leaves must be a JSON list'
+    assert told in str(exc.value)
+    assert told in stderr_file.getvalue()
+    check_capsys(capsys)
+
+
+def test_undeclared_key_path(capsys: CaptureFixture[str]) -> None:
+    """Test that a nested object at an undeclared key is named by path."""
+    top = Top()
+    top.section.mixed['extra'] = Leaf()
+    stderr_file = StringIO()
+    with pytest.raises(TypeError) as exc:
+        top.validate(stderr_file=stderr_file, member_name=None)
+    told = 'Nested Config member section.mixed[extra] has no '
+    told += 'DICT_VALUE_BY_KEY declaration'
+    assert told in str(exc.value)
+    assert told in stderr_file.getvalue()
+    check_capsys(capsys)
+
+
+def test_dict_key_type_path(capsys: CaptureFixture[str]) -> None:
+    """Test that a dict member with a non-string key is named by its path."""
+    top = Top()
+    top.section.by_name[5] = Leaf()  # type: ignore[index]
+    stderr_file = StringIO()
+    with pytest.raises(TypeError) as exc:
+        top.validate(stderr_file=stderr_file, member_name=None)
+    told = 'Nested Config member section.by_name keys must be strings'
+    assert told in str(exc.value)
+    assert told in stderr_file.getvalue()
+    check_capsys(capsys)
+
+
+@pytest.mark.parametrize('member_name, dict_keys, missing, unexpected', [
+    (None, False, 'No value for kind in JSON data',
+     'Unexpected parameter zzz in JSON data'),
+    ('outputs[1].section', False,
+     'No value for outputs[1].section.kind in JSON data',
+     'Unexpected parameter outputs[1].section.zzz in JSON data'),
+    ('outputs[1].limits', True,
+     'No value for outputs[1].limits[kind] in JSON data',
+     'Unexpected parameter outputs[1].limits[zzz] in JSON data')
+])
+def test_check_key_match_path(member_name: Optional[str], dict_keys: bool,
+                              missing: str, unexpected: str,
+                              capsys: CaptureFixture[str]) -> None:
+    """Test that the public key check names the keys it was given."""
+    stderr_file = StringIO()
+    with pytest.raises(KeyError) as absent:
+        Config.check_key_match(['kind'], [], False, stderr_file,
+                               member_name=member_name, dict_keys=dict_keys)
+    assert missing in str(absent.value)
+    with pytest.raises(KeyError) as extra:
+        Config.check_key_match(['kind'], ['kind', 'zzz'], False, stderr_file,
+                               member_name=member_name, dict_keys=dict_keys)
+    assert unexpected in str(extra.value)
+    check_capsys(capsys)
+
+
+def test_check_dict_parse_path(capsys: CaptureFixture[str]) -> None:
+    """Test that the public shape check names the value it was given."""
+    stderr_file = StringIO()
+    with pytest.raises(KeyError) as exc:
+        Config.check_dict_parse({'cpu': 1}, {'cpu': 1, 'gpu': 2}, 'limits',
+                                False, [], stderr_file,
+                                member_name='outputs[1].limits')
+    told = 'Unexpected parameter outputs[1].limits[gpu] in JSON data'
+    assert told in str(exc.value)
+    assert told in stderr_file.getvalue()
     check_capsys(capsys)

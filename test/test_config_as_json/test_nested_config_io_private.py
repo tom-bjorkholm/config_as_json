@@ -10,7 +10,7 @@
 # pylint: disable=protected-access
 
 from io import StringIO
-from typing import TextIO
+from typing import Optional, TextIO
 import pytest
 import config_as_json._config_nesting_io as nesting_io
 from config_as_json.config import Config
@@ -82,8 +82,15 @@ def test_nested_encoder_bad_value() -> None:
         encoder.default(object())
 
 
+def _reported(parent_path: Optional[str]) -> str:
+    """Return the reported path of the nested member being tested."""
+    return 'child' if parent_path is None else f'{parent_path}.child'
+
+
+@pytest.mark.parametrize('parent_path', [None, 'section'])
 @pytest.mark.parametrize('case_name', ['dict-value', 'by-key'])
-def test_nested_from_json_bad_keys(case_name: str) -> None:
+def test_nested_from_json_bad_keys(case_name: str,
+                                   parent_path: Optional[str]) -> None:
     """Test JSON parse helpers with dict keys JSON cannot produce."""
     stderr_file = StringIO()
     nestings, json_data = _bad_from_json_case(case_name)
@@ -91,30 +98,33 @@ def test_nested_from_json_bad_keys(case_name: str) -> None:
         _ = nesting_io._nested_config_from_json(
             member_name='child', json_data=json_data, nestings=nestings,
             stderr_file=stderr_file, auto_ch_hook=ConfigAutoChangeHook(),
-            parent_path=None)
-    message = 'Nested Config member child keys must be strings'
+            parent_path=parent_path)
+    message = 'Nested Config member '
+    message += f'{_reported(parent_path)} keys must be strings'
     assert message in str(exc.value)
     assert message in stderr_file.getvalue()
 
 
-@pytest.mark.parametrize('case_name, message', [
+@pytest.mark.parametrize('parent_path', [None, 'section'])
+@pytest.mark.parametrize('case_name, template', [
     ('member-wrong-type',
-     'Nested Config member child must be ReportSection'),
-    ('list-not-list', 'Nested Config member child must be a list'),
+     'Nested Config member {name} must be ReportSection'),
+    ('list-not-list', 'Nested Config member {name} must be a list'),
     ('list-wrong-item',
-     'Nested Config member child[0] must be ReportSection'),
-    ('dict-not-dict', 'Nested Config member child must be a dict'),
-    ('dict-bad-key', 'Nested Config member child keys must be strings'),
+     'Nested Config member {name}[0] must be ReportSection'),
+    ('dict-not-dict', 'Nested Config member {name} must be a dict'),
+    ('dict-bad-key', 'Nested Config member {name} keys must be strings'),
     ('dict-wrong-value',
-     'Nested Config member child[bad] must be ReportSection'),
-    ('by-key-not-dict', 'Nested Config member child must be a dict'),
-    ('by-key-bad-key', 'Nested Config member child keys must be strings'),
+     'Nested Config member {name}[bad] must be ReportSection'),
+    ('by-key-not-dict', 'Nested Config member {name} must be a dict'),
+    ('by-key-bad-key', 'Nested Config member {name} keys must be strings'),
     ('by-key-unlisted-config',
-     'Nested Config member child[summary] has no DICT_VALUE_BY_KEY'),
+     'Nested Config member {name}[summary] has no DICT_VALUE_BY_KEY'),
     ('by-key-wrong-type',
-     'Nested Config member child[participants] must be ReportSection')
+     'Nested Config member {name}[participants] must be ReportSection')
 ])
-def test_nested_json_bad_shapes(case_name: str, message: str) -> None:
+def test_nested_json_bad_shapes(case_name: str, template: str,
+                                parent_path: Optional[str]) -> None:
     """Test nested serialization helper shape and type errors."""
     stderr_file = StringIO()
     nestings, member_value = _bad_json_data_case(case_name, stderr_file)
@@ -123,8 +133,8 @@ def test_nested_json_bad_shapes(case_name: str, message: str) -> None:
                                                 member_value=member_value,
                                                 nestings=nestings,
                                                 stderr_file=stderr_file,
-                                                parent_path=None)
-    assert message in str(exc.value)
+                                                parent_path=parent_path)
+    assert template.format(name=_reported(parent_path)) in str(exc.value)
     assert stderr_file.getvalue() == ''
 
 

@@ -1501,7 +1501,9 @@ Apply the member validator to each named member.
 
 The names in ``member_names`` are the local attribute names on
 ``config``, and they stay local names for reading and writing the
-attribute even once the validator is told the path to it.
+attribute even once the validator is told the path to it. A
+diagnostic about a missing member names the path, like every other
+diagnostic naming a configuration member.
 
 **Arguments**:
 

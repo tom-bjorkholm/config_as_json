@@ -6,6 +6,7 @@
 
 import json
 import sys
+from collections.abc import Callable
 from typing import Optional, TextIO, Type, cast, override
 import pytest
 from pytest import CaptureFixture
@@ -550,3 +551,36 @@ def test_factory_checks_member_type(capsys: CaptureFixture[str]) -> None:
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Nested Config member output must be FactoryOutputConfig' in err
+
+
+@pytest.mark.parametrize('parent_type, json_text, expected', [
+    (FactoryParentConfig, _json_text(), ['section.output']),
+    (OptionalFactoryParentConfig, _json_text(), ['section.output']),
+    (ListFactoryParentConfig, _list_json_text(),
+     ['section.outputs[0]', 'section.outputs[1]']),
+    (DictFactoryParentConfig, _dict_json_text(),
+     ['section.outputs[first]', 'section.outputs[second]']),
+    (DictByKeyFactoryParentConfig, _dict_by_key_json_text(),
+     ['section.outputs[factory]'])])
+def test_factory_member_paths(parent_type: Callable[..., Config],
+                              json_text: str, expected: list[Optional[str]],
+                              capsys: CaptureFixture[str]) -> None:
+    """Test that a factory is given the whole path of the member it makes."""
+    factory = TrackingFactory()
+    cfg = parent_type(from_json_data_text=json_text, factory_function=factory,
+                      stderr_file=sys.stderr, member_name='section')
+    _ = _json_data_from_config(cfg, capsys)
+    assert factory.member_names == expected
+
+
+def test_factory_bad_return_path(capsys: CaptureFixture[str]) -> None:
+    """Test that a factory returning the wrong type is named by its path."""
+    with pytest.raises(TypeError) as exc:
+        _ = FactoryParentConfig(from_json_data_text=_json_text(),
+                                factory_function=WrongTypeFactory(),
+                                stderr_file=sys.stderr, member_name='section')
+    told = 'Nested Config factory for section.output must return'
+    out, err = capsys.readouterr()
+    assert told in str(exc.value)
+    assert out == ''
+    assert told in err

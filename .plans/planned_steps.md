@@ -1,5 +1,21 @@
 # Dotted member paths in reported names
 
+## Why this is done
+
+A complete configuration for an application very often have several nested
+Config classes as members of other Config classes, or in list or dicts that
+are members of of another Config class. When such a leaf Config reports
+an error or warning about its configuration, it has to tell the user
+the name of the problematic configuation parameter including the path
+to it. Telling the user only that Config member `port` has an invalid
+value is a slap in the face of the user who has a configuration consisting
+of many Service Config objects, each with a member `port`.
+
+Thus it is of outmost importance that the all error messages, warning messages
+and similar messages include information that is as specific as possible
+about both the Config member name but also include the complete path
+through the nested Config object to where this member is.
+
 ## What this delivers
 
 A validation failure, and every other diagnostic that names a configuration
@@ -284,7 +300,7 @@ What was decided while implementing this step:
 
 ## Step 5 — Build the path on the parse and write traversals
 
-Status: **Mostly imlemented tests remaining to do.**
+Status: **Implemented and committed, with pending review comments to fix**
 
 - `_item_from_json`, `_list_from_json`, `_dict_from_json` and
   `_dict_by_key_from_json` pass the name they already compute into the
@@ -310,11 +326,75 @@ comprehensive test suite to check that for every node or leaf being
 validated the dotted path member_name really has the correct value.
 This is a big test effort that must be done thoroughly.
 
+What was decided while implementing this step:
+
+- The source of this step was already in place, because step 4 absorbed it.
+  What this step adds is the comprehensive proof, and the one gap that the
+  proof found.
+- The sweep is built on a **recording tree**
+  (`test/test_config_as_json/member_path_deep_tree.py`). Every level nests
+  one child in each of the five nesting kinds, three levels deep, which is
+  31 Config objects holding every kind inside every other kind. Validators
+  that accept every value and only record the path they were given report
+  to one recorder. Every traversal compares the whole recorded list with an
+  explicitly written expected list, so a path that is wrong, missing, or
+  reported where none was expected is caught even though nothing fails.
+- **Placeholder defaults had to be marked.** A Config constructor builds its
+  declared defaults before it parses anything, and each of those objects
+  validates itself. The tree builds them with `member_name='#defaults'` and
+  the recorder drops what they record. Without the marker their paths, which
+  are relative to the placeholder, could not be told apart from real ones.
+- `validate()` is compared as a multiset, so each path must be reported
+  exactly once. The parse, read, `as_json_string` and `write` traversals
+  validate a nested object more than once by design, because a nested
+  constructor validates itself and `as_json_string` validates every object
+  it serializes. Those are therefore compared as sets.
+- Every traversal is also started from a path that is not `None`, which is
+  what an editor such as edit-cfg-json does when it validates one subtree.
+- **One gap was found and fixed.** `MemberValidationStep.apply()` named a
+  member missing from the Config object by its local attribute name, so a
+  validation plan naming a member that does not exist said nothing about
+  which nested object it was about. It now names the path. At the top level
+  `member_path(None, local)` is the local name, so no existing message
+  changed.
+- `CallingMemberValidator` names no member at all in its own diagnostics
+  (`Method check_count returned False.`), so there is no name there to turn
+  into a path. What it hands to the application method under
+  `arg_name_member_name` is the path, and that is what the new test checks.
+  **This is a major bug that must be corrected.**
+- `Leaf` in `member_path_test_configs.py` gained a `deep` member holding a
+  dictionary inside a dictionary, because the recursion in
+  `check_dict_parse` composes `[key]` steps and nothing tested that
+  composition. `check_key_match` and `check_dict_parse` are also called
+  directly, as the public static methods they are.
+- `test_nested_config_io_private.py` is now parametrized over
+  `parent_path`, so each of the ten shape and type messages of
+  `_config_nesting_io` is checked both at the top level and below a holder.
+- `test_nested_config_factory.py`'s `TrackingFactory` already recorded the
+  `member_name` it was called with, and nothing asserted it. It now does,
+  for all five nesting kinds, and a factory returning the wrong type is
+  named by its path.
+- The deliberate `None` spots of step 3 were left alone.
+  `_config_initial_data._wrap_one_value()` names the local member in
+  `Cannot wrap {name} as {type}`, and that message is about bridging default
+  values before any parse, where step 3 decided the path is `None`.
+  **We need to think about the user, this is an internal step but for
+  the user this data is in the config object we are constructing from
+  it so we really should report the path that we are constructing even
+  if it is not yet fully constructed.**
+**New test files:** `member_path_deep_tree.py`,
+`test_member_path_sweep.py`, `test_member_path_validators.py` and
+`test_member_path_factory.py`.
+
 ## Step 6 — Backward compatibility for existing applications
 
 Status: **Not done yet**
 
-The package becomes compatible with unchanged application code again.
+The package becomes compatible with unchanged application code again,
+but issues a deprication warning for unchanged application code.
+(This is in fact not such a big problem as you might think, as most
+ application code never override the changed APIs, and most application
+ code never call the methods in the changed API directly.)
 
 - Give every `member_name` parameter added in steps 1 to 3 the default value
   `None`, meaning this object is the top level and not a member of anything.
