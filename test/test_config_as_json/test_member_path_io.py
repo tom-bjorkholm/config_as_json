@@ -10,7 +10,8 @@ from pathlib import Path
 from typing import Optional
 import pytest
 from pytest import CaptureFixture
-from config_as_json.config import Config
+from config_as_json.config import Config, ConfigBadJson
+from config_as_json.json_write_hooks import JsonWriteHookError
 from config_as_json.validator import InvalidConfigurationValue
 from .check_capsys import check_capsys
 from .member_path_test_configs import Leaf, Top
@@ -251,4 +252,55 @@ def test_check_dict_parse_path(capsys: CaptureFixture[str]) -> None:
     told = 'Unexpected parameter outputs[1].limits[gpu] in JSON data'
     assert told in str(exc.value)
     assert told in stderr_file.getvalue()
+    check_capsys(capsys)
+
+
+@pytest.mark.parametrize('prefix, told', [
+    (None, 'Config.parse_json failed to load JSON'),
+    ('outputs[1]', 'Config.parse_json for outputs[1] failed to load JSON')
+])
+def test_bad_json_text_path(prefix: Optional[str], told: str,
+                            capsys: CaptureFixture[str]) -> None:
+    """Test that unreadable JSON names the object it was meant for."""
+    stderr_file = StringIO()
+    with pytest.raises(ConfigBadJson) as exc:
+        Leaf().parse_json('{ this is not JSON', stderr_file=stderr_file,
+                          member_name=prefix)
+    assert told in str(exc.value)
+    assert told in stderr_file.getvalue()
+    check_capsys(capsys)
+
+
+@pytest.mark.parametrize('prefix, told', [
+    (None, 'Configuration JSON root must be a JSON object.'),
+    ('outputs[1]',
+     'Configuration JSON root for outputs[1] must be a JSON object.')
+])
+def test_json_not_object_path(prefix: Optional[str], told: str,
+                              capsys: CaptureFixture[str]) -> None:
+    """Test that JSON that is not an object names the object it was for."""
+    stderr_file = StringIO()
+    with pytest.raises(ConfigBadJson) as exc:
+        Leaf().parse_json('[1, 2]', stderr_file=stderr_file,
+                          member_name=prefix)
+    assert told in str(exc.value)
+    assert told in stderr_file.getvalue()
+    check_capsys(capsys)
+
+
+def test_non_json_value_path(capsys: CaptureFixture[str]) -> None:
+    """Test that a value that cannot be written names its whole path.
+
+    The write-side converters address the JSON data of one Config object,
+    so what they report is that object's path with the place inside its own
+    data appended.
+    """
+    top = Top()
+    inner: dict[str, object] = {'inner': set()}
+    top.section.leaf.deep = {'outer': inner}  # type: ignore[dict-item]
+    stderr_file = StringIO()
+    with pytest.raises(JsonWriteHookError) as exc:
+        top.as_json_string(stderr_file=stderr_file, member_name=None)
+    told = 'Value at section.leaf.deep[outer][inner] has non-JSON type set'
+    assert told in str(exc.value)
     check_capsys(capsys)

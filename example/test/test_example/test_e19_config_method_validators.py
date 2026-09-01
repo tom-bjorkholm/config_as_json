@@ -82,7 +82,7 @@ def test_e19_set_rejects_retry_count(capsys: CaptureFixture[str],
         'retry_count': 0,
         'endpoint': 'https://eu-west.example.invalid/jobs'
     }
-    messages = ['Method check_retry_count returned False']
+    messages = ['Method check_retry_count for retry_count returned False']
     assert_set_validator_error(capsys, monkeypatch, E19_SPEC, set_values,
                                messages)
 

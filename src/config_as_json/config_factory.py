@@ -203,5 +203,7 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
                                              auto_ch_hook=auto_ch_hook,
                                              stderr_file=stderr_file,
                                              member_name=member_name)
-    _config_factory_exit(msg='No matching config class found', exc=None,
-                         stderr_file=stderr_file)
+    msg = 'No matching config class found'
+    if member_name is not None:
+        msg += f' for {member_name}'
+    _config_factory_exit(msg=msg, exc=None, stderr_file=stderr_file)

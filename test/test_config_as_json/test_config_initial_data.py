@@ -6,11 +6,13 @@
 
 import sys
 from dataclasses import dataclass
+from io import StringIO
 from typing import Optional, TextIO, cast, override
 import pytest
 from pytest import CaptureFixture
 from config_as_json import Config, ConfigNesting, ConfigNestingKind, \
-    NestedConfigs, PathOrStr, ValidationPlan
+    InvalidConfigurationValue, MemberValidationStep, NestedConfigs, \
+    PathOrStr, StrValidator, ValidationPlan
 
 
 class NSubA:  # pylint: disable=too-few-public-methods
@@ -580,3 +582,97 @@ def test_wrap_rejects_extra(capsys: CaptureFixture[str]) -> None:
     assert out == ''
     assert 'oops' in err
     assert 'MySection' in str(exc.value)
+
+
+@pytest.mark.parametrize('member_name, expected', [
+    (None, 'Cannot wrap items[0] as MySection'),
+    ('outputs[1]', 'Cannot wrap outputs[1].items[0] as MySection')
+])
+def test_wrap_names_path(member_name: Optional[str], expected: str,
+                         capsys: CaptureFixture[str]) -> None:
+    """Test that a wrap failure names where the value would have ended up.
+
+    The neutral value is the value of a member of the configuration, and
+    the end user thinks of it by the path of that member, not by the local
+    name of a member of some nested object.
+    """
+    neutral: dict[str, object] = {'label': 'plain', 'oops': 1}
+    with pytest.raises(TypeError) as exc:
+        _ = ListBridge(items=[neutral], stderr_file=sys.stderr,
+                       member_name=member_name)
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert expected in str(exc.value)
+    assert expected in err
+
+
+class NLimited:  # pylint: disable=too-few-public-methods
+    """Neutral section whose label has to be one of two words."""
+
+    def __init__(self) -> None:
+        """Initialize the neutral section with an accepted label."""
+        self.label: str = 'nope'
+
+
+class LimitedSection(NLimited, Config):
+    """Bridge over ``NLimited`` that only accepts two labels."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 from_json_filename: Optional[PathOrStr] = None,
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
+        """Construct the limited section bridge."""
+        NLimited.__init__(self)
+        Config.__init__(self, from_json_data_text=from_json_data_text,
+                        from_json_filename=from_json_filename,
+                        stderr_file=stderr_file, member_name=member_name)
+
+    @override
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return the one step limiting the label of the section."""
+        _ = stderr_file
+        return [MemberValidationStep(
+            member_names=['label'],
+            validator=StrValidator(['plain', 'wide'], ignore_case=False))]
+
+
+class LimitedBridge(Config):
+    """Bridge holding one limited section in a dict of neutrals."""
+
+    def __init__(self, sections: dict[str, object],
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
+        """Construct the bridge with the given dict of neutral sections."""
+        self.sections: dict[str, object] = sections
+        Config.__init__(self, from_json_data_text=None,
+                        from_json_filename=None, stderr_file=stderr_file,
+                        member_name=member_name)
+
+    @override
+    def nested_configs(self) -> NestedConfigs:
+        """Return nested Config declarations for the dict bridge."""
+        return {'sections': ConfigNesting(kind=ConfigNestingKind.DICT_VALUE,
+                                          config_type=LimitedSection)}
+
+    @override
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Return an empty validation plan."""
+        _ = stderr_file
+        return []
+
+
+def test_wrapped_bridge_knows_path(capsys: CaptureFixture[str]) -> None:
+    """Test that the bridge built for a neutral value is given its path.
+
+    The bridge validates its own declared defaults while it is built, and
+    that validation names the member by the path the bridge sits at.
+    """
+    stderr_file = StringIO()
+    with pytest.raises(InvalidConfigurationValue) as exc:
+        _ = LimitedBridge(sections={'main': NLimited()},
+                          stderr_file=stderr_file, member_name='outputs[1]')
+    assert exc.value.member_name == 'outputs[1].sections[main].label'
+    assert 'outputs[1].sections[main].label' in stderr_file.getvalue()
+    out, err = capsys.readouterr()
+    assert out == ''
+    assert err == ''

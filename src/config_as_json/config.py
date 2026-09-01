@@ -186,7 +186,8 @@ class Config():
         self._nested_config_decls: dict[str, list[ConfigNesting]] = \
             _checked_nested_configs(nested_raw=self.nested_configs(),
                                     self_keys=self_keys, config_base=Config)
-        self._auto_wrap_nested_defaults(stderr_file=stderr_file)
+        self._auto_wrap_nested_defaults(stderr_file=stderr_file,
+                                        member_name=member_name)
         _check_nested_config_members(config=self, self_keys=self_keys,
                                      nested_configs=self._nested_config_decls,
                                      config_base=Config)
@@ -556,7 +557,8 @@ class Config():
         """
         copy_initial_data_impl(source=source, target=target)
 
-    def _auto_wrap_nested_defaults(self, stderr_file: TextIO) -> None:
+    def _auto_wrap_nested_defaults(self, stderr_file: TextIO, *,
+                                   member_name: Optional[str]) -> None:
         """Wrap nested member defaults that are not yet bridge-typed.
 
         Scans the validated nested-config declarations and replaces any
@@ -568,13 +570,21 @@ class Config():
 
         Args:
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching this object by
+                traversing nested attributes from the top level of the
+                complete construction, such as ``outputs[1].section``.
+                ``None`` means that this object is the top level and not a
+                member of anything. A diagnostic about one wrapped member
+                names the whole path of that member.
         """
         auto_wrap_nested_defaults_impl(target=self,
                                        nested_decls=self._nested_config_decls,
-                                       stderr_file=stderr_file)
+                                       stderr_file=stderr_file,
+                                       parent_path=member_name)
 
-    def _decoded_json_object(self, from_json_text: str,
-                             stderr_file: TextIO) -> dict[str, object]:
+    def _decoded_json_object(self, from_json_text: str, stderr_file: TextIO, *,
+                             member_name: Optional[str]) \
+            -> dict[str, object]:
         """Decode configuration JSON text into a JSON object.
 
         The conversions declared by :meth:`parse_converters` are applied by
@@ -583,6 +593,12 @@ class Config():
         Args:
             from_json_text: JSON document describing configuration values.
             stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching this object by
+                traversing nested attributes from the top level of the
+                complete ``parse_json()`` operation, such as
+                ``outputs[1].section``. ``None`` means that this object is
+                the top level and not a member of anything, and then the
+                diagnostics name no member.
 
         Returns:
             The decoded JSON object.
@@ -593,6 +609,7 @@ class Config():
             NotImplementedError: A required custom converter was not supplied
                 by a derived class.
         """
+        where = '' if member_name is None else f' for {member_name}'
         hook = self._json_parse_obj_hook if self._hook_dict is not None \
             else None
         data: Optional[dict[str, object]] = None
@@ -601,7 +618,8 @@ class Config():
         except Exception as exc:
             if isinstance(exc, NotImplementedError):
                 raise exc
-            msg = 'Config.parse_json failed to load JSON from string/file.\n'
+            msg = f'Config.parse_json{where} failed to load JSON from '
+            msg += 'string/file.\n'
             msg += 'Probably incorrectly edited configuration,\n'
             msg += 'or using wrong file (not config file) as configuration.\n'
             msg += str(exc)
@@ -610,7 +628,7 @@ class Config():
                 raise ConfigBadJson(msg=msg, doc=exc.doc, pos=exc.pos) from exc
             raise ConfigBadJson(msg=msg, doc='', pos=0) from exc
         if data is None or not isinstance(data, dict):
-            msg = 'Configuration JSON root must be a JSON object.'
+            msg = f'Configuration JSON root{where} must be a JSON object.'
             print(msg, file=stderr_file)
             raise ConfigBadJson(msg=msg, doc=from_json_text, pos=0)
         return data
@@ -647,7 +665,8 @@ class Config():
         self._hook_dict = self.parse_converters()
         self._hook_cfg_autochange.clear()
         data = self._decoded_json_object(from_json_text=from_json_text,
-                                         stderr_file=stderr_file)
+                                         stderr_file=stderr_file,
+                                         member_name=member_name)
         rocf = self._get_active_rocf()
         data_obj = rocf.process_json(json_data=data,
                                      auto_ch_hook=self._hook_cfg_autochange,
@@ -782,7 +801,8 @@ class Config():
         converters = self.serialize_converters()
         converted = apply_serialize_converters(
             data=data, converters=converters, stderr_file=stderr_file,
-            child_owned_paths=self._child_owned_paths())
+            child_owned_paths=self._child_owned_paths(),
+            member_name=member_name)
         return json.dumps(converted, sort_keys=True, indent=4)
 
     def read(self, from_json_filename: PathOrStr,

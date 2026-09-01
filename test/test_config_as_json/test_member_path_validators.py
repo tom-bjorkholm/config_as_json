@@ -44,9 +44,9 @@ from config_as_json.str_validators import StrCaseChangeValidator, \
 from config_as_json.type_validators import ValueAsTypeValidator, \
     ValueTypeValidator
 from config_as_json.validator import CallingMemberValidator, \
-    InvalidConfiguration, IntFloatValidator, MemberValidator, \
-    MemberValidatorSequence, MemberValidationStep, ValidationPlan, \
-    ValidationStep
+    CallingWholeConfigValidator, InvalidConfiguration, IntFloatValidator, \
+    MemberValidator, MemberValidatorSequence, MemberValidationStep, \
+    ValidationPlan, ValidationStep
 from .check_capsys import check_capsys
 from .validator_test_helpers import SingleMemberValidationConfig
 
@@ -233,6 +233,8 @@ class CallingConfig(Config):
     def __init__(self, member_name: Optional[str] = None) -> None:
         """Construct one configuration with an accepted default value."""
         self.value = 'ok'
+        self._method = 'check_value'
+        self._answer: object = None
         super().__init__(from_json_data_text=None, from_json_filename=None,
                          member_name=member_name)
 
@@ -243,13 +245,24 @@ class CallingConfig(Config):
         msg = f'Invalid configuration: {told_name} holds {value}.'
         raise InvalidConfiguration(msg)
 
+    def answer(self, value: object) -> object:
+        """Return what the test told this object to answer."""
+        _ = value
+        return self._answer
+
+    def use_method(self, method: str, answer: object) -> None:
+        """Make the plan call the named method, answering as told."""
+        self._method = method
+        self._answer = answer
+
     @override
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the step calling the checking method of this object."""
         _ = stderr_file
-        validator = CallingMemberValidator(method_name='check_value',
+        told = None if self._method != 'check_value' else 'told_name'
+        validator = CallingMemberValidator(method_name=self._method,
                                            arg_name_value='value',
-                                           arg_name_member_name='told_name')
+                                           arg_name_member_name=told)
         return [MemberValidationStep(member_names=['value'],
                                      validator=validator)]
 
@@ -288,6 +301,35 @@ def test_calling_validator_path(capsys: CaptureFixture[str]) -> None:
     with pytest.raises(InvalidConfiguration) as exc:
         holder.validate(stderr_file=stderr_file, member_name=None)
     assert 'things[1].value holds bad.' in str(exc.value)
+    check_capsys(capsys)
+
+
+@pytest.mark.parametrize('method, result, error, told', [
+    ('missing', True, AttributeError,
+     'Method missing for things[1].value not found in Config object.'),
+    ('value', True, TypeError,
+     'Method value for things[1].value in Config object is not callable.'),
+    ('answer', False, InvalidConfiguration,
+     'Method answer for things[1].value returned False.'),
+    ('answer', 'maybe', TypeError,
+     'Method answer for things[1].value returned str;')
+])
+def test_calling_method_paths(method: str, result: object,
+                              error: type[Exception], told: str,
+                              capsys: CaptureFixture[str]) -> None:
+    """Test that a method call names the member the call was made for.
+
+    The method is looked up on the Config object holding the member, and
+    what it answers is checked. Neither diagnostic can be acted on without
+    knowing which member of which nested object the call was about.
+    """
+    holder = CallingHolder()
+    holder.things[1].use_method(method, result)
+    stderr_file = StringIO()
+    with pytest.raises(error) as exc:
+        holder.validate(stderr_file=stderr_file, member_name=None)
+    assert told in str(exc.value)
+    assert told in stderr_file.getvalue()
     check_capsys(capsys)
 
 
@@ -406,4 +448,24 @@ def test_validation_step_path(prefix: Optional[str], expected: str,
         holder.validate(stderr_file=stderr_file, member_name=prefix)
     assert f'step at {expected} refuses.' in str(exc.value)
     assert f'step at {expected} refuses.' in stderr_file.getvalue()
+    check_capsys(capsys)
+
+
+@pytest.mark.parametrize('method, error, told', [
+    ('missing', AttributeError,
+     'Method missing at outputs[1] not found in Config object.'),
+    ('value', TypeError,
+     'Method value at outputs[1] in Config object is not callable.')
+])
+def test_whole_call_method_paths(method: str, error: type[Exception],
+                                 told: str,
+                                 capsys: CaptureFixture[str]) -> None:
+    """Test that a whole-config method call names the object it is on."""
+    config = StepConfig()
+    validator = CallingWholeConfigValidator(method_name=method)
+    stderr_file = StringIO()
+    with pytest.raises(error) as exc:
+        validator.validate(config, stderr_file, member_name='outputs[1]')
+    assert told in str(exc.value)
+    assert told in stderr_file.getvalue()
     check_capsys(capsys)

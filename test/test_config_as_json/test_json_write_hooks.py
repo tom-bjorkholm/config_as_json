@@ -16,7 +16,7 @@ from copy import deepcopy
 from enum import Enum
 from io import StringIO
 from pathlib import Path
-from typing import TextIO, cast
+from typing import Optional, TextIO, cast
 import pytest
 from config_as_json.commontypes import ConfigPath, JsonType
 from config_as_json.json_write_hooks import (
@@ -79,7 +79,8 @@ ERR = StringIO()
 
 
 def run(data: dict[str, object], converters: object,
-        child_owned: tuple[ConfigPath, ...] = ()) -> dict[str, JsonType]:
+        child_owned: tuple[ConfigPath, ...] = (),
+        member_name: Optional[str] = None) -> dict[str, JsonType]:
     """Wrap :func:`apply_serialize_converters` with a fresh error stream.
 
     The ``converters`` parameter is intentionally typed as ``object`` so
@@ -92,7 +93,8 @@ def run(data: dict[str, object], converters: object,
     """
     return apply_serialize_converters(
         data=data, converters=cast(SerializeConverters, converters),
-        stderr_file=ERR, child_owned_paths=child_owned)
+        stderr_file=ERR, child_owned_paths=child_owned,
+        member_name=member_name)
 
 
 # ----------------------------------------------------------------------
@@ -458,8 +460,7 @@ def test_child_dict_wildcard() -> None:
 def test_child_owned_json_check() -> None:
     """Child-owned data is skipped but still checked for valid JSON."""
     data: dict[str, object] = {'child': cast(object, {1: 'bad'})}
-    with pytest.raises(JsonWriteHookError,
-                       match='<child-owned>.*must be a str'):
+    with pytest.raises(JsonWriteHookError, match='at child must be a str'):
         _ = run(data, {}, child_owned=(('child',),))
 
 
@@ -505,7 +506,8 @@ def test_root_must_be_dict() -> None:
     """The top-level ``data`` argument must be a dict."""
     with pytest.raises(JsonWriteHookError, match='Root data must be a dict'):
         _ = apply_serialize_converters(data=[],  # type: ignore[arg-type]
-                                       converters={}, stderr_file=sys.stderr)
+                                       converters={}, stderr_file=sys.stderr,
+                                       member_name=None)
 
 
 def test_converters_must_be_dict() -> None:
@@ -513,4 +515,22 @@ def test_converters_must_be_dict() -> None:
     bad_converters = cast(SerializeConverters, [])
     with pytest.raises(SerializeSelectorError, match='must return a dict'):
         _ = apply_serialize_converters(data={}, converters=bad_converters,
-                                       stderr_file=sys.stderr)
+                                       stderr_file=sys.stderr,
+                                       member_name=None)
+
+
+def test_member_name_in_place() -> None:
+    """A diagnostic names the Config object whose data is being written."""
+    data: dict[str, object] = {'limits': {'cpu': cast(object, set())}}
+    with pytest.raises(JsonWriteHookError,
+                       match=r'Value at outputs\[1\]\.limits\[cpu\] has '
+                             'non-JSON type set'):
+        _ = run(data, {}, member_name='outputs[1]')
+
+
+def test_member_name_as_root() -> None:
+    """A diagnostic about the whole data names the object it belongs to."""
+    data: dict[str, object] = {1: 'bad'}  # type: ignore[dict-item]
+    with pytest.raises(JsonWriteHookError,
+                       match=r'Dictionary key at outputs\[1\] must be a str'):
+        _ = run(data, {}, member_name='outputs[1]')

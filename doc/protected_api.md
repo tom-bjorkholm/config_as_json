@@ -70,6 +70,7 @@
     * [validate\_member](#config_as_json.validator.IntFloatValidator.validate_member)
   * [\_copy\_method\_other\_args](#config_as_json.validator._copy_method_other_args)
   * [\_at\_path](#config_as_json.validator._at_path)
+  * [\_for\_member](#config_as_json.validator._for_member)
   * [\_get\_config\_method](#config_as_json.validator._get_config_method)
   * [\_check\_validation\_only\_method\_result](#config_as_json.validator._check_validation_only_method_result)
   * [CallingMemberValidator](#config_as_json.validator.CallingMemberValidator)
@@ -549,6 +550,7 @@
   * [\_path\_matches\_or\_extends](#config_as_json.json_write_hooks._path_matches_or_extends)
   * [\_check\_child\_boundaries](#config_as_json.json_write_hooks._check_child_boundaries)
   * [\_append\_path\_text](#config_as_json.json_write_hooks._append_path_text)
+  * [\_reported\_at](#config_as_json.json_write_hooks._reported_at)
   * [\_check\_json\_compatible](#config_as_json.json_write_hooks._check_json_compatible)
   * [\_apply\_one\_converter](#config_as_json.json_write_hooks._apply_one_converter)
   * [\_builtin\_fallback](#config_as_json.json_write_hooks._builtin_fallback)
@@ -1775,33 +1777,46 @@ def _at_path(config_path: Optional[str]) -> str
 
 Return where a Config object is, empty text for the top level.
 
+<a id="config_as_json.validator._for_member"></a>
+
+#### \_for\_member
+
+```python
+def _for_member(member_name: str) -> str
+```
+
+Return which member a method call was made for.
+
 <a id="config_as_json.validator._get_config_method"></a>
 
 #### \_get\_config\_method
 
 ```python
-def _get_config_method(
-        config: 'Config',
-        method_name: str,
-        stderr_file: TextIO,
-        config_path: Optional[str] = None) -> Callable[..., object]
+def _get_config_method(config: 'Config', method_name: str, stderr_file: TextIO,
+                       where: str) -> Callable[..., object]
 ```
 
 Return one callable method from a Config object.
+
+``where`` says which member or which Config object the call is about,
+as :func:`_for_member` or :func:`_at_path` phrase it, and is empty text
+for a whole-config call on the top level configuration.
 
 <a id="config_as_json.validator._check_validation_only_method_result"></a>
 
 #### \_check\_validation\_only\_method\_result
 
 ```python
-def _check_validation_only_method_result(
-        method_name: str,
-        result: object,
-        stderr_file: TextIO,
-        config_path: Optional[str] = None) -> None
+def _check_validation_only_method_result(method_name: str, result: object,
+                                         stderr_file: TextIO,
+                                         where: str) -> None
 ```
 
 Validate the return value from a validation-only method call.
+
+``where`` says which member or which Config object the call is about,
+as :func:`_for_member` or :func:`_at_path` phrase it, and is empty text
+for a whole-config call on the top level configuration.
 
 <a id="config_as_json.validator.CallingMemberValidator"></a>
 
@@ -4895,7 +4910,8 @@ hands it to the bridge.
 #### \_auto\_wrap\_nested\_defaults
 
 ```python
-def _auto_wrap_nested_defaults(stderr_file: TextIO) -> None
+def _auto_wrap_nested_defaults(stderr_file: TextIO, *,
+                               member_name: Optional[str]) -> None
 ```
 
 Wrap nested member defaults that are not yet bridge-typed.
@@ -4910,14 +4926,20 @@ in place for ``OPTIONAL_MEMBER`` declarations.
 **Arguments**:
 
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete construction, such as ``outputs[1].section``.
+  ``None`` means that this object is the top level and not a
+  member of anything. A diagnostic about one wrapped member
+  names the whole path of that member.
 
 <a id="config_as_json.config.Config._decoded_json_object"></a>
 
 #### \_decoded\_json\_object
 
 ```python
-def _decoded_json_object(from_json_text: str,
-                         stderr_file: TextIO) -> dict[str, object]
+def _decoded_json_object(from_json_text: str, stderr_file: TextIO, *,
+                         member_name: Optional[str]) -> dict[str, object]
 ```
 
 Decode configuration JSON text into a JSON object.
@@ -4929,6 +4951,12 @@ the object hook while the text is decoded.
 
 - `from_json_text` - JSON document describing configuration values.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching this object by
+  traversing nested attributes from the top level of the
+  complete ``parse_json()`` operation, such as
+  ``outputs[1].section``. ``None`` means that this object is
+  the top level and not a member of anything, and then the
+  diagnostics name no member.
 
 
 **Returns**:
@@ -10346,7 +10374,7 @@ become the target's schema and no comparison can be made.
 #### \_wrap\_one\_value
 
 ```python
-def _wrap_one_value(source: object, config_type: 'type[Config]', name: str,
+def _wrap_one_value(source: object, config_type: 'type[Config]', path: str,
                     stderr_file: TextIO) -> 'Config'
 ```
 
@@ -10356,7 +10384,10 @@ Build a bridge Config instance whose values come from ``source``.
 
 - `source` - Neutral value (plain object, mapping, or dataclass).
 - `config_type` - Bridge Config-derived class to construct.
-- `name` - Diagnostic member name used in error messages.
+- `path` - Dotted and indexed path for reaching the wrapped value from
+  the top level of the configuration being constructed. It is
+  what a diagnostic about the wrapping calls the value, and it is
+  the ``member_name`` of the bridge that is built.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
 
@@ -10377,7 +10408,7 @@ Build a bridge Config instance whose values come from ``source``.
 
 ```python
 def _wrap_optional_or_member(current_value: object,
-                             config_type: 'type[Config]', name: str,
+                             config_type: 'type[Config]', path: str,
                              allow_none: bool, stderr_file: TextIO) -> object
 ```
 
@@ -10389,7 +10420,7 @@ Compute the auto-wrapped value for one direct nested member.
 
 ```python
 def _wrap_list_elements(current_value: object, config_type: 'type[Config]',
-                        name: str, stderr_file: TextIO) -> object
+                        path: str, stderr_file: TextIO) -> object
 ```
 
 Compute the auto-wrapped list for a LIST_ELEMENT nested member.
@@ -10400,7 +10431,7 @@ Compute the auto-wrapped list for a LIST_ELEMENT nested member.
 
 ```python
 def _wrap_dict_values(current_value: object, config_type: 'type[Config]',
-                      name: str, stderr_file: TextIO) -> object
+                      path: str, stderr_file: TextIO) -> object
 ```
 
 Compute the auto-wrapped dict for a DICT_VALUE nested member.
@@ -10411,7 +10442,7 @@ Compute the auto-wrapped dict for a DICT_VALUE nested member.
 
 ```python
 def _wrap_dict_value_by_key(current_value: object,
-                            nestings: list[ConfigNesting], name: str,
+                            nestings: list[ConfigNesting], path: str,
                             stderr_file: TextIO) -> object
 ```
 
@@ -10432,7 +10463,7 @@ Return DICT_VALUE_BY_KEY declarations keyed by discriminator_key.
 #### \_auto\_wrap\_one\_member
 
 ```python
-def _auto_wrap_one_member(member_name: str, current_value: object,
+def _auto_wrap_one_member(path: str, current_value: object,
                           nestings: list[ConfigNesting],
                           stderr_file: TextIO) -> object
 ```
@@ -10447,7 +10478,8 @@ Compute the auto-wrapped value for one declared nested member.
 def auto_wrap_nested_defaults_impl(target: 'Config',
                                    nested_decls: dict[str,
                                                       list[ConfigNesting]],
-                                   stderr_file: TextIO) -> None
+                                   stderr_file: TextIO, *,
+                                   parent_path: Optional[str]) -> None
 ```
 
 Wrap any nested member defaults that are not yet bridge-typed.
@@ -10458,6 +10490,10 @@ Wrap any nested member defaults that are not yet bridge-typed.
   scanned and possibly replaced with bridge-typed wrappers.
 - `nested_decls` - Validated nested-config declarations for ``target``.
 - `stderr_file` - Stream used for user-facing diagnostics.
+- `parent_path` - Dotted and indexed path for reaching ``target`` from
+  the top level of the configuration being constructed, or
+  ``None`` when ``target`` is that top level. A diagnostic about
+  one wrapped member names the whole path of that member.
 
 <a id="config_as_json.rocf_value_migration"></a>
 
@@ -11569,12 +11605,28 @@ step is a string. For all other cases the step is wrapped in square
 brackets, matching the member-name convention used by the member
 validators.
 
+<a id="config_as_json.json_write_hooks._reported_at"></a>
+
+#### \_reported\_at
+
+```python
+def _reported_at(path_text: str, member_name: Optional[str]) -> str
+```
+
+Return what a diagnostic calls one place in the written JSON data.
+
+``path_text`` addresses the JSON data of one Config object, so the
+reported place is the path of that object with the place inside it
+appended. The top level of a whole configuration is not a member of
+anything and has no name, so it is called ``<root>``.
+
 <a id="config_as_json.json_write_hooks._check_json_compatible"></a>
 
 #### \_check\_json\_compatible
 
 ```python
-def _check_json_compatible(value: object, path_text: str) -> None
+def _check_json_compatible(value: object, path_text: str,
+                           member_name: Optional[str]) -> None
 ```
 
 Recursively verify that a value is JSON-compatible.
@@ -11595,7 +11647,8 @@ subclass of ``int``; ``json.dumps`` writes booleans as ``true``/
 ```python
 def _apply_one_converter(value: object, converter: SerializeConverter,
                          path_text: str, selector: SerializeSelector,
-                         stderr_file: TextIO) -> JsonType
+                         stderr_file: TextIO, *,
+                         member_name: Optional[str]) -> JsonType
 ```
 
 Apply one converter to ``value`` and wrap unexpected errors.
@@ -11681,7 +11734,8 @@ Convert one parent-owned list value.
 #### \_passthrough\_child
 
 ```python
-def _passthrough_child(value: object) -> JsonType
+def _passthrough_child(value: object, path_text: str,
+                       ctx: '_WalkContext') -> JsonType
 ```
 
 Return a child-owned value as-is after a JSON-compatibility check.
@@ -11689,7 +11743,8 @@ Return a child-owned value as-is after a JSON-compatibility check.
 Child-owned subtrees have already been produced by the child object's
 own ``as_json_string()``, so they must already be JSON-compatible. The
 check protects us against programming mistakes and produces a clear
-error rather than a cryptic ``json.dumps`` failure.
+error rather than a cryptic ``json.dumps`` failure. A diagnostic names
+the child by its path, like every other diagnostic here.
 
 <a id="config_as_json.json_write_hooks._convert_value"></a>
 
@@ -11708,11 +11763,12 @@ Convert one value, recursing into containers as needed.
 
 ```python
 def apply_serialize_converters(
-    data: dict[str, object],
-    converters: SerializeConverters,
-    stderr_file: TextIO,
-    child_owned_paths: Sequence[ConfigPath] = ()
-) -> dict[str, JsonType]
+        data: dict[str, object],
+        converters: SerializeConverters,
+        stderr_file: TextIO,
+        child_owned_paths: Sequence[ConfigPath] = (),
+        *,
+        member_name: Optional[str]) -> dict[str, JsonType]
 ```
 
 Return JSON-compatible data after write-side conversions.
@@ -11763,6 +11819,15 @@ literal data key.
   child objects. Selectors that would convert those subtrees,
   their descendants, or an ancestor container containing them
   are invalid.
+- `member_name` - Dotted and indexed path for reaching the ``Config``
+  object owning ``data`` by traversing nested attributes from the
+  top level of the complete ``as_json_string()`` operation, such
+  as ``outputs[1].section``. ``None`` means that the object is
+  the top level and not a member of anything. A diagnostic names
+  the place it is about by that path with the place inside
+  ``data`` appended, and calls the top level ``<root>``. The
+  ``path_text`` handed to a converter function stays relative to
+  ``data``, because a selector is relative to it too.
 
 
 **Returns**:

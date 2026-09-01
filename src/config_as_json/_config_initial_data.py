@@ -23,8 +23,9 @@ hand and without losing the bridge-typed schema for nested sections.
 # MIT License
 
 from collections.abc import Mapping
-from typing import Iterator, TextIO, TYPE_CHECKING
+from typing import Iterator, Optional, TextIO, TYPE_CHECKING
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
+from config_as_json.member_path import member_path, _indexed_path
 
 
 if TYPE_CHECKING:
@@ -119,14 +120,17 @@ def copy_initial_data_impl(source: object, target: 'Config') -> None:
         setattr(target, name, value)
 
 
-def _wrap_one_value(source: object, config_type: 'type[Config]', name: str,
+def _wrap_one_value(source: object, config_type: 'type[Config]', path: str,
                     stderr_file: TextIO) -> 'Config':
     """Build a bridge Config instance whose values come from ``source``.
 
     Args:
         source: Neutral value (plain object, mapping, or dataclass).
         config_type: Bridge Config-derived class to construct.
-        name: Diagnostic member name used in error messages.
+        path: Dotted and indexed path for reaching the wrapped value from
+            the top level of the configuration being constructed. It is
+            what a diagnostic about the wrapping calls the value, and it is
+            the ``member_name`` of the bridge that is built.
         stderr_file: Stream used for user-facing diagnostics.
 
     Returns:
@@ -138,20 +142,21 @@ def _wrap_one_value(source: object, config_type: 'type[Config]', name: str,
             ``config_type`` does not declare.
     """
     bridge = config_type(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file, member_name=None)
+                         stderr_file=stderr_file, member_name=path)
     try:
         copy_initial_data_impl(source=source, target=bridge)
     except TypeError as exc:
-        msg = f'Cannot wrap {name} as {config_type.__name__}: {exc}'
+        msg = f'Cannot wrap {path} as {config_type.__name__}: {exc}'
         print(msg, file=stderr_file)
         raise TypeError(msg) from exc
     # pylint: disable-next=protected-access
-    bridge._auto_wrap_nested_defaults(stderr_file=stderr_file)
+    bridge._auto_wrap_nested_defaults(stderr_file=stderr_file,
+                                      member_name=path)
     return bridge
 
 
 def _wrap_optional_or_member(current_value: object,
-                             config_type: 'type[Config]', name: str,
+                             config_type: 'type[Config]', path: str,
                              allow_none: bool, stderr_file: TextIO) -> object:
     """Compute the auto-wrapped value for one direct nested member."""
     if current_value is None:
@@ -159,11 +164,11 @@ def _wrap_optional_or_member(current_value: object,
     if isinstance(current_value, config_type):
         return current_value
     return _wrap_one_value(source=current_value, config_type=config_type,
-                           name=name, stderr_file=stderr_file)
+                           path=path, stderr_file=stderr_file)
 
 
 def _wrap_list_elements(current_value: object, config_type: 'type[Config]',
-                        name: str, stderr_file: TextIO) -> object:
+                        path: str, stderr_file: TextIO) -> object:
     """Compute the auto-wrapped list for a LIST_ELEMENT nested member."""
     if not isinstance(current_value, list):
         return current_value
@@ -174,14 +179,14 @@ def _wrap_list_elements(current_value: object, config_type: 'type[Config]',
             result.append(element)
             continue
         result.append(_wrap_one_value(source=element, config_type=config_type,
-                                      name=f'{name}[{index}]',
+                                      path=_indexed_path(path, index),
                                       stderr_file=stderr_file))
         changed = True
     return result if changed else current_value
 
 
 def _wrap_dict_values(current_value: object, config_type: 'type[Config]',
-                      name: str, stderr_file: TextIO) -> object:
+                      path: str, stderr_file: TextIO) -> object:
     """Compute the auto-wrapped dict for a DICT_VALUE nested member."""
     if not isinstance(current_value, dict):
         return current_value
@@ -192,14 +197,14 @@ def _wrap_dict_values(current_value: object, config_type: 'type[Config]',
             result[key] = value
             continue
         result[key] = _wrap_one_value(source=value, config_type=config_type,
-                                      name=f'{name}[{key}]',
+                                      path=_indexed_path(path, key),
                                       stderr_file=stderr_file)
         changed = True
     return result if changed else current_value
 
 
 def _wrap_dict_value_by_key(current_value: object,
-                            nestings: list[ConfigNesting], name: str,
+                            nestings: list[ConfigNesting], path: str,
                             stderr_file: TextIO) -> object:
     """Compute the auto-wrapped dict for DICT_VALUE_BY_KEY nestings."""
     if not isinstance(current_value, dict):
@@ -217,7 +222,7 @@ def _wrap_dict_value_by_key(current_value: object,
             continue
         result[key] = _wrap_one_value(source=value,
                                       config_type=nesting.config_type,
-                                      name=f'{name}[{key}]',
+                                      path=_indexed_path(path, key),
                                       stderr_file=stderr_file)
         changed = True
     return result if changed else current_value
@@ -233,33 +238,33 @@ def _nesting_by_key(nestings: list[ConfigNesting]) \
     return result
 
 
-def _auto_wrap_one_member(member_name: str, current_value: object,
+def _auto_wrap_one_member(path: str, current_value: object,
                           nestings: list[ConfigNesting],
                           stderr_file: TextIO) -> object:
     """Compute the auto-wrapped value for one declared nested member."""
     if nestings[0].kind == ConfigNestingKind.DICT_VALUE_BY_KEY:
         return _wrap_dict_value_by_key(current_value=current_value,
-                                       nestings=nestings, name=member_name,
+                                       nestings=nestings, path=path,
                                        stderr_file=stderr_file)
     nesting = nestings[0]
     if nesting.kind == ConfigNestingKind.LIST_ELEMENT:
         return _wrap_list_elements(current_value=current_value,
-                                   config_type=nesting.config_type,
-                                   name=member_name, stderr_file=stderr_file)
+                                   config_type=nesting.config_type, path=path,
+                                   stderr_file=stderr_file)
     if nesting.kind == ConfigNestingKind.DICT_VALUE:
         return _wrap_dict_values(current_value=current_value,
-                                 config_type=nesting.config_type,
-                                 name=member_name, stderr_file=stderr_file)
+                                 config_type=nesting.config_type, path=path,
+                                 stderr_file=stderr_file)
     allow_none = nesting.kind == ConfigNestingKind.OPTIONAL_MEMBER
     return _wrap_optional_or_member(current_value=current_value,
-                                    config_type=nesting.config_type,
-                                    name=member_name, allow_none=allow_none,
+                                    config_type=nesting.config_type, path=path,
+                                    allow_none=allow_none,
                                     stderr_file=stderr_file)
 
 
 def auto_wrap_nested_defaults_impl(
         target: 'Config', nested_decls: dict[str, list[ConfigNesting]],
-        stderr_file: TextIO) -> None:
+        stderr_file: TextIO, *, parent_path: Optional[str]) -> None:
     """Wrap any nested member defaults that are not yet bridge-typed.
 
     Args:
@@ -267,12 +272,16 @@ def auto_wrap_nested_defaults_impl(
             scanned and possibly replaced with bridge-typed wrappers.
         nested_decls: Validated nested-config declarations for ``target``.
         stderr_file: Stream used for user-facing diagnostics.
+        parent_path: Dotted and indexed path for reaching ``target`` from
+            the top level of the configuration being constructed, or
+            ``None`` when ``target`` is that top level. A diagnostic about
+            one wrapped member names the whole path of that member.
     """
     for member_name, nestings in nested_decls.items():
         current_value = getattr(target, member_name)
-        new_value = _auto_wrap_one_member(member_name=member_name,
-                                          current_value=current_value,
-                                          nestings=nestings,
-                                          stderr_file=stderr_file)
+        new_value = _auto_wrap_one_member(
+            path=member_path(parent_path, member_name),
+            current_value=current_value, nestings=nestings,
+            stderr_file=stderr_file)
         if new_value is not current_value:
             setattr(target, member_name, new_value)

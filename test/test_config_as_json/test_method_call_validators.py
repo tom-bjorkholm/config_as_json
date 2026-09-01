@@ -230,9 +230,9 @@ def test_member_call_rejects_false(capsys: CaptureFixture[str]) -> None:
     with pytest.raises(InvalidConfiguration) as exc:
         validator.validate_member(cfg, 'value', 'raw', sys.stderr)
     out, err = capsys.readouterr()
-    assert 'Method check_member returned False' in str(exc.value)
+    assert 'Method check_member for value returned False' in str(exc.value)
     assert out == ''
-    assert 'Method check_member returned False' in err
+    assert 'Method check_member for value returned False' in err
 
 
 def test_member_call_rejects_other(capsys: CaptureFixture[str]) -> None:
@@ -251,9 +251,9 @@ def test_member_call_rejects_other(capsys: CaptureFixture[str]) -> None:
 @pytest.mark.parametrize(
     'method_name, exc_type, message',
     [('missing_method', AttributeError,
-      'Method missing_method not found in Config object'),
-     ('non_callable', TypeError, 'Method non_callable in Config object '
-      'is not callable')])
+      'Method missing_method for value not found in Config object'),
+     ('non_callable', TypeError, 'Method non_callable for value in Config '
+      'object is not callable')])
 def test_member_call_rejects_method(capsys: CaptureFixture[str],
                                     method_name: str,
                                     exc_type: type[Exception],
@@ -353,6 +353,6 @@ def test_method_calls_reject_config(capsys: CaptureFixture[str]) -> None:
             from_json_data_text='{"name": " beta ", "count": 0}',
             stderr_file=sys.stderr)
     out, err = capsys.readouterr()
-    assert 'Method check_count returned False' in str(exc.value)
+    assert 'Method check_count for count returned False' in str(exc.value)
     assert out == ''
-    assert 'Method check_count returned False' in err
+    assert 'Method check_count for count returned False' in err

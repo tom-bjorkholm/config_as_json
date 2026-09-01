@@ -24,6 +24,7 @@ from copy import deepcopy
 from enum import Enum
 from typing import Callable, NamedTuple, Optional, Sequence, TextIO
 from config_as_json.commontypes import ConfigPath, JsonType, json_types
+from config_as_json.member_path import member_path
 from config_as_json.validator import InvalidConfiguration
 
 
@@ -307,12 +308,26 @@ def _append_path_text(prefix: str, step: str | int) -> str:
     return f'{prefix}[{step}]'
 
 
+def _reported_at(path_text: str, member_name: Optional[str]) -> str:
+    """Return what a diagnostic calls one place in the written JSON data.
+
+    ``path_text`` addresses the JSON data of one Config object, so the
+    reported place is the path of that object with the place inside it
+    appended. The top level of a whole configuration is not a member of
+    anything and has no name, so it is called ``<root>``.
+    """
+    if not path_text:
+        return '<root>' if member_name is None else member_name
+    return member_path(member_name, path_text)
+
+
 # ----------------------------------------------------------------------
 # JSON compatibility verification
 # ----------------------------------------------------------------------
 
 
-def _check_json_compatible(value: object, path_text: str) -> None:
+def _check_json_compatible(value: object, path_text: str,
+                           member_name: Optional[str]) -> None:
     """Recursively verify that a value is JSON-compatible.
 
     Accepted leaf types are ``None``, ``bool``, ``int``, ``float`` and
@@ -328,22 +343,25 @@ def _check_json_compatible(value: object, path_text: str) -> None:
         return
     if isinstance(value, list):
         for index, item in enumerate(value):
-            _check_json_compatible(item, _append_path_text(path_text, index))
+            _check_json_compatible(item, _append_path_text(path_text, index),
+                                   member_name)
         return
     if isinstance(value, dict):
         for key, item in value.items():
+            where = _reported_at(path_text, member_name)
             if not isinstance(key, str):
                 raise JsonWriteHookError(
-                    f'Dictionary key at {path_text or "<root>"} must be a '
+                    f'Dictionary key at {where} must be a '
                     f'str; got {type(key).__name__}')
             if key.startswith('['):
                 raise JsonWriteHookError(
-                    f'Dictionary key {key!r} at {path_text or "<root>"} '
+                    f'Dictionary key {key!r} at {where} '
                     "must not start with '['")
-            _check_json_compatible(item, _append_path_text(path_text, key))
+            _check_json_compatible(item, _append_path_text(path_text, key),
+                                   member_name)
         return
     raise JsonWriteHookError(
-        f'Value at {path_text or "<root>"} has non-JSON type '
+        f'Value at {_reported_at(path_text, member_name)} has non-JSON type '
         f'{type(value).__name__}')
 
 
@@ -352,9 +370,11 @@ def _check_json_compatible(value: object, path_text: str) -> None:
 # ----------------------------------------------------------------------
 
 
+# pylint: disable-next=too-many-arguments
 def _apply_one_converter(value: object, converter: SerializeConverter,
                          path_text: str, selector: SerializeSelector,
-                         stderr_file: TextIO) -> JsonType:
+                         stderr_file: TextIO, *,
+                         member_name: Optional[str]) -> JsonType:
     """Apply one converter to ``value`` and wrap unexpected errors.
 
     ``None`` always passes through unchanged. The optional ``value_type``
@@ -363,10 +383,11 @@ def _apply_one_converter(value: object, converter: SerializeConverter,
     """
     if value is None:
         return None
+    where = _reported_at(path_text, member_name)
     if converter.value_type is not None and \
             not isinstance(value, converter.value_type):
         raise JsonWriteHookError(
-            f'Value at {path_text or "<root>"} for selector '
+            f'Value at {where} for selector '
             f'{_selector_repr(selector)} has type '
             f'{type(value).__name__}; expected '
             f'{converter.value_type.__name__}')
@@ -378,9 +399,8 @@ def _apply_one_converter(value: object, converter: SerializeConverter,
     except Exception as exc:  # pylint: disable=broad-exception-caught
         raise JsonWriteHookError(
             f'Converter for {_selector_repr(selector)} at '
-            f'{path_text or "<root>"} raised {type(exc).__name__}: {exc}'
-        ) from exc
-    _check_json_compatible(result, path_text)
+            f'{where} raised {type(exc).__name__}: {exc}') from exc
+    _check_json_compatible(result, path_text, member_name)
     return result
 
 
@@ -436,6 +456,7 @@ class _WalkContext(NamedTuple):
     paths: _PathConverters
     child_owned: Sequence[ConfigPath]
     stderr_file: TextIO
+    member_name: Optional[str]
 
 
 def _convert_dict(value: dict[str, object], selector_path: _SelectorPath,
@@ -443,18 +464,19 @@ def _convert_dict(value: dict[str, object], selector_path: _SelectorPath,
     """Convert one parent-owned dictionary value."""
     result: dict[str, JsonType] = {}
     for key, item in value.items():
+        where = _reported_at(path_text, ctx.member_name)
         if not isinstance(key, str):
             raise JsonWriteHookError(
-                f'Dictionary key at {path_text or "<root>"} must be a '
+                f'Dictionary key at {where} must be a '
                 f'str; got {type(key).__name__}')
         if key.startswith('['):
             raise JsonWriteHookError(
-                f'Dictionary key {key!r} at {path_text or "<root>"} '
+                f'Dictionary key {key!r} at {where} '
                 "must not start with '['")
         child_selector = selector_path + (key,)
         child_text = _append_path_text(path_text, key)
         if _is_inside_child_owned(child_selector, ctx.child_owned):
-            result[key] = _passthrough_child(item)
+            result[key] = _passthrough_child(item, child_text, ctx)
             continue
         # An exact path-selector match at the child position takes
         # precedence over recursive key selectors. Declaration-time checks
@@ -466,14 +488,16 @@ def _convert_dict(value: dict[str, object], selector_path: _SelectorPath,
             result[key] = _apply_one_converter(value=item, converter=converter,
                                                path_text=child_text,
                                                selector=child_selector,
-                                               stderr_file=ctx.stderr_file)
+                                               stderr_file=ctx.stderr_file,
+                                               member_name=ctx.member_name)
             continue
         if key in ctx.rec_key:
             converter = ctx.rec_key[key]
             result[key] = _apply_one_converter(value=item, converter=converter,
                                                path_text=child_text,
                                                selector=key,
-                                               stderr_file=ctx.stderr_file)
+                                               stderr_file=ctx.stderr_file,
+                                               member_name=ctx.member_name)
             continue
         result[key] = _convert_value(value=item, selector_path=child_selector,
                                      path_text=child_text, ctx=ctx)
@@ -489,28 +513,30 @@ def _convert_list(value: list[object], selector_path: _SelectorPath,
     for index, item in enumerate(value):
         child_text = _append_path_text(path_text, index)
         if inside_child:
-            result.append(_passthrough_child(item))
+            result.append(_passthrough_child(item, child_text, ctx))
             continue
         if child_selector in ctx.paths:
             result.append(_apply_one_converter(
                 value=item, converter=ctx.paths[child_selector],
                 path_text=child_text, selector=child_selector,
-                stderr_file=ctx.stderr_file))
+                stderr_file=ctx.stderr_file, member_name=ctx.member_name))
             continue
         result.append(_convert_value(value=item, selector_path=child_selector,
                                      path_text=child_text, ctx=ctx))
     return result
 
 
-def _passthrough_child(value: object) -> JsonType:
+def _passthrough_child(value: object, path_text: str,
+                       ctx: '_WalkContext') -> JsonType:
     """Return a child-owned value as-is after a JSON-compatibility check.
 
     Child-owned subtrees have already been produced by the child object's
     own ``as_json_string()``, so they must already be JSON-compatible. The
     check protects us against programming mistakes and produces a clear
-    error rather than a cryptic ``json.dumps`` failure.
+    error rather than a cryptic ``json.dumps`` failure. A diagnostic names
+    the child by its path, like every other diagnostic here.
     """
-    _check_json_compatible(value, '<child-owned>')
+    _check_json_compatible(value, path_text, ctx.member_name)
     assert isinstance(value, json_types)
     return value
 
@@ -519,30 +545,31 @@ def _convert_value(value: object, selector_path: _SelectorPath, path_text: str,
                    ctx: _WalkContext) -> JsonType:
     """Convert one value, recursing into containers as needed."""
     expects_dict, expects_list = _has_path_inside(selector_path, ctx.paths)
+    where = _reported_at(path_text, ctx.member_name)
     if isinstance(value, dict):
         if expects_list:
             raise SerializeSelectorError(
                 f'Path selector expects a list at '
-                f'{path_text or "<root>"} but data has a dict')
+                f'{where} but data has a dict')
         return _convert_dict(value=value, selector_path=selector_path,
                              path_text=path_text, ctx=ctx)
     if isinstance(value, list):
         if expects_dict:
             raise SerializeSelectorError(
                 f'Path selector expects a dict at '
-                f'{path_text or "<root>"} but data has a list')
+                f'{where} but data has a list')
         return _convert_list(value=value, selector_path=selector_path,
                              path_text=path_text, ctx=ctx)
     if expects_dict or expects_list:
         raise SerializeSelectorError(
             f'Path selector expects a container at '
-            f'{path_text or "<root>"} but data has '
+            f'{where} but data has '
             f'{type(value).__name__}')
     fallback = _builtin_fallback(value)
     if fallback is not None and \
             not isinstance(fallback, (bool, int, float, str)):
         raise JsonWriteHookError(
-            f'Value at {path_text or "<root>"} has non-JSON type '
+            f'Value at {where} has non-JSON type '
             f'{type(value).__name__}; declare a SerializeConverter or use '
             'a JSON-compatible value')
     assert isinstance(fallback, json_types)
@@ -557,7 +584,8 @@ def _convert_value(value: object, selector_path: _SelectorPath, path_text: str,
 def apply_serialize_converters(data: dict[str, object],
                                converters: SerializeConverters,
                                stderr_file: TextIO,
-                               child_owned_paths: Sequence[ConfigPath] = ()) \
+                               child_owned_paths: Sequence[ConfigPath] = (), *,
+                               member_name: Optional[str]) \
                                    -> dict[str, JsonType]:
     """Return JSON-compatible data after write-side conversions.
 
@@ -606,6 +634,15 @@ def apply_serialize_converters(data: dict[str, object],
             child objects. Selectors that would convert those subtrees,
             their descendants, or an ancestor container containing them
             are invalid.
+        member_name: Dotted and indexed path for reaching the ``Config``
+            object owning ``data`` by traversing nested attributes from the
+            top level of the complete ``as_json_string()`` operation, such
+            as ``outputs[1].section``. ``None`` means that the object is
+            the top level and not a member of anything. A diagnostic names
+            the place it is about by that path with the place inside
+            ``data`` appended, and calls the top level ``<root>``. The
+            ``path_text`` handed to a converter function stays relative to
+            ``data``, because a selector is relative to it too.
 
     Returns:
         A JSON-compatible dictionary ready to pass to ``json.dumps()``.
@@ -636,6 +673,6 @@ def apply_serialize_converters(data: dict[str, object],
     # values they receive without worrying about hidden aliasing.
     working = deepcopy(data)
     ctx = _WalkContext(rec_key=rec_key, paths=paths, child_owned=child_owned,
-                       stderr_file=stderr_file)
+                       stderr_file=stderr_file, member_name=member_name)
     return _convert_dict(value=working, selector_path=(), path_text='',
                          ctx=ctx)

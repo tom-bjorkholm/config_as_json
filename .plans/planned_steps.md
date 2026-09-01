@@ -207,9 +207,6 @@ What was decided while implementing this step:
   `_item_from_json()` already computes, rather than `None`. No reported name
   moves, because nothing builds a reported name out of `member_name` before
   step 4. Step 5 therefore only has to make that computed name a whole path.
-- `_config_initial_data._wrap_one_value()` and `migrate_cfg()` pass `None`.
-  An auto-wrapped bridge default is replaced by the parsed object before any
-  path matters, and a migration reads a whole configuration file.
 - `SingleMemberValidationConfig` in `validator_test_helpers.py` already had a
   parameter named `member_name` holding the local attribute name of its one
   member. That parameter is now called `attr_name`.
@@ -385,6 +382,70 @@ What was decided while implementing this step:
 **New test files:** `member_path_deep_tree.py`,
 `test_member_path_sweep.py`, `test_member_path_validators.py` and
 `test_member_path_factory.py`.
+
+What the review of this step changed:
+
+- The review called the missing path in `CallingMemberValidator` a fatal
+  bug rather than an oddity, and asked for a careful scan for the same kind
+  of bug. The rule the scan applied: **a diagnostic that a traversal emits
+  about a configuration value, member, or object has to say where that
+  value is**. Five places failed that rule.
+- `CallingMemberValidator` now names the member in all four of its
+  diagnostics: the method not found, the method not callable, the method
+  returning `False`, and the method returning something else.
+  `_get_config_method` and `_check_validation_only_method_result` take the
+  ready phrased `where` text instead of a path. `_for_member` phrases it as
+  ` for {path}` for a member call and `_at_path` phrases it as ` at {path}`
+  for a whole-config call, and both now sit directly after the method name,
+  which reads well for both. **A top level member call message changes**:
+  `Method check_count returned False.` becomes `Method check_count for count
+  returned False.` That is the point of the fix, because the message named
+  no member at all before. Every top level whole-config message is
+  unchanged, because `_at_path(None)` is empty text.
+- `_config_initial_data` composes the whole path of the member the wrapped
+  value ends up at, so `Cannot wrap items[0] as MySection` becomes
+  `Cannot wrap outputs[1].items[0] as MySection` for a nested object. The
+  bridge that is built is also constructed with that path, so its own
+  construction-time validation reports paths too. This reverses the step 3
+  misconception that auto-wrapping passes `None`: the end user thinks of that
+  neutral value by the path of the member it is the value of.
+- `config_factory_from_json` names the member it was building when no
+  matcher accepts the data: `No matching config class found for
+  outputs[1].part`.
+- `Config._decoded_json_object` names the object the JSON was meant for,
+  which is what an editor validating one subtree needs: `Config.parse_json
+  for outputs[1] failed to load JSON from string/file.` and `Configuration
+  JSON root for outputs[1] must be a JSON object.`
+- `json_write_hooks` reports its places as the path of the Config object
+  whose data is being written with the place inside that data appended, so
+  `Value at limits[cpu] has non-JSON type set` becomes `Value at
+  outputs[1].limits[cpu] has non-JSON type set`. Its `_append_path_text`
+  already used the member-name convention, so only the root of the walk had
+  to change, in the new `_reported_at`. The `path_text` handed to an
+  application converter function stays relative to the object's own data,
+  because a selector is relative to it too, and `<root>` is still what a
+  place in the top level configuration is called. `apply_serialize_converters`
+  therefore took `member_name` as a keyword argument without a default, like
+  the rest of steps 1 to 3.
+
+What the scan deliberately left alone, and why:
+
+- **Diagnostics about a class declaration**, not about a value: the checks
+  in `Config.__init__`, in `_config_nesting_decl`, and the selector checks
+  in `json_write_hooks`. They report a mistake in the application's Config
+  class or in its converter declarations, and the class, not a path, is
+  what locates such a mistake. They are also raised for every instance of
+  that class, wherever it sits.
+- **ROCF diagnostics** (`RocfConflictError`, `RocfIncompatiblePathError`).
+  Decision 6 defers ROCF notation, and these report a conflict between the
+  migration rules a class declares rather than a configuration value. Adding
+  the path there means `ReadOldConfiguration.process_json` taking
+  `member_name`, which is a public extension point and a decision of its own.
+- `RadixNumber.get()` and `RadixNumber.set()` outside a validation, which
+  keep the local written-member name because there is no traversal and so no
+  path. This is documented and tested.
+- `string_to_enum_best_match`, a utility an application calls from its own
+  parse converter. It has no member context in its API at all.
 
 ## Step 6 — Backward compatibility for existing applications
 

@@ -250,3 +250,21 @@ def test_radix_read_local_name(capsys: CaptureFixture[str]) -> None:
         _ = palette.colors[1].get()
     assert 'for hex_str' in str(exc.value)
     check_capsys(capsys)
+
+
+@pytest.mark.parametrize('prefix, expected', [
+    (None, 'No matching config class found\n'),
+    ('section.pick', 'No matching config class found for section.pick\n')
+])
+def test_factory_no_match_path(prefix: Optional[str], expected: str,
+                               capsys: CaptureFixture[str]) -> None:
+    """Test that a factory matching nothing names the member it was for."""
+    stderr_file = StringIO()
+    with pytest.raises(SystemExit):
+        _ = config_factory_from_json(match_configs=MATCH_PARTS,
+                                     auto_ch_hook=ConfigAutoChangeHook(),
+                                     from_json_data_text='{"kind": "xml"}',
+                                     stderr_file=stderr_file,
+                                     member_name=prefix)
+    assert expected in stderr_file.getvalue()
+    check_capsys(capsys)

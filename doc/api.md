@@ -6568,11 +6568,12 @@ the actual data and also raise this exception.
 
 ```python
 def apply_serialize_converters(
-    data: dict[str, object],
-    converters: SerializeConverters,
-    stderr_file: TextIO,
-    child_owned_paths: Sequence[ConfigPath] = ()
-) -> dict[str, JsonType]
+        data: dict[str, object],
+        converters: SerializeConverters,
+        stderr_file: TextIO,
+        child_owned_paths: Sequence[ConfigPath] = (),
+        *,
+        member_name: Optional[str]) -> dict[str, JsonType]
 ```
 
 Return JSON-compatible data after write-side conversions.
@@ -6623,6 +6624,15 @@ literal data key.
   child objects. Selectors that would convert those subtrees,
   their descendants, or an ancestor container containing them
   are invalid.
+- `member_name` - Dotted and indexed path for reaching the ``Config``
+  object owning ``data`` by traversing nested attributes from the
+  top level of the complete ``as_json_string()`` operation, such
+  as ``outputs[1].section``. ``None`` means that the object is
+  the top level and not a member of anything. A diagnostic names
+  the place it is about by that path with the place inside
+  ``data`` appended, and calls the top level ``<root>``. The
+  ``path_text`` handed to a converter function stays relative to
+  ``data``, because a selector is relative to it too.
 
 
 **Returns**:

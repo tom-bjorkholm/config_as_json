@@ -626,18 +626,26 @@ def _at_path(config_path: Optional[str]) -> str:
     return '' if config_path is None else f' at {config_path}'
 
 
+def _for_member(member_name: str) -> str:
+    """Return which member a method call was made for."""
+    return f' for {member_name}'
+
+
 def _get_config_method(config: 'Config', method_name: str, stderr_file: TextIO,
-                       config_path: Optional[str] = None) \
-        -> Callable[..., object]:
-    """Return one callable method from a Config object."""
-    where = _at_path(config_path)
+                       where: str) -> Callable[..., object]:
+    """Return one callable method from a Config object.
+
+    ``where`` says which member or which Config object the call is about,
+    as :func:`_for_member` or :func:`_at_path` phrase it, and is empty text
+    for a whole-config call on the top level configuration.
+    """
     if not hasattr(config, method_name):
-        msg = f'Method {method_name} not found in Config object{where}.'
+        msg = f'Method {method_name}{where} not found in Config object.'
         print(msg, file=stderr_file)
         raise AttributeError(msg)
     method = getattr(config, method_name)
     if not callable(method):
-        msg = f'Method {method_name} in Config object{where} is not callable.'
+        msg = f'Method {method_name}{where} in Config object is not callable.'
         print(msg, file=stderr_file)
         raise TypeError(msg)
     return cast(Callable[..., object], method)
@@ -645,10 +653,13 @@ def _get_config_method(config: 'Config', method_name: str, stderr_file: TextIO,
 
 def _check_validation_only_method_result(method_name: str, result: object,
                                          stderr_file: TextIO,
-                                         config_path: Optional[str] = None) \
-        -> None:
-    """Validate the return value from a validation-only method call."""
-    where = _at_path(config_path)
+                                         where: str) -> None:
+    """Validate the return value from a validation-only method call.
+
+    ``where`` says which member or which Config object the call is about,
+    as :func:`_for_member` or :func:`_at_path` phrase it, and is empty text
+    for a whole-config call on the top level configuration.
+    """
     if result is None or result is True:
         return
     if result is False:
@@ -767,7 +778,8 @@ class CallingMemberValidator(MemberValidator):
             The original member value in validation-only mode, or the
             validated and normalized value in normalizing mode.
         """
-        func = _get_config_method(config, self.method_name, stderr_file)
+        where = _for_member(member_name)
+        func = _get_config_method(config, self.method_name, stderr_file, where)
         kwargs: dict[str, object] = dict(self.other_args)
         kwargs[self.arg_name_value] = member_value
         if self.arg_name_member_name is not None:
@@ -776,7 +788,7 @@ class CallingMemberValidator(MemberValidator):
         if self.normalizing:
             return ret
         _check_validation_only_method_result(self.method_name, ret,
-                                             stderr_file)
+                                             stderr_file, where)
         return member_value
 
 
@@ -844,11 +856,11 @@ class CallingWholeConfigValidator(WholeConfigValidator):
             InvalidConfiguration: The configuration is invalid.
             Any exception raised by the method in the Config object.
         """
-        func = _get_config_method(config, self.method_name, stderr_file,
-                                  member_name)
+        where = _at_path(member_name)
+        func = _get_config_method(config, self.method_name, stderr_file, where)
         ret: object = func(**self.other_args)
         _check_validation_only_method_result(self.method_name, ret,
-                                             stderr_file, member_name)
+                                             stderr_file, where)
 
 
 # pylint: disable-next=too-few-public-methods
