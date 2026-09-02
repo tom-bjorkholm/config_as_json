@@ -207,7 +207,7 @@ class NestedOutputValidator(WholeConfigValidator):
     """Normalize the output format in nested Config tests."""
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate and normalize one nested output configuration."""
         _ = member_name
         assert isinstance(config, NestedOutputConfig)
@@ -254,7 +254,7 @@ class NestedParentValidator(WholeConfigValidator):
     """Validate that the parent sees normalized nested values."""
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate the parent against the nested output format."""
         _ = member_name
         assert isinstance(config, NestedParentConfig)

@@ -15,6 +15,7 @@ from json import loads as json_loads
 from json import JSONDecodeError
 import sys
 from config_as_json.config import Config
+from config_as_json._deprecated_support import use_member_name
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.file_must_exist import file_must_exist
 from config_as_json.commontypes import PathOrStr, JsonType
@@ -157,13 +158,39 @@ class JsonValueMatcher:
         return value_at_key == expected_value
 
 
+def _constructed_match(config_class: type[Config], json_text: str,
+                       auto_ch_hook: ConfigAutoChangeHook, stderr_file: TextIO,
+                       *, member_name: Optional[str]) -> Config:
+    """Construct the configuration class that accepted the JSON input.
+
+    Args:
+        config_class: Configuration class whose matcher accepted the input.
+        json_text: Configuration JSON that the matcher accepted.
+        auto_ch_hook: Hook that should receive automatic-change callbacks.
+        stderr_file: Stream used for user-facing diagnostics.
+        member_name: Dotted and indexed path for reaching the created object
+            by traversing nested attributes from the top level of the
+            complete construction. ``None`` means that the created object is
+            the top level and not a member of anything.
+
+    Returns:
+        The constructed configuration object.
+    """
+    if use_member_name(config_class, stacklevel=2):
+        return config_class(from_json_data_text=json_text,
+                            from_json_filename=None, auto_ch_hook=auto_ch_hook,
+                            stderr_file=stderr_file, member_name=member_name)
+    return config_class(from_json_data_text=json_text, from_json_filename=None,
+                        auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+
+
 # pylint: disable-next=too-many-arguments
 def config_factory_from_json(match_configs: MatchConfigSeq,
                              auto_ch_hook: ConfigAutoChangeHook,
                              from_json_filename: Optional[PathOrStr] = None,
                              from_json_data_text: Optional[str] = None,
                              stderr_file: TextIO = sys.stderr, *,
-                             member_name: Optional[str]) -> Config:
+                             member_name: Optional[str] = None) -> Config:
     """Create the first configuration class whose matcher accepts the input.
 
     The function is intended for applications that support several related
@@ -198,11 +225,11 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
                                          stderr_file=stderr_file)
     for match_config in match_configs:
         if match_config.match_func(text, stderr_file):
-            return match_config.config_class(from_json_data_text=text,
-                                             from_json_filename=None,
-                                             auto_ch_hook=auto_ch_hook,
-                                             stderr_file=stderr_file,
-                                             member_name=member_name)
+            return _constructed_match(config_class=match_config.config_class,
+                                      json_text=text,
+                                      auto_ch_hook=auto_ch_hook,
+                                      stderr_file=stderr_file,
+                                      member_name=member_name)
     msg = 'No matching config class found'
     if member_name is not None:
         msg += f' for {member_name}'

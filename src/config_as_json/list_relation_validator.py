@@ -428,7 +428,7 @@ class ListRelationValidator(WholeConfigValidator):
         return _is_disjoint(values_a, values_b, self.eq_comparator)
 
     def validate(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate the configured relation between two list-like values.
 
         If no projector is supplied for a side, that side is read from the

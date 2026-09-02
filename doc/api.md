@@ -779,7 +779,7 @@ Initialize the validator.
 def validate(config: 'Config',
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Validate an aspect of the entire Config object.
@@ -906,7 +906,7 @@ Base class for one ordered validation step.
 def apply(config: 'Config',
           stderr_file: TextIO = sys.stderr,
           *,
-          member_name: Optional[str]) -> None
+          member_name: Optional[str] = None) -> None
 ```
 
 Apply the validation step to one Config object.
@@ -950,7 +950,7 @@ Validation step that applies one whole-config validator.
 def apply(config: 'Config',
           stderr_file: TextIO = sys.stderr,
           *,
-          member_name: Optional[str]) -> None
+          member_name: Optional[str] = None) -> None
 ```
 
 Apply the whole-config validator to the Config object.
@@ -997,7 +997,7 @@ Validation step that applies one member validator.
 def apply(config: 'Config',
           stderr_file: TextIO = sys.stderr,
           *,
-          member_name: Optional[str]) -> None
+          member_name: Optional[str] = None) -> None
 ```
 
 Apply the member validator to each named member.
@@ -1327,7 +1327,7 @@ normalize the configuration.
 def validate(config: 'Config',
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Validate the entire Config object by calling a method in it.
@@ -2644,12 +2644,21 @@ keys inside a dict whose values are nested Config objects. Use a direct
 list element has kind ``DICT_VALUE_BY_KEY`` and the entries describe
 selected keys inside the same dict member.
 Nested config classes must accept the constructor keyword arguments
-``from_json_data_text``, ``from_json_filename``, ``stderr_file``, and
-``member_name`` because those are used when nested JSON objects are
-parsed. As an alternative construction path, a ``ConfigNesting``
-declaration may provide ``factory_function`` with the same
-keyword-argument contract. The returned object must be an instance of
-the declared ``config_type``.
+``from_json_data_text``, ``from_json_filename``, and ``stderr_file``
+because those are used when nested JSON objects are parsed, and should
+accept ``member_name`` as well. A class that does not accept
+``member_name`` is constructed without it and warns that it should be
+changed; its own diagnostics then name a plain member name instead of
+the whole path for reaching the member. As an alternative construction
+path, a ``ConfigNesting`` declaration may provide ``factory_function``
+with the same keyword-argument contract. The returned object must be an
+instance of the declared ``config_type``.
+
+An override of :meth:`parse_json`, :meth:`validate`, :meth:`read` or
+:meth:`as_json_string` should accept ``member_name`` and pass it on to
+the base class, so that a diagnostic can name the whole path for
+reaching a configuration value. An override that does not accept it is
+called without it and warns that it should be changed.
 
 <a id="config_as_json.config.Config.__init__"></a>
 
@@ -2661,7 +2670,7 @@ def __init__(from_json_data_text: Optional[str],
              auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Initialize a derived configuration object.
@@ -2821,7 +2830,7 @@ def check_key_match(expected_keys: list[str],
                     stderr_file: TextIO,
                     allowed_missing_keys: Optional[list[str]] = None,
                     *,
-                    member_name: Optional[str],
+                    member_name: Optional[str] = None,
                     dict_keys: bool = False) -> None
 ```
 
@@ -2859,10 +2868,14 @@ Validate that parsed keys match the declared configuration keys.
 
 ```python
 @staticmethod
-def check_dict_parse(self_data: object, json_data: object, key: str,
-                     ok_to_use_defaults: bool, unchecked_dicts: list[str],
-                     stderr_file: TextIO, *,
-                     member_name: Optional[str]) -> None
+def check_dict_parse(self_data: object,
+                     json_data: object,
+                     key: str,
+                     ok_to_use_defaults: bool,
+                     unchecked_dicts: list[str],
+                     stderr_file: TextIO,
+                     *,
+                     member_name: Optional[str] = None) -> None
 ```
 
 Recursively validate nested dictionaries against default values.
@@ -2949,7 +2962,7 @@ def parse_json(from_json_text: str,
                ok_to_use_defaults: bool = False,
                stderr_file: TextIO = sys.stderr,
                *,
-               member_name: Optional[str]) -> None
+               member_name: Optional[str] = None) -> None
 ```
 
 Parse JSON text and apply it to the configuration object.
@@ -2986,7 +2999,9 @@ too. Nothing is reported when parsing fails before that point.
 #### as\_json\_string
 
 ```python
-def as_json_string(stderr_file: TextIO, *, member_name: Optional[str]) -> str
+def as_json_string(stderr_file: TextIO,
+                   *,
+                   member_name: Optional[str] = None) -> str
 ```
 
 Serialize the current configuration object to formatted JSON.
@@ -3016,7 +3031,7 @@ def read(from_json_filename: PathOrStr,
          ok_to_use_defaults: bool = False,
          stderr_file: TextIO = sys.stderr,
          *,
-         member_name: Optional[str]) -> None
+         member_name: Optional[str] = None) -> None
 ```
 
 Read configuration JSON from a file and apply it to the object.
@@ -3131,7 +3146,9 @@ validation and only want to return an empty list.
 #### validate
 
 ```python
-def validate(stderr_file: TextIO, *, member_name: Optional[str]) -> None
+def validate(stderr_file: TextIO,
+             *,
+             member_name: Optional[str] = None) -> None
 ```
 
 Validate the Config object.
@@ -4200,7 +4217,7 @@ Initialize a list relation validator.
 def validate(config: 'Config',
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Validate the configured relation between two list-like values.
@@ -4412,7 +4429,7 @@ Initialize the projected whole-config validator.
 def validate(config: 'Config',
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Validate an aspect of the entire Config object.
@@ -5455,7 +5472,7 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
                              from_json_data_text: Optional[str] = None,
                              stderr_file: TextIO = sys.stderr,
                              *,
-                             member_name: Optional[str]) -> Config
+                             member_name: Optional[str] = None) -> Config
 ```
 
 Create the first configuration class whose matcher accepts the input.
@@ -6924,7 +6941,7 @@ def __call__(*,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
              stderr_file: TextIO = sys.stderr,
-             member_name: Optional[str]) -> 'Config'
+             member_name: Optional[str] = None) -> 'Config'
 ```
 
 Construct one nested Config object.
@@ -6957,11 +6974,14 @@ Describe one nested Config declaration.
 
 The nested class must derive from :class:`Config` and must be
 constructible with keyword arguments ``from_json_data_text``,
-``from_json_filename``, ``stderr_file``, and ``member_name``. This is the
-constructor shape used by the base class when it reads a nested JSON
-object. If ``factory_function`` is set, that callable is used instead of
-the ``config_type`` constructor. The factory must accept the same keyword
-arguments and must return an instance of ``config_type`` or a subclass.
+``from_json_filename``, and ``stderr_file``, and should accept
+``member_name`` as well. This is the constructor shape used by the base
+class when it reads a nested JSON object. A class or a factory that does
+not accept ``member_name`` is called without it and warns that it should
+be changed. If ``factory_function`` is set, that callable is used instead
+of the ``config_type`` constructor. The factory must accept the same
+keyword arguments and must return an instance of ``config_type`` or a
+subclass.
 
 **Attributes**:
 

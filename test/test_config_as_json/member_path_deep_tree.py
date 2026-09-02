@@ -86,7 +86,7 @@ class RecordWhole(WholeConfigValidator):
     """Record the path of one Config object, and accept it."""
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Record the path of the Config object being validated."""
         _ = config, stderr_file
         RECORDER.add_config(member_name)

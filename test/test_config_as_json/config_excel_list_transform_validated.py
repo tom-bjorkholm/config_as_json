@@ -35,7 +35,7 @@ class ConfigMethodValidator(WholeConfigValidator):
         self._method_name = method_name
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate by calling the named method on the Config object.
 
         Args:

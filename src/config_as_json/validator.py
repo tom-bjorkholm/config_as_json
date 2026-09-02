@@ -11,6 +11,7 @@ from operator import lt as operator_lt
 import sys
 from typing import Callable, Optional, Sequence, TextIO, TYPE_CHECKING, \
     TypeVar, Generic, cast
+from config_as_json._deprecated_support import use_member_name
 from config_as_json.member_path import member_path
 if TYPE_CHECKING:
     from config_as_json.config import Config
@@ -100,7 +101,7 @@ class WholeConfigValidator(ABC):  # pylint: disable=too-few-public-methods
 
     @abstractmethod
     def validate(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate an aspect of the entire Config object.
 
         The validate method must be implemented in a derived class.
@@ -225,7 +226,7 @@ class ValidationStep(ABC):  # pylint: disable=too-few-public-methods
 
     @abstractmethod
     def apply(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
-              member_name: Optional[str]) -> None:
+              member_name: Optional[str] = None) -> None:
         """Apply the validation step to one Config object.
 
         Args:
@@ -260,7 +261,7 @@ class WholeConfigValidationStep(ValidationStep):
     validator: WholeConfigValidator
 
     def apply(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
-              member_name: Optional[str]) -> None:
+              member_name: Optional[str] = None) -> None:
         """Apply the whole-config validator to the Config object.
 
         Args:
@@ -278,8 +279,11 @@ class WholeConfigValidationStep(ValidationStep):
             InvalidConfigurationValue: The supplied validator rejects one
                 configuration value.
         """
-        self.validator.validate(config=config, stderr_file=stderr_file,
-                                member_name=member_name)
+        if use_member_name(self.validator.validate, stacklevel=2):
+            self.validator.validate(config=config, stderr_file=stderr_file,
+                                    member_name=member_name)
+            return
+        self.validator.validate(config=config, stderr_file=stderr_file)
 
 
 @dataclass
@@ -295,7 +299,7 @@ class MemberValidationStep(ValidationStep):
     validator: MemberValidator
 
     def apply(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
-              member_name: Optional[str]) -> None:
+              member_name: Optional[str] = None) -> None:
         """Apply the member validator to each named member.
 
         The names in ``member_names`` are the local attribute names on
@@ -840,7 +844,7 @@ class CallingWholeConfigValidator(WholeConfigValidator):
             _copy_method_other_args(other_args)
 
     def validate(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate the entire Config object by calling a method in it.
 
         Args:

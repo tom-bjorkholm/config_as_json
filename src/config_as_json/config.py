@@ -30,6 +30,8 @@ from config_as_json._config_nesting_decl import _checked_nested_configs, \
     _check_nested_config_members
 from config_as_json._config_initial_data import copy_initial_data_impl, \
     auto_wrap_nested_defaults_impl
+from config_as_json._config_call_wrappers import wrap_apply, \
+    wrap_as_json_string, wrap_parse_json, wrap_read, wrap_validate
 from config_as_json._deprecated_support import DeprecatedHook, \
     use_deprecated_hook, \
     warn_deprecated_hook
@@ -115,19 +117,28 @@ class Config():
     list element has kind ``DICT_VALUE_BY_KEY`` and the entries describe
     selected keys inside the same dict member.
     Nested config classes must accept the constructor keyword arguments
-    ``from_json_data_text``, ``from_json_filename``, ``stderr_file``, and
-    ``member_name`` because those are used when nested JSON objects are
-    parsed. As an alternative construction path, a ``ConfigNesting``
-    declaration may provide ``factory_function`` with the same
-    keyword-argument contract. The returned object must be an instance of
-    the declared ``config_type``.
+    ``from_json_data_text``, ``from_json_filename``, and ``stderr_file``
+    because those are used when nested JSON objects are parsed, and should
+    accept ``member_name`` as well. A class that does not accept
+    ``member_name`` is constructed without it and warns that it should be
+    changed; its own diagnostics then name a plain member name instead of
+    the whole path for reaching the member. As an alternative construction
+    path, a ``ConfigNesting`` declaration may provide ``factory_function``
+    with the same keyword-argument contract. The returned object must be an
+    instance of the declared ``config_type``.
+
+    An override of :meth:`parse_json`, :meth:`validate`, :meth:`read` or
+    :meth:`as_json_string` should accept ``member_name`` and pass it on to
+    the base class, so that a diagnostic can name the whole path for
+    reaching a configuration value. An override that does not accept it is
+    called without it and warns that it should be changed.
     """
 
     def __init__(self, from_json_data_text: Optional[str],
                  from_json_filename: Optional[PathOrStr],
                  auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
                  stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Initialize a derived configuration object.
 
         A derived ``__init__`` is expected to assign every supported
@@ -203,14 +214,14 @@ class Config():
             msg += 'both.'
             raise ValueError(msg)
         if from_json_data_text is not None:
-            self._wrap_parse_json(from_json_data_text, stderr_file=stderr_file,
-                                  member_name=member_name)
+            wrap_parse_json(self, from_json_data_text, stderr_file=stderr_file,
+                            member_name=member_name)
         elif from_json_filename is not None:
-            self.read(from_json_filename, stderr_file=stderr_file,
+            wrap_read(self, from_json_filename, stderr_file=stderr_file,
                       member_name=member_name)
         else:
-            self._wrap_validate(stderr_file=stderr_file,
-                                member_name=member_name)
+            wrap_validate(self, stderr_file=stderr_file,
+                          member_name=member_name)
 
     def auto_change_hook(self) -> ConfigAutoChangeHook:
         """Return the hook that recorded automatic changes for this object.
@@ -329,7 +340,7 @@ class Config():
     def check_key_match(expected_keys: list[str], j_keys: list[str],
                         ok_to_use_defaults: bool, stderr_file: TextIO,
                         allowed_missing_keys: Optional[list[str]] = None, *,
-                        member_name: Optional[str],
+                        member_name: Optional[str] = None,
                         dict_keys: bool = False) -> None:
         """Validate that parsed keys match the declared configuration keys.
 
@@ -378,7 +389,7 @@ class Config():
     def check_dict_parse(self_data: object, json_data: object, key: str,
                          ok_to_use_defaults: bool, unchecked_dicts: list[str],
                          stderr_file: TextIO, *,
-                         member_name: Optional[str]) -> None:
+                         member_name: Optional[str] = None) -> None:
         """Recursively validate nested dictionaries against default values.
 
         Args:
@@ -635,7 +646,7 @@ class Config():
 
     def parse_json(self, from_json_text: str, ok_to_use_defaults: bool = False,
                    stderr_file: TextIO = sys.stderr, *,
-                   member_name: Optional[str]) -> None:
+                   member_name: Optional[str] = None) -> None:
         """Parse JSON text and apply it to the configuration object.
 
         The automatic-change hook is cleared before parsing starts, and it is
@@ -702,33 +713,7 @@ class Config():
                                           member_name=item_path)
                     setattr(self, i, data[i])
         self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
-        self._wrap_validate(stderr_file=stderr_file, member_name=member_name)
-
-    def _wrap_parse_json(self, from_json_text: str,
-                         ok_to_use_defaults: bool = False,
-                         stderr_file: TextIO = sys.stderr, *,
-                         member_name: Optional[str]) -> None:
-        """Call :meth:`parse_json` on behalf of the library itself.
-
-        Every call the library makes to ``parse_json`` on a Config object
-        goes through this wrapper, so that support for derived classes that
-        do not accept every argument has a single place to live. An
-        application calls :meth:`parse_json` directly instead.
-
-        Args:
-            from_json_text: JSON document describing configuration values.
-            ok_to_use_defaults: Whether missing declared keys may remain at
-                their already assigned default values.
-            stderr_file: Stream used for user-facing diagnostics. Defaults to
-                ``sys.stderr``.
-            member_name: Dotted and indexed path for reaching this object by
-                traversing nested attributes from the top level of the
-                complete ``parse_json()`` operation, such as
-                ``outputs[1].section``. ``None`` means that this object is
-                the top level and not a member of anything.
-        """
-        self.parse_json(from_json_text, ok_to_use_defaults,
-                        stderr_file=stderr_file, member_name=member_name)
+        wrap_validate(self, stderr_file=stderr_file, member_name=member_name)
 
     def _child_owned_paths(self) -> list[ConfigPath]:
         """Return paths to nested ``Config`` subtrees owned by children.
@@ -764,7 +749,7 @@ class Config():
         return child_owned
 
     def as_json_string(self, stderr_file: TextIO, *,
-                       member_name: Optional[str]) -> str:
+                       member_name: Optional[str] = None) -> str:
         """Serialize the current configuration object to formatted JSON.
 
         Args:
@@ -782,7 +767,7 @@ class Config():
         """
         # We validate the configuration before writing it to JSON,
         # to make sure that the configuration is valid so it can be read back
-        self._wrap_validate(stderr_file=stderr_file, member_name=member_name)
+        wrap_validate(self, stderr_file=stderr_file, member_name=member_name)
         data: dict[str, object] = {}
         self_keys = [i for i in vars(self).keys() if not
                      callable(getattr(self, i)) and not i.startswith('_')]
@@ -808,7 +793,7 @@ class Config():
     def read(self, from_json_filename: PathOrStr,
              ok_to_use_defaults: bool = False,
              stderr_file: TextIO = sys.stderr, *,
-             member_name: Optional[str]) -> None:
+             member_name: Optional[str] = None) -> None:
         """Read configuration JSON from a file and apply it to the object.
 
         Args:
@@ -828,9 +813,8 @@ class Config():
                         stderr_file=stderr_file)
         with open(file=from_json_filename, mode='r', encoding='UTF-8') as file:
             data = file.read()
-            self._wrap_parse_json(data, ok_to_use_defaults,
-                                  stderr_file=stderr_file,
-                                  member_name=member_name)
+            wrap_parse_json(self, data, ok_to_use_defaults, stderr_file,
+                            member_name=member_name)
 
     def write(self, to_json_filename: PathOrStr,
               stderr_file: TextIO = sys.stderr) -> None:
@@ -842,7 +826,8 @@ class Config():
             stderr_file: Stream used for user-facing diagnostics during
                 validation.
         """
-        text = self.as_json_string(stderr_file=stderr_file, member_name=None)
+        text = wrap_as_json_string(self, stderr_file=stderr_file,
+                                   member_name=None)
         with open(file=to_json_filename, mode='w', encoding='UTF-8') as file:
             file.write(text)
 
@@ -909,7 +894,7 @@ class Config():
         return []  # pylint: disable=unreachable
 
     def validate(self, stderr_file: TextIO, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate the Config object.
 
         The validation is performed by the validation plan returned by
@@ -944,23 +929,5 @@ class Config():
                                       member_name=member_name)
         validation_plan = self.get_validation_plan(stderr_file=stderr_file)
         for validation_step in validation_plan:
-            validation_step.apply(self, stderr_file, member_name=member_name)
-
-    def _wrap_validate(self, stderr_file: TextIO, *,
-                       member_name: Optional[str]) -> None:
-        """Call :meth:`validate` on behalf of the library itself.
-
-        Every call the library makes to ``validate`` on a Config object goes
-        through this wrapper, so that support for derived classes that do not
-        accept every argument has a single place to live. An application
-        calls :meth:`validate` directly instead.
-
-        Args:
-            stderr_file: Stream used for user-facing diagnostics.
-            member_name: Dotted and indexed path for reaching this object by
-                traversing nested attributes from the top level of the
-                complete ``validate()`` operation, such as
-                ``outputs[1].section``. ``None`` means that this object is
-                the top level and not a member of anything.
-        """
-        self.validate(stderr_file=stderr_file, member_name=member_name)
+            wrap_apply(validation_step, self, stderr_file=stderr_file,
+                       member_name=member_name)

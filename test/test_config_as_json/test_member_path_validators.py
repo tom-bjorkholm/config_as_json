@@ -380,7 +380,7 @@ class PathStep(ValidationStep):
 
     @override
     def apply(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-              member_name: Optional[str]) -> None:
+              member_name: Optional[str] = None) -> None:
         """Refuse a rejected value, naming the path it was given."""
         assert isinstance(config, StepConfig)
         if config.value != 'bad':

@@ -13,6 +13,7 @@ from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigFactory
 from config_as_json.commontypes import PathOrStr
 from config_as_json.member_path import member_path
+from config_as_json._deprecated_support import use_member_name
 from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
     WholeConfigValidationStep, MemberValidationStep, WholeConfigValidator, \
     MemberValidator
@@ -616,10 +617,14 @@ class _RadixFactory(Generic[PrefixT]):
         Returns:
             The constructed value.
         """
+        if use_member_name(self._config_type, stacklevel=2):
+            return self._config_type(from_json_data_text, from_json_filename,
+                                     None, stderr_file, value=self._value,
+                                     prefix=self._prefix, digits=self._digits,
+                                     member_name=member_name)
         return self._config_type(from_json_data_text, from_json_filename, None,
                                  stderr_file, value=self._value,
-                                 prefix=self._prefix, digits=self._digits,
-                                 member_name=member_name)
+                                 prefix=self._prefix, digits=self._digits)
 
 
 # pylint: disable-next=too-few-public-methods
@@ -633,7 +638,7 @@ class _RadixCacheBuilder(WholeConfigValidator):
     """
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Rebuild the cached integer of the RadixNumber.
 
         Args:

@@ -265,7 +265,7 @@ class ProjectedWholeConfigValidator(WholeConfigValidator):
         self.validators: list[MemberValidator] = list(validators)
 
     def validate(self, config: 'Config', stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate an aspect of the entire Config object.
 
         The validator computes the projected value from the entire Config

@@ -449,7 +449,7 @@ What the scan deliberately left alone, and why:
 
 ## Step 6 — Backward compatibility for existing applications
 
-Status: **Not done yet**
+Status: **Implemented, waiting for review**
 
 The package becomes compatible with unchanged application code again,
 but issues a deprication warning for unchanged application code.
@@ -479,6 +479,78 @@ but issues a deprication warning for unchanged application code.
 class; an old-style nested Config class and an old-style factory still work
 and warn; a new-style class does not warn; the warning text names what to
 change.
+
+What was decided while implementing this step:
+
+- **The compatibility layer is asked about the signature, not about the
+  override.** `_deprecated_support.accepts_member_name()` reads
+  `inspect.signature` and answers whether the callable has a `member_name`
+  parameter, or a `**kwargs` that any keyword argument reaches. Asking
+  whether the method is overridden at all, the way the renamed-hook shim
+  does, would have called an override that does accept the argument without
+  it. A callable whose signature cannot be read is assumed to accept it,
+  which is the behaviour it had before this step.
+- The answer is remembered in a dict keyed by the function, the method
+  function, or the class, so a class is read once per process rather than
+  once per validated object. A callable object whose class defines
+  `__call__` in Python is remembered by that `__call__`, which is what makes
+  `RadixNumber.factory()`'s returned object cached correctly. Anything else,
+  such as a `functools.partial`, has no key that is safe to keep a reference
+  to and is read every time.
+- `use_member_name()` warns **once per function and per class**, keyed the
+  same way, so an application that has to change two methods is told about
+  both. The tests therefore declare each old-style class inside the test
+  function that is about it.
+- **The warning is meant to be seen in pytest, and only there, at this
+  stage.** It is issued with a fixed `stacklevel` that names a line in this
+  package, which has two consequences that are both wanted. A pytest session
+  shows it, whether the old-style object is built in a test body, while a
+  test module is imported, or while a `conftest.py` is loaded, because pytest
+  replaces the warning filters with `always`; it takes an explicit
+  `ignore::DeprecationWarning`, or `-p no:warnings`, to turn it off, and a
+  `filterwarnings = error` setting turns it into a failing test. An
+  application in production stays silent, because a `DeprecationWarning` is
+  ignored by default and the `__main__` exception of PEP 565 does not apply
+  to a warning attributed to a library file. Attributing it to the
+  application instead, which `warnings.warn(skip_file_prefixes=...)` can do
+  from Python 3.12 on, was therefore deliberately **not** done: an
+  application developer tests, and that is where the warning belongs until
+  step 10 makes it visible to the ones who do not.
+- **Nine call sites are guarded, not the six this step first listed.** The
+  rule applied: every place where the library itself calls a method, a
+  constructor or a factory of the application with `member_name`. Beyond the
+  six, those are `config_factory_from_json` constructing the matched class,
+  `migrate_cfg` constructing the class it migrates, `_config_initial_data`
+  constructing an auto-wrap bridge, and `_RadixFactory` constructing its
+  written-number class. Leaving any of them out would have broken an old
+  application that never wrote a nested Config at all.
+- `check_key_match` and `check_dict_parse` got the default but no guard.
+  They are static methods that the library calls on itself, and an
+  application that overrides a static method of `Config` is a case this
+  step deliberately does not serve.
+- `apply_serialize_converters()` keeps requiring `member_name`, because it
+  was added in step 5 and this step is about what steps 1 to 3 changed.
+- **The wrappers moved out of `config.py`**, which had grown past the
+  1000 line limit. They are now the module-level functions `wrap_parse_json`,
+  `wrap_validate`, `wrap_read`, `wrap_as_json_string` and `wrap_apply` in the
+  new private module `_config_call_wrappers.py`, each taking the object to
+  call as its first argument. Two wrappers are new here: the library calls
+  `read` from `Config.__init__` and `as_json_string` from
+  `_item_json_data` and from `write`, so an old-style override of either of
+  those had to be served too. Step 12 now deletes one file instead of
+  removing methods, and `_config_nesting_io` no longer reaches into a
+  protected method of the object it validates.
+- Adding the default to `WholeConfigValidator.validate` and to
+  `ValidationStep.apply` forced the same default onto every override of them,
+  in `src/`, `test/` and `example/`: an override may not require what the
+  base class defaults. That is twelve mechanical edits and one mypy rule
+  worth remembering for step 12.
+- The two contract docstrings that say a nested class must accept
+  `member_name` now say that it should, and what it loses when it does not.
+- One `duplicate-code` report appeared, because the nested Config
+  boilerplate of the new test helper module is four lines like the one in
+  `test_nested_config.py`. It is suppressed block locally in the new module,
+  the way the repository already handles that kind of accidental similarity.
 
 ## Step 7 — Documentation and a teaching example
 
@@ -539,10 +611,10 @@ Version bump.
 
 Status: **Not done yet**
 
-- Remove `Config._wrap_parse_json()` and `Config._wrap_validate()`; the calls
-  to `parse_json` and `validate` are direct again.
-- Remove the introspection and the deprecation warnings for all five call
-  sites.
+- Delete `_config_call_wrappers.py`; the calls to `parse_json`, `validate`,
+  `read`, `as_json_string` and `apply` are direct again.
+- Remove the introspection and the deprecation warnings for all nine call
+  sites, and the `member_name` part of `_deprecated_support`.
 - Decide then whether the `member_name` defaults stay at `None` or become
   required again. Keeping the default is the smaller change and keeps a top
   level call reading well.

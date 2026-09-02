@@ -19,6 +19,9 @@ from typing import Optional, TextIO, TYPE_CHECKING, cast
 from config_as_json.commontypes import JsonType
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
+from config_as_json._config_call_wrappers import wrap_as_json_string, \
+    wrap_validate
+from config_as_json._deprecated_support import use_member_name
 from config_as_json.member_path import member_path, _indexed_path
 
 
@@ -34,6 +37,52 @@ class _NestedConfigEncoder(json.JSONEncoder):
         if isinstance(o, (Enum, IntEnum)):
             return str(o.name)
         return super().default(o)
+
+
+def _constructed_by_type(name: str, json_text: str, nesting: ConfigNesting,
+                         stderr_file: TextIO) -> 'Config':
+    """Construct one nested Config object with its declared class.
+
+    Args:
+        name: Path text for reaching the nested object. It is handed to the
+            constructed object as its ``member_name``.
+        json_text: JSON text describing the nested Config.
+        nesting: Nested Config declaration for the member.
+        stderr_file: Stream used for user-facing diagnostics.
+
+    Returns:
+        The nested Config made by the declared type.
+    """
+    if use_member_name(nesting.config_type, stacklevel=3):
+        return nesting.config_type(from_json_data_text=json_text,
+                                   from_json_filename=None,
+                                   stderr_file=stderr_file, member_name=name)
+    return nesting.config_type(from_json_data_text=json_text,
+                               from_json_filename=None,
+                               stderr_file=stderr_file)
+
+
+def _constructed_by_factory(name: str, json_text: str, nesting: ConfigNesting,
+                            stderr_file: TextIO) -> 'Config':
+    """Construct one nested Config object with its declared factory.
+
+    Args:
+        name: Path text for reaching the nested object. It is handed to the
+            constructed object as its ``member_name``.
+        json_text: JSON text describing the nested Config.
+        nesting: Nested Config declaration for the member.
+        stderr_file: Stream used for user-facing diagnostics.
+
+    Returns:
+        The nested Config made by the declared factory function.
+    """
+    factory = nesting.factory_function
+    assert factory is not None
+    if use_member_name(factory, stacklevel=3):
+        return factory(from_json_data_text=json_text, from_json_filename=None,
+                       stderr_file=stderr_file, member_name=name)
+    return factory(from_json_data_text=json_text, from_json_filename=None,
+                   stderr_file=stderr_file)
 
 
 def _constructed_nested(name: str, json_text: str, nesting: ConfigNesting,
@@ -52,12 +101,10 @@ def _constructed_nested(name: str, json_text: str, nesting: ConfigNesting,
         factory function when the declaration has one.
     """
     if nesting.factory_function is None:
-        return nesting.config_type(from_json_data_text=json_text,
-                                   from_json_filename=None,
-                                   stderr_file=stderr_file, member_name=name)
-    return nesting.factory_function(from_json_data_text=json_text,
-                                    from_json_filename=None,
-                                    stderr_file=stderr_file, member_name=name)
+        return _constructed_by_type(name=name, json_text=json_text,
+                                    nesting=nesting, stderr_file=stderr_file)
+    return _constructed_by_factory(name=name, json_text=json_text,
+                                   nesting=nesting, stderr_file=stderr_file)
 
 
 # pylint: disable-next=too-many-arguments
@@ -324,8 +371,8 @@ def _item_json_data(member_name: str, member_value: object,
         msg = f'Nested Config member {path} must be '
         msg += nesting.config_type.__name__
         raise TypeError(msg)
-    json_text = member_value.as_json_string(stderr_file=stderr_file,
-                                            member_name=path)
+    json_text = wrap_as_json_string(member_value, stderr_file=stderr_file,
+                                    member_name=path)
     json_data = json.loads(json_text)
     assert isinstance(json_data, dict)
     return cast(dict[str, JsonType], json_data)
@@ -515,8 +562,7 @@ def _validate_item(member_name: str, member_value: object,
         msg += nesting.config_type.__name__
         print(msg, file=stderr_file)
         raise TypeError(msg)
-    # pylint: disable-next=protected-access
-    member_value._wrap_validate(stderr_file=stderr_file, member_name=path)
+    wrap_validate(member_value, stderr_file=stderr_file, member_name=path)
 
 
 def _validate_list(member_name: str, member_value: object,

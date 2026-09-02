@@ -13,6 +13,29 @@ from config_as_json.config_factory import config_factory_from_json, \
     MatchConfig, MatchConfigSeq
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.commontypes import PathOrStr
+from config_as_json._deprecated_support import use_member_name
+
+
+def _constructed_migrated(config_class: type[Config], infile: PathOrStr,
+                          stderr_file: TextIO) -> Config:
+    """Construct one configuration object from the file to migrate.
+
+    Args:
+        config_class: Configuration class describing the migrated file.
+        infile: Configuration file to read and migrate.
+        stderr_file: Stream used for user-facing diagnostics.
+
+    Returns:
+        The configuration object holding the migrated configuration.
+    """
+    if use_member_name(config_class, stacklevel=2):
+        return config_class(from_json_data_text=None,
+                            from_json_filename=infile,
+                            auto_ch_hook=ConfigAutoChangeHook(),
+                            stderr_file=stderr_file, member_name=None)
+    return config_class(from_json_data_text=None, from_json_filename=infile,
+                        auto_ch_hook=ConfigAutoChangeHook(),
+                        stderr_file=stderr_file)
 
 
 def _match_config_seq(config_class: object) -> MatchConfigSeq:
@@ -99,9 +122,8 @@ def migrate_cfg(infile: PathOrStr, outfile: PathOrStr,
               file=stderr_file)
         sys.exit(1)
     if isinstance(config_class, type) and issubclass(config_class, Config):
-        cfg = config_class(from_json_data_text=None, from_json_filename=infile,
-                           auto_ch_hook=ConfigAutoChangeHook(),
-                           stderr_file=stderr_file, member_name=None)
+        cfg = _constructed_migrated(config_class=config_class, infile=infile,
+                                    stderr_file=stderr_file)
         cfg.write(to_json_filename=outfile)
         return 0
     match_configs = _match_config_seq(config_class)

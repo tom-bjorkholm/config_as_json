@@ -237,7 +237,7 @@ class ReportListValidator(WholeConfigValidator):
     """Validate that nested list elements were normalized first."""
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate normalized report formats on the parent object."""
         _ = member_name
         assert isinstance(config, ReportListConfig)
@@ -451,7 +451,7 @@ class ReportDictValidator(WholeConfigValidator):
     """Validate that nested dict values were normalized first."""
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate normalized report formats on the parent object."""
         _ = member_name
         assert isinstance(config, ReportDictConfig)
@@ -674,7 +674,7 @@ class ReportByKeyValidator(WholeConfigValidator):
     """Validate that keyed nested dict values were normalized first."""
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate normalized report formats on the parent object."""
         _ = member_name
         assert isinstance(config, ReportByKeyConfig)

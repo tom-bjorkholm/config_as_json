@@ -78,7 +78,7 @@ class WholeConfigSuffixValidator(WholeConfigValidator):
         self._suffix = suffix
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate the whole config by mutating one member."""
         assert isinstance(config, ValidationOrderConfig)
         _ = stderr_file
@@ -184,7 +184,7 @@ class CountValidation(WholeConfigValidator):
     """Whole-config validator that records completed validation."""
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Record one validation pass on ``LoadValidationConfig``."""
         _ = stderr_file
         _ = member_name

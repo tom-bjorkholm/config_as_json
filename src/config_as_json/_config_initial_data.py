@@ -25,6 +25,7 @@ hand and without losing the bridge-typed schema for nested sections.
 from collections.abc import Mapping
 from typing import Iterator, Optional, TextIO, TYPE_CHECKING
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
+from config_as_json._deprecated_support import use_member_name
 from config_as_json.member_path import member_path, _indexed_path
 
 
@@ -120,6 +121,27 @@ def copy_initial_data_impl(source: object, target: 'Config') -> None:
         setattr(target, name, value)
 
 
+def _constructed_bridge(config_type: 'type[Config]', path: str,
+                        stderr_file: TextIO) -> 'Config':
+    """Construct one empty bridge Config instance.
+
+    Args:
+        config_type: Bridge Config-derived class to construct.
+        path: Dotted and indexed path for reaching the wrapped value from
+            the top level of the configuration being constructed. It is the
+            ``member_name`` of the bridge that is built.
+        stderr_file: Stream used for user-facing diagnostics.
+
+    Returns:
+        A new bridge Config instance holding its own default values.
+    """
+    if use_member_name(config_type, stacklevel=2):
+        return config_type(from_json_data_text=None, from_json_filename=None,
+                           stderr_file=stderr_file, member_name=path)
+    return config_type(from_json_data_text=None, from_json_filename=None,
+                       stderr_file=stderr_file)
+
+
 def _wrap_one_value(source: object, config_type: 'type[Config]', path: str,
                     stderr_file: TextIO) -> 'Config':
     """Build a bridge Config instance whose values come from ``source``.
@@ -141,8 +163,8 @@ def _wrap_one_value(source: object, config_type: 'type[Config]', path: str,
         TypeError: ``source`` cannot be read or describes attributes that
             ``config_type`` does not declare.
     """
-    bridge = config_type(from_json_data_text=None, from_json_filename=None,
-                         stderr_file=stderr_file, member_name=path)
+    bridge = _constructed_bridge(config_type=config_type, path=path,
+                                 stderr_file=stderr_file)
     try:
         copy_initial_data_impl(source=source, target=bridge)
     except TypeError as exc:

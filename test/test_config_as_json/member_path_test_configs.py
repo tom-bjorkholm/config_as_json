@@ -44,7 +44,7 @@ class LeafWholeCheck(WholeConfigValidator):
     """
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Warn about a legacy kind and reject a bad tag."""
         assert isinstance(config, Leaf)
         if config.kind == 'legacy':

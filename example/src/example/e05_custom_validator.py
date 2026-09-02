@@ -66,7 +66,7 @@ class OutputFormatSubtypeValidator(WholeConfigValidator):
     """Validate that ``output_format`` and ``output_subtype`` match."""
 
     def validate(self, config: Config, stderr_file: TextIO = sys.stderr, *,
-                 member_name: Optional[str]) -> None:
+                 member_name: Optional[str] = None) -> None:
         """Validate the dependency between the 2 configuration values.
 
         Args:

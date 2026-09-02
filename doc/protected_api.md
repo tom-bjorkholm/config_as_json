@@ -115,9 +115,17 @@
   * [method\_is\_overridden](#config_as_json._deprecated_support.method_is_overridden)
   * [warn\_deprecated\_hook](#config_as_json._deprecated_support.warn_deprecated_hook)
   * [use\_deprecated\_hook](#config_as_json._deprecated_support.use_deprecated_hook)
+  * [\_signature\_takes\_member\_name](#config_as_json._deprecated_support._signature_takes_member_name)
+  * [\_remembered\_for](#config_as_json._deprecated_support._remembered_for)
+  * [accepts\_member\_name](#config_as_json._deprecated_support.accepts_member_name)
+  * [\_callable\_name](#config_as_json._deprecated_support._callable_name)
+  * [\_no\_member\_name\_message](#config_as_json._deprecated_support._no_member_name_message)
+  * [use\_member\_name](#config_as_json._deprecated_support.use_member_name)
 * [config\_as\_json.\_config\_nesting\_io](#config_as_json._config_nesting_io)
   * [\_NestedConfigEncoder](#config_as_json._config_nesting_io._NestedConfigEncoder)
     * [default](#config_as_json._config_nesting_io._NestedConfigEncoder.default)
+  * [\_constructed\_by\_type](#config_as_json._config_nesting_io._constructed_by_type)
+  * [\_constructed\_by\_factory](#config_as_json._config_nesting_io._constructed_by_factory)
   * [\_constructed\_nested](#config_as_json._config_nesting_io._constructed_nested)
   * [\_item\_from\_json](#config_as_json._config_nesting_io._item_from_json)
   * [\_list\_from\_json](#config_as_json._config_nesting_io._list_from_json)
@@ -215,7 +223,6 @@
     * [\_auto\_wrap\_nested\_defaults](#config_as_json.config.Config._auto_wrap_nested_defaults)
     * [\_decoded\_json\_object](#config_as_json.config.Config._decoded_json_object)
     * [parse\_json](#config_as_json.config.Config.parse_json)
-    * [\_wrap\_parse\_json](#config_as_json.config.Config._wrap_parse_json)
     * [\_child\_owned\_paths](#config_as_json.config.Config._child_owned_paths)
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
     * [read](#config_as_json.config.Config.read)
@@ -224,10 +231,10 @@
     * [get\_converter\_dict](#config_as_json.config.Config.get_converter_dict)
     * [get\_validation\_plan](#config_as_json.config.Config.get_validation_plan)
     * [validate](#config_as_json.config.Config.validate)
-    * [\_wrap\_validate](#config_as_json.config.Config._wrap_validate)
 * [config\_as\_json.str\_to\_enum](#config_as_json.str_to_enum)
   * [string\_to\_enum\_best\_match](#config_as_json.str_to_enum.string_to_enum_best_match)
 * [config\_as\_json.migrate\_cfg](#config_as_json.migrate_cfg)
+  * [\_constructed\_migrated](#config_as_json.migrate_cfg._constructed_migrated)
   * [\_match\_config\_seq](#config_as_json.migrate_cfg._match_config_seq)
   * [migrate\_cfg](#config_as_json.migrate_cfg.migrate_cfg)
 * [config\_as\_json.radix\_number](#config_as_json.radix_number)
@@ -429,6 +436,7 @@
     * [\_\_init\_\_](#config_as_json.config_factory.JsonValueMatcher.__init__)
     * [\_\_call\_\_](#config_as_json.config_factory.JsonValueMatcher.__call__)
     * [compare\_value](#config_as_json.config_factory.JsonValueMatcher.compare_value)
+  * [\_constructed\_match](#config_as_json.config_factory._constructed_match)
   * [config\_factory\_from\_json](#config_as_json.config_factory.config_factory_from_json)
 * [config\_as\_json.assert\_dict\_equal](#config_as_json.assert_dict_equal)
   * [\_print\_dict\_differs](#config_as_json.assert_dict_equal._print_dict_differs)
@@ -472,6 +480,7 @@
   * [\_public\_items\_of\_mapping](#config_as_json._config_initial_data._public_items_of_mapping)
   * [\_public\_items\_of\_object](#config_as_json._config_initial_data._public_items_of_object)
   * [copy\_initial\_data\_impl](#config_as_json._config_initial_data.copy_initial_data_impl)
+  * [\_constructed\_bridge](#config_as_json._config_initial_data._constructed_bridge)
   * [\_wrap\_one\_value](#config_as_json._config_initial_data._wrap_one_value)
   * [\_wrap\_optional\_or\_member](#config_as_json._config_initial_data._wrap_optional_or_member)
   * [\_wrap\_list\_elements](#config_as_json._config_initial_data._wrap_list_elements)
@@ -538,6 +547,12 @@
     * [\_\_init\_\_](#config_as_json.as_dict_view_validator.AsDictViewValidator.__init__)
     * [\_validate\_dict\_view](#config_as_json.as_dict_view_validator.AsDictViewValidator._validate_dict_view)
     * [validate\_member](#config_as_json.as_dict_view_validator.AsDictViewValidator.validate_member)
+* [config\_as\_json.\_config\_call\_wrappers](#config_as_json._config_call_wrappers)
+  * [wrap\_parse\_json](#config_as_json._config_call_wrappers.wrap_parse_json)
+  * [wrap\_validate](#config_as_json._config_call_wrappers.wrap_validate)
+  * [wrap\_read](#config_as_json._config_call_wrappers.wrap_read)
+  * [wrap\_as\_json\_string](#config_as_json._config_call_wrappers.wrap_as_json_string)
+  * [wrap\_apply](#config_as_json._config_call_wrappers.wrap_apply)
 * [config\_as\_json.json\_write\_hooks](#config_as_json.json_write_hooks)
   * [SerializeConverter](#config_as_json.json_write_hooks.SerializeConverter)
   * [JsonWriteHookError](#config_as_json.json_write_hooks.JsonWriteHookError)
@@ -1241,7 +1256,7 @@ Initialize the validator.
 def validate(config: 'Config',
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Validate an aspect of the entire Config object.
@@ -1405,7 +1420,7 @@ Base class for one ordered validation step.
 def apply(config: 'Config',
           stderr_file: TextIO = sys.stderr,
           *,
-          member_name: Optional[str]) -> None
+          member_name: Optional[str] = None) -> None
 ```
 
 Apply the validation step to one Config object.
@@ -1449,7 +1464,7 @@ Validation step that applies one whole-config validator.
 def apply(config: 'Config',
           stderr_file: TextIO = sys.stderr,
           *,
-          member_name: Optional[str]) -> None
+          member_name: Optional[str] = None) -> None
 ```
 
 Apply the whole-config validator to the Config object.
@@ -1496,7 +1511,7 @@ Validation step that applies one member validator.
 def apply(config: 'Config',
           stderr_file: TextIO = sys.stderr,
           *,
-          member_name: Optional[str]) -> None
+          member_name: Optional[str] = None) -> None
 ```
 
 Apply the member validator to each named member.
@@ -1990,7 +2005,7 @@ normalize the configuration.
 def validate(config: 'Config',
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Validate the entire Config object by calling a method in it.
@@ -2697,7 +2712,13 @@ Validate one member if it is not None.
 
 # config\_as\_json.\_deprecated\_support
 
-Support compatibility shims for renamed internal hooks.
+Support compatibility shims for the API migrations of this package.
+
+Two migrations are supported here. A renamed hook is supported by calling
+the old name when a subclass overrides it. A method or a constructor of an
+application that does not accept the ``member_name`` argument is supported
+by calling it without that argument. Both warn that the old way is
+deprecated.
 
 <a id="config_as_json._deprecated_support.DeprecatedHook"></a>
 
@@ -2741,6 +2762,125 @@ def use_deprecated_hook(instance: object, base_class: type[object],
 
 Return whether a deprecated hook override should be used.
 
+<a id="config_as_json._deprecated_support._signature_takes_member_name"></a>
+
+#### \_signature\_takes\_member\_name
+
+```python
+def _signature_takes_member_name(func: Callable[..., object]) -> bool
+```
+
+Return whether the signature of a callable takes ``member_name``.
+
+A callable whose signature cannot be read is assumed to take the
+argument, because that keeps the behaviour it had before the argument
+could be left out.
+
+**Arguments**:
+
+- `func` - Callable that the library is about to call.
+
+
+**Returns**:
+
+  Whether the callable has a ``member_name`` parameter, or a
+  ``**kwargs`` parameter that any keyword argument reaches.
+
+<a id="config_as_json._deprecated_support._remembered_for"></a>
+
+#### \_remembered\_for
+
+```python
+def _remembered_for(func: Callable[..., object]) -> Optional[object]
+```
+
+Return what identifies the code of a callable, or ``None``.
+
+A plain function, a method, a class, and an object whose class defines
+``__call__`` in Python, each identify their own code by an object that
+lives as long as the class it belongs to, so what was found out about
+them is worth remembering. Another kind of callable object, such as a
+``functools.partial``, identifies its own signature by nothing that is
+safe to keep a reference to, so it is asked again every time.
+
+**Arguments**:
+
+- `func` - Callable that the library is about to call.
+
+
+**Returns**:
+
+  The key to remember the callable by, or ``None`` for a callable that
+  must not be remembered.
+
+<a id="config_as_json._deprecated_support.accepts_member_name"></a>
+
+#### accepts\_member\_name
+
+```python
+def accepts_member_name(func: Callable[..., object]) -> bool
+```
+
+Return whether a callable accepts the ``member_name`` argument.
+
+The answer is remembered per function and per class, so that the
+signature of an application method is read once instead of once per
+validated configuration object.
+
+**Arguments**:
+
+- `func` - Callable that the library is about to call.
+
+
+**Returns**:
+
+  Whether ``member_name`` can be passed to the callable.
+
+<a id="config_as_json._deprecated_support._callable_name"></a>
+
+#### \_callable\_name
+
+```python
+def _callable_name(func: Callable[..., object]) -> str
+```
+
+Return the name of a callable as a diagnostic should spell it.
+
+<a id="config_as_json._deprecated_support._no_member_name_message"></a>
+
+#### \_no\_member\_name\_message
+
+```python
+def _no_member_name_message(func: Callable[..., object]) -> str
+```
+
+Return the message about a callable that omits ``member_name``.
+
+<a id="config_as_json._deprecated_support.use_member_name"></a>
+
+#### use\_member\_name
+
+```python
+def use_member_name(func: Callable[..., object], stacklevel: int) -> bool
+```
+
+Return whether ``member_name`` should be passed to a callable.
+
+Warn about a callable that does not accept the argument, once for each
+function and each class that has to be changed, so that an application
+overriding two methods learns about both of them.
+
+**Arguments**:
+
+- `func` - Callable that the library is about to call.
+- `stacklevel` - Stack level that the warning is attributed to, counted
+  from the caller of this function.
+
+
+**Returns**:
+
+  Whether ``member_name`` can be passed to the callable.
+
 <a id="config_as_json._config_nesting_io"></a>
 
 # config\_as\_json.\_config\_nesting\_io
@@ -2774,6 +2914,54 @@ def default(o: object) -> object
 ```
 
 Serialize enum members using their symbolic names.
+
+<a id="config_as_json._config_nesting_io._constructed_by_type"></a>
+
+#### \_constructed\_by\_type
+
+```python
+def _constructed_by_type(name: str, json_text: str, nesting: ConfigNesting,
+                         stderr_file: TextIO) -> 'Config'
+```
+
+Construct one nested Config object with its declared class.
+
+**Arguments**:
+
+- `name` - Path text for reaching the nested object. It is handed to the
+  constructed object as its ``member_name``.
+- `json_text` - JSON text describing the nested Config.
+- `nesting` - Nested Config declaration for the member.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  The nested Config made by the declared type.
+
+<a id="config_as_json._config_nesting_io._constructed_by_factory"></a>
+
+#### \_constructed\_by\_factory
+
+```python
+def _constructed_by_factory(name: str, json_text: str, nesting: ConfigNesting,
+                            stderr_file: TextIO) -> 'Config'
+```
+
+Construct one nested Config object with its declared factory.
+
+**Arguments**:
+
+- `name` - Path text for reaching the nested object. It is handed to the
+  constructed object as its ``member_name``.
+- `json_text` - JSON text describing the nested Config.
+- `nesting` - Nested Config declaration for the member.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  The nested Config made by the declared factory function.
 
 <a id="config_as_json._config_nesting_io._constructed_nested"></a>
 
@@ -4475,12 +4663,21 @@ keys inside a dict whose values are nested Config objects. Use a direct
 list element has kind ``DICT_VALUE_BY_KEY`` and the entries describe
 selected keys inside the same dict member.
 Nested config classes must accept the constructor keyword arguments
-``from_json_data_text``, ``from_json_filename``, ``stderr_file``, and
-``member_name`` because those are used when nested JSON objects are
-parsed. As an alternative construction path, a ``ConfigNesting``
-declaration may provide ``factory_function`` with the same
-keyword-argument contract. The returned object must be an instance of
-the declared ``config_type``.
+``from_json_data_text``, ``from_json_filename``, and ``stderr_file``
+because those are used when nested JSON objects are parsed, and should
+accept ``member_name`` as well. A class that does not accept
+``member_name`` is constructed without it and warns that it should be
+changed; its own diagnostics then name a plain member name instead of
+the whole path for reaching the member. As an alternative construction
+path, a ``ConfigNesting`` declaration may provide ``factory_function``
+with the same keyword-argument contract. The returned object must be an
+instance of the declared ``config_type``.
+
+An override of :meth:`parse_json`, :meth:`validate`, :meth:`read` or
+:meth:`as_json_string` should accept ``member_name`` and pass it on to
+the base class, so that a diagnostic can name the whole path for
+reaching a configuration value. An override that does not accept it is
+called without it and warns that it should be changed.
 
 <a id="config_as_json.config.Config.__init__"></a>
 
@@ -4492,7 +4689,7 @@ def __init__(from_json_data_text: Optional[str],
              auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Initialize a derived configuration object.
@@ -4699,7 +4896,7 @@ def check_key_match(expected_keys: list[str],
                     stderr_file: TextIO,
                     allowed_missing_keys: Optional[list[str]] = None,
                     *,
-                    member_name: Optional[str],
+                    member_name: Optional[str] = None,
                     dict_keys: bool = False) -> None
 ```
 
@@ -4737,10 +4934,14 @@ Validate that parsed keys match the declared configuration keys.
 
 ```python
 @staticmethod
-def check_dict_parse(self_data: object, json_data: object, key: str,
-                     ok_to_use_defaults: bool, unchecked_dicts: list[str],
-                     stderr_file: TextIO, *,
-                     member_name: Optional[str]) -> None
+def check_dict_parse(self_data: object,
+                     json_data: object,
+                     key: str,
+                     ok_to_use_defaults: bool,
+                     unchecked_dicts: list[str],
+                     stderr_file: TextIO,
+                     *,
+                     member_name: Optional[str] = None) -> None
 ```
 
 Recursively validate nested dictionaries against default values.
@@ -4980,7 +5181,7 @@ def parse_json(from_json_text: str,
                ok_to_use_defaults: bool = False,
                stderr_file: TextIO = sys.stderr,
                *,
-               member_name: Optional[str]) -> None
+               member_name: Optional[str] = None) -> None
 ```
 
 Parse JSON text and apply it to the configuration object.
@@ -5012,38 +5213,6 @@ too. Nothing is reported when parsing fails before that point.
 - `NotImplementedError` - A required custom converter was not supplied
   by a derived class.
 
-<a id="config_as_json.config.Config._wrap_parse_json"></a>
-
-#### \_wrap\_parse\_json
-
-```python
-def _wrap_parse_json(from_json_text: str,
-                     ok_to_use_defaults: bool = False,
-                     stderr_file: TextIO = sys.stderr,
-                     *,
-                     member_name: Optional[str]) -> None
-```
-
-Call :meth:`parse_json` on behalf of the library itself.
-
-Every call the library makes to ``parse_json`` on a Config object
-goes through this wrapper, so that support for derived classes that
-do not accept every argument has a single place to live. An
-application calls :meth:`parse_json` directly instead.
-
-**Arguments**:
-
-- `from_json_text` - JSON document describing configuration values.
-- `ok_to_use_defaults` - Whether missing declared keys may remain at
-  their already assigned default values.
-- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
-  ``sys.stderr``.
-- `member_name` - Dotted and indexed path for reaching this object by
-  traversing nested attributes from the top level of the
-  complete ``parse_json()`` operation, such as
-  ``outputs[1].section``. ``None`` means that this object is
-  the top level and not a member of anything.
-
 <a id="config_as_json.config.Config._child_owned_paths"></a>
 
 #### \_child\_owned\_paths
@@ -5070,7 +5239,9 @@ notation.
 #### as\_json\_string
 
 ```python
-def as_json_string(stderr_file: TextIO, *, member_name: Optional[str]) -> str
+def as_json_string(stderr_file: TextIO,
+                   *,
+                   member_name: Optional[str] = None) -> str
 ```
 
 Serialize the current configuration object to formatted JSON.
@@ -5100,7 +5271,7 @@ def read(from_json_filename: PathOrStr,
          ok_to_use_defaults: bool = False,
          stderr_file: TextIO = sys.stderr,
          *,
-         member_name: Optional[str]) -> None
+         member_name: Optional[str] = None) -> None
 ```
 
 Read configuration JSON from a file and apply it to the object.
@@ -5215,7 +5386,9 @@ validation and only want to return an empty list.
 #### validate
 
 ```python
-def validate(stderr_file: TextIO, *, member_name: Optional[str]) -> None
+def validate(stderr_file: TextIO,
+             *,
+             member_name: Optional[str] = None) -> None
 ```
 
 Validate the Config object.
@@ -5241,30 +5414,6 @@ directly.
 - `AttributeError` - A member name in the validation plan is not a
   valid member name of the Config object.
 
-
-**Arguments**:
-
-- `stderr_file` - Stream used for user-facing diagnostics.
-- `member_name` - Dotted and indexed path for reaching this object by
-  traversing nested attributes from the top level of the
-  complete ``validate()`` operation, such as
-  ``outputs[1].section``. ``None`` means that this object is
-  the top level and not a member of anything.
-
-<a id="config_as_json.config.Config._wrap_validate"></a>
-
-#### \_wrap\_validate
-
-```python
-def _wrap_validate(stderr_file: TextIO, *, member_name: Optional[str]) -> None
-```
-
-Call :meth:`validate` on behalf of the library itself.
-
-Every call the library makes to ``validate`` on a Config object goes
-through this wrapper, so that support for derived classes that do not
-accept every argument has a single place to live. An application
-calls :meth:`validate` directly instead.
 
 **Arguments**:
 
@@ -5316,6 +5465,28 @@ case.
 # config\_as\_json.migrate\_cfg
 
 Migrate an older configuration file to the newest supported format.
+
+<a id="config_as_json.migrate_cfg._constructed_migrated"></a>
+
+#### \_constructed\_migrated
+
+```python
+def _constructed_migrated(config_class: type[Config], infile: PathOrStr,
+                          stderr_file: TextIO) -> Config
+```
+
+Construct one configuration object from the file to migrate.
+
+**Arguments**:
+
+- `config_class` - Configuration class describing the migrated file.
+- `infile` - Configuration file to read and migrate.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  The configuration object holding the migrated configuration.
 
 <a id="config_as_json.migrate_cfg._match_config_seq"></a>
 
@@ -6194,7 +6365,7 @@ of the value.
 def validate(config: Config,
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Rebuild the cached integer of the RadixNumber.
@@ -7268,7 +7439,7 @@ Return whether the configured relation holds.
 def validate(config: 'Config',
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Validate the configured relation between two list-like values.
@@ -7567,7 +7738,7 @@ Initialize the projected whole-config validator.
 def validate(config: 'Config',
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str]) -> None
+             member_name: Optional[str] = None) -> None
 ```
 
 Validate an aspect of the entire Config object.
@@ -9389,6 +9560,34 @@ case-insensitively and all other JSON values with ``==``.
 
   ``True`` when the values should be considered equivalent.
 
+<a id="config_as_json.config_factory._constructed_match"></a>
+
+#### \_constructed\_match
+
+```python
+def _constructed_match(config_class: type[Config], json_text: str,
+                       auto_ch_hook: ConfigAutoChangeHook, stderr_file: TextIO,
+                       *, member_name: Optional[str]) -> Config
+```
+
+Construct the configuration class that accepted the JSON input.
+
+**Arguments**:
+
+- `config_class` - Configuration class whose matcher accepted the input.
+- `json_text` - Configuration JSON that the matcher accepted.
+- `auto_ch_hook` - Hook that should receive automatic-change callbacks.
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching the created object
+  by traversing nested attributes from the top level of the
+  complete construction. ``None`` means that the created object is
+  the top level and not a member of anything.
+
+
+**Returns**:
+
+  The constructed configuration object.
+
 <a id="config_as_json.config_factory.config_factory_from_json"></a>
 
 #### config\_factory\_from\_json
@@ -9400,7 +9599,7 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
                              from_json_data_text: Optional[str] = None,
                              stderr_file: TextIO = sys.stderr,
                              *,
-                             member_name: Optional[str]) -> Config
+                             member_name: Optional[str] = None) -> Config
 ```
 
 Create the first configuration class whose matcher accepts the input.
@@ -10368,6 +10567,30 @@ become the target's schema and no comparison can be made.
 - `TypeError` - ``source`` cannot be read, or ``target`` has a known
   public schema and ``source`` exposes a public attribute that
   ``target`` does not declare.
+
+<a id="config_as_json._config_initial_data._constructed_bridge"></a>
+
+#### \_constructed\_bridge
+
+```python
+def _constructed_bridge(config_type: 'type[Config]', path: str,
+                        stderr_file: TextIO) -> 'Config'
+```
+
+Construct one empty bridge Config instance.
+
+**Arguments**:
+
+- `config_type` - Bridge Config-derived class to construct.
+- `path` - Dotted and indexed path for reaching the wrapped value from
+  the top level of the configuration being constructed. It is the
+  ``member_name`` of the bridge that is built.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  A new bridge Config instance holding its own default values.
 
 <a id="config_as_json._config_initial_data._wrap_one_value"></a>
 
@@ -11391,6 +11614,159 @@ Validate one member through a dictionary-shaped view.
 - `InvalidConfigurationValue` - If an inner validator rejects a value
   because it is not one of its allowed values.
 
+<a id="config_as_json._config_call_wrappers"></a>
+
+# config\_as\_json.\_config\_call\_wrappers
+
+Call the overridable methods of a configuration on behalf of the library.
+
+Every call the library itself makes to ``parse_json``, ``validate``,
+``read`` or ``as_json_string`` on a :class:`Config` object, and every call it
+makes to ``apply`` on a :class:`ValidationStep`, goes through this module. An
+application calls those methods directly instead.
+
+The reason for the detour is that ``member_name`` was added to all of them
+after applications had already been written against the versions without it.
+An override that does not accept ``member_name`` is called without it, and
+warns that it should be changed. See
+:func:`config_as_json._deprecated_support.use_member_name`.
+
+<a id="config_as_json._config_call_wrappers.wrap_parse_json"></a>
+
+#### wrap\_parse\_json
+
+```python
+def wrap_parse_json(config: 'Config',
+                    from_json_text: str,
+                    ok_to_use_defaults: bool = False,
+                    stderr_file: TextIO = sys.stderr,
+                    *,
+                    member_name: Optional[str] = None) -> None
+```
+
+Call ``parse_json`` on one Config object.
+
+**Arguments**:
+
+- `config` - Configuration object to parse the JSON text into.
+- `from_json_text` - JSON document describing configuration values.
+- `ok_to_use_defaults` - Whether missing declared keys may remain at their
+  already assigned default values.
+- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
+  ``sys.stderr``.
+- `member_name` - Dotted and indexed path for reaching ``config`` by
+  traversing nested attributes from the top level of the complete
+  ``parse_json()`` operation, such as ``outputs[1].section``.
+  ``None`` means that ``config`` is the top level and not a member
+  of anything.
+
+<a id="config_as_json._config_call_wrappers.wrap_validate"></a>
+
+#### wrap\_validate
+
+```python
+def wrap_validate(config: 'Config',
+                  stderr_file: TextIO,
+                  *,
+                  member_name: Optional[str] = None) -> None
+```
+
+Call ``validate`` on one Config object.
+
+**Arguments**:
+
+- `config` - Configuration object to validate.
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching ``config`` by
+  traversing nested attributes from the top level of the complete
+  ``validate()`` operation, such as ``outputs[1].section``.
+  ``None`` means that ``config`` is the top level and not a member
+  of anything.
+
+<a id="config_as_json._config_call_wrappers.wrap_read"></a>
+
+#### wrap\_read
+
+```python
+def wrap_read(config: 'Config',
+              from_json_filename: PathOrStr,
+              ok_to_use_defaults: bool = False,
+              stderr_file: TextIO = sys.stderr,
+              *,
+              member_name: Optional[str] = None) -> None
+```
+
+Call ``read`` on one Config object.
+
+**Arguments**:
+
+- `config` - Configuration object to read the JSON file into.
+- `from_json_filename` - File containing configuration JSON.
+- `ok_to_use_defaults` - Whether missing declared keys may remain at their
+  already assigned default values.
+- `stderr_file` - Stream used for user-facing diagnostics. Defaults to
+  ``sys.stderr``.
+- `member_name` - Dotted and indexed path for reaching ``config`` by
+  traversing nested attributes from the top level of the complete
+  ``read()`` operation, such as ``outputs[1].section``. ``None``
+  means that ``config`` is the top level and not a member of
+  anything.
+
+<a id="config_as_json._config_call_wrappers.wrap_as_json_string"></a>
+
+#### wrap\_as\_json\_string
+
+```python
+def wrap_as_json_string(config: 'Config',
+                        stderr_file: TextIO,
+                        *,
+                        member_name: Optional[str] = None) -> str
+```
+
+Call ``as_json_string`` on one Config object.
+
+**Arguments**:
+
+- `config` - Configuration object to serialize.
+- `stderr_file` - Stream used for user-facing diagnostics during
+  validation.
+- `member_name` - Dotted and indexed path for reaching ``config`` by
+  traversing nested attributes from the top level of the complete
+  ``as_json_string()`` operation, such as ``outputs[1].section``.
+  ``None`` means that ``config`` is the top level and not a member
+  of anything.
+
+
+**Returns**:
+
+  A JSON document containing every public, non-callable instance
+  attribute on the configuration object.
+
+<a id="config_as_json._config_call_wrappers.wrap_apply"></a>
+
+#### wrap\_apply
+
+```python
+def wrap_apply(validation_step: ValidationStep,
+               config: 'Config',
+               stderr_file: TextIO,
+               *,
+               member_name: Optional[str] = None) -> None
+```
+
+Call ``apply`` on one validation step.
+
+**Arguments**:
+
+- `validation_step` - Validation step to apply to ``config``.
+- `config` - Configuration object to validate.
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching ``config`` by
+  traversing nested attributes from the top level of the complete
+  ``validate()`` operation, such as ``outputs[1].section``.
+  ``None`` means that ``config`` is the top level and not a member
+  of anything.
+
 <a id="config_as_json.json_write_hooks"></a>
 
 # config\_as\_json.json\_write\_hooks
@@ -12217,7 +12593,7 @@ def __call__(*,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
              stderr_file: TextIO = sys.stderr,
-             member_name: Optional[str]) -> 'Config'
+             member_name: Optional[str] = None) -> 'Config'
 ```
 
 Construct one nested Config object.
@@ -12250,11 +12626,14 @@ Describe one nested Config declaration.
 
 The nested class must derive from :class:`Config` and must be
 constructible with keyword arguments ``from_json_data_text``,
-``from_json_filename``, ``stderr_file``, and ``member_name``. This is the
-constructor shape used by the base class when it reads a nested JSON
-object. If ``factory_function`` is set, that callable is used instead of
-the ``config_type`` constructor. The factory must accept the same keyword
-arguments and must return an instance of ``config_type`` or a subclass.
+``from_json_filename``, and ``stderr_file``, and should accept
+``member_name`` as well. This is the constructor shape used by the base
+class when it reads a nested JSON object. A class or a factory that does
+not accept ``member_name`` is called without it and warns that it should
+be changed. If ``factory_function`` is set, that callable is used instead
+of the ``config_type`` constructor. The factory must accept the same
+keyword arguments and must return an instance of ``config_type`` or a
+subclass.
 
 **Attributes**:
 
