@@ -457,6 +457,40 @@ def test_child_dict_wildcard() -> None:
                                 'b': {'level': 'already-b'}}}
 
 
+def test_child_owned_all_checked() -> None:
+    """Every child-owned path is checked, not only the first one."""
+    inner = SerializeConverter(value_type=str, func=add_prefix,
+                               args={'prefix': '-'})
+    converters = {('second', 'inner'): inner}
+    with pytest.raises(SerializeSelectorError, match='child-owned'):
+        _ = run({'second': {'inner': 'x'}}, converters,
+                child_owned=(('first',), ('second',)))
+
+
+def test_ancestor_of_later_child() -> None:
+    """A path containing a later child-owned subtree is rejected."""
+    converters = {('parent',): SerializeConverter(value_type=dict,
+                                                  func=lambda v, **_kw: v,
+                                                  args={})}
+    with pytest.raises(SerializeSelectorError, match='ancestor'):
+        _ = run({'parent': {'child': {'inner': 'x'}}}, converters,
+                child_owned=(('first',), ('parent', 'child')))
+
+
+def test_child_owned_unrelated() -> None:
+    """A selector unrelated to every child-owned path is converted."""
+    converters = {('own', 'inner'): SerializeConverter(value_type=str,
+                                                       func=add_prefix,
+                                                       args={'prefix': '-'})}
+    data: dict[str, object] = {'own': {'inner': 'x'},
+                               'first': {'level': 'done-1'},
+                               'second': {'level': 'done-2'}}
+    out = run(data, converters, child_owned=(('first',), ('second',)))
+    assert out == {'own': {'inner': '-x'},
+                   'first': {'level': 'done-1'},
+                   'second': {'level': 'done-2'}}
+
+
 def test_child_owned_json_check() -> None:
     """Child-owned data is skipped but still checked for valid JSON."""
     data: dict[str, object] = {'child': cast(object, {1: 'bad'})}

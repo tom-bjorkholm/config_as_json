@@ -834,3 +834,57 @@ def test_rocf_no_removed_keys(capsys: CaptureFixture[str]) -> None:
     assert cfg.count == 4
     assert cfg.details == {'mode': 'normal', 'limits': {'high': 9}}
     assert not cfg.entries
+
+
+def _as_list(value: object) -> list[object]:
+    """Return one bare configured value wrapped in a list.
+
+    A value that already is a list never reaches this function, because
+    ``ParseConverter.result_type`` says what needs no conversion.
+    """
+    assert not isinstance(value, list)
+    return [value]
+
+
+class TagListConfig(Config):
+    """Class with a list member that also accepts one bare value."""
+
+    def __init__(self, from_json_data_text: Optional[str] = None,
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
+        """Construct a config object with an optional list member."""
+        self.tags: Optional[list[str]] = None
+        super().__init__(from_json_data_text=from_json_data_text,
+                         from_json_filename=None, stderr_file=stderr_file,
+                         member_name=member_name)
+
+    @override
+    def _omit_none_from_json(self) -> list[str]:
+        """Return the key omitted while its value is None."""
+        return ['tags']
+
+    def parse_converters(self) -> dict[str, ParseConverter]:
+        """Return the converter widening one bare value into a list."""
+        return {'tags': ParseConverter(result_type=list, func=_as_list,
+                                       args={})}
+
+    def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
+        """Get validation plan for use when validating the Config object."""
+        _ = stderr_file
+        return []
+
+
+@pytest.mark.parametrize('jstext, expected', [
+    ('{"tags": "one"}', ['one']),
+    ('{"tags": ["one", "two"]}', ['one', 'two']),
+    ('{"tags": []}', []),
+    ('{"tags": null}', None),
+    ('{}', None)])
+def test_parse_conv_typed(jstext: str, expected: Optional[list[str]],
+                          capsys: CaptureFixture[str]) -> None:
+    """Test that a parsed value of the result type is not converted."""
+    cfg = TagListConfig(from_json_data_text=jstext, stderr_file=sys.stderr)
+    out, err = capsys.readouterr()
+    assert cfg.tags == expected
+    assert '' == out
+    assert '' == err

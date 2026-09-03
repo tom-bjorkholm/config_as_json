@@ -35,6 +35,7 @@ def fix_file_extension(filename: str, ext_to_add: str,
         extlen = len(ext_to_remove)
         if low[-extlen:] == extlowrem:
             ret = ret[:-extlen]
+            low = ret.lower()
     extlowadd = ext_to_add.lower()
     extlen = len(ext_to_add)
     if low[-extlen:] != extlowadd:

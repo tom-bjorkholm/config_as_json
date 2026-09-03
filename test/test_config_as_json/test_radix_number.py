@@ -124,3 +124,26 @@ def test_diagnostics(value: object, error: type[Exception], message: str,
         validator.validate_member(config, 'flags', value, sys.stderr)
     assert message in str(raised.value)
     check_capsys(capsys, in_err=message)
+
+
+@pytest.mark.parametrize('prefix,digits', [
+    (BinaryNumber.Prefix.ZERO_B, 8), (BinaryNumber.Prefix.NONE, 0),
+    (BinaryNumber.Prefix.NONE, 4), (BinaryNumber.Prefix.ZERO_B, 1)])
+def test_validator_notation(prefix: 'BinaryNumber.Prefix', digits: int,
+                            capsys: pytest.CaptureFixture[str]) -> None:
+    """A validator tells the notation it was configured with."""
+    validator = BinaryStringValidator(prefix=prefix, digits=digits)
+    config = BinaryConfig(stderr_file=sys.stderr)
+    assert validator.prefix == prefix
+    assert validator.digits == digits
+    written = validator.validate_member(config, 'flags', 3, sys.stderr)
+    assert written == f'{prefix.value}{3:0{digits}b}'
+    check_capsys(capsys)
+
+
+def test_validator_defaults(capsys: pytest.CaptureFixture[str]) -> None:
+    """A validator made without a digit count pads nothing."""
+    validator = BinaryStringValidator(prefix=BinaryNumber.Prefix.ZERO_B)
+    assert validator.prefix == BinaryNumber.Prefix.ZERO_B
+    assert validator.digits == 0
+    check_capsys(capsys)

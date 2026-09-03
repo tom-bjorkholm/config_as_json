@@ -281,3 +281,72 @@ def test_val_mig_list_no_write() -> None:
     assert sorted(hook.old_keys) == ['items[0]', 'items[1]']
     assert not hook.old_paths_moved
     assert err == ''
+
+
+def test_val_mig_wrap_twice() -> None:
+    """One existing current list is named once by two declared writes."""
+
+    def fail_condition(value: object) -> bool:
+        """Fail if wrap-list conflict detection calls the condition."""
+        _ = value
+        raise AssertionError('condition should not be called')
+
+    data: dict[str, object] = {'legacy': 'old', 'items': []}
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(old_path=('legacy',),
+                           writes=[
+                               RocfValueWrite(new_path=('items', '[', 'name'),
+                                              condition=fail_condition),
+                               RocfValueWrite(new_path=('items', '[', 'tag'),
+                                              condition=fail_condition)])]
+    hook, err = process_data(rocf, data)
+    assert data == {'items': []}
+    assert hook.old_keys == ['legacy']
+    assert err == '\n'.join([
+        'Inconsistent configuration:',
+        'Both new config parameter one of items[0][name], items[0][tag] '
+        'and old legacy present.',
+        'Existing current parameter(s): items',
+        'Ignoring old parameter legacy'
+    ]) + '\n'
+
+
+def test_val_mig_item_elsewhere() -> None:
+    """Old list elements can migrate out of the list they were in."""
+    data: dict[str, object] = {'items': ['first', 'second']}
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(old_path=('items', '['),
+                           writes=[
+                               RocfValueWrite(
+                                   new_path=('handled', '[', 'name'))])]
+    hook, err = process_data(rocf, data)
+    assert data == {'items': [],
+                    'handled': [{'name': 'first'}, {'name': 'second'}]}
+    assert sorted(hook.old_paths_moved) == [
+        ('items[0]', 'handled[0][name]'),
+        ('items[1]', 'handled[1][name]')
+    ]
+    assert err == ''
+
+
+def test_val_mig_item_split() -> None:
+    """One old list element can be kept in its slot and also copied away."""
+    data: dict[str, object] = {'items': ['alpha']}
+    rocf = RuleReadOldConfig()
+    rocf.value_migrations = [
+        RocfValueMigration(old_path=('items', '['),
+                           writes=[
+                               RocfValueWrite(
+                                   new_path=('handled', '[', 'copy')),
+                               RocfValueWrite(
+                                   new_path=('items', '[', 'name'))])]
+    hook, err = process_data(rocf, data)
+    assert data == {'items': [{'name': 'alpha'}],
+                    'handled': [{'copy': 'alpha'}]}
+    assert sorted(hook.old_paths_moved) == [
+        ('items[0]', 'handled[0][copy]'),
+        ('items[0]', 'items[0][name]')
+    ]
+    assert err == ''
