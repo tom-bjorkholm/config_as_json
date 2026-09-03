@@ -72,14 +72,15 @@ class MyConfig(Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for my application."""
         self.report_name: str = 'My Report'
         self.story_points: int = 5
         self.participants: list[str] = ['Alice', 'Bob']
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file)
+                         stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return an empty validation plan."""
@@ -201,13 +202,14 @@ class MyConfig(ThirdPartyConfig, Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for my application."""
         # Initialize the third-party configuration before Config
         ThirdPartyConfig.__init__(self)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return an empty validation plan."""
@@ -261,13 +263,14 @@ class MyConfig(ThirdPartyConfig, Config):
 
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
-                 stderr_file: TextIO = sys.stderr) -> None:
+                 stderr_file: TextIO = sys.stderr,
+                 member_name: Optional[str] = None) -> None:
         """Construct configuration for my application."""
         # Initialize the third-party configuration before Config
         ThirdPartyConfig.__init__(self)
         Config.__init__(self, from_json_data_text=from_json_data_text,
                         from_json_filename=from_json_filename,
-                        stderr_file=stderr_file)
+                        stderr_file=stderr_file, member_name=member_name)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return the validation plan for my application."""
@@ -284,7 +287,7 @@ def application(config_filename: PathOrStr, update_config: bool,
     """Simulate a simple application that uses MyConfig."""
     config = MyConfig(stderr_file=sys.stderr)
     if read_file:
-        config.read(config_filename, stderr_file=sys.stderr)
+        config.read(config_filename, stderr_file=sys.stderr, member_name=None)
     # A lot of application code not shown here
     print(f'Report name: {config.report_name}')
     # ...
@@ -1232,11 +1235,20 @@ with these keyword arguments:
 ```python
 def __init__(self, from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
-             stderr_file: TextIO = sys.stderr) -> None:
+             stderr_file: TextIO = sys.stderr,
+             member_name: Optional[str] = None) -> None:
 ```
 
 They may have additional optional arguments, but the base class constructs
-nested objects from JSON using the three keyword names shown above.
+nested objects from JSON using the four keyword names shown above.
+
+`member_name` is the path for reaching the constructed object from the top
+level configuration, such as `outputs[1].section`. The base class supplies
+it when it constructs a nested object, and a nested class should pass it on
+to `super().__init__()` so that diagnostics about the nested object name the
+whole path. `None` means that the object is the top level configuration and
+not a member of anything. The example `e42_nested_member_paths` shows what
+those paths look like in a real diagnostic.
 
 If construction needs application-specific logic, keep `config_type` as the
 expected runtime type and add `factory_function` to the `ConfigNesting`
@@ -1794,4 +1806,78 @@ notation:
 python3 -m example.e41_hex_and_octal set --output config.cfg \
   --file-mode 600 --umask 0o077 --window-colour ffffff --feature-bits 0x10
 python3 -m example.e41_hex_and_octal print --input config.cfg
+```
+
+## e42_nested_member_paths.py
+
+[Source code for e42_nested_member_paths.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e42_nested_member_paths.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e42_nested_member_paths.py)
+
+Every earlier nested example taught how to *build* nested configuration.
+This one is about what the user of the configuration file is *told* when a
+value inside a nested object is wrong.
+
+A real configuration has the same member name in more than one place. This
+example has `port` twice: the port the service itself listens on, and the
+port of each backend it forwards to. Telling the user only that `port` is
+invalid is useless, because the user then has to guess which of the three
+ports the message is about.
+
+Every diagnostic therefore names the whole path from the top level
+configuration down to the value it is about. The notation has two rules:
+
+- Going into an attribute of a nested `Config` object appends a dot and the
+  attribute name, as in `section.kind`.
+- Indexing into a list or a dict appends the index or the key in square
+  brackets, as in `backends[1]` or `limits[cpu]`.
+
+The example uses one single validator, `port_validator()`, for both `port`
+members. The validator knows nothing about paths. It is handed the reported
+name of the member it validates, and that reported name is already the whole
+path. So the same validator produces two different messages:
+
+```sh
+python3 -m example.e42_nested_member_paths set -o config.cfg --port 99999
+```
+
+```text
+Invalid configuration: Value 99999 for port is greater than maximum 65535.
+```
+
+```sh
+python3 -m example.e42_nested_member_paths set -o config.cfg \
+  --backends alpha=8080 beta=99999
+```
+
+```text
+Invalid configuration: Value 99999 for backends[1].port is greater than maximum 65535.
+```
+
+That is the whole point of the paths. The two messages are about two members
+that are both called `port`, and the message says which one it is.
+
+The path is carried by the `member_name` argument. The library supplies it
+whenever it constructs, parses, validates, or writes a nested object, so a
+nested class such as `BackendConfig` only has to pass it on to
+`super().__init__()`. `None` means that the object is the top level
+configuration and not a member of anything, and then its own members are
+reported by their plain names.
+
+Two more things are worth knowing:
+
+- The path is text for a person to read, and not text for a program to parse
+  back into its parts. A dict key that itself holds a dot or a square
+  bracket therefore makes a path that cannot be taken apart again
+  unambiguously.
+- The same message appears whether the value came from a configuration file
+  or from the application. The example refuses `--backends beta=99999` when
+  it writes the file, and refuses the same value with the same words when it
+  reads a hand-edited file.
+
+The `print` subcommand labels every value with the path that a diagnostic
+would use for it:
+
+```sh
+python3 -m example.e42_nested_member_paths set -o config.cfg \
+  --service-name audit --backends alpha=8080 beta=9090
+python3 -m example.e42_nested_member_paths print -i config.cfg
 ```

@@ -256,7 +256,8 @@ class DiscriminatedDictValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the dictionary member to validate.
+            member_name: The reported path of the dictionary member to
+                validate.
             member_value: The dictionary value to validate.
             stderr_file: The file to write error messages to.
 

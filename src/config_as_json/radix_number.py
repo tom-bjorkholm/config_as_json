@@ -176,7 +176,8 @@ class _Notation(Generic[PrefixT]):
 
         Args:
             value: The configured value to read.
-            member_name: The name of the member, used in diagnostics.
+            member_name: The reported dotted and indexed path of the
+                member, used in diagnostics.
             stderr_file: Stream used for user-facing diagnostics, ``None``
                 to raise without reporting.
 
@@ -278,7 +279,8 @@ class RadixValidator(MemberValidator, Generic[PrefixT]):
             config: The complete Config object (might be needed if the
                 validator needs to access other members of the Config
                 object).
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The value of the member to validate.
             stderr_file: The file to write error messages to.
 

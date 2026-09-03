@@ -24,7 +24,8 @@ def _validate_dict_member_value(member_name: str, member_value: object,
     """Validate that one member value is a dict and return it.
 
     Args:
-        member_name: The member name used in any error message.
+        member_name: The reported path of the member, used in any
+            error message.
         member_value: The value to validate.
         stderr_file: The file to write error messages to.
 
@@ -216,7 +217,8 @@ class DictKeysValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The dict value to validate.
             stderr_file: The file to write error messages to.
 
@@ -412,7 +414,8 @@ class DictForEachValidator(MemberValidator):
         Args:
             rule: The rule to run.
             config: The Config object that owns the member.
-            member_name: The name of the outer dict member to validate.
+            member_name: The reported path of the outer dict member to
+                validate.
             member_value: The dict value to validate.
             key: The key to validate.
             stderr_file: The file to write error messages to.
@@ -433,7 +436,8 @@ class DictForEachValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the outer dict member to validate.
+            member_name: The reported path of the outer dict member to
+                validate.
             member_value: The dict value to validate.
             stderr_file: The file to write error messages to.
 
@@ -541,7 +545,8 @@ class DictKeyValueTypesValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The dict value to validate.
             stderr_file: The file to write error messages to.
 

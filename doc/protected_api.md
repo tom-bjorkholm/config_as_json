@@ -704,7 +704,8 @@ Validate the length of a string member.
 **Arguments**:
 
 - `config` - The configuration object to validate.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The value of the member to validate, which is a
   string.
 - `stderr_file` - The file to write error messages to.
@@ -950,7 +951,8 @@ the special position(s) and the other position(s).
 **Arguments**:
 
 - `config` - The configuration object to validate.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The value of the member to validate, which is a
   string.
 - `stderr_file` - The file to write error messages to.
@@ -1030,7 +1032,8 @@ the special position(s) and the other position(s).
 **Arguments**:
 
 - `config` - The configuration object to validate.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The value of the member to validate, which is a
   string.
 - `stderr_file` - The file to write error messages to.
@@ -1106,7 +1109,8 @@ Validate the aspect of the Config object for a specific str member.
 **Arguments**:
 
 - `config` - The Config object to validate.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The value of the member to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -1164,7 +1168,8 @@ Construct an allowed-values error message and optionally print it.
 
 **Arguments**:
 
-- `member_name` - The name of the member that has the invalid value.
+- `member_name` - The reported dotted and indexed path of the member
+  that has the invalid value.
 - `member_value` - The invalid value of the member.
 - `allowed_values` - The allowed values for the member.
 - `stderr_file` - The file to optionally write error messages to.
@@ -1195,7 +1200,8 @@ suppresses printing while still returning the constructed message.
 
 **Arguments**:
 
-- `member_name` - The name of the member that has the invalid value.
+- `member_name` - The reported dotted and indexed path of the member
+  that has the invalid value.
 - `member_value` - The invalid value of the member.
 - `allowed_values` - The allowed values for the member.
 - `stderr_file` - The file to optionally write error messages to.
@@ -1562,8 +1568,8 @@ case.
 
 - `value` - The value to match.
 - `allowed_values` - The allowed values to match against.
-- `member_name` - The name of the member to validate used in any
-  error message.
+- `member_name` - The reported dotted and indexed path of the member
+  to validate, used in any error message.
 - `stderr_file` - The file to write error messages to.
 
 
@@ -1755,7 +1761,8 @@ Validate the aspect of the Config object for a specific member.
 **Arguments**:
 
 - `config` - The Config object to validate.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The value of the member to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -1922,7 +1929,8 @@ Validate one member by calling a method of the Config object.
 **Arguments**:
 
 - `config` - The Config object to validate.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The value of the member to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -2085,7 +2093,8 @@ Validate one member by applying a sequence of validators.
 **Arguments**:
 
 - `config` - The Config object to validate.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The value of the member to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -2235,7 +2244,8 @@ Check one element's type when ``element_type`` is configured.
 
 **Arguments**:
 
-- `member_name` - The outer member name used in error messages.
+- `member_name` - The reported path of the outer member, used in
+  error messages.
 - `index` - The index of the element in the outer list.
 - `element` - The element to type-check.
 - `stderr_file` - The file to write error messages to.
@@ -2262,7 +2272,8 @@ Validate one list member by delegating to the inner validators.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the outer list member to validate.
+- `member_name` - The reported path of the outer list member to
+  validate.
 - `member_value` - The list value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -2340,7 +2351,7 @@ Validate one list-of-dicts member against the configured keys.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the list member to validate.
+- `member_name` - The reported path of the list member to validate.
 - `member_value` - The list value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -2692,7 +2703,8 @@ Validate one member if it is not None.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The member value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -3968,7 +3980,8 @@ Validate that a member is a list with elements of one runtime type.
 
 **Arguments**:
 
-- `member_name` - The member name used in any error message.
+- `member_name` - The reported path of the member, used in any
+  error message.
 - `member_value` - The value to validate.
 - `element_type` - The required runtime type of each list element.
 - `stderr_file` - The file to write error messages to.
@@ -4000,7 +4013,8 @@ Validate one list and return each element with its projected key.
 
 **Arguments**:
 
-- `member_name` - The member name used in any error message.
+- `member_name` - The reported path of the member, used in any
+  error message.
 - `member_value` - The value to validate.
 - `element_type` - The required runtime type of each list element.
 - `key` - Callable that computes the ordering key for one element.
@@ -4133,7 +4147,8 @@ Validate that adjacent values are in the requested non-strict order.
 
 **Arguments**:
 
-- `member_name` - The member name used in any error message.
+- `member_name` - The reported path of the member, used in any
+  error message.
 - `values` - The typed list values to validate.
 - `is_reversed` - Whether descending order is required.
 - `lt_comparator` - The less-than comparator used for ordering.
@@ -4160,7 +4175,8 @@ custom ordering comparator.
 
 **Arguments**:
 
-- `member_name` - The member name used in any error message.
+- `member_name` - The reported path of the member, used in any
+  error message.
 - `values` - The typed list values to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -4242,7 +4258,8 @@ Validate one list member against order and uniqueness rules.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The list value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -4335,7 +4352,8 @@ Validate and normalize one list member.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The list value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -4446,7 +4464,8 @@ Validate and normalize one list member by projected key.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The list value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -5771,7 +5790,8 @@ number before it stored written text has in it.
 **Arguments**:
 
 - `value` - The configured value to read.
-- `member_name` - The name of the member, used in diagnostics.
+- `member_name` - The reported dotted and indexed path of the
+  member, used in diagnostics.
 - `stderr_file` - Stream used for user-facing diagnostics, ``None``
   to raise without reporting.
 
@@ -5898,7 +5918,8 @@ Validate that the member value is written in the notation.
 - `config` - The complete Config object (might be needed if the
   validator needs to access other members of the Config
   object).
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The value of the member to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -6747,7 +6768,8 @@ Validate one dictionary member using the selected variant.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the dictionary member to validate.
+- `member_name` - The reported path of the dictionary member to
+  validate.
 - `member_value` - The dictionary value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -6939,7 +6961,8 @@ Validate one CSV dialect member and return a normalized dict.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The member value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -7141,7 +7164,8 @@ Validate and materialize one relation value as a list.
 
 **Arguments**:
 
-- `member_name` - Name used in diagnostics.
+- `member_name` - The reported path of the member, used in
+  diagnostics.
 - `value` - Value to validate and materialize.
 - `stderr_file` - Stream used for user-facing diagnostics.
 
@@ -7647,7 +7671,8 @@ Validate one member through a projected value.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The original member value.
 - `stderr_file` - The file to write error messages to.
 
@@ -7717,8 +7742,9 @@ Initialize the projected whole-config validator.
   and the diagnostic stream. It returns the projected value to
   validate.
 - `pseudo_member_name` - The name of the pseudo-member to validate.
-  This name will be used to identify the pseudo-member
-  (that is the projected value) in the error messages.
+  This name identifies the pseudo-member (that is the
+  projected value) in the error messages, reached through
+  the path of the validated Config object.
 - `validators` - Validators to apply to the projected value. They are
   applied in declaration order, and each validator receives the
   value returned by the previous validator.
@@ -8020,7 +8046,7 @@ Print and raise an invalid-type error for one member value.
 
 **Arguments**:
 
-- `member_name` - Name of the member being validated.
+- `member_name` - The reported path of the member being validated.
 - `member_value` - Invalid member value.
 - `value_types` - Runtime types accepted by the validator.
 - `stderr_file` - Stream used for diagnostics.
@@ -8044,7 +8070,7 @@ Print and raise an error for one explicitly denied type.
 
 **Arguments**:
 
-- `member_name` - Name of the member being validated.
+- `member_name` - The reported path of the member being validated.
 - `member_value` - Invalid member value.
 - `denied_types` - Runtime types rejected by the validator.
 - `stderr_file` - Stream used for diagnostics.
@@ -8158,7 +8184,7 @@ Print and raise an error when conversion fails.
 
 **Arguments**:
 
-- `member_name` - Name of the member being validated.
+- `member_name` - The reported path of the member being validated.
 - `member_value` - Member value that could not be converted.
 - `target_type` - Runtime type the value should convert to.
 - `stderr_file` - Stream used for diagnostics.
@@ -8183,7 +8209,7 @@ Validate that a conversion returned the target runtime type.
 
 **Arguments**:
 
-- `member_name` - Name of the member being validated.
+- `member_name` - The reported path of the member being validated.
 - `converted_value` - Result returned from the conversion.
 - `target_type` - Required runtime type after conversion.
 - `stderr_file` - Stream used for diagnostics.
@@ -8261,7 +8287,8 @@ Validate one member's runtime type.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The member value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -8337,7 +8364,8 @@ used.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The member value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -8401,7 +8429,7 @@ Convert a value with the target type constructor.
 
 **Arguments**:
 
-- `member_name` - Name of the member being validated.
+- `member_name` - The reported path of the member being validated.
 - `member_value` - Value to convert.
 - `stderr_file` - Stream used for diagnostics.
 
@@ -8429,7 +8457,7 @@ Convert a value with a configured conversion function.
 
 **Arguments**:
 
-- `member_name` - Name of the member being validated.
+- `member_name` - The reported path of the member being validated.
 - `member_value` - Value to convert.
 - `conv_type` - Matching key in ``convertable_types``.
 - `stderr_file` - Stream used for diagnostics.
@@ -8484,7 +8512,8 @@ Validate that one member value is a dict and return it.
 
 **Arguments**:
 
-- `member_name` - The member name used in any error message.
+- `member_name` - The reported path of the member, used in any
+  error message.
 - `member_value` - The value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -8700,7 +8729,8 @@ first unknown key triggers the error.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The dict value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -8893,7 +8923,8 @@ Run a single rule on a dict member.
 
 - `rule` - The rule to run.
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the outer dict member to validate.
+- `member_name` - The reported path of the outer dict member to
+  validate.
 - `member_value` - The dict value to validate.
 - `key` - The key to validate.
 - `stderr_file` - The file to write error messages to.
@@ -8914,7 +8945,8 @@ Validate one dict member by delegating to per-key validators.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the outer dict member to validate.
+- `member_name` - The reported path of the outer dict member to
+  validate.
 - `member_value` - The dict value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -9015,7 +9047,8 @@ value_validator. An empty dict is considered valid.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The dict value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -9317,7 +9350,8 @@ Validate one character encoding member.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The member value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -9385,7 +9419,8 @@ Validate that one member value is a list and return it.
 
 **Arguments**:
 
-- `member_name` - The member name used in any error message.
+- `member_name` - The reported path of the member, used in any
+  error message.
 - `member_value` - The value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -11366,7 +11401,8 @@ original object.
 **Arguments**:
 
 - `config` - The configuration object that owns ``member_name``.
-- `member_name` - The name of the member being projected.
+- `member_name` - The reported dotted and indexed path of the member
+  being projected.
 - `member_value` - The non-dict object to project.
 - `stderr_file` - The stream used for diagnostics.
 
@@ -11593,7 +11629,8 @@ Validate one member through a dictionary-shaped view.
 **Arguments**:
 
 - `config` - The configuration object that owns ``member_name``.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The member value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -12290,7 +12327,8 @@ written to it.
 
 **Arguments**:
 
-- `member_name` - The name of the member that has the invalid list value.
+- `member_name` - The reported dotted and indexed path of the member
+  that has the invalid list value.
 - `member_value` - The invalid element value in the list.
 - `member_index` - The index of the invalid element in the list.
 - `allowed_values` - The allowed values for elements in the list.
@@ -12400,7 +12438,8 @@ only for lower-bound and upper-bound checks. Membership in
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The list value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -12468,7 +12507,8 @@ Validate one list member against the configured size bounds.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The list value to validate.
 - `stderr_file` - The file to write error messages to.
 
@@ -12532,7 +12572,8 @@ a subclass of ``int`` in Python.
 **Arguments**:
 
 - `config` - The Config object that owns the member.
-- `member_name` - The name of the member to validate.
+- `member_name` - The reported dotted and indexed path of the
+  member to validate.
 - `member_value` - The list value to validate.
 - `stderr_file` - The file to write error messages to.
 

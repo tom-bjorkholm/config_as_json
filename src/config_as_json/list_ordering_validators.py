@@ -64,7 +64,8 @@ def _validate_typed_list_member(member_name: str, member_value: object,
     """Validate that a member is a list with elements of one runtime type.
 
     Args:
-        member_name: The member name used in any error message.
+        member_name: The reported path of the member, used in any
+            error message.
         member_value: The value to validate.
         element_type: The required runtime type of each list element.
         stderr_file: The file to write error messages to.
@@ -102,7 +103,8 @@ def _validate_keyed_list_member(
     """Validate one list and return each element with its projected key.
 
     Args:
-        member_name: The member name used in any error message.
+        member_name: The reported path of the member, used in any
+            error message.
         member_value: The value to validate.
         element_type: The required runtime type of each list element.
         key: Callable that computes the ordering key for one element.
@@ -232,7 +234,8 @@ def _validate_list_order(member_name: str, values: Sequence[Basictype],
     """Validate that adjacent values are in the requested non-strict order.
 
     Args:
-        member_name: The member name used in any error message.
+        member_name: The reported path of the member, used in any
+            error message.
         values: The typed list values to validate.
         is_reversed: Whether descending order is required.
         lt_comparator: The less-than comparator used for ordering.
@@ -266,7 +269,8 @@ def _validate_unique_list_values(member_name: str, values: Sequence[Basictype],
     custom ordering comparator.
 
     Args:
-        member_name: The member name used in any error message.
+        member_name: The reported path of the member, used in any
+            error message.
         values: The typed list values to validate.
         stderr_file: The file to write error messages to.
 
@@ -342,7 +346,8 @@ class ListIsOrderedValidator(MemberValidator, Generic[Basictype]):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The list value to validate.
             stderr_file: The file to write error messages to.
 
@@ -428,7 +433,8 @@ class ListOrderingValidator(MemberValidator, Generic[Basictype]):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The list value to validate.
             stderr_file: The file to write error messages to.
 
@@ -541,7 +547,8 @@ class ListKeyOrderingValidator(MemberValidator,
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The list value to validate.
             stderr_file: The file to write error messages to.
 

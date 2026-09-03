@@ -91,7 +91,8 @@ type MemberProjector = Callable[['Config', str, object, TextIO], object]
 
     Args:
         config: The Config object that owns the member.
-        member_name: The name of the member to project.
+        member_name: The reported dotted and indexed path of the member
+            to project.
         member_value: The original member value.
         stderr_file: The file to write error messages to.
 
@@ -166,7 +167,8 @@ class ProjectedMemberValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The original member value.
             stderr_file: The file to write error messages to.
 
@@ -246,8 +248,9 @@ class ProjectedWholeConfigValidator(WholeConfigValidator):
                 and the diagnostic stream. It returns the projected value to
                 validate.
             pseudo_member_name: The name of the pseudo-member to validate.
-                This name will be used to identify the pseudo-member
-                (that is the projected value) in the error messages.
+                This name identifies the pseudo-member (that is the
+                projected value) in the error messages, reached through
+                the path of the validated Config object.
             validators: Validators to apply to the projected value. They are
                 applied in declaration order, and each validator receives the
                 value returned by the previous validator.

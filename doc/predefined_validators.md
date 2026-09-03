@@ -94,6 +94,10 @@ because they are what makes combining validators work:
    `InvalidConfigurationValue` after writing a message naming the member.
    When a validator descends into a list or dict, the reported name carries
    the index or key, for example `run_hours_utc[3]` or `columns[width]`.
+   The reported name is the whole path from the top level configuration down
+   to the member, so a member of a nested `Config` object is named
+   `outputs[1].section.kind` and not `kind`. A validator receives that path
+   as its `member_name` argument and needs to do nothing to report it.
 
 ## Which validator do I need?
 

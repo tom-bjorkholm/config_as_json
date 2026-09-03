@@ -59,7 +59,8 @@ class CharEncodingValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The member value to validate.
             stderr_file: The file to write error messages to.
 

@@ -147,7 +147,7 @@ def _raise_type_error(member_name: str, member_value: object,
     """Print and raise an invalid-type error for one member value.
 
     Args:
-        member_name: Name of the member being validated.
+        member_name: The reported path of the member being validated.
         member_value: Invalid member value.
         value_types: Runtime types accepted by the validator.
         stderr_file: Stream used for diagnostics.
@@ -169,7 +169,7 @@ def _raise_denied_error(member_name: str, member_value: object,
     """Print and raise an error for one explicitly denied type.
 
     Args:
-        member_name: Name of the member being validated.
+        member_name: The reported path of the member being validated.
         member_value: Invalid member value.
         denied_types: Runtime types rejected by the validator.
         stderr_file: Stream used for diagnostics.
@@ -278,7 +278,7 @@ def _raise_conversion_error(member_name: str, member_value: object,
     """Print and raise an error when conversion fails.
 
     Args:
-        member_name: Name of the member being validated.
+        member_name: The reported path of the member being validated.
         member_value: Member value that could not be converted.
         target_type: Runtime type the value should convert to.
         stderr_file: Stream used for diagnostics.
@@ -301,7 +301,7 @@ def _validate_converted_value(member_name: str, converted_value: object,
     """Validate that a conversion returned the target runtime type.
 
     Args:
-        member_name: Name of the member being validated.
+        member_name: The reported path of the member being validated.
         converted_value: Result returned from the conversion.
         target_type: Required runtime type after conversion.
         stderr_file: Stream used for diagnostics.
@@ -375,7 +375,8 @@ class ValueTypeValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The member value to validate.
             stderr_file: The file to write error messages to.
 
@@ -452,7 +453,8 @@ class ValueAsTypeValidator(ValueTypeValidator, Generic[T]):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The member value to validate.
             stderr_file: The file to write error messages to.
 
@@ -515,7 +517,7 @@ class ValueAsTypeValidator(ValueTypeValidator, Generic[T]):
         """Convert a value with the target type constructor.
 
         Args:
-            member_name: Name of the member being validated.
+            member_name: The reported path of the member being validated.
             member_value: Value to convert.
             stderr_file: Stream used for diagnostics.
 
@@ -541,7 +543,7 @@ class ValueAsTypeValidator(ValueTypeValidator, Generic[T]):
         """Convert a value with a configured conversion function.
 
         Args:
-            member_name: Name of the member being validated.
+            member_name: The reported path of the member being validated.
             member_value: Value to convert.
             conv_type: Matching key in ``convertable_types``.
             stderr_file: Stream used for diagnostics.

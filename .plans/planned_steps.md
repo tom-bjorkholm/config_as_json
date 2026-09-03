@@ -554,7 +554,7 @@ What was decided while implementing this step:
 
 ## Step 7 — Documentation and a teaching example
 
-Status: **Not done yet**
+Status: **Implemented, committed**
 
 - `README.md` and `README_pypi.md`: what a reported name looks like now.
 - A new `example/src/example/e42_nested_member_paths.py` and its test,
@@ -563,6 +563,58 @@ Status: **Not done yet**
 - `example/src/example/README.md`: the section for the new example.
 - `doc/api.md` and `doc/protected_api.md` regenerate from docstrings during
   the build; check that what they say about `member_name` reads well.
+
+What was decided while implementing this step:
+
+- **The example teaches the path by having the same member name twice.**
+  `ExampleConfig42` has a `port` of its own and a `backends` list whose
+  elements each have a `port`. One single validator, `port_validator()`,
+  validates both, so the two diagnostics differ only by the path: `Value
+  99999 for port ...` and `Value 99999 for backends[1].port ...`. A member
+  name that exists in only one place would have proved nothing, because a
+  plain name would have been enough for it.
+- The example is deliberately *not* a second `e34`. It takes its backends
+  as `host=port` command line tokens rather than as one JSON value, so it
+  needed no JSON parsing helpers and does not repeat e34's code.
+- One `duplicate-code` report appeared, because the `set` and `print`
+  helper shape that every example in the directory shares is four lines
+  like the one in `e14`. It is suppressed block locally in the new module,
+  the way the repository already handles that kind of accidental
+  similarity. Factoring that shape out would work against the teaching,
+  because each example has to be readable on its own.
+- **The `README_pypi.md` snippets had drifted from their tested sources.**
+  `test_simple_readme_example.py`,
+  `test_dataclass_readme_example.py` and
+  `test_validated_dataclass_readme_example.py` gained `member_name` in step
+  1, and the README text they are copied into did not. All three snippets
+  are now verbatim copies of the tested modules again, and the same two
+  snippets in `example/src/example/README.md` were synchronized with them.
+- `example/src/example/README.md` still documented the pre-step-3 nested
+  contract, with three constructor keywords and no `member_name`. It never
+  received the step 3 update that `README_pypi.md` got. It now says the
+  same thing as `README_pypi.md`.
+- `README_pypi.md` gained the section *Names in diagnostics are paths*,
+  which is the one place that states the notation, what carries it, that it
+  is text for a person and not for a parser, and what an application that
+  never adopted `member_name` loses. `README.md` states the same in two
+  lines, because it is the maintainer facing readme.
+- `doc/predefined_validators.md` said that a reported name carries the
+  index or the key of a list or dict element. It now also says that the
+  reported name is the whole path, which is what makes the roughly twenty
+  validator modules report paths without being changed.
+- **Fifty validator docstrings said `member_name` was "the name of the
+  member".** They are the text that `doc/api.md` shows at each validator,
+  which is where a reader looks, so all of them now say that it is the
+  reported path. Left alone were the names that really are local: the
+  declared `member_names` of a validation plan, the declared
+  `pseudo_member_name`, `written_member_name`, `arg_name_member_name`, and
+  the `Public parent member` arguments of `_config_nesting_io`, which step
+  4 deliberately kept local while `parent_path` carries the path.
+- `test_e41_hex_and_octal.py` claimed in a docstring that the diagnostic
+  names `oct_str` and *not* the member holding the nested value. That
+  stopped being true in step 4; the message says `file_mode.oct_str`. The
+  docstring is corrected and the assertion now checks the whole path, which
+  it did not before.
 
 ## Step 8 — Verify the downstream libraries
 

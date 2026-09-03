@@ -68,7 +68,8 @@ def _indexed_not_allowed_message(member_name: str, member_value: object,
     written to it.
 
     Args:
-        member_name: The name of the member that has the invalid list value.
+        member_name: The reported dotted and indexed path of the member
+            that has the invalid list value.
         member_value: The invalid element value in the list.
         member_index: The index of the invalid element in the list.
         allowed_values: The allowed values for elements in the list.
@@ -162,7 +163,8 @@ class ListValueValidator(MemberValidator, Generic[Basictype]):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The list value to validate.
             stderr_file: The file to write error messages to.
 
@@ -244,7 +246,8 @@ class ListSizeValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The list value to validate.
             stderr_file: The file to write error messages to.
 
@@ -303,7 +306,8 @@ class ListValueTypeValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The list value to validate.
             stderr_file: The file to write error messages to.
 

@@ -23,6 +23,9 @@ The intended library model is:
   misspelled, outdated, or of the wrong type.
 - The library has a collection of validators for use by application programmer.
 - The config objects can be nested.
+- Every diagnostic that names a configuration value names the whole path
+  from the top level configuration down to that value, such as
+  `outputs[1].section.kind`, and not only the local attribute name.
 
 The source docstrings are used to generate the API reference in `doc/`, and
 the examples in `example/src/example/` are the main worked documentation for
@@ -54,6 +57,9 @@ to hide the application's schema behind a large generic framework.
   The base class for derived configuration classes.
 - `config_as_json.ConfigNesting` and `config_as_json.ConfigNestingKind`
   Declarative metadata for nested configuration objects.
+- `config_as_json.member_path`
+  Join one attribute name onto the reported path of the object holding
+  it, which is how every reported path is built.
 - `config_as_json.ReadOldConfiguration`
   Base class for backward-compatible old-file normalization rules.
 - `config_as_json.config_factory_from_json`
@@ -143,7 +149,7 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 4698 passed in 6s
+- Test result: 4706 passed in 6s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

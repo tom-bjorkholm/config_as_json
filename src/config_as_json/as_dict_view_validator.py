@@ -33,7 +33,8 @@ def public_attrs_to_dict(config: 'Config', member_name: str,
 
     Args:
         config: The configuration object that owns ``member_name``.
-        member_name: The name of the member being projected.
+        member_name: The reported dotted and indexed path of the member
+            being projected.
         member_value: The non-dict object to project.
         stderr_file: The stream used for diagnostics.
 
@@ -250,7 +251,8 @@ class AsDictViewValidator(MemberValidator):
 
         Args:
             config: The configuration object that owns ``member_name``.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The member value to validate.
             stderr_file: The file to write error messages to.
 

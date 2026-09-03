@@ -124,12 +124,12 @@ def test_e41_bad_value(capsys: pytest.CaptureFixture[str],
                        written: str, fragment: str) -> None:
     """Report a hand-edited value that is not written in its notation.
 
-    The diagnostic names the member of the nested value, which is
-    ``oct_str`` or ``hex_str``, and not the member of the configuration
-    that holds the nested value.
+    The diagnostic names the whole path of the written value: the member of
+    the configuration that holds the nested value, a dot, and the member of
+    the nested value itself, which is ``oct_str`` or ``hex_str``.
     """
     json_data = dict(DEFAULT_JSON)
     key = 'oct_str' if member in ('file_mode', 'umask') else 'hex_str'
     json_data[member] = {key: written}
     assert_print_validator_error(capsys, monkeypatch, E41_SPEC, json_data,
-                                 [key, fragment])
+                                 [f'{member}.{key}', fragment])

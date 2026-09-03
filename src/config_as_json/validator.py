@@ -33,7 +33,8 @@ def _not_one_of_allowed_values_message(
     """Construct an allowed-values error message and optionally print it.
 
     Args:
-        member_name: The name of the member that has the invalid value.
+        member_name: The reported dotted and indexed path of the member
+            that has the invalid value.
         member_value: The invalid value of the member.
         allowed_values: The allowed values for the member.
         stderr_file: The file to optionally write error messages to.
@@ -65,7 +66,8 @@ def not_one_of_allowed_values(member_name: str, member_value: object,
     suppresses printing while still returning the constructed message.
 
     Args:
-        member_name: The name of the member that has the invalid value.
+        member_name: The reported dotted and indexed path of the member
+            that has the invalid value.
         member_value: The invalid value of the member.
         allowed_values: The allowed values for the member.
         stderr_file: The file to optionally write error messages to.
@@ -358,8 +360,8 @@ def string_best_match(value: str, allowed_values: Sequence[str],
     Args:
         value: The value to match.
         allowed_values: The allowed values to match against.
-        member_name: The name of the member to validate used in any
-                     error message.
+        member_name: The reported dotted and indexed path of the member
+                     to validate, used in any error message.
         stderr_file: The file to write error messages to.
 
     Returns:
@@ -568,7 +570,8 @@ class IntFloatValidator(MemberValidator, Generic[IntFloat]):
 
         Args:
             config: The Config object to validate.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The value of the member to validate.
             stderr_file: The file to write error messages to.
 
@@ -768,7 +771,8 @@ class CallingMemberValidator(MemberValidator):
 
         Args:
             config: The Config object to validate.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The value of the member to validate.
             stderr_file: The file to write error messages to.
 
@@ -912,7 +916,8 @@ class MemberValidatorSequence(MemberValidator):
 
         Args:
             config: The Config object to validate.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The value of the member to validate.
             stderr_file: The file to write error messages to.
         """

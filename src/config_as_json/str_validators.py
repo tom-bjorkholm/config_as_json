@@ -105,7 +105,8 @@ class StrLenValidator(MemberValidator):
 
         Args:
             config: The configuration object to validate.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The value of the member to validate, which is a
                 string.
             stderr_file: The file to write error messages to.
@@ -322,7 +323,8 @@ class StrCaseValidator(MemberValidator):
         the special position(s) and the other position(s).
         Args:
             config: The configuration object to validate.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The value of the member to validate, which is a
                 string.
             stderr_file: The file to write error messages to.
@@ -390,7 +392,8 @@ class StrCaseChangeValidator(MemberValidator):
         the special position(s) and the other position(s).
         Args:
             config: The configuration object to validate.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The value of the member to validate, which is a
                 string.
             stderr_file: The file to write error messages to.
@@ -455,7 +458,8 @@ class StrValidator(MemberValidator):
 
         Args:
             config: The Config object to validate.
-            member_name: The name of the member to validate.
+            member_name: The reported dotted and indexed path of the
+                member to validate.
             member_value: The value of the member to validate.
             stderr_file: The file to write error messages to.
 

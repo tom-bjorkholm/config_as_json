@@ -38,7 +38,8 @@ def _validate_list_member_value(member_name: str, member_value: object,
     """Validate that one member value is a list and return it.
 
     Args:
-        member_name: The member name used in any error message.
+        member_name: The reported path of the member, used in any
+            error message.
         member_value: The value to validate.
         stderr_file: The file to write error messages to.
 

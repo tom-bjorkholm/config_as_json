@@ -129,7 +129,8 @@ class ListForEachValidator(MemberValidator):
         """Check one element's type when ``element_type`` is configured.
 
         Args:
-            member_name: The outer member name used in error messages.
+            member_name: The reported path of the outer member, used in
+                error messages.
             index: The index of the element in the outer list.
             element: The element to type-check.
             stderr_file: The file to write error messages to.
@@ -156,7 +157,8 @@ class ListForEachValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the outer list member to validate.
+            member_name: The reported path of the outer list member to
+                validate.
             member_value: The list value to validate.
             stderr_file: The file to write error messages to.
 
@@ -231,7 +233,7 @@ class ListOfDictsKeysValidator(MemberValidator):
 
         Args:
             config: The Config object that owns the member.
-            member_name: The name of the list member to validate.
+            member_name: The reported path of the list member to validate.
             member_value: The list value to validate.
             stderr_file: The file to write error messages to.
 

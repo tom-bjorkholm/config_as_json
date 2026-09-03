@@ -151,7 +151,8 @@ def _materialized_sequence(member_name: str, value: object,
     """Validate and materialize one relation value as a list.
 
     Args:
-        member_name: Name used in diagnostics.
+        member_name: The reported path of the member, used in
+            diagnostics.
         value: Value to validate and materialize.
         stderr_file: Stream used for user-facing diagnostics.
 
