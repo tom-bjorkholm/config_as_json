@@ -618,7 +618,7 @@ What was decided while implementing this step:
 
 ## Step 8 — Verify the downstream libraries
 
-Status: **Not done yet**
+Status: **Done. OK to proceed.**
 
 `edit-cfg-json`, `edit-cfg-json-tk` and `edit-cfg-json-textual` call
 `Config.parse_json` and `Config.validate` directly and attribute a refusal
@@ -633,7 +633,7 @@ decide whether any of it changes this plan. No release before this is done.
 
 ## Step 9 — Release
 
-Status: **Not done yet**
+Status: **Done** 2026-09-04
 
 - Version bump in `setup.py`. Steps 1 to 6 leave the public API
   additive, so this is a minor release.
@@ -643,7 +643,7 @@ Status: **Not done yet**
 
 ## Step 10 — Six months after step 9: the warning becomes visible
 
-Status: **Not done yet**
+Status: **Not done yet. To be done in early March 2027.**
 
 An override that does not accept `member_name` raises both a
 `DeprecationWarning` and an end user visible message printed to
