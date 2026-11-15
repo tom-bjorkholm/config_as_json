@@ -11,10 +11,15 @@ write JSON configuration files.
 # MIT License
 
 
-from config_as_json.config import Config, ConfigBadJson, ParseConverter
+from config_as_json.config import Config, ParseConverter
+from config_as_json.config_errors import ConfigParseError, ConfigMissingKey, \
+    ConfigUnknownKey, ConfigWrongShape, ConfigMustBeList, ConfigNotDict, \
+    ConfigUnexpectedDict, ConfigKeysNotStrings, ConfigBadJson, \
+    ConfigMustBeJson, ConfigRootNotDict, ConfigConversionFailed
 from config_as_json.config_nesting import ConfigNestingKind, ConfigNesting, \
     ConfigFactory, NestedConfigs
-from config_as_json.commontypes import JsonType, PathOrStr, ConfigPath
+from config_as_json.commontypes import JsonType, JsonPath, PathOrStr, \
+    ConfigPath
 from config_as_json.config_factory import config_factory_from_json, \
     MatchConfig, MatchConfigSeq, JsonValueMatcher
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
@@ -79,12 +84,24 @@ __all__ = ['Config',
            'ReadOldConfiguration',
            'RocfConflictError',
            'RocfIncompatiblePathError',
+           'ConfigParseError',
+           'ConfigMissingKey',
+           'ConfigUnknownKey',
+           'ConfigWrongShape',
+           'ConfigMustBeList',
+           'ConfigNotDict',
+           'ConfigUnexpectedDict',
+           'ConfigKeysNotStrings',
            'ConfigBadJson',
+           'ConfigMustBeJson',
+           'ConfigRootNotDict',
+           'ConfigConversionFailed',
            'ConfigNestingKind',
            'ConfigNesting',
            'ConfigFactory',
            'NestedConfigs',
            'JsonType',
+           'JsonPath',
            'PathOrStr',
            'ConfigPath',
            'SerializeSelector',

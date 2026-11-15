@@ -15,6 +15,7 @@ import pytest
 import config_as_json._config_nesting_io as nesting_io
 from config_as_json.config import Config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
+from config_as_json.config_errors import ConfigKeysNotStrings
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
 from .test_nested_config import AuditSection, ReportSection
 
@@ -94,7 +95,7 @@ def test_nested_from_json_bad_keys(case_name: str,
     """Test JSON parse helpers with dict keys JSON cannot produce."""
     stderr_file = StringIO()
     nestings, json_data = _bad_from_json_case(case_name)
-    with pytest.raises(KeyError) as exc:
+    with pytest.raises(ConfigKeysNotStrings) as exc:
         _ = nesting_io._nested_config_from_json(
             member_name='child', json_data=json_data, nestings=nestings,
             stderr_file=stderr_file, auto_ch_hook=ConfigAutoChangeHook(),
@@ -102,6 +103,9 @@ def test_nested_from_json_bad_keys(case_name: str,
     message = 'Nested Config member '
     message += f'{_reported(parent_path)} keys must be strings'
     assert message in str(exc.value)
+    assert isinstance(exc.value, KeyError)
+    assert exc.value.member_name == _reported(parent_path)
+    assert exc.value.json_path == ('child',)
     assert message in stderr_file.getvalue()
 
 

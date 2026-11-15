@@ -29,6 +29,15 @@ json_types = (NoneType, int, float, str, bool, list, dict)
 """Tuple of all JSON-compatible types for use in isinstance checks."""
 
 
+type JsonPath = tuple[str | int, ...]
+"""Path to one value in decoded JSON data, for a program to follow.
+
+Each element is one step from the root: a ``str`` is a key of a JSON object,
+and an ``int`` is an index into a JSON list. The empty tuple is the root
+itself. Unlike the reported path text such as ``outputs[1].kind``, the tuple
+stays unambiguous when a key contains a dot or a square bracket.
+"""
+
 type ConfigPath = tuple[str, ...]
 """Path through decoded configuration JSON data.
 

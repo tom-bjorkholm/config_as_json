@@ -8,6 +8,12 @@ name that the automatic-change hook composes its own paths from, one nesting
 level at a time. ``parent_path`` is the reported path of the object that
 holds the member, so ``member_path(parent_path, member_name)`` is the
 reported path of the nested member itself.
+
+While reading, the ``json_path`` of a raised ``ConfigParseError`` is relative
+to the JSON data of the Config object whose ``parse_json()`` raised it. A
+nested Config is constructed through its own class or factory, which cannot
+be handed a tuple path, so the path of the nested object in its parent is
+put in front of ``json_path`` when the exception leaves the nested object.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -16,7 +22,9 @@ reported path of the nested member itself.
 from enum import Enum, IntEnum
 import json
 from typing import Optional, TextIO, TYPE_CHECKING, cast
-from config_as_json.commontypes import JsonType
+from config_as_json.commontypes import JsonPath, JsonType
+from config_as_json.config_errors import ConfigKeysNotStrings, \
+    ConfigMustBeList, ConfigNotDict, ConfigParseError
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
 from config_as_json._config_call_wrappers import wrap_as_json_string, \
@@ -107,10 +115,38 @@ def _constructed_nested(name: str, json_text: str, nesting: ConfigNesting,
                                    nesting=nesting, stderr_file=stderr_file)
 
 
+def _located_nested(name: str, json_path: JsonPath, json_text: str,
+                    nesting: ConfigNesting, stderr_file: TextIO) -> 'Config':
+    """Construct one nested Config, locating its parse errors in the parent.
+
+    Args:
+        name: Path text for reaching the nested object.
+        json_path: Tuple path of the nested object in the JSON data of the
+            object holding it.
+        json_text: JSON text describing the nested Config.
+        nesting: Nested Config declaration for the member.
+        stderr_file: Stream used for user-facing diagnostics.
+
+    Returns:
+        The nested Config made by the declared type or factory function.
+
+    Raises:
+        ConfigParseError: The nested JSON data is not valid. ``json_path``
+            of the exception is prefixed with the given ``json_path``.
+    """
+    try:
+        return _constructed_nested(name=name, json_text=json_text,
+                                   nesting=nesting, stderr_file=stderr_file)
+    except ConfigParseError as exc:
+        exc.json_path = json_path + exc.json_path
+        raise
+
+
 # pylint: disable-next=too-many-arguments
 def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
                     stderr_file: TextIO, auto_ch_hook: ConfigAutoChangeHook, *,
-                    parent_path: Optional[str]) -> 'Config':
+                    parent_path: Optional[str],
+                    json_path: JsonPath) -> 'Config':
     """Construct one nested Config from one parsed JSON object.
 
     Additionally the automatic changes that the nested Config recorded about
@@ -126,23 +162,26 @@ def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
         stderr_file: Stream used for user-facing diagnostics.
         auto_ch_hook: Parent hook receiving the nested automatic changes.
         parent_path: Reported path of the object holding the nested Config.
+        json_path: Tuple path of the nested Config in the JSON data of the
+            object holding it.
 
     Returns:
         A new nested Config instance.
 
     Raises:
-        KeyError: JSON data is not a dictionary for a nested Config.
+        ConfigNotDict: JSON data is not a dict for a nested Config.
+        ConfigParseError: The nested JSON data is not valid.
         TypeError: The factory returned the wrong Config type.
     """
     path = member_path(parent_path, name)
     if not isinstance(json_data, dict):
         msg = f'Nested Config member {path} must be a JSON object'
         print(msg, file=stderr_file)
-        raise KeyError(msg)
+        raise ConfigNotDict(msg, member_name=path, json_path=json_path)
     json_text = json.dumps(json_data, cls=_NestedConfigEncoder)
-    nested_config = _constructed_nested(name=path, json_text=json_text,
-                                        nesting=nesting,
-                                        stderr_file=stderr_file)
+    nested_config = _located_nested(name=path, json_path=json_path,
+                                    json_text=json_text, nesting=nesting,
+                                    stderr_file=stderr_file)
     if not isinstance(nested_config, nesting.config_type):
         msg = f'Nested Config factory for {path} must return '
         msg += nesting.config_type.__name__
@@ -172,13 +211,15 @@ def _list_from_json(member_name: str, json_data: object,
         A list containing one nested Config for each JSON element.
 
     Raises:
-        KeyError: JSON data is not a list of dictionaries.
+        ConfigMustBeList: JSON data is not a list.
+        ConfigNotDict: A list element is not a dict.
+        ConfigParseError: The JSON data of a nested Config is not valid.
     """
     if not isinstance(json_data, list):
-        msg = 'Nested Config member '
-        msg += f'{member_path(parent_path, member_name)} must be a JSON list'
+        path = member_path(parent_path, member_name)
+        msg = f'Nested Config member {path} must be a JSON list'
         print(msg, file=stderr_file)
-        raise KeyError(msg)
+        raise ConfigMustBeList(msg, member_name=path, json_path=(member_name,))
     nested_configs: list['Config'] = []
     for index, element_data in enumerate(json_data):
         element_name = _indexed_path(member_name, index)
@@ -187,7 +228,8 @@ def _list_from_json(member_name: str, json_data: object,
                                               nesting=nesting,
                                               stderr_file=stderr_file,
                                               auto_ch_hook=auto_ch_hook,
-                                              parent_path=parent_path))
+                                              parent_path=parent_path,
+                                              json_path=(member_name, index)))
     return nested_configs
 
 
@@ -210,26 +252,30 @@ def _dict_from_json(member_name: str, json_data: object,
         A dict containing one nested Config for each JSON value.
 
     Raises:
-        KeyError: JSON data is not a dict of dictionaries.
+        ConfigNotDict: JSON data or one of its values is not a dict.
+        ConfigKeysNotStrings: A key of the JSON data is not a string.
+        ConfigParseError: The JSON data of a nested Config is not valid.
     """
     path = member_path(parent_path, member_name)
     if not isinstance(json_data, dict):
         msg = f'Nested Config member {path} must be a JSON object'
         print(msg, file=stderr_file)
-        raise KeyError(msg)
+        raise ConfigNotDict(msg, member_name=path, json_path=(member_name,))
     nested_configs: dict[str, 'Config'] = {}
     for key, value_data in json_data.items():
         if not isinstance(key, str):
             msg = f'Nested Config member {path} keys must be strings'
             print(msg, file=stderr_file)
-            raise KeyError(msg)
+            raise ConfigKeysNotStrings(msg, member_name=path,
+                                       json_path=(member_name,))
         value_name = _indexed_path(member_name, key)
         nested_configs[key] = _item_from_json(name=value_name,
                                               json_data=value_data,
                                               nesting=nesting,
                                               stderr_file=stderr_file,
                                               auto_ch_hook=auto_ch_hook,
-                                              parent_path=parent_path)
+                                              parent_path=parent_path,
+                                              json_path=(member_name, key))
     return nested_configs
 
 
@@ -264,21 +310,24 @@ def _dict_by_key_from_json(member_name: str, json_data: object,
         undeclared keys keep their parsed JSON values.
 
     Raises:
-        KeyError: JSON data is not a dictionary or a declared key does not
-            contain a JSON object.
+        ConfigNotDict: JSON data is not a dict, or a declared key does not
+            contain a dict.
+        ConfigKeysNotStrings: A key of the JSON data is not a string.
+        ConfigParseError: The JSON data of a nested Config is not valid.
     """
     path = member_path(parent_path, member_name)
     if not isinstance(json_data, dict):
         msg = f'Nested Config member {path} must be a JSON object'
         print(msg, file=stderr_file)
-        raise KeyError(msg)
+        raise ConfigNotDict(msg, member_name=path, json_path=(member_name,))
     nesting_by_key = _nesting_by_key(nestings)
     nested_configs: dict[str, object] = {}
     for key, value_data in json_data.items():
         if not isinstance(key, str):
             msg = f'Nested Config member {path} keys must be strings'
             print(msg, file=stderr_file)
-            raise KeyError(msg)
+            raise ConfigKeysNotStrings(msg, member_name=path,
+                                       json_path=(member_name,))
         if key in nesting_by_key:
             value_name = _indexed_path(member_name, key)
             nested_configs[key] = _item_from_json(name=value_name,
@@ -286,7 +335,9 @@ def _dict_by_key_from_json(member_name: str, json_data: object,
                                                   nesting=nesting_by_key[key],
                                                   stderr_file=stderr_file,
                                                   auto_ch_hook=auto_ch_hook,
-                                                  parent_path=parent_path)
+                                                  parent_path=parent_path,
+                                                  json_path=(member_name,
+                                                             key))
         else:
             nested_configs[key] = value_data
     return nested_configs
@@ -344,7 +395,8 @@ def _nested_config_from_json(member_name: str, json_data: object,
         return None
     return _item_from_json(name=member_name, json_data=json_data,
                            nesting=nesting, stderr_file=stderr_file,
-                           auto_ch_hook=auto_ch_hook, parent_path=parent_path)
+                           auto_ch_hook=auto_ch_hook, parent_path=parent_path,
+                           json_path=(member_name,))
 
 
 def _item_json_data(member_name: str, member_value: object,

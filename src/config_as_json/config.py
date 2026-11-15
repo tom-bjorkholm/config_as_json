@@ -20,7 +20,9 @@ from typing import Optional, Type, NamedTuple, Callable, TextIO, TypeVar
 from enum import Enum
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
-from config_as_json.commontypes import ConfigPath, PathOrStr
+from config_as_json.commontypes import ConfigPath, JsonPath, PathOrStr
+from config_as_json.config_errors import ConfigBadJson, ConfigMissingKey, \
+    ConfigNotDict, ConfigUnexpectedDict, ConfigUnknownKey
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
     NestedConfigs
@@ -28,6 +30,8 @@ from config_as_json._config_nesting_io import _nested_config_from_json, \
     _nested_config_json_data, _validate_nested_config
 from config_as_json._config_nesting_decl import _checked_nested_configs, \
     _check_nested_config_members
+from config_as_json._config_json_decode import converted_value, \
+    decoded_json_object
 from config_as_json._config_initial_data import copy_initial_data_impl, \
     auto_wrap_nested_defaults_impl
 from config_as_json._config_call_wrappers import wrap_apply, \
@@ -41,9 +45,9 @@ from config_as_json.member_path import member_path, _indexed_path
 from config_as_json.read_old_configuration import ReadOldConfiguration
 from config_as_json.validator import ValidationPlan
 
-
-class ConfigBadJson(json.JSONDecodeError):
-    """Report JSON input that could not be interpreted as configuration."""
+# ConfigBadJson was defined here before config_errors existed, and stays
+# importable from here.
+__all__ = ['Config', 'ConfigBadJson', 'ParseConverter']
 
 
 def _over_ride_needed(value: object) -> int:
@@ -173,10 +177,10 @@ class Config():
             TypeError: ``_unchecked_dicts`` exists but is not a list, or
                 ``nested_configs`` returns invalid declarations.
             ValueError: Both JSON text and a JSON file were supplied.
-            KeyError: Parsed data is missing required keys or contains
-                unexpected keys.
-            ConfigBadJson: The supplied JSON could not be decoded or converted
-                into the expected configuration structure.
+            ConfigParseError: The supplied JSON data is not valid for this
+                configuration; the subclasses of
+                :class:`~config_as_json.config_errors.ConfigParseError` tell
+                which problem it is and where it is.
             NotImplementedError: The derived class did not implement
                 ``get_validation_plan``.
         """
@@ -341,7 +345,8 @@ class Config():
                         ok_to_use_defaults: bool, stderr_file: TextIO,
                         allowed_missing_keys: Optional[list[str]] = None, *,
                         member_name: Optional[str] = None,
-                        dict_keys: bool = False) -> None:
+                        dict_keys: bool = False,
+                        json_path: JsonPath = ()) -> None:
         """Validate that parsed keys match the declared configuration keys.
 
         Args:
@@ -362,10 +367,13 @@ class Config():
                 than attribute names of a configuration object. Keys of a
                 dictionary are reported in square brackets, and attribute
                 names are reported after a dot.
+            json_path: The same location as ``member_name``, as a tuple path
+                from the root of the JSON data of the outermost
+                ``parse_json()`` operation. The empty tuple means that root.
 
         Raises:
-            KeyError: The JSON data is missing a required key or contains an
-                unexpected key.
+            ConfigMissingKey: The JSON data is missing a required key.
+            ConfigUnknownKey: The JSON data contains an unexpected key.
         """
         key_path = _indexed_path if dict_keys else member_path
         if allowed_missing_keys is None:
@@ -373,23 +381,27 @@ class Config():
         if not ok_to_use_defaults:
             for i in expected_keys:
                 if i not in j_keys and i not in allowed_missing_keys:
-                    errmsg = f'No value for {key_path(member_name, i)} '
-                    errmsg += 'in JSON data'
+                    path = key_path(member_name, i)
+                    errmsg = f'No value for {path} in JSON data'
                     print(errmsg, file=stderr_file)
-                    raise KeyError(errmsg)
+                    raise ConfigMissingKey(errmsg, missing_key=i,
+                                           member_name=path,
+                                           json_path=json_path + (i,))
         for i in j_keys:
             if i not in expected_keys:
-                errmsg = 'Unexpected parameter '
-                errmsg += f'{key_path(member_name, i)} in JSON data'
+                path = key_path(member_name, i)
+                errmsg = f'Unexpected parameter {path} in JSON data'
                 print(errmsg, file=stderr_file)
-                raise KeyError(errmsg)
+                raise ConfigUnknownKey(errmsg, unknown_key=i, member_name=path,
+                                       json_path=json_path + (i,))
 
     @staticmethod
     # pylint: disable-next=too-many-arguments,too-many-positional-arguments
     def check_dict_parse(self_data: object, json_data: object, key: str,
                          ok_to_use_defaults: bool, unchecked_dicts: list[str],
                          stderr_file: TextIO, *,
-                         member_name: Optional[str] = None) -> None:
+                         member_name: Optional[str] = None,
+                         json_path: Optional[JsonPath] = None) -> None:
         """Recursively validate nested dictionaries against default values.
 
         Args:
@@ -408,12 +420,20 @@ class Config():
                 reached by appending the key in square brackets. ``None``
                 means that the checked value is the top level and not a
                 member of anything.
+            json_path: Tuple path of the checked value itself from the root
+                of the JSON data of the outermost ``parse_json()``
+                operation, such as ``('outputs', 1, 'limits')``. ``None``
+                means ``(key,)``.
 
         Raises:
-            KeyError: The JSON structure for the key does not match the
-                expected dictionary shape.
+            ConfigNotDict: The default is a dict but the JSON value is not.
+            ConfigUnexpectedDict: The JSON value is a dict but the default is
+                not.
+            ConfigMissingKey: A nested dictionary misses a required key.
+            ConfigUnknownKey: A nested dictionary has an unexpected key.
         """
         value_name = key if member_name is None else member_name
+        checked_path = (key,) if json_path is None else json_path
         if not isinstance(self_data, dict) and \
                 not isinstance(json_data, dict):
             return
@@ -421,24 +441,28 @@ class Config():
             if not isinstance(json_data, dict):
                 errmsg = f'Not dictionary for {value_name} in JSON data'
                 print(errmsg, file=stderr_file)
-                raise KeyError(errmsg)
+                raise ConfigNotDict(errmsg, member_name=value_name,
+                                    json_path=checked_path)
         if not isinstance(self_data, dict):
             errmsg = f'Unexpected dictionary for {value_name} in JSON data'
             print(errmsg, file=stderr_file)
-            raise KeyError(errmsg)
+            raise ConfigUnexpectedDict(errmsg, member_name=value_name,
+                                       json_path=checked_path)
         if key in unchecked_dicts:
             return
         assert isinstance(self_data, dict)
         assert isinstance(json_data, dict)
         Config.check_key_match(list(self_data.keys()), list(json_data.keys()),
                                ok_to_use_defaults, stderr_file,
-                               member_name=member_name, dict_keys=True)
+                               member_name=member_name, dict_keys=True,
+                               json_path=checked_path)
         for i in self_data.keys():
             if i in json_data:
                 value_path = _indexed_path(member_name, i)
                 Config.check_dict_parse(self_data[i], json_data[i], i,
                                         ok_to_use_defaults, unchecked_dicts,
-                                        stderr_file, member_name=value_path)
+                                        stderr_file, member_name=value_path,
+                                        json_path=checked_path + (i,))
 
     def _json_parse_obj_hook(self, indict: dict[str, object]) \
             -> dict[str, object]:
@@ -462,7 +486,8 @@ class Config():
                 if value is None and key in omit_none_keys:
                     continue
                 if not isinstance(value, parse_c.result_type):
-                    ret[key] = parse_c.func(value, **parse_c.args)
+                    ret[key] = converted_value(key, value, parse_c.func,
+                                               parse_c.args)
         return ret
 
     def _omit_none_from_json(self) -> list[str]:
@@ -615,34 +640,17 @@ class Config():
             The decoded JSON object.
 
         Raises:
-            ConfigBadJson: The text is not valid JSON, or its root is not a
-                JSON object.
+            ConfigMustBeJson: The text is not valid JSON.
+            ConfigConversionFailed: A parse converter refused a value.
+            ConfigRootNotDict: The root of the text is not a dict.
+            ConfigBadJson: Decoding failed in any other way.
             NotImplementedError: A required custom converter was not supplied
                 by a derived class.
         """
-        where = '' if member_name is None else f' for {member_name}'
         hook = self._json_parse_obj_hook if self._hook_dict is not None \
             else None
-        data: Optional[dict[str, object]] = None
-        try:
-            data = json.loads(from_json_text, object_hook=hook)
-        except Exception as exc:
-            if isinstance(exc, NotImplementedError):
-                raise exc
-            msg = f'Config.parse_json{where} failed to load JSON from '
-            msg += 'string/file.\n'
-            msg += 'Probably incorrectly edited configuration,\n'
-            msg += 'or using wrong file (not config file) as configuration.\n'
-            msg += str(exc)
-            print(msg, file=stderr_file)
-            if isinstance(exc, json.JSONDecodeError):
-                raise ConfigBadJson(msg=msg, doc=exc.doc, pos=exc.pos) from exc
-            raise ConfigBadJson(msg=msg, doc='', pos=0) from exc
-        if data is None or not isinstance(data, dict):
-            msg = f'Configuration JSON root{where} must be a JSON object.'
-            print(msg, file=stderr_file)
-            raise ConfigBadJson(msg=msg, doc=from_json_text, pos=0)
-        return data
+        return decoded_json_object(from_json_text, hook, stderr_file,
+                                   member_name=member_name)
 
     def parse_json(self, from_json_text: str, ok_to_use_defaults: bool = False,
                    stderr_file: TextIO = sys.stderr, *,
@@ -667,9 +675,13 @@ class Config():
                 the top level and not a member of anything.
 
         Raises:
-            ConfigBadJson: The text is not valid configuration JSON.
-            KeyError: The parsed configuration does not match the declared
-                keys or nested dictionary structure.
+            ConfigBadJson: The text is not valid configuration JSON. See its
+                subclasses ``ConfigMustBeJson``, ``ConfigRootNotDict`` and
+                ``ConfigConversionFailed``.
+            ConfigMissingKey: The data has no value for a required key.
+            ConfigUnknownKey: The data has a key that is not declared.
+            ConfigWrongShape: A value has the wrong JSON shape. This is a
+                ``KeyError``, as are the two above.
             NotImplementedError: A required custom converter was not supplied
                 by a derived class.
         """
@@ -710,7 +722,8 @@ class Config():
                     self.check_dict_parse(getattr(self, i), data[i], i,
                                           ok_to_use_defaults,
                                           self._unchecked_dicts, stderr_file,
-                                          member_name=item_path)
+                                          member_name=item_path,
+                                          json_path=(i,))
                     setattr(self, i, data[i])
         self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
         wrap_validate(self, stderr_file=stderr_file, member_name=member_name)

@@ -110,7 +110,6 @@
     * [hex\_str](#config_as_json.hexadecimal_number.HexadecimalNumber.hex_str)
     * [Prefix](#config_as_json.hexadecimal_number.HexadecimalNumber.Prefix)
 * [config\_as\_json.config](#config_as_json.config)
-  * [ConfigBadJson](#config_as_json.config.ConfigBadJson)
   * [ParseConverter](#config_as_json.config.ParseConverter)
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
@@ -158,6 +157,24 @@
     * [migrate\_instructions](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.migrate_instructions)
     * [migrate\_warn\_msg](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.migrate_warn_msg)
     * [auto\_changed](#config_as_json.migrate_cfg_warn_hook.MigrateCfgWarnHook.auto_changed)
+* [config\_as\_json.config\_errors](#config_as_json.config_errors)
+  * [ConfigParseError](#config_as_json.config_errors.ConfigParseError)
+    * [\_\_init\_\_](#config_as_json.config_errors.ConfigParseError.__init__)
+  * [ConfigMissingKey](#config_as_json.config_errors.ConfigMissingKey)
+    * [\_\_init\_\_](#config_as_json.config_errors.ConfigMissingKey.__init__)
+  * [ConfigUnknownKey](#config_as_json.config_errors.ConfigUnknownKey)
+    * [\_\_init\_\_](#config_as_json.config_errors.ConfigUnknownKey.__init__)
+  * [ConfigWrongShape](#config_as_json.config_errors.ConfigWrongShape)
+  * [ConfigMustBeList](#config_as_json.config_errors.ConfigMustBeList)
+  * [ConfigNotDict](#config_as_json.config_errors.ConfigNotDict)
+  * [ConfigUnexpectedDict](#config_as_json.config_errors.ConfigUnexpectedDict)
+  * [ConfigKeysNotStrings](#config_as_json.config_errors.ConfigKeysNotStrings)
+  * [ConfigBadJson](#config_as_json.config_errors.ConfigBadJson)
+    * [\_\_init\_\_](#config_as_json.config_errors.ConfigBadJson.__init__)
+  * [ConfigMustBeJson](#config_as_json.config_errors.ConfigMustBeJson)
+  * [ConfigRootNotDict](#config_as_json.config_errors.ConfigRootNotDict)
+  * [ConfigConversionFailed](#config_as_json.config_errors.ConfigConversionFailed)
+    * [\_\_init\_\_](#config_as_json.config_errors.ConfigConversionFailed.__init__)
 * [config\_as\_json.discriminated\_dict\_validators](#config_as_json.discriminated_dict_validators)
   * [DictVariant](#config_as_json.discriminated_dict_validators.DictVariant)
   * [DiscriminatedDictValidator](#config_as_json.discriminated_dict_validators.DiscriminatedDictValidator)
@@ -2604,16 +2621,6 @@ The base class then provides JSON serialization, parsing, schema-like key
 checks, omit-when-None handling, old-file migration helpers, and validation
 plan integration.
 
-<a id="config_as_json.config.ConfigBadJson"></a>
-
-## ConfigBadJson Objects
-
-```python
-class ConfigBadJson(json.JSONDecodeError)
-```
-
-Report JSON input that could not be interpreted as configuration.
-
 <a id="config_as_json.config.ParseConverter"></a>
 
 #### ParseConverter
@@ -2723,10 +2730,10 @@ parsed data is applied to the same attributes instead.
 - `TypeError` - ``_unchecked_dicts`` exists but is not a list, or
   ``nested_configs`` returns invalid declarations.
 - `ValueError` - Both JSON text and a JSON file were supplied.
-- `KeyError` - Parsed data is missing required keys or contains
-  unexpected keys.
-- `ConfigBadJson` - The supplied JSON could not be decoded or converted
-  into the expected configuration structure.
+- `ConfigParseError` - The supplied JSON data is not valid for this
+  configuration; the subclasses of
+  :class:`~config_as_json.config_errors.ConfigParseError` tell
+  which problem it is and where it is.
 - `NotImplementedError` - The derived class did not implement
   ``get_validation_plan``.
 
@@ -2844,7 +2851,8 @@ def check_key_match(expected_keys: list[str],
                     allowed_missing_keys: Optional[list[str]] = None,
                     *,
                     member_name: Optional[str] = None,
-                    dict_keys: bool = False) -> None
+                    dict_keys: bool = False,
+                    json_path: JsonPath = ()) -> None
 ```
 
 Validate that parsed keys match the declared configuration keys.
@@ -2868,12 +2876,15 @@ Validate that parsed keys match the declared configuration keys.
   than attribute names of a configuration object. Keys of a
   dictionary are reported in square brackets, and attribute
   names are reported after a dot.
+- `json_path` - The same location as ``member_name``, as a tuple path
+  from the root of the JSON data of the outermost
+  ``parse_json()`` operation. The empty tuple means that root.
 
 
 **Raises**:
 
-- `KeyError` - The JSON data is missing a required key or contains an
-  unexpected key.
+- `ConfigMissingKey` - The JSON data is missing a required key.
+- `ConfigUnknownKey` - The JSON data contains an unexpected key.
 
 <a id="config_as_json.config.Config.check_dict_parse"></a>
 
@@ -2888,7 +2899,8 @@ def check_dict_parse(self_data: object,
                      unchecked_dicts: list[str],
                      stderr_file: TextIO,
                      *,
-                     member_name: Optional[str] = None) -> None
+                     member_name: Optional[str] = None,
+                     json_path: Optional[JsonPath] = None) -> None
 ```
 
 Recursively validate nested dictionaries against default values.
@@ -2910,12 +2922,19 @@ Recursively validate nested dictionaries against default values.
   reached by appending the key in square brackets. ``None``
   means that the checked value is the top level and not a
   member of anything.
+- `json_path` - Tuple path of the checked value itself from the root
+  of the JSON data of the outermost ``parse_json()``
+  operation, such as ``('outputs', 1, 'limits')``. ``None``
+  means ``(key,)``.
 
 
 **Raises**:
 
-- `KeyError` - The JSON structure for the key does not match the
-  expected dictionary shape.
+- `ConfigNotDict` - The default is a dict but the JSON value is not.
+- `ConfigUnexpectedDict` - The JSON value is a dict but the default is
+  not.
+- `ConfigMissingKey` - A nested dictionary misses a required key.
+- `ConfigUnknownKey` - A nested dictionary has an unexpected key.
 
 <a id="config_as_json.config.Config.copy_initial_data"></a>
 
@@ -3001,9 +3020,13 @@ too. Nothing is reported when parsing fails before that point.
 
 **Raises**:
 
-- `ConfigBadJson` - The text is not valid configuration JSON.
-- `KeyError` - The parsed configuration does not match the declared
-  keys or nested dictionary structure.
+- `ConfigBadJson` - The text is not valid configuration JSON. See its
+  subclasses ``ConfigMustBeJson``, ``ConfigRootNotDict`` and
+  ``ConfigConversionFailed``.
+- `ConfigMissingKey` - The data has no value for a required key.
+- `ConfigUnknownKey` - The data has a key that is not declared.
+- `ConfigWrongShape` - A value has the wrong JSON shape. This is a
+  ``KeyError``, as are the two above.
 - `NotImplementedError` - A required custom converter was not supplied
   by a derived class.
 
@@ -3832,6 +3855,311 @@ Print the standard migration warning.
 - `rocf_vals_handled` - Current paths that received values during
   old-file compatibility processing.
 - `stderr_file` - Stream used for user-facing diagnostics.
+
+<a id="config_as_json.config_errors"></a>
+
+# config\_as\_json.config\_errors
+
+Define the exceptions for problems found in configuration JSON data.
+
+Every problem that :meth:`Config.parse_json` finds in the JSON data it is
+given is raised as a :class:`ConfigParseError`, so an application, such as a
+helpful editor of the configuration file, can tell the problems apart by
+their type, and find where in the data the problem is from data members,
+without parsing the message text.
+
+Each specific exception also derives from the exception type that was raised
+for the same problem before these types existed, ``KeyError`` or
+:class:`ConfigBadJson`, so existing ``except`` clauses keep working.
+
+Two data members tell where the problem is. ``member_name`` is the reported
+path text, such as ``outputs[1].section.kind``, written for a person to read
+(see :mod:`config_as_json.member_path`). ``json_path`` is the same location as
+a :data:`JsonPath` tuple, such as ``('outputs', 1, 'section', 'kind')``, for a
+program to follow into the JSON data without parsing text.
+
+``json_path`` is relative to the JSON data of the outermost ``parse_json()``
+operation, which is the data read from the configuration file. It addresses
+that data after the rules for reading an old configuration file have been
+applied, so a key that such a rule moved or renamed is addressed where the
+rule put it.
+
+<a id="config_as_json.config_errors.ConfigParseError"></a>
+
+## ConfigParseError Objects
+
+```python
+class ConfigParseError(Exception)
+```
+
+Base of every problem found in configuration JSON data.
+
+``str()`` of the exception is the message exactly as it was printed to
+the diagnostics stream. The quotation marks that ``KeyError`` would
+otherwise put around it are not added.
+
+**Attributes**:
+
+- `member_name` - Reported path of the value that the problem is about,
+  such as ``outputs[1].section.kind``. ``None`` means the root of
+  the JSON data of the configuration object that was parsed.
+- `json_path` - Path of the same value as a tuple of dict keys (``str``)
+  and list indices (``int``) from the root of the JSON data of the
+  outermost ``parse_json()`` operation. The empty tuple means that
+  root itself.
+
+<a id="config_as_json.config_errors.ConfigParseError.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(*args: object, member_name: Optional[str],
+             json_path: JsonPath) -> None
+```
+
+Initialize the exception.
+
+**Arguments**:
+
+- `args` - Arguments for the next exception class in the method
+  resolution order, normally the message only.
+- `member_name` - Reported path of the value the problem is about.
+- `json_path` - Tuple path of the same value.
+
+<a id="config_as_json.config_errors.ConfigMissingKey"></a>
+
+## ConfigMissingKey Objects
+
+```python
+class ConfigMissingKey(ConfigParseError, KeyError)
+```
+
+The JSON data has no value for a key the configuration requires.
+
+``member_name`` and ``json_path`` address the missing key itself, as if
+it were present.
+
+**Attributes**:
+
+- `missing_key` - Local name of the missing key in the object or the dict
+  that should contain it.
+
+<a id="config_as_json.config_errors.ConfigMissingKey.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(message: str, *, missing_key: str, member_name: str,
+             json_path: JsonPath) -> None
+```
+
+Initialize the exception.
+
+**Arguments**:
+
+- `message` - Message for the user.
+- `missing_key` - Local name of the missing key.
+- `member_name` - Reported path of the missing key.
+- `json_path` - Tuple path of the missing key.
+
+<a id="config_as_json.config_errors.ConfigUnknownKey"></a>
+
+## ConfigUnknownKey Objects
+
+```python
+class ConfigUnknownKey(ConfigParseError, KeyError)
+```
+
+The JSON data has a key that the configuration does not declare.
+
+``member_name`` and ``json_path`` address the unexpected key itself.
+
+**Attributes**:
+
+- `unknown_key` - Local name of the unexpected key in the object or the
+  dict that contains it.
+
+<a id="config_as_json.config_errors.ConfigUnknownKey.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(message: str, *, unknown_key: str, member_name: str,
+             json_path: JsonPath) -> None
+```
+
+Initialize the exception.
+
+**Arguments**:
+
+- `message` - Message for the user.
+- `unknown_key` - Local name of the unexpected key.
+- `member_name` - Reported path of the unexpected key.
+- `json_path` - Tuple path of the unexpected key.
+
+<a id="config_as_json.config_errors.ConfigWrongShape"></a>
+
+## ConfigWrongShape Objects
+
+```python
+class ConfigWrongShape(ConfigParseError, KeyError)
+```
+
+A value in the JSON data has the wrong JSON shape.
+
+``member_name`` and ``json_path`` address the value with the wrong shape.
+
+<a id="config_as_json.config_errors.ConfigMustBeList"></a>
+
+## ConfigMustBeList Objects
+
+```python
+class ConfigMustBeList(ConfigWrongShape)
+```
+
+A value is not a list where a list is required.
+
+<a id="config_as_json.config_errors.ConfigNotDict"></a>
+
+## ConfigNotDict Objects
+
+```python
+class ConfigNotDict(ConfigWrongShape)
+```
+
+A value is not a dict where a dict is required.
+
+<a id="config_as_json.config_errors.ConfigUnexpectedDict"></a>
+
+## ConfigUnexpectedDict Objects
+
+```python
+class ConfigUnexpectedDict(ConfigWrongShape)
+```
+
+A value is a dict where another shape is required.
+
+<a id="config_as_json.config_errors.ConfigKeysNotStrings"></a>
+
+## ConfigKeysNotStrings Objects
+
+```python
+class ConfigKeysNotStrings(ConfigWrongShape)
+```
+
+A dict in the data has keys that are not strings.
+
+``member_name`` and ``json_path`` address the dict.
+
+<a id="config_as_json.config_errors.ConfigBadJson"></a>
+
+## ConfigBadJson Objects
+
+```python
+class ConfigBadJson(ConfigParseError, json.JSONDecodeError)
+```
+
+Report JSON input that could not be interpreted as configuration.
+
+The data members ``msg``, ``doc``, ``pos``, ``lineno`` and ``colno`` are
+those of ``json.JSONDecodeError``. Only for :class:`ConfigMustBeJson` do
+they locate the problem in the JSON text; otherwise ``pos`` is ``0``.
+
+<a id="config_as_json.config_errors.ConfigBadJson.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    msg: str,
+    doc: str,
+    pos: int,
+    *,
+    member_name: Optional[str] = None,
+    json_path: JsonPath = ()) -> None
+```
+
+Initialize the exception.
+
+**Arguments**:
+
+- `msg` - Message for the user.
+- `doc` - JSON text that was being parsed, or ``''``.
+- `pos` - Index in ``doc`` where the problem was found.
+- `member_name` - Reported path of the configuration object whose
+  JSON text it is, ``None`` for the top level.
+- `json_path` - Tuple path of the same configuration object.
+
+<a id="config_as_json.config_errors.ConfigMustBeJson"></a>
+
+## ConfigMustBeJson Objects
+
+```python
+class ConfigMustBeJson(ConfigBadJson)
+```
+
+The text is not JSON, or failed to parse as JSON.
+
+``pos``, ``lineno`` and ``colno`` locate the problem in ``doc``.
+
+<a id="config_as_json.config_errors.ConfigRootNotDict"></a>
+
+## ConfigRootNotDict Objects
+
+```python
+class ConfigRootNotDict(ConfigBadJson)
+```
+
+The root of the JSON text is not a dict.
+
+<a id="config_as_json.config_errors.ConfigConversionFailed"></a>
+
+## ConfigConversionFailed Objects
+
+```python
+class ConfigConversionFailed(ConfigBadJson)
+```
+
+A parse converter refused the value of a key in the JSON data.
+
+The exception that the converter raised is the ``__cause__``.
+
+The converters run while the text is decoded, at a point where the
+position of the value is not known. ``member_name`` and ``json_path``
+therefore address the configuration object whose converter failed, and
+``converted_key`` names the key. The key is usually a direct member of
+that object, but a converter applies to its key in every dict in the
+text of that configuration object.
+
+**Attributes**:
+
+- `converted_key` - Key whose value the converter refused.
+
+<a id="config_as_json.config_errors.ConfigConversionFailed.__init__"></a>
+
+#### \_\_init\_\_
+
+```python
+def __init__(
+    msg: str,
+    doc: str,
+    pos: int,
+    *,
+    converted_key: str,
+    member_name: Optional[str] = None,
+    json_path: JsonPath = ()) -> None
+```
+
+Initialize the exception.
+
+**Arguments**:
+
+- `msg` - Message for the user.
+- `doc` - JSON text that was being parsed, or ``''``.
+- `pos` - Index in ``doc`` where the problem was found.
+- `converted_key` - Key whose value the converter refused.
+- `member_name` - Reported path of the configuration object.
+- `json_path` - Tuple path of the configuration object.
 
 <a id="config_as_json.discriminated_dict_validators"></a>
 

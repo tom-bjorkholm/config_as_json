@@ -15,6 +15,9 @@ import pytest
 from pytest import CaptureFixture
 from config_as_json.config import ConfigBadJson, _over_ride_needed, Config, \
     ParseConverter
+from config_as_json.config_errors import ConfigMissingKey, \
+    ConfigMustBeJson, ConfigNotDict, ConfigRootNotDict, ConfigUnexpectedDict, \
+    ConfigUnknownKey, ConfigWrongShape
 from config_as_json.assert_dict_equal import assert_dict_equal
 from config_as_json.commontypes import PathOrStr
 from config_as_json.csv_dialect import get_csv_dialect, CsvDialectConfig
@@ -352,7 +355,7 @@ def test_config_smt_read_incompl2(capsys: CaptureFixture[str],
     with pytest.raises(KeyError) as exc_info:
         yst.parse_json(txt, ok_to_use_defaults=False, stderr_file=sys.stderr,
                        member_name=None)
-    assert exc_info.type is KeyError
+    assert exc_info.type is ConfigMissingKey
     out, err = capsys.readouterr()
     assert out == ''
     assert 'No value for' in err
@@ -403,7 +406,7 @@ def test_config_smt_init_incompl(capsys: CaptureFixture[str],
     with pytest.raises(KeyError) as exc_info:
         yst = ConfigSomething(from_json_text=txt, stderr_file=sys.stderr)
         assert yst.csv_dialect1['delimiter'] == ''
-    assert exc_info.type is KeyError
+    assert exc_info.type is ConfigMissingKey
     out, err = capsys.readouterr()
     assert out == ''
     assert 'No value for' in err
@@ -419,7 +422,7 @@ def test_config_something_read_bad(capsys: CaptureFixture[str],
     with pytest.raises(KeyError) as exc_info:
         yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
                        member_name=None)
-    assert exc_info.type is KeyError
+    assert exc_info.type is ConfigUnknownKey
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Unexpected parameter' in err
@@ -435,7 +438,7 @@ def test_config_something_read_bad2(capsys: CaptureFixture[str],
     with pytest.raises(KeyError) as exc_info:
         yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
                        member_name=None)
-    assert exc_info.type is KeyError
+    assert exc_info.type is ConfigUnknownKey
     out, err = capsys.readouterr()
     assert out == ''
     assert 'Unexpected parameter' in err
@@ -452,7 +455,7 @@ def test_config_something_read_bad3(capsys: CaptureFixture[str],
         yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
                        member_name=None)
     out, err = capsys.readouterr()
-    assert exc_info.type is ConfigBadJson
+    assert exc_info.type is ConfigMustBeJson
     assert 'failed to load JSON' in str(exc_info)
     assert out == ''
     assert 'failed to load JSON' in err
@@ -466,7 +469,7 @@ def test_reject_non_object_root(capsys: CaptureFixture[str], txt: str) -> None:
         yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
                        member_name=None)
     out, err = capsys.readouterr()
-    assert exc_info.type is ConfigBadJson
+    assert exc_info.type is ConfigRootNotDict
     assert 'Configuration JSON root must be a JSON object.' in str(exc_info)
     assert out == ''
     assert 'Configuration JSON root must be a JSON object.' in err
@@ -490,18 +493,20 @@ def test_config_something_read_bad4(capsys: CaptureFixture[str],
     assert 'decode byte 0xff in position 0' in err
 
 
-@pytest.mark.parametrize('txt, errtxt',
-                         [('{"csv_dialect1": "B"}', 'Not dictionary for'),
+@pytest.mark.parametrize('txt, errtxt, error_type',
+                         [('{"csv_dialect1": "B"}', 'Not dictionary for',
+                           ConfigNotDict),
                           ('{"abc": {"delimiter" : ";"}}',
-                           'Unexpected dictionary for')])
+                           'Unexpected dictionary for', ConfigUnexpectedDict)])
 def test_config_smt_read_dict_mism(capsys: CaptureFixture[str], txt: str,
-                                   errtxt: str) -> None:
+                                   errtxt: str,
+                                   error_type: type[ConfigWrongShape]) -> None:
     """Test ConfigSomething read dict mismatch."""
     yst = ConfigSomething(stderr_file=sys.stderr)
     with pytest.raises(KeyError) as exc_info:
         yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
                        member_name=None)
-    assert exc_info.type is KeyError
+    assert exc_info.type is error_type
     out, err = capsys.readouterr()
     assert out == ''
     assert errtxt in err
