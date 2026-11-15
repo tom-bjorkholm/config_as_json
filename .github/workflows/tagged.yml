@@ -48,12 +48,6 @@ jobs:
           name: reports-${{ matrix.python-version }}_${{ inputs.ref }}
           path: reports/
 
-      - name: Upload doc
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: doc-${{ matrix.python-version }}_${{ inputs.ref }}
-          path: doc/
-
       - name: Upload dist
         uses: actions/upload-artifact@v7.0.1
         with:
