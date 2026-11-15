@@ -105,6 +105,11 @@
   * [OctalNumber](#config_as_json.octal_number.OctalNumber)
     * [oct\_str](#config_as_json.octal_number.OctalNumber.oct_str)
     * [Prefix](#config_as_json.octal_number.OctalNumber.Prefix)
+* [config\_as\_json.\_config\_parse](#config_as_json._config_parse)
+  * [public\_member\_names](#config_as_json._config_parse.public_member_names)
+  * [check\_parsed\_keys](#config_as_json._config_parse.check_parsed_keys)
+  * [assign\_parsed\_members](#config_as_json._config_parse.assign_parsed_members)
+  * [\_checked\_plain\_value](#config_as_json._config_parse._checked_plain_value)
 * [config\_as\_json.optional\_validator](#config_as_json.optional_validator)
   * [\_validate\_mvalidator](#config_as_json.optional_validator._validate_mvalidator)
   * [OptionalMemberValidator](#config_as_json.optional_validator.OptionalMemberValidator)
@@ -222,6 +227,7 @@
     * [copy\_initial\_data](#config_as_json.config.Config.copy_initial_data)
     * [\_auto\_wrap\_nested\_defaults](#config_as_json.config.Config._auto_wrap_nested_defaults)
     * [\_decoded\_json\_object](#config_as_json.config.Config._decoded_json_object)
+    * [\_decoded\_rocf\_data](#config_as_json.config.Config._decoded_rocf_data)
     * [parse\_json](#config_as_json.config.Config.parse_json)
     * [\_child\_owned\_paths](#config_as_json.config.Config._child_owned_paths)
     * [as\_json\_string](#config_as_json.config.Config.as_json_string)
@@ -463,6 +469,9 @@
     * [compare\_value](#config_as_json.config_factory.JsonValueMatcher.compare_value)
   * [\_constructed\_match](#config_as_json.config_factory._constructed_match)
   * [config\_factory\_from\_json](#config_as_json.config_factory.config_factory_from_json)
+* [config\_as\_json.\_config\_key\_check](#config_as_json._config_key_check)
+  * [check\_key\_match\_impl](#config_as_json._config_key_check.check_key_match_impl)
+  * [check\_dict\_parse\_impl](#config_as_json._config_key_check.check_dict_parse_impl)
 * [config\_as\_json.assert\_dict\_equal](#config_as_json.assert_dict_equal)
   * [\_print\_dict\_differs](#config_as_json.assert_dict_equal._print_dict_differs)
   * [assert\_dict\_equal](#config_as_json.assert_dict_equal.assert_dict_equal)
@@ -511,7 +520,6 @@
   * [\_wrap\_list\_elements](#config_as_json._config_initial_data._wrap_list_elements)
   * [\_wrap\_dict\_values](#config_as_json._config_initial_data._wrap_dict_values)
   * [\_wrap\_dict\_value\_by\_key](#config_as_json._config_initial_data._wrap_dict_value_by_key)
-  * [\_nesting\_by\_key](#config_as_json._config_initial_data._nesting_by_key)
   * [\_auto\_wrap\_one\_member](#config_as_json._config_initial_data._auto_wrap_one_member)
   * [auto\_wrap\_nested\_defaults\_impl](#config_as_json._config_initial_data.auto_wrap_nested_defaults_impl)
 * [config\_as\_json.rocf\_value\_migration](#config_as_json.rocf_value_migration)
@@ -2663,6 +2671,139 @@ The prefix '0o', the notation of Python.
 #### ZERO
 
 The leading zero of the traditional file mode notation.
+
+<a id="config_as_json._config_parse"></a>
+
+# config\_as\_json.\_config\_parse
+
+Apply decoded configuration JSON data to the members of a Config object.
+
+``Config.parse_json`` decodes the JSON text and lets the read-old processor
+normalize it, then calls the functions here: one checks the keys of the
+data against the public members, and one assigns the data to the members.
+
+The private state of the ``Config`` object that these functions need is
+passed in as arguments, so that this module uses only the public interface
+of ``Config``.
+
+<a id="config_as_json._config_parse.public_member_names"></a>
+
+#### public\_member\_names
+
+```python
+def public_member_names(config: 'Config') -> list[str]
+```
+
+Return the names of the public configuration members of ``config``.
+
+A public configuration member is an instance attribute whose name does
+not start with ``_`` and whose value is not callable.
+
+<a id="config_as_json._config_parse.check_parsed_keys"></a>
+
+#### check\_parsed\_keys
+
+```python
+def check_parsed_keys(config: 'Config', data: dict[str, object],
+                      self_keys: list[str], omit_none_keys: list[str],
+                      ok_to_use_defaults: bool, stderr_file: TextIO, *,
+                      member_name: Optional[str]) -> None
+```
+
+Check the keys of the data against the public members.
+
+In strict parsing, an omit-when-None member that the data lacks is set
+to ``None``.
+
+**Arguments**:
+
+- `config` - Configuration object that the data is parsed into.
+- `data` - Decoded JSON data, after the read-old processor.
+- `self_keys` - Public configuration member names of ``config``.
+- `omit_none_keys` - Members that the data may lack in strict parsing.
+- `ok_to_use_defaults` - Whether missing members keep their values.
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching ``config`` from
+  the top level of the complete ``parse_json()`` operation, or
+  ``None`` when ``config`` is that top level.
+
+
+**Raises**:
+
+- `ConfigMissingKey` - The data has no value for a required member.
+- `ConfigUnknownKey` - The data has a key that is not a member.
+
+<a id="config_as_json._config_parse.assign_parsed_members"></a>
+
+#### assign\_parsed\_members
+
+```python
+def assign_parsed_members(config: 'Config', data: dict[str, object],
+                          self_keys: list[str], ok_to_use_defaults: bool,
+                          stderr_file: TextIO, *, member_name: Optional[str],
+                          nested_decls: dict[str, list[ConfigNesting]],
+                          unchecked_dicts: list[str],
+                          auto_ch_hook: ConfigAutoChangeHook) -> None
+```
+
+Assign the values of the data to the public members of ``config``.
+
+Members are assigned in the order of ``self_keys``. A member that the
+data lacks is left unchanged.
+
+**Arguments**:
+
+- `config` - Configuration object that the data is parsed into.
+- `data` - Decoded JSON data, after the read-old processor and the key
+  check.
+- `self_keys` - Public configuration member names of ``config``.
+- `ok_to_use_defaults` - Whether missing dict keys may keep defaults.
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching ``config`` from
+  the top level of the complete ``parse_json()`` operation, or
+  ``None`` when ``config`` is that top level.
+- `nested_decls` - Validated nested Config declarations of ``config``.
+- `unchecked_dicts` - Dict members whose keys are not checked.
+- `auto_ch_hook` - Hook of ``config`` receiving the automatic changes of
+  nested Config objects.
+
+
+**Raises**:
+
+- `ConfigParseError` - A value does not fit its member.
+
+<a id="config_as_json._config_parse._checked_plain_value"></a>
+
+#### \_checked\_plain\_value
+
+```python
+def _checked_plain_value(config: 'Config', key: str, json_value: object,
+                         ok_to_use_defaults: bool, unchecked_dicts: list[str],
+                         stderr_file: TextIO, *,
+                         member_name: Optional[str]) -> object
+```
+
+Return the JSON value of a member that is not a nested Config.
+
+The value is checked against the current value of the member with
+``Config.check_dict_parse`` first.
+
+**Arguments**:
+
+- `config` - Configuration object that holds the member.
+- `key` - Name of the member.
+- `json_value` - Decoded JSON value for the member.
+- `ok_to_use_defaults` - Whether missing dict keys may keep defaults.
+- `unchecked_dicts` - Dict members whose keys are not checked.
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching ``config`` from
+  the top level of the complete ``parse_json()`` operation, or
+  ``None`` when ``config`` is that top level.
+
+
+**Returns**:
+
+  The value to assign to the member.
 
 <a id="config_as_json.optional_validator"></a>
 
@@ -5266,6 +5407,32 @@ the object hook while the text is decoded.
 - `ConfigBadJson` - Decoding failed in any other way.
 - `NotImplementedError` - A required custom converter was not supplied
   by a derived class.
+
+<a id="config_as_json.config.Config._decoded_rocf_data"></a>
+
+#### \_decoded\_rocf\_data
+
+```python
+def _decoded_rocf_data(from_json_text: str, stderr_file: TextIO, *,
+                       member_name: Optional[str]) -> dict[str, object]
+```
+
+Decode configuration JSON text and apply the read-old processor.
+
+The automatic changes made by the read-old processor are recorded in
+the automatic-change hook of this object.
+
+**Arguments**:
+
+- `from_json_text` - JSON document describing configuration values.
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching this object, as
+  for :meth:`_decoded_json_object`.
+
+
+**Returns**:
+
+  The decoded JSON object, normalized by the read-old processor.
 
 <a id="config_as_json.config.Config.parse_json"></a>
 
@@ -10190,6 +10357,72 @@ by inspecting the input document itself.
 - `SystemExit` - The JSON could not be decoded, no matcher accepted it, or
   a referenced input file does not exist.
 
+<a id="config_as_json._config_key_check"></a>
+
+# config\_as\_json.\_config\_key\_check
+
+Check parsed JSON keys against the keys a configuration declares.
+
+This private module implements the bodies of the public static methods
+``Config.check_key_match`` and ``Config.check_dict_parse``. Those methods
+keep their signatures and docstrings and delegate here. The recursion of
+the dict check calls the functions of this module directly, as it always
+called the ``Config`` methods by class name and never an override.
+
+<a id="config_as_json._config_key_check.check_key_match_impl"></a>
+
+#### check\_key\_match\_impl
+
+```python
+def check_key_match_impl(
+    expected_keys: list[str],
+    j_keys: list[str],
+    ok_to_use_defaults: bool,
+    stderr_file: TextIO,
+    allowed_missing_keys: Optional[list[str]] = None,
+    *,
+    member_name: Optional[str] = None,
+    dict_keys: bool = False,
+    json_path: JsonPath = ()) -> None
+```
+
+Validate that parsed keys match the declared configuration keys.
+
+See :meth:`Config.check_key_match` for the meaning of the arguments.
+
+**Raises**:
+
+- `ConfigMissingKey` - The JSON data is missing a required key.
+- `ConfigUnknownKey` - The JSON data contains an unexpected key.
+
+<a id="config_as_json._config_key_check.check_dict_parse_impl"></a>
+
+#### check\_dict\_parse\_impl
+
+```python
+def check_dict_parse_impl(self_data: object,
+                          json_data: object,
+                          key: str,
+                          ok_to_use_defaults: bool,
+                          unchecked_dicts: list[str],
+                          stderr_file: TextIO,
+                          *,
+                          member_name: Optional[str] = None,
+                          json_path: Optional[JsonPath] = None) -> None
+```
+
+Recursively validate nested dictionaries against default values.
+
+See :meth:`Config.check_dict_parse` for the meaning of the arguments.
+
+**Raises**:
+
+- `ConfigNotDict` - The default is a dict but the JSON value is not.
+- `ConfigUnexpectedDict` - The JSON value is a dict but the default is
+  not.
+- `ConfigMissingKey` - A nested dictionary misses a required key.
+- `ConfigUnknownKey` - A nested dictionary has an unexpected key.
+
 <a id="config_as_json.assert_dict_equal"></a>
 
 # config\_as\_json.assert\_dict\_equal
@@ -11224,16 +11457,6 @@ def _wrap_dict_value_by_key(current_value: object,
 ```
 
 Compute the auto-wrapped dict for DICT_VALUE_BY_KEY nestings.
-
-<a id="config_as_json._config_initial_data._nesting_by_key"></a>
-
-#### \_nesting\_by\_key
-
-```python
-def _nesting_by_key(nestings: list[ConfigNesting]) -> dict[str, ConfigNesting]
-```
-
-Return DICT_VALUE_BY_KEY declarations keyed by discriminator_key.
 
 <a id="config_as_json._config_initial_data._auto_wrap_one_member"></a>
 

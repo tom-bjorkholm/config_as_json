@@ -26,6 +26,7 @@ from collections.abc import Mapping
 from typing import Iterator, Optional, TextIO, TYPE_CHECKING
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
 from config_as_json._deprecated_support import use_member_name
+from config_as_json._config_nesting_io import _nesting_by_key
 from config_as_json.member_path import member_path, _indexed_path
 
 
@@ -248,16 +249,6 @@ def _wrap_dict_value_by_key(current_value: object,
                                       stderr_file=stderr_file)
         changed = True
     return result if changed else current_value
-
-
-def _nesting_by_key(nestings: list[ConfigNesting]) \
-        -> dict[str, ConfigNesting]:
-    """Return DICT_VALUE_BY_KEY declarations keyed by discriminator_key."""
-    result: dict[str, ConfigNesting] = {}
-    for nesting in nestings:
-        assert nesting.discriminator_key is not None
-        result[nesting.discriminator_key] = nesting
-    return result
 
 
 def _auto_wrap_one_member(path: str, current_value: object,

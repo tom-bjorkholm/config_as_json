@@ -21,13 +21,16 @@ from enum import Enum
 from config_as_json.str_to_enum import string_to_enum_best_match
 from config_as_json.file_must_exist import file_must_exist
 from config_as_json.commontypes import ConfigPath, JsonPath, PathOrStr
-from config_as_json.config_errors import ConfigBadJson, ConfigMissingKey, \
-    ConfigNotDict, ConfigUnexpectedDict, ConfigUnknownKey
+from config_as_json.config_errors import ConfigBadJson
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind, \
     NestedConfigs
-from config_as_json._config_nesting_io import _nested_config_from_json, \
-    _nested_config_json_data, _validate_nested_config
+from config_as_json._config_nesting_io import _nested_config_json_data, \
+    _validate_nested_config
+from config_as_json._config_key_check import check_dict_parse_impl, \
+    check_key_match_impl
+from config_as_json._config_parse import assign_parsed_members, \
+    check_parsed_keys, public_member_names
 from config_as_json._config_nesting_decl import _checked_nested_configs, \
     _check_nested_config_members
 from config_as_json._config_json_decode import converted_value, \
@@ -41,7 +44,6 @@ from config_as_json._deprecated_support import DeprecatedHook, \
     warn_deprecated_hook
 from config_as_json.json_write_hooks import SerializeConverters, \
     apply_serialize_converters
-from config_as_json.member_path import member_path, _indexed_path
 from config_as_json.read_old_configuration import ReadOldConfiguration
 from config_as_json.validator import ValidationPlan
 
@@ -190,8 +192,7 @@ class Config():
         if '_nested_configs' in vars(self):
             # Remove this transition check after the API migration.
             raise TypeError('_nested_configs is no longer supported')
-        self_keys = [i for i in vars(self).keys() if not
-                     callable(getattr(self, i)) and not i.startswith('_')]
+        self_keys = public_member_names(self)
         if not self_keys:
             msg = 'No object variables in object of class derived from '
             msg += 'Config. (Create object variables in __init__ before '
@@ -309,7 +310,7 @@ class Config():
     def _get_active_rocf(self) -> ReadOldConfiguration:
         """Return the read-old processor from the active hook."""
         if use_deprecated_hook(self, Config, _READ_OLD_CONFIG_HOOK,
-                               stacklevel=4):
+                               stacklevel=5):
             return self._get_read_old_configuration()
         return self._get_read_old_config()
 
@@ -375,25 +376,10 @@ class Config():
             ConfigMissingKey: The JSON data is missing a required key.
             ConfigUnknownKey: The JSON data contains an unexpected key.
         """
-        key_path = _indexed_path if dict_keys else member_path
-        if allowed_missing_keys is None:
-            allowed_missing_keys = []
-        if not ok_to_use_defaults:
-            for i in expected_keys:
-                if i not in j_keys and i not in allowed_missing_keys:
-                    path = key_path(member_name, i)
-                    errmsg = f'No value for {path} in JSON data'
-                    print(errmsg, file=stderr_file)
-                    raise ConfigMissingKey(errmsg, missing_key=i,
-                                           member_name=path,
-                                           json_path=json_path + (i,))
-        for i in j_keys:
-            if i not in expected_keys:
-                path = key_path(member_name, i)
-                errmsg = f'Unexpected parameter {path} in JSON data'
-                print(errmsg, file=stderr_file)
-                raise ConfigUnknownKey(errmsg, unknown_key=i, member_name=path,
-                                       json_path=json_path + (i,))
+        check_key_match_impl(expected_keys, j_keys, ok_to_use_defaults,
+                             stderr_file, allowed_missing_keys,
+                             member_name=member_name, dict_keys=dict_keys,
+                             json_path=json_path)
 
     @staticmethod
     # pylint: disable-next=too-many-arguments,too-many-positional-arguments
@@ -432,37 +418,9 @@ class Config():
             ConfigMissingKey: A nested dictionary misses a required key.
             ConfigUnknownKey: A nested dictionary has an unexpected key.
         """
-        value_name = key if member_name is None else member_name
-        checked_path = (key,) if json_path is None else json_path
-        if not isinstance(self_data, dict) and \
-                not isinstance(json_data, dict):
-            return
-        if isinstance(self_data, dict):
-            if not isinstance(json_data, dict):
-                errmsg = f'Not dictionary for {value_name} in JSON data'
-                print(errmsg, file=stderr_file)
-                raise ConfigNotDict(errmsg, member_name=value_name,
-                                    json_path=checked_path)
-        if not isinstance(self_data, dict):
-            errmsg = f'Unexpected dictionary for {value_name} in JSON data'
-            print(errmsg, file=stderr_file)
-            raise ConfigUnexpectedDict(errmsg, member_name=value_name,
-                                       json_path=checked_path)
-        if key in unchecked_dicts:
-            return
-        assert isinstance(self_data, dict)
-        assert isinstance(json_data, dict)
-        Config.check_key_match(list(self_data.keys()), list(json_data.keys()),
-                               ok_to_use_defaults, stderr_file,
-                               member_name=member_name, dict_keys=True,
-                               json_path=checked_path)
-        for i in self_data.keys():
-            if i in json_data:
-                value_path = _indexed_path(member_name, i)
-                Config.check_dict_parse(self_data[i], json_data[i], i,
-                                        ok_to_use_defaults, unchecked_dicts,
-                                        stderr_file, member_name=value_path,
-                                        json_path=checked_path + (i,))
+        check_dict_parse_impl(self_data, json_data, key, ok_to_use_defaults,
+                              unchecked_dicts, stderr_file,
+                              member_name=member_name, json_path=json_path)
 
     def _json_parse_obj_hook(self, indict: dict[str, object]) \
             -> dict[str, object]:
@@ -652,6 +610,32 @@ class Config():
         return decoded_json_object(from_json_text, hook, stderr_file,
                                    member_name=member_name)
 
+    def _decoded_rocf_data(self, from_json_text: str, stderr_file: TextIO, *,
+                           member_name: Optional[str]) -> dict[str, object]:
+        """Decode configuration JSON text and apply the read-old processor.
+
+        The automatic changes made by the read-old processor are recorded in
+        the automatic-change hook of this object.
+
+        Args:
+            from_json_text: JSON document describing configuration values.
+            stderr_file: Stream used for user-facing diagnostics.
+            member_name: Dotted and indexed path for reaching this object, as
+                for :meth:`_decoded_json_object`.
+
+        Returns:
+            The decoded JSON object, normalized by the read-old processor.
+        """
+        data = self._decoded_json_object(from_json_text=from_json_text,
+                                         stderr_file=stderr_file,
+                                         member_name=member_name)
+        rocf = self._get_active_rocf()
+        data_obj = rocf.process_json(json_data=data,
+                                     auto_ch_hook=self._hook_cfg_autochange,
+                                     stderr_file=stderr_file)
+        assert isinstance(data_obj, dict)
+        return data_obj
+
     def parse_json(self, from_json_text: str, ok_to_use_defaults: bool = False,
                    stderr_file: TextIO = sys.stderr, *,
                    member_name: Optional[str] = None) -> None:
@@ -687,44 +671,18 @@ class Config():
         """
         self._hook_dict = self.parse_converters()
         self._hook_cfg_autochange.clear()
-        data = self._decoded_json_object(from_json_text=from_json_text,
-                                         stderr_file=stderr_file,
-                                         member_name=member_name)
-        rocf = self._get_active_rocf()
-        data_obj = rocf.process_json(json_data=data,
-                                     auto_ch_hook=self._hook_cfg_autochange,
-                                     stderr_file=stderr_file)
-        assert data_obj is not None
-        assert isinstance(data_obj, dict)
-        data = data_obj
-        self_keys = [i for i in vars(self).keys() if not
-                     callable(getattr(self, i)) and not i.startswith('_')]
+        data = self._decoded_rocf_data(from_json_text, stderr_file,
+                                       member_name=member_name)
+        self_keys = public_member_names(self)
         omit_none_keys = self._checked_omit_none_from_json(self_keys)
-        nested_configs = self._nested_config_decls
-        self.check_key_match(self_keys, list(data.keys()), ok_to_use_defaults,
-                             stderr_file, omit_none_keys,
-                             member_name=member_name)
-        if not ok_to_use_defaults:
-            for i in omit_none_keys:
-                if i not in data:
-                    setattr(self, i, None)
-        for i in self_keys:
-            if i in data.keys():
-                if i in nested_configs:
-                    nested_value = _nested_config_from_json(
-                        member_name=i, json_data=data[i],
-                        nestings=nested_configs[i], stderr_file=stderr_file,
-                        auto_ch_hook=self._hook_cfg_autochange,
-                        parent_path=member_name)
-                    setattr(self, i, nested_value)
-                else:
-                    item_path = member_path(member_name, i)
-                    self.check_dict_parse(getattr(self, i), data[i], i,
-                                          ok_to_use_defaults,
-                                          self._unchecked_dicts, stderr_file,
-                                          member_name=item_path,
-                                          json_path=(i,))
-                    setattr(self, i, data[i])
+        check_parsed_keys(self, data, self_keys, omit_none_keys,
+                          ok_to_use_defaults, stderr_file,
+                          member_name=member_name)
+        assign_parsed_members(self, data, self_keys, ok_to_use_defaults,
+                              stderr_file, member_name=member_name,
+                              nested_decls=self._nested_config_decls,
+                              unchecked_dicts=self._unchecked_dicts,
+                              auto_ch_hook=self._hook_cfg_autochange)
         self._hook_cfg_autochange.all_autochanges_done(stderr_file=stderr_file)
         wrap_validate(self, stderr_file=stderr_file, member_name=member_name)
 
@@ -782,8 +740,7 @@ class Config():
         # to make sure that the configuration is valid so it can be read back
         wrap_validate(self, stderr_file=stderr_file, member_name=member_name)
         data: dict[str, object] = {}
-        self_keys = [i for i in vars(self).keys() if not
-                     callable(getattr(self, i)) and not i.startswith('_')]
+        self_keys = public_member_names(self)
         omit_none_keys = self._checked_omit_none_from_json(self_keys)
         nested_configs = self._nested_config_decls
         for i in self_keys:

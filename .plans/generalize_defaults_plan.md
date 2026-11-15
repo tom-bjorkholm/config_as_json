@@ -162,7 +162,7 @@ so `master` stays releasable either way.
 
 ## Step 1 — Make room in `config.py`
 
-Status: **Not started**
+Status: **Reveiwed and committed.**
 
 Refactoring only. No behaviour changes.
 
