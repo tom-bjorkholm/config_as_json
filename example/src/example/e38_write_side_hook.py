@@ -270,6 +270,10 @@ def e38_write_side_hook_print(config_file: PathOrStr) -> None:
     config = TaskConfig(from_json_filename=config_file)
     print(f'Configuration read from {config_file}')
     print(f'Project: {config.project}')
+    # In memory the value is a real Path again, so printing it uses the
+    # native separator of the platform (``reports\tasks.json`` on Windows).
+    # The JSON file still holds the portable POSIX form written by the
+    # write-side hook (``reports/tasks.json``).
     print(f'Output file: {config.output_file}')
     print(f'Review state: {config.review_state.name}')
     # The numeric value of an IntEnum is still accessible after read.

@@ -16,15 +16,13 @@ from config_as_json.file_extension import fix_file_extension
 
 
 @pytest.mark.parametrize('fil, add, rem, readp, res',
-                         [('/bin/ls', '.bo', '.fo', True, '/bin/ls'),
-                          ('/bin/ls', '.bo', '.fo', False, '/bin/ls.bo'),
+                         [('/bin/ls', '.bo', '.fo', False, '/bin/ls.bo'),
                           ('/bin/ls.bo', '.bo', '.fo', True, '/bin/ls.bo'),
                           ('/bin/ls.bo', '.bo', '.fo', False, '/bin/ls.bo'),
                           ('/bin/ls.fo', '.bo', '.fo', True, '/bin/ls.bo'),
                           ('/bin/ls.fo', '.bo', '.fo', False, '/bin/ls.bo'),
                           ('/bin/ls/b', '.bo', '.fo', True, '/bin/ls/b.bo'),
                           ('/bin/ls/b', '.bo', '.fo', False, '/bin/ls/b.bo'),
-                          ('/bin/ls', '.bo', None, True, '/bin/ls'),
                           ('/bin/ls', '.bo', None, False, '/bin/ls.bo'),
                           ('/bin/ls.bo', '.bo', None, True, '/bin/ls.bo'),
                           ('/bin/ls.BO', '.bo', None, False, '/bin/ls.BO'),
@@ -80,7 +78,9 @@ def test_add_after_remove(capsys: CaptureFixture[str], fil: str, add: str,
     assert '' == err
 
 
-@pytest.mark.parametrize('name, rem', [('keep.fo', '.fo'),
+@pytest.mark.parametrize('name, rem', [('keep', '.fo'),
+                                       ('keep', None),
+                                       ('keep.fo', '.fo'),
                                        ('keep.bo', '.fo'),
                                        ('keep.bo', None)])
 def test_for_reading_wins(tmp_path: Path, capsys: CaptureFixture[str],

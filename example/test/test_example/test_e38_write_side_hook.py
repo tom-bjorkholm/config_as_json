@@ -87,9 +87,12 @@ def test_e38_print_shows_values(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_e38_main_roundtrip(capsys: pytest.CaptureFixture[str]) -> None:
-    """Round-trip default values through the command line."""
+    """Round-trip default values through the command line.
+
+    The printed ``Path`` uses the native separator of the platform.
+    """
     assert_rt_out(capsys, e38_main, 'write_side_hook.cfg', [],
                   ['Project: config-as-json',
-                   'Output file: reports/tasks.json',
+                   'Output file: ' + str(Path('reports/tasks.json')),
                    'Review state: DRAFT',
                    'Priority: MEDIUM (numeric value 5)'])
