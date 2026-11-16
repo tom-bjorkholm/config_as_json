@@ -108,6 +108,7 @@
 * [config\_as\_json.\_config\_parse](#config_as_json._config_parse)
   * [public\_member\_names](#config_as_json._config_parse.public_member_names)
   * [check\_parsed\_keys](#config_as_json._config_parse.check_parsed_keys)
+  * [kept\_member\_paths](#config_as_json._config_parse.kept_member_paths)
   * [assign\_parsed\_members](#config_as_json._config_parse.assign_parsed_members)
   * [\_checked\_plain\_value](#config_as_json._config_parse._checked_plain_value)
 * [config\_as\_json.optional\_validator](#config_as_json.optional_validator)
@@ -212,6 +213,7 @@
   * [Config](#config_as_json.config.Config)
     * [\_\_init\_\_](#config_as_json.config.Config.__init__)
     * [auto\_change\_hook](#config_as_json.config.Config.auto_change_hook)
+    * [kept\_value\_paths](#config_as_json.config.Config.kept_value_paths)
     * [parse\_converters](#config_as_json.config.Config.parse_converters)
     * [serialize\_converters](#config_as_json.config.Config.serialize_converters)
     * [nested\_configs](#config_as_json.config.Config.nested_configs)
@@ -2681,7 +2683,8 @@ Apply decoded configuration JSON data to the members of a Config object.
 
 ``Config.parse_json`` decodes the JSON text and lets the read-old processor
 normalize it, then calls the functions here: one checks the keys of the
-data against the public members, and one assigns the data to the members.
+data against the public members, one lists the members that keep their
+values, and one assigns the data to the members.
 
 The private state of the ``Config`` object that these functions need is
 passed in as arguments, so that this module uses only the public interface
@@ -2734,17 +2737,49 @@ to ``None``.
 - `ConfigMissingKey` - The data has no value for a required member.
 - `ConfigUnknownKey` - The data has a key that is not a member.
 
+<a id="config_as_json._config_parse.kept_member_paths"></a>
+
+#### kept\_member\_paths
+
+```python
+def kept_member_paths(config: 'Config', data: dict[str, object],
+                      self_keys: list[str], omit_none_keys: list[str],
+                      ok_to_use_defaults: bool) -> list[JsonPath]
+```
+
+Return the paths of the members that keep their values.
+
+When ``ok_to_use_defaults`` is true, a member that the data lacks keeps
+its current value. An omit-when-None member that keeps ``None`` is not
+listed, since strict parsing would have given it ``None`` too.
+
+**Arguments**:
+
+- `config` - Configuration object that the data is parsed into, before
+  the data is assigned.
+- `data` - Decoded JSON data, after the read-old processor.
+- `self_keys` - Public configuration member names of ``config``.
+- `omit_none_keys` - Members that the data may lack in strict parsing.
+- `ok_to_use_defaults` - Whether missing members keep their values.
+
+
+**Returns**:
+
+  One ``(key,)`` path for each member that keeps its value, empty when
+  ``ok_to_use_defaults`` is false.
+
 <a id="config_as_json._config_parse.assign_parsed_members"></a>
 
 #### assign\_parsed\_members
 
 ```python
-def assign_parsed_members(config: 'Config', data: dict[str, object],
-                          self_keys: list[str], ok_to_use_defaults: bool,
-                          stderr_file: TextIO, *, member_name: Optional[str],
-                          nested_decls: dict[str, list[ConfigNesting]],
-                          unchecked_dicts: list[str],
-                          auto_ch_hook: ConfigAutoChangeHook) -> None
+def assign_parsed_members(
+        config: 'Config', data: dict[str, object], self_keys: list[str],
+        ok_to_use_defaults: bool, stderr_file: TextIO, *,
+        member_name: Optional[str], nested_decls: dict[str,
+                                                       list[ConfigNesting]],
+        unchecked_dicts: list[str],
+        auto_ch_hook: ConfigAutoChangeHook) -> list[JsonPath]
 ```
 
 Assign the values of the data to the public members of ``config``.
@@ -2769,6 +2804,12 @@ data lacks is left unchanged.
   nested Config objects.
 
 
+**Returns**:
+
+  The ``JsonPath`` of every dict key that was filled because the data
+  lacked it, empty when ``ok_to_use_defaults`` is false.
+
+
 **Raises**:
 
 - `ConfigParseError` - A value does not fit its member.
@@ -2778,10 +2819,11 @@ data lacks is left unchanged.
 #### \_checked\_plain\_value
 
 ```python
-def _checked_plain_value(config: 'Config', key: str, json_value: object,
-                         ok_to_use_defaults: bool, unchecked_dicts: list[str],
-                         stderr_file: TextIO, *,
-                         member_name: Optional[str]) -> object
+def _checked_plain_value(
+        config: 'Config', key: str, json_value: object,
+        ok_to_use_defaults: bool, unchecked_dicts: list[str],
+        stderr_file: TextIO, *,
+        member_name: Optional[str]) -> tuple[object, list[JsonPath]]
 ```
 
 Return the JSON value of a member that is not a nested Config.
@@ -2806,7 +2848,8 @@ the current values.
 
 **Returns**:
 
-  The value to assign to the member.
+  The value to assign to the member, and the ``JsonPath`` of every
+  dict key that was filled.
 
 <a id="config_as_json.optional_validator"></a>
 
@@ -4904,6 +4947,13 @@ the base class, so that a diagnostic can name the whole path for
 reaching a configuration value. An override that does not accept it is
 called without it and warns that it should be changed.
 
+Parsing with ``ok_to_use_defaults`` true accepts JSON data that lacks
+required keys; the missing keys keep their current values, and
+:meth:`kept_value_paths` tells which ones they are. A derived class whose
+constructor should offer that accepts the keyword ``ok_to_use_defaults``
+and passes it on to ``super().__init__``. The library never passes it to
+a constructor, so a derived class that does not accept it keeps working.
+
 <a id="config_as_json.config.Config.__init__"></a>
 
 #### \_\_init\_\_
@@ -4914,7 +4964,8 @@ def __init__(from_json_data_text: Optional[str],
              auto_ch_hook: Optional[ConfigAutoChangeHook] = None,
              stderr_file: TextIO = sys.stderr,
              *,
-             member_name: Optional[str] = None) -> None
+             member_name: Optional[str] = None,
+             ok_to_use_defaults: bool = False) -> None
 ```
 
 Initialize a derived configuration object.
@@ -4941,6 +4992,10 @@ parsed data is applied to the same attributes instead.
   complete construction, such as ``outputs[1].section``.
   ``None`` means that this object is the top level and not a
   member of anything.
+- `ok_to_use_defaults` - Whether the supplied JSON data may lack
+  required keys, which then keep the default values assigned
+  by the derived ``__init__``. See :meth:`parse_json` and
+  :meth:`kept_value_paths`. Without JSON data it has no effect.
 
   Dict-valued members are checked against the default key set by the
   base class unless listed in ``_unchecked_dicts``; see the class
@@ -4979,6 +5034,53 @@ declared nested ``Config`` objects.
 **Returns**:
 
   The automatic-change hook used by this configuration object.
+
+<a id="config_as_json.config.Config.kept_value_paths"></a>
+
+#### kept\_value\_paths
+
+```python
+def kept_value_paths() -> list[JsonPath]
+```
+
+Return the paths of the values that the most recent parse kept.
+
+A value is kept when a parse with ``ok_to_use_defaults`` true finds no
+value in the JSON data for a key that strict parsing requires, or for
+a member listed by ``_omit_none_from_json`` whose current value is not
+``None``. The key then keeps the value that it had when that parse
+started:
+
+- On an object constructed without JSON data, that is the default
+value assigned by the constructor.
+- On an object that is parsed a second time, that is the value from
+the previous parse, not the constructor default.
+- In a nested Config that the JSON data contains but that had no
+current nested object at the same place to be parsed into (any list
+element, a dict key that the current dict lacked, or an optional
+member that was None), that is the default value of the nested
+Config class.
+
+Defaults only complete nested objects that the JSON data contains. No
+list element, dict key or optional member is ever added because of
+them.
+
+A kept value is not an error. Each path is a JsonPath from the root of
+the JSON data of this object. A path names the outermost absent key:
+when a whole member is absent, only the path of that member is
+reported, not the paths of the values inside it.
+
+Missing keys of dicts listed in ``_unchecked_dicts``, and of dicts
+holding nested Config objects by key, are not required in strict
+parsing. They are not filled and never reported. An absent member
+listed by ``_omit_none_from_json`` whose current value is ``None`` is
+not reported either, since strict parsing would give it ``None`` too.
+
+**Returns**:
+
+  A new list of paths, in no guaranteed order. It is empty after a
+  strict parse, after construction without JSON data, and after a
+  parse that found every required key.
 
 <a id="config_as_json.config.Config.parse_converters"></a>
 
@@ -5457,7 +5559,9 @@ Parse JSON text and apply it to the configuration object.
 The automatic-change hook is cleared before parsing starts, and it is
 notified once after every declared nested ``Config`` object has been
 parsed, so the report covers old-file compatibility in nested objects
-too. Nothing is reported when parsing fails before that point.
+too. Nothing is reported when parsing fails before that point. The
+paths returned by :meth:`kept_value_paths` are cleared and set at the
+same points.
 
 **Arguments**:
 
@@ -5465,7 +5569,8 @@ too. Nothing is reported when parsing fails before that point.
 - `ok_to_use_defaults` - Whether missing declared keys may remain at
   their already assigned default values. Missing keys of a
   checked dictionary member are filled with deep copies of
-  its current values.
+  its current values. :meth:`kept_value_paths` then tells
+  which values were kept.
 - `stderr_file` - Stream used for user-facing diagnostics. Defaults to
   ``sys.stderr``.
 - `member_name` - Dotted and indexed path for reaching this object by
@@ -5554,7 +5659,8 @@ Read configuration JSON from a file and apply it to the object.
 
 - `from_json_filename` - File containing configuration JSON.
 - `ok_to_use_defaults` - Whether missing declared keys may remain at
-  their already assigned default values.
+  their already assigned default values, as for
+  :meth:`parse_json`.
 - `stderr_file` - Stream used for user-facing diagnostics. Defaults to
   ``sys.stderr``.
 - `member_name` - Dotted and indexed path for reaching this object by

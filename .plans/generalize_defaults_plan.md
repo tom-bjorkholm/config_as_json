@@ -113,8 +113,10 @@ Decision 2 must leave no ambiguity in the docstring. Proposed text:
 Return the paths of the values that the most recent parse kept.
 
 A value is kept when a parse with ``ok_to_use_defaults`` true finds no
-value in the JSON data for a key that strict parsing requires. The key
-then keeps the value that it had when that parse started:
+value in the JSON data for a key that strict parsing requires, or for
+a member listed by ``_omit_none_from_json`` whose current value is not
+``None``. The key then keeps the value that it had when that parse
+started:
 
 - On an object constructed without JSON data, that is the default value
   assigned by the constructor.
@@ -135,7 +137,9 @@ the paths of the values inside it.
 
 Missing keys of dicts listed in ``_unchecked_dicts``, and of dicts holding
 nested Config objects by key, are not required in strict parsing. They
-are not filled and never reported.
+are not filled and never reported. An absent member listed by
+``_omit_none_from_json`` whose current value is ``None`` is not reported
+either, since strict parsing would give it ``None`` too.
 
 Returns:
     A new list of paths, in no guaranteed order. It is empty after a
@@ -211,14 +215,16 @@ existing `ok_to_use_defaults=True` tests in `test_config.py` still pass.
 
 ## Step 3 — `kept_value_paths()` for one level
 
-Status: **Not started**
+Status: **Reviewed and committed.**
 
 - `Config.kept_value_paths()` with the docstring above. The list is
   stored in a private attribute set in `__init__` and cleared at the start
-  of `parse_json()`, next to the clearing of the automatic-change hook.
+  of `parse_json()`, next to the clearing of the automatic-change hook,
+  and set before validation, next to the notification of that hook.
 - Recorded in `parse_json()` when `ok_to_use_defaults` is true:
-  - every public member absent from the JSON data, omit-None members
-    included: `(key,)`;
+  - every public member absent from the JSON data: `(key,)`. An absent
+    omit-None member is included only when its current value is not
+    `None` (strict parsing would give it `None` too);
   - every key filled by the function of step 2.
 - Nothing is recorded in strict mode.
 - `__init__` gains keyword-only `ok_to_use_defaults: bool = False` after

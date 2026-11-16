@@ -3,7 +3,8 @@
 
 ``Config.parse_json`` decodes the JSON text and lets the read-old processor
 normalize it, then calls the functions here: one checks the keys of the
-data against the public members, and one assigns the data to the members.
+data against the public members, one lists the members that keep their
+values, and one assigns the data to the members.
 
 The private state of the ``Config`` object that these functions need is
 passed in as arguments, so that this module uses only the public interface
@@ -14,6 +15,7 @@ of ``Config``.
 # MIT License
 
 from typing import Optional, TextIO, TYPE_CHECKING
+from config_as_json.commontypes import JsonPath
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting
 from config_as_json._config_key_check import fill_missing_keys
@@ -69,13 +71,41 @@ def check_parsed_keys(config: 'Config', data: dict[str, object],
                 setattr(config, i, None)
 
 
+def kept_member_paths(config: 'Config', data: dict[str, object],
+                      self_keys: list[str], omit_none_keys: list[str],
+                      ok_to_use_defaults: bool) -> list[JsonPath]:
+    """Return the paths of the members that keep their values.
+
+    When ``ok_to_use_defaults`` is true, a member that the data lacks keeps
+    its current value. An omit-when-None member that keeps ``None`` is not
+    listed, since strict parsing would have given it ``None`` too.
+
+    Args:
+        config: Configuration object that the data is parsed into, before
+            the data is assigned.
+        data: Decoded JSON data, after the read-old processor.
+        self_keys: Public configuration member names of ``config``.
+        omit_none_keys: Members that the data may lack in strict parsing.
+        ok_to_use_defaults: Whether missing members keep their values.
+
+    Returns:
+        One ``(key,)`` path for each member that keeps its value, empty when
+        ``ok_to_use_defaults`` is false.
+    """
+    if not ok_to_use_defaults:
+        return []
+    return [(i,) for i in self_keys if i not in data and not
+            (i in omit_none_keys and getattr(config, i) is None)]
+
+
 # pylint: disable-next=too-many-arguments
 def assign_parsed_members(config: 'Config', data: dict[str, object],
                           self_keys: list[str], ok_to_use_defaults: bool,
                           stderr_file: TextIO, *, member_name: Optional[str],
                           nested_decls: dict[str, list[ConfigNesting]],
                           unchecked_dicts: list[str],
-                          auto_ch_hook: ConfigAutoChangeHook) -> None:
+                          auto_ch_hook: ConfigAutoChangeHook) \
+        -> list[JsonPath]:
     """Assign the values of the data to the public members of ``config``.
 
     Members are assigned in the order of ``self_keys``. A member that the
@@ -96,9 +126,14 @@ def assign_parsed_members(config: 'Config', data: dict[str, object],
         auto_ch_hook: Hook of ``config`` receiving the automatic changes of
             nested Config objects.
 
+    Returns:
+        The ``JsonPath`` of every dict key that was filled because the data
+        lacked it, empty when ``ok_to_use_defaults`` is false.
+
     Raises:
         ConfigParseError: A value does not fit its member.
     """
+    filled: list[JsonPath] = []
     for key in self_keys:
         if key not in data:
             continue
@@ -110,17 +145,20 @@ def assign_parsed_members(config: 'Config', data: dict[str, object],
                                              auto_ch_hook=auto_ch_hook,
                                              parent_path=member_name)
         else:
-            value = _checked_plain_value(config, key, data[key],
-                                         ok_to_use_defaults, unchecked_dicts,
-                                         stderr_file, member_name=member_name)
+            value, paths = _checked_plain_value(config, key, data[key],
+                                                ok_to_use_defaults,
+                                                unchecked_dicts, stderr_file,
+                                                member_name=member_name)
+            filled.extend(paths)
         setattr(config, key, value)
+    return filled
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments
 def _checked_plain_value(config: 'Config', key: str, json_value: object,
                          ok_to_use_defaults: bool, unchecked_dicts: list[str],
-                         stderr_file: TextIO, *,
-                         member_name: Optional[str]) -> object:
+                         stderr_file: TextIO, *, member_name: Optional[str]) \
+        -> tuple[object, list[JsonPath]]:
     """Return the JSON value of a member that is not a nested Config.
 
     The value is checked against the current value of the member with
@@ -140,14 +178,14 @@ def _checked_plain_value(config: 'Config', key: str, json_value: object,
             ``None`` when ``config`` is that top level.
 
     Returns:
-        The value to assign to the member.
+        The value to assign to the member, and the ``JsonPath`` of every
+        dict key that was filled.
     """
     config.check_dict_parse(getattr(config, key), json_value, key,
                             ok_to_use_defaults, unchecked_dicts, stderr_file,
                             member_name=member_path(member_name, key),
                             json_path=(key,))
     if not ok_to_use_defaults:
-        return json_value
-    value, _ = fill_missing_keys(getattr(config, key), json_value, key,
-                                 unchecked_dicts, (key,))
-    return value
+        return json_value, []
+    return fill_missing_keys(getattr(config, key), json_value, key,
+                             unchecked_dicts, (key,))
