@@ -183,7 +183,7 @@ Refactoring only. No behaviour changes.
 
 ## Step 2 — Fill missing keys of checked dicts
 
-Status: **Not started**
+Status: **Reviewed and committed.**
 
 The first bug fix (point 2 above).
 

@@ -5,12 +5,15 @@ This private module implements the bodies of the public static methods
 ``Config.check_key_match`` and ``Config.check_dict_parse``. Those methods
 keep their signatures and docstrings and delegate here. The recursion of
 the dict check calls the functions of this module directly, as it always
-called the ``Config`` methods by class name and never an override.
+called the ``Config`` methods by class name and never an override. The
+module also fills the missing keys of checked dicts when defaults may be
+used.
 """
 
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
+from copy import deepcopy
 from typing import Optional, TextIO
 from config_as_json.commontypes import JsonPath
 from config_as_json.config_errors import ConfigMissingKey, ConfigNotDict, \
@@ -101,3 +104,45 @@ def check_dict_parse_impl(self_data: object, json_data: object, key: str,
                                   ok_to_use_defaults, unchecked_dicts,
                                   stderr_file, member_name=value_path,
                                   json_path=checked_path + (i,))
+
+
+def fill_missing_keys(self_data: object, json_data: object, key: str,
+                      unchecked_dicts: list[str], json_path: JsonPath) \
+        -> tuple[object, list[JsonPath]]:
+    """Return the JSON value with the missing keys of checked dicts filled.
+
+    The value is expected to have passed ``check_dict_parse_impl`` with
+    ``ok_to_use_defaults`` true, so a checked dict in the JSON value has no
+    unknown keys. The same name-based rule decides which dicts are checked:
+    a dict whose key name is in ``unchecked_dicts`` is not filled, at any
+    depth. A missing key gets a deep copy of the current value, so that the
+    parsed value never shares data with the current value, which may be a
+    default dict assigned by reference. The JSON keys keep their order, and
+    the filled keys follow in the order of the current dict.
+
+    Args:
+        self_data: Current value of the key, before the parse.
+        json_data: Parsed JSON value for the same key.
+        key: Name of the key, used for the ``unchecked_dicts`` rule.
+        unchecked_dicts: Key names whose dicts are not checked.
+        json_path: Tuple path of the value from the root of the JSON data.
+
+    Returns:
+        The filled value, a new dict when the value is a checked dict, and the
+        ``JsonPath`` of every filled key. A filled key whose value is a dict
+        is one path; the keys inside it are not listed.
+    """
+    if not isinstance(self_data, dict) or not isinstance(json_data, dict) \
+            or key in unchecked_dicts:
+        return json_data, []
+    filled: dict[str, object] = {}
+    paths: list[JsonPath] = []
+    for i, value in json_data.items():
+        filled[i], inner_paths = fill_missing_keys(self_data.get(i), value, i,
+                                                   unchecked_dicts,
+                                                   json_path + (i,))
+        paths.extend(inner_paths)
+    for i in [i for i in self_data if i not in json_data]:
+        filled[i] = deepcopy(self_data[i])
+        paths.append(json_path + (i,))
+    return filled, paths

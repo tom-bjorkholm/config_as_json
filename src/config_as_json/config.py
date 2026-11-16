@@ -395,7 +395,10 @@ class Config():
                 object.
             json_data: Parsed JSON value for the same key.
             key: Name of the configuration key being checked.
-            ok_to_use_defaults: Whether missing nested keys may use defaults.
+            ok_to_use_defaults: Whether missing keys of a checked dictionary
+                are accepted. This method only checks; ``parse_json()`` then
+                fills the accepted missing keys with deep copies of the
+                current values.
             unchecked_dicts: Keys whose nested dictionary contents should not
                 be validated recursively.
             stderr_file: Stream used for user-facing diagnostics.
@@ -649,7 +652,9 @@ class Config():
         Args:
             from_json_text: JSON document describing configuration values.
             ok_to_use_defaults: Whether missing declared keys may remain at
-                their already assigned default values.
+                their already assigned default values. Missing keys of a
+                checked dictionary member are filled with deep copies of
+                its current values.
             stderr_file: Stream used for user-facing diagnostics. Defaults to
                 ``sys.stderr``.
             member_name: Dotted and indexed path for reaching this object by

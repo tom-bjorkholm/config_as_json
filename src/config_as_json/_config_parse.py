@@ -16,6 +16,7 @@ of ``Config``.
 from typing import Optional, TextIO, TYPE_CHECKING
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting
+from config_as_json._config_key_check import fill_missing_keys
 from config_as_json._config_nesting_io import _nested_config_from_json
 from config_as_json.member_path import member_path
 
@@ -123,7 +124,9 @@ def _checked_plain_value(config: 'Config', key: str, json_value: object,
     """Return the JSON value of a member that is not a nested Config.
 
     The value is checked against the current value of the member with
-    ``Config.check_dict_parse`` first.
+    ``Config.check_dict_parse`` first. When ``ok_to_use_defaults`` is true,
+    the missing keys of checked dicts are then filled with deep copies of
+    the current values.
 
     Args:
         config: Configuration object that holds the member.
@@ -143,4 +146,8 @@ def _checked_plain_value(config: 'Config', key: str, json_value: object,
                             ok_to_use_defaults, unchecked_dicts, stderr_file,
                             member_name=member_path(member_name, key),
                             json_path=(key,))
-    return json_value
+    if not ok_to_use_defaults:
+        return json_value
+    value, _ = fill_missing_keys(getattr(config, key), json_value, key,
+                                 unchecked_dicts, (key,))
+    return value

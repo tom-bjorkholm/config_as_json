@@ -472,6 +472,7 @@
 * [config\_as\_json.\_config\_key\_check](#config_as_json._config_key_check)
   * [check\_key\_match\_impl](#config_as_json._config_key_check.check_key_match_impl)
   * [check\_dict\_parse\_impl](#config_as_json._config_key_check.check_dict_parse_impl)
+  * [fill\_missing\_keys](#config_as_json._config_key_check.fill_missing_keys)
 * [config\_as\_json.assert\_dict\_equal](#config_as_json.assert_dict_equal)
   * [\_print\_dict\_differs](#config_as_json.assert_dict_equal._print_dict_differs)
   * [assert\_dict\_equal](#config_as_json.assert_dict_equal.assert_dict_equal)
@@ -2786,7 +2787,9 @@ def _checked_plain_value(config: 'Config', key: str, json_value: object,
 Return the JSON value of a member that is not a nested Config.
 
 The value is checked against the current value of the member with
-``Config.check_dict_parse`` first.
+``Config.check_dict_parse`` first. When ``ok_to_use_defaults`` is true,
+the missing keys of checked dicts are then filled with deep copies of
+the current values.
 
 **Arguments**:
 
@@ -5179,7 +5182,10 @@ Recursively validate nested dictionaries against default values.
   object.
 - `json_data` - Parsed JSON value for the same key.
 - `key` - Name of the configuration key being checked.
-- `ok_to_use_defaults` - Whether missing nested keys may use defaults.
+- `ok_to_use_defaults` - Whether missing keys of a checked dictionary
+  are accepted. This method only checks; ``parse_json()`` then
+  fills the accepted missing keys with deep copies of the
+  current values.
 - `unchecked_dicts` - Keys whose nested dictionary contents should not
   be validated recursively.
 - `stderr_file` - Stream used for user-facing diagnostics.
@@ -5457,7 +5463,9 @@ too. Nothing is reported when parsing fails before that point.
 
 - `from_json_text` - JSON document describing configuration values.
 - `ok_to_use_defaults` - Whether missing declared keys may remain at
-  their already assigned default values.
+  their already assigned default values. Missing keys of a
+  checked dictionary member are filled with deep copies of
+  its current values.
 - `stderr_file` - Stream used for user-facing diagnostics. Defaults to
   ``sys.stderr``.
 - `member_name` - Dotted and indexed path for reaching this object by
@@ -10367,7 +10375,9 @@ This private module implements the bodies of the public static methods
 ``Config.check_key_match`` and ``Config.check_dict_parse``. Those methods
 keep their signatures and docstrings and delegate here. The recursion of
 the dict check calls the functions of this module directly, as it always
-called the ``Config`` methods by class name and never an override.
+called the ``Config`` methods by class name and never an override. The
+module also fills the missing keys of checked dicts when defaults may be
+used.
 
 <a id="config_as_json._config_key_check.check_key_match_impl"></a>
 
@@ -10422,6 +10432,42 @@ See :meth:`Config.check_dict_parse` for the meaning of the arguments.
   not.
 - `ConfigMissingKey` - A nested dictionary misses a required key.
 - `ConfigUnknownKey` - A nested dictionary has an unexpected key.
+
+<a id="config_as_json._config_key_check.fill_missing_keys"></a>
+
+#### fill\_missing\_keys
+
+```python
+def fill_missing_keys(self_data: object, json_data: object, key: str,
+                      unchecked_dicts: list[str],
+                      json_path: JsonPath) -> tuple[object, list[JsonPath]]
+```
+
+Return the JSON value with the missing keys of checked dicts filled.
+
+The value is expected to have passed ``check_dict_parse_impl`` with
+``ok_to_use_defaults`` true, so a checked dict in the JSON value has no
+unknown keys. The same name-based rule decides which dicts are checked:
+a dict whose key name is in ``unchecked_dicts`` is not filled, at any
+depth. A missing key gets a deep copy of the current value, so that the
+parsed value never shares data with the current value, which may be a
+default dict assigned by reference. The JSON keys keep their order, and
+the filled keys follow in the order of the current dict.
+
+**Arguments**:
+
+- `self_data` - Current value of the key, before the parse.
+- `json_data` - Parsed JSON value for the same key.
+- `key` - Name of the key, used for the ``unchecked_dicts`` rule.
+- `unchecked_dicts` - Key names whose dicts are not checked.
+- `json_path` - Tuple path of the value from the root of the JSON data.
+
+
+**Returns**:
+
+  The filled value, a new dict when the value is a checked dict, and the
+  ``JsonPath`` of every filled key. A filled key whose value is a dict
+  is one path; the keys inside it are not listed.
 
 <a id="config_as_json.assert_dict_equal"></a>
 

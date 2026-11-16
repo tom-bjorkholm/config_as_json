@@ -335,11 +335,13 @@ def test_config_smt_read_incompl1(capsys: CaptureFixture[str], txt: str,
     yst = ConfigSomething(stderr_file=sys.stderr)
     outdelold = yst.csv_dialect2['delimiter']
     indelold = yst.csv_dialect1['delimiter']
+    expected = {**yst.csv_dialect1, 'delimiter': indel}
     yst.parse_json(txt, ok_to_use_defaults=True, stderr_file=sys.stderr,
                    member_name=None)
     assert yst.csv_dialect1['delimiter'] == indel
     assert yst.csv_dialect2['delimiter'] == outdelold
     assert yst.csv_dialect1['delimiter'] != indelold
+    assert yst.csv_dialect1 == expected
     out, err = capsys.readouterr()
     assert out == ''
     assert err == ''
