@@ -384,7 +384,7 @@ lacking values.
 
 ## Step 6 — Documentation and a teaching example
 
-Status: **Not started**
+Status: **Reviewed and committed.**
 
 - New `example/src/example/e43_editor_defaults.py` and its test: an
   editor-style start from defaults, reading an incomplete file that has a

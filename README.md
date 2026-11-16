@@ -79,6 +79,26 @@ to hide the application's schema behind a large generic framework.
   `file_must_exist`, `commontypes`, and `assert_dict_equal`
   These are part of the current public surface and are documented as such.
 
+## Behaviour changes of `ok_to_use_defaults`
+
+Earlier versions carried `ok_to_use_defaults=True` only part of the way.
+Two bug fixes change what it does:
+
+- A nested `Config` object was read strictly, so a nested object that
+  lacked a value was an error. It now keeps values: a nested member is read
+  into the nested object that the parent holds, and a list element, a new
+  dict key or a factory-built object is completed from the defaults of its
+  class. The JSON data still decides which nested objects exist.
+- A checked dict member that lacked keys was accepted, but the keys that it
+  lacked were dropped. They are now filled with deep copies of the current
+  values. An application that relied on the keys being dropped will see
+  them filled.
+
+The constructor and `config_factory_from_json()` gained the keyword
+`ok_to_use_defaults`, and `Config.kept_value_paths()` is new. The
+[e43_editor_defaults.py example](example/src/example/e43_editor_defaults.py)
+shows them in use.
+
 ## Related documentation
 
 - User-facing package overview: [README_pypi.md](README_pypi.md)
@@ -149,7 +169,7 @@ After a build, the generated reports can be browsed through
 
 ## Test summary
 
-- Test result: 4946 passed in 7s
+- Test result: 4961 passed in 7s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

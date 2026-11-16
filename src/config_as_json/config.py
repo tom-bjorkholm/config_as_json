@@ -423,8 +423,9 @@ class Config():
         Args:
             expected_keys: Keys declared by the configuration object.
             j_keys: Keys found in parsed JSON data.
-            ok_to_use_defaults: Whether missing declared keys may fall back to
-                defaults supplied by the configuration object.
+            ok_to_use_defaults: Whether missing declared keys are accepted.
+                This method only checks; ``parse_json()`` then lets the
+                accepted missing keys keep their current values.
             stderr_file: Stream used for user-facing diagnostics.
             allowed_missing_keys: Keys that may be omitted even when
                 ``ok_to_use_defaults`` is false.
@@ -528,7 +529,8 @@ class Config():
         configuration member is intentionally optional. Such members may be
         absent from JSON input. In strict reads, absent listed members become
         ``None``; when ``ok_to_use_defaults`` is true, absent members keep
-        their constructor defaults. Explicit JSON ``null`` is read as
+        their current values, which on a newly constructed object are the
+        constructor defaults. Explicit JSON ``null`` is read as
         ``None``, and writing the configuration omits listed members while
         their value is still ``None``.
 
@@ -734,11 +736,10 @@ class Config():
                 always constructed by the factory, so its missing keys get
                 the defaults of the class that the factory constructs, not
                 the values of the current nested object. See
-                :meth:`kept_value_paths`. A nested object parsed in place is
-                changed, also when
+                :meth:`kept_value_paths`, which tells which values were
+                kept. A nested object parsed in place is changed, also when
                 another object shares it, and a failing parse may leave it
-                partly updated. :meth:`kept_value_paths` then tells which
-                values were kept.
+                partly updated.
             stderr_file: Stream used for user-facing diagnostics. Defaults to
                 ``sys.stderr``.
             member_name: Dotted and indexed path for reaching this object by

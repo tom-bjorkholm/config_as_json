@@ -356,6 +356,64 @@ in a future version. If your code relies on this backward compatibility
 please update it to the new API with the `member_name` argument as soon
 as possible.
 
+## Reading incomplete files
+
+By default a configuration file must contain every value that the class
+declares. Pass `ok_to_use_defaults=True` to accept a file that lacks some
+values. A value that the file lacks then keeps the value that it had when
+the read started, which on a newly constructed object is the default.
+`kept_value_paths()` tells which values were kept, so that an editor
+can mark them:
+
+```python
+config = MyConfig()
+config.read(config_filename, ok_to_use_defaults=True,
+            stderr_file=sys.stderr, member_name=None)
+for path in config.kept_value_paths():
+    print(f'Not in the file: {path}')
+```
+
+The constructor, `parse_json()`, `read()` and `config_factory_from_json()`
+all accept `ok_to_use_defaults`. Each path is a `JsonPath` tuple, such as
+`('backends', 1, 'port')`, and names the outermost absent key only: when the
+file lacks a whole member, only that member is reported. A key that the file
+has but that the class does not declare is still an error.
+
+The keys that the file lacks keep values at every nesting level, but the
+file decides which nested objects exist:
+
+- A nested member that the file contains is read into the nested object
+  that the configuration already holds, and keeps its values.
+- A list of nested objects gets exactly the elements of the file, and each
+  element is completed from the defaults of the nested class.
+- A dict of nested objects gets exactly the keys of the file. A value at a
+  key that the configuration already holds is read into that nested object,
+  and a missing key is not added.
+- A missing key of a dict member is filled with a copy of the current value,
+  unless the member is listed in `_unchecked_dicts`.
+
+A nested class whose default values are not valid on their own must accept
+`ok_to_use_defaults: bool = False` and pass it on to `super().__init__()`.
+Every other class may, and it is a good habit. A `factory_function` should
+accept it and pass it on too. A factory that does not accept it parses
+strictly, and a `DeprecationWarning` says that it should be changed. A
+nested object built by a factory is always new, so its missing values get
+the defaults of the class that the factory constructs.
+
+The
+[e43_editor_defaults.py example](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e43_editor_defaults.py)
+shows this for an editor, with a nested member and a list of nested
+objects.
+
+Earlier versions carried `ok_to_use_defaults=True` only part of the way.
+Two bug fixes change what it does:
+
+- A nested `Config` object was read strictly, so a nested object that
+  lacked a value was an error. It now keeps values as described above.
+- A dict member that lacked keys was accepted, but the keys that it lacked
+  were dropped instead of keeping their values. They are now filled. An
+  application that relied on the keys being dropped will see them filled.
+
 ## Installation
 
 `config-as-json` requires Python 3.12 or newer.
@@ -426,7 +484,7 @@ MIT
 
 ## Test summary
 
-- Test result: 4946 passed in 7s
+- Test result: 4961 passed in 7s
 - No flake8 warnings.
 - No mypy errors found.
 - No pylint warnings.

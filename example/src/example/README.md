@@ -1917,3 +1917,94 @@ python3 -m example.e42_nested_member_paths set -o config.cfg \
   --service-name audit --backends alpha=8080 beta=9090
 python3 -m example.e42_nested_member_paths print -i config.cfg
 ```
+
+## e43_editor_defaults.py
+
+[Source code for e43_editor_defaults.py: https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e43_editor_defaults.py](https://github.com/tom-bjorkholm/config_as_json/blob/master/example/src/example/e43_editor_defaults.py)
+
+This example is for an application that offers an editor for its
+configuration file. Such an editor wants to start from the values of a new
+configuration object before any file has been opened, and it wants to open
+a file that lacks some values, for example a file written by hand. The
+values that the file leaves out should not be errors, and the editor
+should show the user which values those are.
+
+The `print` command does what such an editor does:
+
+```python
+config = ExampleConfig43()
+config.read(config_file, ok_to_use_defaults=True,
+            stderr_file=sys.stderr, member_name=None)
+kept_paths = config.kept_value_paths()
+```
+
+With `ok_to_use_defaults=True` a key that the file lacks is not an error.
+Instead the key gets a value that does not come from the file, as
+described below. This holds at every nesting level. A key that the file has but
+that no class declares is still an error, and so is a value of a wrong
+shape. `ExampleConfig43(from_json_filename=..., ok_to_use_defaults=True)`
+does the same in one step.
+
+`kept_value_paths()` returns one `JsonPath` tuple for each value that the
+file did not contain, such as `('backends', 1, 'port')`. It names only the
+outermost absent key: when the file lacks the whole `logging` member, it
+reports `('logging',)` and not the values inside it. So the example marks a
+value as `(not in file)` when a kept path is the beginning of the path of
+that value. The order of the list is not guaranteed.
+
+Two kinds of values that do not come from the file are easily mixed up,
+so this description uses two different words for them:
+
+- The *starting values* are the values that a new `ExampleConfig43()`
+  holds. `ExampleConfig43.__init__` assigns them, also the values inside
+  its nested objects. It sets `logging.file` to `reporting.log`, and it
+  gives its second backend the port `8081`.
+- The *class defaults* of a nested class are the values that the
+  `__init__` of that nested class assigns. `LoggingConfig` assigns
+  `service.log` to `file`, and `BackendConfig` assigns `8080` to `port`.
+
+The file decides which nested objects exist, and that decides which of the
+two a missing value gets:
+
+- A member that the file lacks altogether keeps its starting value. That
+  holds for a whole nested object too.
+- `logging` is a nested `MEMBER`. When the file contains it, the file is
+  read into the `LoggingConfig` object that the configuration already holds.
+  A file that has `logging` without `file` therefore gives `logging.file`
+  its starting value `reporting.log`, not the class default `service.log`.
+- `backends` is a list of nested objects. When the file contains it, it
+  replaces the whole starting list. The list gets exactly the elements of
+  the file, and every element is a new `BackendConfig`. A value that the
+  file lacks inside an element therefore gets the class default. A second
+  backend without `port` gets the class default `8080`, not the starting
+  value `8081` of the second backend in the starting list.
+
+Every class in the example accepts `ok_to_use_defaults` and passes it on to
+`super().__init__()`. That is a good habit, but it is only required for a
+nested class whose class defaults are not valid on their own. A nested
+class that does not accept it is constructed with its class defaults
+first, and the JSON data is then read into it.
+
+Unlike every other example, the `set` command does not use `Config.write()`.
+It deliberately writes only the values given on the command line, as plain
+JSON, to make an incomplete file. The nested values are given as JSON, so a
+run can leave out keys at any nesting level:
+
+```sh
+python3 -m example.e43_editor_defaults set -o config.cfg \
+  --logging '{"level": "DEBUG"}' \
+  --backends '[{"host": "alpha", "port": 9090}, {"host": "beta"}]'
+python3 -m example.e43_editor_defaults print -i config.cfg
+```
+
+```text
+Configuration read from config.cfg
+Not in the file: backends[1].port, logging.file, service_name
+backends[0].host: alpha
+backends[0].port: 9090
+backends[1].host: beta
+backends[1].port: 8080  (not in file)
+logging.file: reporting.log  (not in file)
+logging.level: DEBUG
+service_name: reporting  (not in file)
+```
