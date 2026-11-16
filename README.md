@@ -154,5 +154,5 @@ After a build, the generated reports can be browsed through
 - No mypy errors found.
 - No pylint warnings.
 - No python layout warnings.
-- Built version(s): 1.8.1
+- Built version(s): 1.8.2
 - Build and test using Python 3.15.2
