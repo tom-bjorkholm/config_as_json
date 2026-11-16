@@ -141,10 +141,13 @@ class Config():
 
     Parsing with ``ok_to_use_defaults`` true accepts JSON data that lacks
     required keys; the missing keys keep their current values, and
-    :meth:`kept_value_paths` tells which ones they are. A derived class whose
-    constructor should offer that accepts the keyword ``ok_to_use_defaults``
-    and passes it on to ``super().__init__``. The library never passes it to
-    a constructor, so a derived class that does not accept it keeps working.
+    :meth:`kept_value_paths` tells which ones they are. This holds for
+    nested Config objects too. A derived class whose constructor accepts the
+    keyword ``ok_to_use_defaults`` should pass it on to ``super().__init__``.
+    The library passes it to the constructor of a nested Config class that
+    accepts it. A nested Config class that does not accept it is
+    constructed from its class defaults, which must then be valid on their
+    own, before the JSON data is parsed into it.
     """
 
     # pylint: disable-next=too-many-arguments
@@ -181,6 +184,7 @@ class Config():
                 required keys, which then keep the default values assigned
                 by the derived ``__init__``. See :meth:`parse_json` and
                 :meth:`kept_value_paths`. Without JSON data it has no effect.
+                A derived ``__init__`` that accepts it should pass it on.
 
         Dict-valued members are checked against the default key set by the
         base class unless listed in ``_unchecked_dicts``; see the class
@@ -711,8 +715,14 @@ class Config():
             ok_to_use_defaults: Whether missing declared keys may remain at
                 their already assigned default values. Missing keys of a
                 checked dictionary member are filled with deep copies of
-                its current values. :meth:`kept_value_paths` then tells
-                which values were kept.
+                its current values. A nested Config that the JSON data
+                contains is parsed into the current nested object of the
+                declared class at the same place, or else constructed with
+                the defaults of its class, so its missing keys keep values
+                too. A nested object parsed in place is changed, also when
+                another object shares it, and a failing parse may leave it
+                partly updated. :meth:`kept_value_paths` then tells which
+                values were kept.
             stderr_file: Stream used for user-facing diagnostics. Defaults to
                 ``sys.stderr``.
             member_name: Dotted and indexed path for reaching this object by

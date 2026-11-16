@@ -6,6 +6,9 @@ the old name when a subclass overrides it. A method or a constructor of an
 application that does not accept the ``member_name`` argument is supported
 by calling it without that argument. Both warn that the old way is
 deprecated.
+
+The signature check behind the second migration also tells whether a
+constructor accepts ``ok_to_use_defaults``, see :func:`accepts_keyword`.
 """
 
 # Copyright (c) 2024-2026 Tom Björkholm
@@ -57,8 +60,8 @@ def use_deprecated_hook(instance: object, base_class: type[object],
     return True
 
 
-def _signature_takes_member_name(func: Callable[..., object]) -> bool:
-    """Return whether the signature of a callable takes ``member_name``.
+def _signature_takes(func: Callable[..., object], name: str) -> bool:
+    """Return whether the signature of a callable takes a keyword argument.
 
     A callable whose signature cannot be read is assumed to take the
     argument, because that keeps the behaviour it had before the argument
@@ -66,17 +69,19 @@ def _signature_takes_member_name(func: Callable[..., object]) -> bool:
 
     Args:
         func: Callable that the library is about to call.
+        name: Name of the keyword argument.
 
     Returns:
-        Whether the callable has a ``member_name`` parameter, or a
-        ``**kwargs`` parameter that any keyword argument reaches.
+        Whether the callable has a parameter that the keyword argument
+        reaches: one with that name, or a ``**kwargs`` parameter.
     """
     try:
         parameters = inspect.signature(func).parameters
     except (TypeError, ValueError):
         return True
-    if 'member_name' in parameters:
-        return True
+    param = parameters.get(name)
+    if param is not None:
+        return param.kind != inspect.Parameter.POSITIONAL_ONLY
     return any(param.kind == inspect.Parameter.VAR_KEYWORD
                for param in parameters.values())
 
@@ -105,12 +110,12 @@ def _remembered_for(func: Callable[..., object]) -> Optional[object]:
     return call_method if isinstance(call_method, FunctionType) else None
 
 
-_MEMBER_NAME_TAKERS: dict[object, bool] = {}
+_KEYWORD_TAKERS: dict[tuple[object, str], bool] = {}
 _MEMBER_NAME_WARNED: set[object] = set()
 
 
-def accepts_member_name(func: Callable[..., object]) -> bool:
-    """Return whether a callable accepts the ``member_name`` argument.
+def accepts_keyword(func: Callable[..., object], name: str) -> bool:
+    """Return whether a callable accepts a keyword argument.
 
     The answer is remembered per function and per class, so that the
     signature of an application method is read once instead of once per
@@ -118,17 +123,18 @@ def accepts_member_name(func: Callable[..., object]) -> bool:
 
     Args:
         func: Callable that the library is about to call.
+        name: Name of the keyword argument, such as ``member_name``.
 
     Returns:
-        Whether ``member_name`` can be passed to the callable.
+        Whether the keyword argument can be passed to the callable.
     """
     key = _remembered_for(func)
     if key is None:
-        return _signature_takes_member_name(func)
-    remembered = _MEMBER_NAME_TAKERS.get(key)
+        return _signature_takes(func, name)
+    remembered = _KEYWORD_TAKERS.get((key, name))
     if remembered is None:
-        remembered = _signature_takes_member_name(func)
-        _MEMBER_NAME_TAKERS[key] = remembered
+        remembered = _signature_takes(func, name)
+        _KEYWORD_TAKERS[(key, name)] = remembered
     return remembered
 
 
@@ -169,7 +175,7 @@ def use_member_name(func: Callable[..., object], stacklevel: int) -> bool:
     Returns:
         Whether ``member_name`` can be passed to the callable.
     """
-    if accepts_member_name(func):
+    if accepts_keyword(func, 'member_name'):
         return True
     key = _remembered_for(func)
     if key is not None:

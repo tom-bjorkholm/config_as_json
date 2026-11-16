@@ -19,7 +19,8 @@ from config_as_json.commontypes import JsonPath
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting
 from config_as_json._config_key_check import fill_missing_keys
-from config_as_json._config_nesting_io import _nested_config_from_json
+from config_as_json._config_nesting_io import NestedReadContext, \
+    _nested_config_from_json
 from config_as_json.member_path import member_path
 
 
@@ -109,14 +110,17 @@ def assign_parsed_members(config: 'Config', data: dict[str, object],
     """Assign the values of the data to the public members of ``config``.
 
     Members are assigned in the order of ``self_keys``. A member that the
-    data lacks is left unchanged.
+    data lacks is left unchanged. When ``ok_to_use_defaults`` is true, a
+    nested Config that the data contains is completed with the values of
+    the current nested object, or with the defaults of its class.
 
     Args:
         config: Configuration object that the data is parsed into.
         data: Decoded JSON data, after the read-old processor and the key
             check.
         self_keys: Public configuration member names of ``config``.
-        ok_to_use_defaults: Whether missing dict keys may keep defaults.
+        ok_to_use_defaults: Whether missing keys of checked dicts and of
+            nested Config objects may keep values.
         stderr_file: Stream used for user-facing diagnostics.
         member_name: Dotted and indexed path for reaching ``config`` from
             the top level of the complete ``parse_json()`` operation, or
@@ -127,31 +131,32 @@ def assign_parsed_members(config: 'Config', data: dict[str, object],
             nested Config objects.
 
     Returns:
-        The ``JsonPath`` of every dict key that was filled because the data
-        lacked it, empty when ``ok_to_use_defaults`` is false.
+        The ``JsonPath`` of every dict key that was filled, and of every
+        value kept inside a nested Config, because the data lacked it.
 
     Raises:
         ConfigParseError: A value does not fit its member.
     """
-    filled: list[JsonPath] = []
+    kept: list[JsonPath] = []
+    read = NestedReadContext(stderr_file=stderr_file,
+                             auto_ch_hook=auto_ch_hook,
+                             ok_to_use_defaults=ok_to_use_defaults,
+                             kept_paths=kept, parent_path=member_name)
     for key in self_keys:
         if key not in data:
             continue
         if key in nested_decls:
-            value = _nested_config_from_json(member_name=key,
-                                             json_data=data[key],
-                                             nestings=nested_decls[key],
-                                             stderr_file=stderr_file,
-                                             auto_ch_hook=auto_ch_hook,
-                                             parent_path=member_name)
+            value = _nested_config_from_json(key, data[key],
+                                             getattr(config, key),
+                                             nested_decls[key], read)
         else:
             value, paths = _checked_plain_value(config, key, data[key],
                                                 ok_to_use_defaults,
                                                 unchecked_dicts, stderr_file,
                                                 member_name=member_name)
-            filled.extend(paths)
+            kept.extend(paths)
         setattr(config, key, value)
-    return filled
+    return kept
 
 
 # pylint: disable-next=too-many-arguments,too-many-positional-arguments

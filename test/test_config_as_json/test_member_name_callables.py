@@ -19,7 +19,7 @@ import sys
 from functools import partial
 from typing import Callable, Optional, TextIO, override
 import pytest
-from config_as_json._deprecated_support import accepts_member_name, \
+from config_as_json._deprecated_support import accepts_keyword, \
     use_member_name
 from config_as_json.commontypes import PathOrStr
 from config_as_json.config import Config
@@ -146,7 +146,7 @@ def test_unreadable_signature(func: Callable[..., object]) -> None:
     """A callable Python cannot describe is assumed to take the argument."""
     with pytest.raises(ValueError):
         _ = inspect.signature(func)
-    assert accepts_member_name(func)
+    assert accepts_keyword(func, 'member_name')
     assert deprecations(lambda: use_member_name(func, stacklevel=2)) == []
 
 
@@ -170,5 +170,43 @@ def test_hidden_signature() -> None:
     factory = HiddenFactory()
     with pytest.raises((TypeError, ValueError)):
         _ = inspect.signature(factory)
-    assert accepts_member_name(factory)
+    assert accepts_keyword(factory, 'member_name')
     assert deprecations(lambda: use_member_name(factory, stacklevel=2)) == []
+
+
+def _named(member_name: str) -> None:
+    """Take member_name as a positional-or-keyword argument."""
+    _ = member_name
+
+
+def _keyword_only(*, member_name: str) -> None:
+    """Take member_name as a keyword-only argument."""
+    _ = member_name
+
+
+def _positional_only(member_name: str, /) -> None:
+    """Take member_name as a positional-only argument."""
+    _ = member_name
+
+
+def _var_keyword(**kwargs: str) -> None:
+    """Take any keyword argument."""
+    _ = kwargs
+
+
+@pytest.mark.parametrize('func, name, expected', [
+    (_named, 'member_name', True),
+    (_named, 'ok_to_use_defaults', False),
+    (_keyword_only, 'member_name', True),
+    (_positional_only, 'member_name', False),
+    (_var_keyword, 'member_name', True),
+    (_var_keyword, 'ok_to_use_defaults', True)])
+def test_accepts_keyword(func: Callable[..., object], name: str,
+                         expected: bool) -> None:
+    """A keyword reaches a parameter of that name, or ``**kwargs``.
+
+    A positional-only parameter of that name cannot take it. The answer is
+    remembered per keyword name, so asking twice gives the same answer.
+    """
+    assert accepts_keyword(func, name) == expected
+    assert accepts_keyword(func, name) == expected

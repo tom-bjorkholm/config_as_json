@@ -95,11 +95,13 @@ def test_nested_from_json_bad_keys(case_name: str,
     """Test JSON parse helpers with dict keys JSON cannot produce."""
     stderr_file = StringIO()
     nestings, json_data = _bad_from_json_case(case_name)
+    read = nesting_io.NestedReadContext(stderr_file=stderr_file,
+                                        auto_ch_hook=ConfigAutoChangeHook(),
+                                        ok_to_use_defaults=False,
+                                        kept_paths=[], parent_path=parent_path)
     with pytest.raises(ConfigKeysNotStrings) as exc:
-        _ = nesting_io._nested_config_from_json(
-            member_name='child', json_data=json_data, nestings=nestings,
-            stderr_file=stderr_file, auto_ch_hook=ConfigAutoChangeHook(),
-            parent_path=parent_path)
+        _ = nesting_io._nested_config_from_json('child', json_data, None,
+                                                nestings, read)
     message = 'Nested Config member '
     message += f'{_reported(parent_path)} keys must be strings'
     assert message in str(exc.value)

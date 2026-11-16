@@ -68,9 +68,11 @@ later step.
      `LIST_ELEMENT` list (elements have no correspondence by index), a dict
      key that the current dict lacks, and an `OPTIONAL_MEMBER` whose current
      value is `None` while the JSON data has an object for it. The object
-     is constructed with `config_type(None, None, ...)`, which gives it the
-     class defaults, and the JSON data is then parsed into it with
-     `ok_to_use_defaults=True`.
+     gets the class defaults, constructed as decision 5 says.
+   - "A current nested object" means an object whose class is exactly the
+     declared `config_type`. An instance of a subclass is not parsed in
+     place; it is replaced like a missing one, since strict parsing would
+     also create a `config_type` object.
    - A declaration with `factory_function` is never parsed in place, since
      the factory chooses the class from the JSON content. The factory is
      called with `ok_to_use_defaults=True`.
@@ -79,13 +81,26 @@ later step.
    introspection that already serves `member_name`. The introspection only
    happens when the flag is `True`; strict callers see no change and no
    warning.
-5. **The library never passes `ok_to_use_defaults` to a class constructor.**
-   Wherever the library knows the class (nested type declarations and
-   `config_factory_from_json`), it constructs from class defaults and then
-   calls `parse_json()` with the flag through `wrap_parse_json`. So no
-   derived class has to change its `__init__`, and no constructor needs a
-   deprecation warning. The keyword on `Config.__init__` is a convenience
-   for applications and for factory authors.
+5. **A class constructor gets `ok_to_use_defaults` only when it accepts
+   it.** (Revised during step 4.) Wherever the library knows the class
+   (nested type declarations and `config_factory_from_json`) and the flag
+   is true, it checks the signature of the constructor, with the same rule
+   and per-class cache as for `member_name`: a parameter of that name that
+   is not positional-only, or `**kwargs`, or a signature that cannot be
+   read, counts as accepting. The annotation is not checked.
+   - A constructor that accepts it is called with the JSON text and
+     `ok_to_use_defaults=True`, exactly like the strict call plus one
+     keyword. Its class defaults are never validated on their own.
+   - Another class is constructed with `config_type(None, None, ...)`,
+     which gives it the class defaults and validates them on their own,
+     and the JSON data is then parsed into it with `wrap_parse_json(...,
+     True, ...)`.
+
+   So no derived class has to change its `__init__`, and the fallback
+   needs no deprecation warning. Only a nested class whose defaults are not
+   valid on their own needs to accept the keyword and pass it on to
+   `super().__init__`. With the flag false the signature is not checked
+   and the keyword is never passed.
 6. **`parse_json()`, `read()`, `check_key_match()` and `check_dict_parse()`
    keep their signatures.** The existing bool already says what is needed.
 7. **What is never filled.** Unchecked dicts (`_unchecked_dicts`), missing
@@ -242,7 +257,7 @@ call; the constructor keyword with text and with a file.
 
 ## Step 4 — Carry the flag into nested objects declared by type
 
-Status: **Not started**
+Status: **Reviewed and committed.**
 
 The second bug fix (point 1 above), for declarations without
 `factory_function`.
@@ -257,10 +272,13 @@ The second bug fix (point 1 above), for declarations without
     nested object exists at the same place: `wrap_parse_json(current,
     text, True, ...)` in place;
   - for each nested object that the JSON data contains, when there is no
-    current nested object at the same place: `config_type(None, None, ...)`
-    with `member_name`, then `wrap_parse_json(new, text, True, ...)`;
-  - the list elements, the dict keys, and `None` for JSON `null` are
+    current nested object of exactly `config_type` at the same place: the
+    constructor with the JSON text and `ok_to_use_defaults=True` when it
+    accepts that, else `config_type(None, None, ...)` with `member_name`,
+    then `wrap_parse_json(new, text, True, ...)` (decision 5);
+  - the list elements, the unchecked dict keys, and `None` for JSON `null` are
     exactly those of the JSON data. Nothing is added.
+    (Notice that keys in checked dicts are filled, see step 2.)
 - `_located_nested` keeps prefixing `json_path` of a `ConfigParseError`
   for both routes.
 - After each nested object is parsed, its `kept_value_paths()` are added
@@ -270,6 +288,12 @@ The second bug fix (point 1 above), for declarations without
   object partly updated. That is the same as what a failing top level
   `parse_json()` already does to its own object; document it, do not add
   rollback.
+- The signature check of `_deprecated_support.py` is generalised from
+  `member_name` to `accepts_keyword(func, name)`, with the cache keyed by
+  callable and name (brought forward from step 5).
+- The shared state of the nested reads (stderr file, automatic-change
+  hook, flag, kept paths list, parent path) is passed as one private
+  `NestedReadContext`.
 
 **New tests** (parametrized over the five kinds where they apply):
 
@@ -287,6 +311,11 @@ The second bug fix (point 1 above), for declarations without
 - `DICT_VALUE_BY_KEY`: a partial declared value is parsed in place; a key
   missing from the JSON is not added;
 - two levels deep with prefixed kept paths;
+- a current object of a subclass of `config_type` is not parsed in place;
+- a constructor accepting `ok_to_use_defaults` (named or `**kwargs`) gets
+  it, so its invalid-alone defaults are never validated; one that does not
+  accept it fails on its invalid-alone defaults; strict parsing never
+  passes it;
 - strict mode unchanged for every kind;
 - a nested parse error still carries the full `json_path`.
 
@@ -296,10 +325,8 @@ The second bug fix (point 1 above), for declarations without
 
 Status: **Not started**
 
-- Generalise the signature check in `_deprecated_support.py` from
-  `member_name` to any keyword name (`accepts_keyword(func, name)`), with
-  the same per-callable cache. `use_member_name` keeps its behaviour on
-  top of it.
+- (Done in step 4: the signature check in `_deprecated_support.py` is
+  generalised to `accepts_keyword(func, name)`.)
 - `ConfigFactory` protocol: keyword `ok_to_use_defaults: bool = False`,
   docstring and the `ConfigNesting` docstring updated.
 - `_constructed_by_factory`: with the flag true, a factory that accepts it
@@ -308,8 +335,9 @@ Status: **Not started**
   cannot keep default values until it accepts and forwards the keyword.
 - `config_factory_from_json` gains keyword-only `ok_to_use_defaults: bool =
   False`. With it true, `_constructed_match` constructs the selected class
-  from class defaults and then calls `wrap_parse_json(..., True, ...)`
-  (decision 5), so the selected class needs no change.
+  as decision 5 says: with the keyword when its constructor accepts it,
+  else from class defaults followed by `wrap_parse_json(..., True, ...)`.
+  So the selected class needs no change.
 - Update the factory in `e32` and the test factories only where a test
   needs them to accept the keyword; the rest keep working unchanged.
 

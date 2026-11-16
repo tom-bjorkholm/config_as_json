@@ -121,21 +121,28 @@
   * [method\_is\_overridden](#config_as_json._deprecated_support.method_is_overridden)
   * [warn\_deprecated\_hook](#config_as_json._deprecated_support.warn_deprecated_hook)
   * [use\_deprecated\_hook](#config_as_json._deprecated_support.use_deprecated_hook)
-  * [\_signature\_takes\_member\_name](#config_as_json._deprecated_support._signature_takes_member_name)
+  * [\_signature\_takes](#config_as_json._deprecated_support._signature_takes)
   * [\_remembered\_for](#config_as_json._deprecated_support._remembered_for)
-  * [accepts\_member\_name](#config_as_json._deprecated_support.accepts_member_name)
+  * [accepts\_keyword](#config_as_json._deprecated_support.accepts_keyword)
   * [\_callable\_name](#config_as_json._deprecated_support._callable_name)
   * [\_no\_member\_name\_message](#config_as_json._deprecated_support._no_member_name_message)
   * [use\_member\_name](#config_as_json._deprecated_support.use_member_name)
 * [config\_as\_json.\_config\_nesting\_io](#config_as_json._config_nesting_io)
   * [\_NestedConfigEncoder](#config_as_json._config_nesting_io._NestedConfigEncoder)
     * [default](#config_as_json._config_nesting_io._NestedConfigEncoder.default)
+  * [\_InitKeywords](#config_as_json._config_nesting_io._InitKeywords)
+  * [NestedReadContext](#config_as_json._config_nesting_io.NestedReadContext)
+  * [\_constructed\_defaults](#config_as_json._config_nesting_io._constructed_defaults)
+  * [\_init\_keywords](#config_as_json._config_nesting_io._init_keywords)
+  * [\_parsed\_in\_place](#config_as_json._config_nesting_io._parsed_in_place)
   * [\_constructed\_by\_type](#config_as_json._config_nesting_io._constructed_by_type)
   * [\_constructed\_by\_factory](#config_as_json._config_nesting_io._constructed_by_factory)
+  * [\_current\_of\_type](#config_as_json._config_nesting_io._current_of_type)
   * [\_constructed\_nested](#config_as_json._config_nesting_io._constructed_nested)
   * [\_located\_nested](#config_as_json._config_nesting_io._located_nested)
   * [\_item\_from\_json](#config_as_json._config_nesting_io._item_from_json)
   * [\_list\_from\_json](#config_as_json._config_nesting_io._list_from_json)
+  * [\_current\_dict](#config_as_json._config_nesting_io._current_dict)
   * [\_dict\_from\_json](#config_as_json._config_nesting_io._dict_from_json)
   * [\_nesting\_by\_key](#config_as_json._config_nesting_io._nesting_by_key)
   * [\_dict\_by\_key\_from\_json](#config_as_json._config_nesting_io._dict_by_key_from_json)
@@ -517,7 +524,6 @@
   * [\_public\_items\_of\_mapping](#config_as_json._config_initial_data._public_items_of_mapping)
   * [\_public\_items\_of\_object](#config_as_json._config_initial_data._public_items_of_object)
   * [copy\_initial\_data\_impl](#config_as_json._config_initial_data.copy_initial_data_impl)
-  * [\_constructed\_bridge](#config_as_json._config_initial_data._constructed_bridge)
   * [\_wrap\_one\_value](#config_as_json._config_initial_data._wrap_one_value)
   * [\_wrap\_optional\_or\_member](#config_as_json._config_initial_data._wrap_optional_or_member)
   * [\_wrap\_list\_elements](#config_as_json._config_initial_data._wrap_list_elements)
@@ -2785,7 +2791,9 @@ def assign_parsed_members(
 Assign the values of the data to the public members of ``config``.
 
 Members are assigned in the order of ``self_keys``. A member that the
-data lacks is left unchanged.
+data lacks is left unchanged. When ``ok_to_use_defaults`` is true, a
+nested Config that the data contains is completed with the values of
+the current nested object, or with the defaults of its class.
 
 **Arguments**:
 
@@ -2793,7 +2801,8 @@ data lacks is left unchanged.
 - `data` - Decoded JSON data, after the read-old processor and the key
   check.
 - `self_keys` - Public configuration member names of ``config``.
-- `ok_to_use_defaults` - Whether missing dict keys may keep defaults.
+- `ok_to_use_defaults` - Whether missing keys of checked dicts and of
+  nested Config objects may keep values.
 - `stderr_file` - Stream used for user-facing diagnostics.
 - `member_name` - Dotted and indexed path for reaching ``config`` from
   the top level of the complete ``parse_json()`` operation, or
@@ -2806,8 +2815,8 @@ data lacks is left unchanged.
 
 **Returns**:
 
-  The ``JsonPath`` of every dict key that was filled because the data
-  lacked it, empty when ``ok_to_use_defaults`` is false.
+  The ``JsonPath`` of every dict key that was filled, and of every
+  value kept inside a nested Config, because the data lacked it.
 
 
 **Raises**:
@@ -2944,6 +2953,9 @@ application that does not accept the ``member_name`` argument is supported
 by calling it without that argument. Both warn that the old way is
 deprecated.
 
+The signature check behind the second migration also tells whether a
+constructor accepts ``ok_to_use_defaults``, see :func:`accepts_keyword`.
+
 <a id="config_as_json._deprecated_support.DeprecatedHook"></a>
 
 ## DeprecatedHook Objects
@@ -2986,15 +2998,15 @@ def use_deprecated_hook(instance: object, base_class: type[object],
 
 Return whether a deprecated hook override should be used.
 
-<a id="config_as_json._deprecated_support._signature_takes_member_name"></a>
+<a id="config_as_json._deprecated_support._signature_takes"></a>
 
-#### \_signature\_takes\_member\_name
+#### \_signature\_takes
 
 ```python
-def _signature_takes_member_name(func: Callable[..., object]) -> bool
+def _signature_takes(func: Callable[..., object], name: str) -> bool
 ```
 
-Return whether the signature of a callable takes ``member_name``.
+Return whether the signature of a callable takes a keyword argument.
 
 A callable whose signature cannot be read is assumed to take the
 argument, because that keeps the behaviour it had before the argument
@@ -3003,12 +3015,13 @@ could be left out.
 **Arguments**:
 
 - `func` - Callable that the library is about to call.
+- `name` - Name of the keyword argument.
 
 
 **Returns**:
 
-  Whether the callable has a ``member_name`` parameter, or a
-  ``**kwargs`` parameter that any keyword argument reaches.
+  Whether the callable has a parameter that the keyword argument
+- `reaches` - one with that name, or a ``**kwargs`` parameter.
 
 <a id="config_as_json._deprecated_support._remembered_for"></a>
 
@@ -3037,15 +3050,15 @@ safe to keep a reference to, so it is asked again every time.
   The key to remember the callable by, or ``None`` for a callable that
   must not be remembered.
 
-<a id="config_as_json._deprecated_support.accepts_member_name"></a>
+<a id="config_as_json._deprecated_support.accepts_keyword"></a>
 
-#### accepts\_member\_name
+#### accepts\_keyword
 
 ```python
-def accepts_member_name(func: Callable[..., object]) -> bool
+def accepts_keyword(func: Callable[..., object], name: str) -> bool
 ```
 
-Return whether a callable accepts the ``member_name`` argument.
+Return whether a callable accepts a keyword argument.
 
 The answer is remembered per function and per class, so that the
 signature of an application method is read once instead of once per
@@ -3054,11 +3067,12 @@ validated configuration object.
 **Arguments**:
 
 - `func` - Callable that the library is about to call.
+- `name` - Name of the keyword argument, such as ``member_name``.
 
 
 **Returns**:
 
-  Whether ``member_name`` can be passed to the callable.
+  Whether the keyword argument can be passed to the callable.
 
 <a id="config_as_json._deprecated_support._callable_name"></a>
 
@@ -3124,6 +3138,16 @@ to the JSON data of the Config object whose ``parse_json()`` raised it. A
 nested Config is constructed through its own class or factory, which cannot
 be handed a tuple path, so the path of the nested object in its parent is
 put in front of ``json_path`` when the exception leaves the nested object.
+The kept value paths of a nested Config are prefixed the same way.
+
+While reading with ``ok_to_use_defaults`` true, the JSON data decides which
+nested objects exist, and defaults only complete them. A nested object that
+the JSON data contains is parsed in place into the current nested object at
+the same place, when that is of the declared class. Otherwise it is
+constructed with the JSON text and ``ok_to_use_defaults`` when its
+constructor accepts that, or else constructed from its class defaults and
+then parsed. A declaration with a factory function is always constructed by
+the factory.
 
 <a id="config_as_json._config_nesting_io._NestedConfigEncoder"></a>
 
@@ -3145,16 +3169,130 @@ def default(o: object) -> object
 
 Serialize enum members using their symbolic names.
 
+<a id="config_as_json._config_nesting_io._InitKeywords"></a>
+
+## \_InitKeywords Objects
+
+```python
+class _InitKeywords(TypedDict)
+```
+
+Optional keyword arguments for constructing a nested Config.
+
+<a id="config_as_json._config_nesting_io.NestedReadContext"></a>
+
+## NestedReadContext Objects
+
+```python
+@dataclass(frozen=True)
+class NestedReadContext()
+```
+
+What the reads of the nested Config members of one object share.
+
+**Attributes**:
+
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `auto_ch_hook` - Hook of the object holding the nested data, receiving
+  the automatic changes of the nested Config objects.
+- `ok_to_use_defaults` - Whether nested JSON objects may lack the keys
+  that strict parsing requires.
+- `kept_paths` - Receives the kept value paths of every nested Config,
+  prefixed with its path in the JSON data of the object holding
+  it.
+- `parent_path` - Reported path of the object holding the nested data.
+
+<a id="config_as_json._config_nesting_io._constructed_defaults"></a>
+
+#### \_constructed\_defaults
+
+```python
+def _constructed_defaults(config_type: 'type[Config]', path: str,
+                          stderr_file: TextIO) -> 'Config'
+```
+
+Construct one Config instance holding its class defaults.
+
+**Arguments**:
+
+- `config_type` - Config-derived class to construct.
+- `path` - Dotted and indexed path for reaching the constructed object
+  from the top level of the configuration being constructed. It
+  is the ``member_name`` of the object that is built.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  A new Config instance holding its own default values.
+
+<a id="config_as_json._config_nesting_io._init_keywords"></a>
+
+#### \_init\_keywords
+
+```python
+def _init_keywords(config_type: 'type[Config]', name: str,
+                   ok_to_use_defaults: bool) -> _InitKeywords
+```
+
+Return the optional keyword arguments for a nested constructor.
+
+**Arguments**:
+
+- `config_type` - Config-derived class to construct.
+- `name` - Path text for reaching the nested object. It is passed as
+  ``member_name`` when the constructor accepts it.
+- `ok_to_use_defaults` - Whether to pass ``ok_to_use_defaults=True``.
+  The caller has checked that the constructor accepts it.
+
+
+**Returns**:
+
+  The keyword arguments that the constructor is to get.
+
+<a id="config_as_json._config_nesting_io._parsed_in_place"></a>
+
+#### \_parsed\_in\_place
+
+```python
+def _parsed_in_place(name: str, json_text: str, nested: 'Config',
+                     stderr_file: TextIO) -> 'Config'
+```
+
+Parse JSON text into a nested Config, keeping its missing values.
+
+A parse that fails leaves ``nested`` partly updated, as a failing
+``parse_json()`` does to any object. The parse clears the
+automatic-change hook of ``nested``, so a hook that ``nested`` shares
+with the object holding it loses what it recorded before.
+
+**Arguments**:
+
+- `name` - Path text for reaching the nested object.
+- `json_text` - JSON text describing the nested Config.
+- `nested` - Nested Config object to parse the JSON text into.
+- `stderr_file` - Stream used for user-facing diagnostics.
+
+
+**Returns**:
+
+  ``nested``, holding the parsed values.
+
 <a id="config_as_json._config_nesting_io._constructed_by_type"></a>
 
 #### \_constructed\_by\_type
 
 ```python
 def _constructed_by_type(name: str, json_text: str, nesting: ConfigNesting,
-                         stderr_file: TextIO) -> 'Config'
+                         read: NestedReadContext) -> 'Config'
 ```
 
 Construct one nested Config object with its declared class.
+
+When ``read.ok_to_use_defaults`` is true, a class whose constructor
+accepts ``ok_to_use_defaults`` is constructed from the JSON text with
+it. Another class is constructed from its class defaults, which are
+then validated on their own, and the JSON text is parsed into it.
 
 **Arguments**:
 
@@ -3162,7 +3300,7 @@ Construct one nested Config object with its declared class.
   constructed object as its ``member_name``.
 - `json_text` - JSON text describing the nested Config.
 - `nesting` - Nested Config declaration for the member.
-- `stderr_file` - Stream used for user-facing diagnostics.
+- `read` - What the reads of the nested members share.
 
 
 **Returns**:
@@ -3193,30 +3331,60 @@ Construct one nested Config object with its declared factory.
 
   The nested Config made by the declared factory function.
 
+<a id="config_as_json._config_nesting_io._current_of_type"></a>
+
+#### \_current\_of\_type
+
+```python
+def _current_of_type(current: object,
+                     nesting: ConfigNesting) -> Optional['Config']
+```
+
+Return the current nested object if it is of the declared class.
+
+Only an object whose class is exactly ``config_type`` is returned. An
+instance of a subclass is not, since it is not what parsing makes.
+
+**Arguments**:
+
+- `current` - Current value at the place of the nested object.
+- `nesting` - Nested Config declaration for the member.
+
+
+**Returns**:
+
+  ``current``, or ``None`` when it is not of the declared class.
+
 <a id="config_as_json._config_nesting_io._constructed_nested"></a>
 
 #### \_constructed\_nested
 
 ```python
-def _constructed_nested(name: str, json_text: str, nesting: ConfigNesting,
-                        stderr_file: TextIO) -> 'Config'
+def _constructed_nested(name: str, json_text: str, current: object,
+                        nesting: ConfigNesting,
+                        read: NestedReadContext) -> 'Config'
 ```
 
-Construct one nested Config object from its own JSON text.
+Construct one nested Config object, or parse into the current one.
+
+When ``read.ok_to_use_defaults`` is true and the declaration has no
+factory function, the JSON text is parsed into the current nested
+object in place when it is of the declared class.
 
 **Arguments**:
 
 - `name` - Path text for reaching the nested object. It is handed to the
   constructed object as its ``member_name``.
 - `json_text` - JSON text describing the nested Config.
+- `current` - Current value at the place of the nested object.
 - `nesting` - Nested Config declaration for the member.
-- `stderr_file` - Stream used for user-facing diagnostics.
+- `read` - What the reads of the nested members share.
 
 
 **Returns**:
 
   The nested Config made by the declared type, or by the declared
-  factory function when the declaration has one.
+  factory function when the declaration has one, or ``current``.
 
 <a id="config_as_json._config_nesting_io._located_nested"></a>
 
@@ -3224,7 +3392,8 @@ Construct one nested Config object from its own JSON text.
 
 ```python
 def _located_nested(name: str, json_path: JsonPath, json_text: str,
-                    nesting: ConfigNesting, stderr_file: TextIO) -> 'Config'
+                    current: object, nesting: ConfigNesting,
+                    read: NestedReadContext) -> 'Config'
 ```
 
 Construct one nested Config, locating its parse errors in the parent.
@@ -3235,13 +3404,15 @@ Construct one nested Config, locating its parse errors in the parent.
 - `json_path` - Tuple path of the nested object in the JSON data of the
   object holding it.
 - `json_text` - JSON text describing the nested Config.
+- `current` - Current value at the place of the nested object.
 - `nesting` - Nested Config declaration for the member.
-- `stderr_file` - Stream used for user-facing diagnostics.
+- `read` - What the reads of the nested members share.
 
 
 **Returns**:
 
-  The nested Config made by the declared type or factory function.
+  The nested Config made by the declared type or factory function, or
+  the current one that the JSON text was parsed into.
 
 
 **Raises**:
@@ -3254,35 +3425,35 @@ Construct one nested Config, locating its parse errors in the parent.
 #### \_item\_from\_json
 
 ```python
-def _item_from_json(name: str, json_data: object, nesting: ConfigNesting,
-                    stderr_file: TextIO, auto_ch_hook: ConfigAutoChangeHook, *,
-                    parent_path: Optional[str],
+def _item_from_json(name: str, json_data: object, current: object,
+                    nesting: ConfigNesting, read: NestedReadContext, *,
                     json_path: JsonPath) -> 'Config'
 ```
 
 Construct one nested Config from one parsed JSON object.
 
 Additionally the automatic changes that the nested Config recorded about
-its own JSON data are merged into ``auto_ch_hook`` using paths in the
-parent, so the application learns about old-file compatibility inside
-nested objects. That merge composes one nesting level at a time, which is
-why it is given the local ``name`` and not the whole reported path.
+its own JSON data are merged into ``read.auto_ch_hook`` using paths in
+the parent, so the application learns about old-file compatibility
+inside nested objects. That merge composes one nesting level at a time,
+which is why it is given the local ``name`` and not the whole reported
+path. The kept value paths of the nested Config are added to
+``read.kept_paths`` with ``json_path`` in front.
 
 **Arguments**:
 
 - `name` - Local name of the nested Config in the object that holds it.
 - `json_data` - Parsed JSON object for the nested Config.
+- `current` - Current value at the place of the nested Config.
 - `nesting` - Nested Config declaration for the member.
-- `stderr_file` - Stream used for user-facing diagnostics.
-- `auto_ch_hook` - Parent hook receiving the nested automatic changes.
-- `parent_path` - Reported path of the object holding the nested Config.
+- `read` - What the reads of the nested members share.
 - `json_path` - Tuple path of the nested Config in the JSON data of the
   object holding it.
 
 
 **Returns**:
 
-  A new nested Config instance.
+  A new nested Config instance, or ``current`` parsed in place.
 
 
 **Raises**:
@@ -3297,21 +3468,22 @@ why it is given the local ``name`` and not the whole reported path.
 
 ```python
 def _list_from_json(member_name: str, json_data: object,
-                    nesting: ConfigNesting, stderr_file: TextIO,
-                    auto_ch_hook: ConfigAutoChangeHook, *,
-                    parent_path: Optional[str]) -> list['Config']
+                    nesting: ConfigNesting,
+                    read: NestedReadContext) -> list['Config']
 ```
 
 Construct a list of nested Config objects from parsed JSON.
+
+The list has exactly the elements of the JSON list. An element is never
+parsed into the current element at the same index, since elements have
+no correspondence by index.
 
 **Arguments**:
 
 - `member_name` - Public parent member receiving the nested list.
 - `json_data` - Parsed JSON value for the member.
 - `nesting` - Nested Config declaration for the list elements.
-- `stderr_file` - Stream used for user-facing diagnostics.
-- `auto_ch_hook` - Parent hook receiving the nested automatic changes.
-- `parent_path` - Reported path of the object holding the nested list.
+- `read` - What the reads of the nested members share.
 
 
 **Returns**:
@@ -3325,27 +3497,38 @@ Construct a list of nested Config objects from parsed JSON.
 - `ConfigNotDict` - A list element is not a dict.
 - `ConfigParseError` - The JSON data of a nested Config is not valid.
 
+<a id="config_as_json._config_nesting_io._current_dict"></a>
+
+#### \_current\_dict
+
+```python
+def _current_dict(current: object) -> dict[str, object]
+```
+
+Return the current dict value, or an empty dict for another value.
+
 <a id="config_as_json._config_nesting_io._dict_from_json"></a>
 
 #### \_dict\_from\_json
 
 ```python
-def _dict_from_json(member_name: str, json_data: object,
-                    nesting: ConfigNesting, stderr_file: TextIO,
-                    auto_ch_hook: ConfigAutoChangeHook, *,
-                    parent_path: Optional[str]) -> dict[str, 'Config']
+def _dict_from_json(member_name: str, json_data: object, current: object,
+                    nesting: ConfigNesting,
+                    read: NestedReadContext) -> dict[str, 'Config']
 ```
 
 Construct a dict of nested Config objects from parsed JSON.
+
+The dict has exactly the keys of the JSON dict. A value is parsed into
+the current value at the same key when there is one to parse into.
 
 **Arguments**:
 
 - `member_name` - Public parent member receiving the nested dict.
 - `json_data` - Parsed JSON value for the member.
+- `current` - Current value of the member.
 - `nesting` - Nested Config declaration for the dict values.
-- `stderr_file` - Stream used for user-facing diagnostics.
-- `auto_ch_hook` - Parent hook receiving the nested automatic changes.
-- `parent_path` - Reported path of the object holding the nested dict.
+- `read` - What the reads of the nested members share.
 
 
 **Returns**:
@@ -3375,21 +3558,23 @@ Return DICT_VALUE_BY_KEY declarations keyed by discriminator_key.
 
 ```python
 def _dict_by_key_from_json(member_name: str, json_data: object,
-                           nestings: list[ConfigNesting], stderr_file: TextIO,
-                           auto_ch_hook: ConfigAutoChangeHook, *,
-                           parent_path: Optional[str]) -> dict[str, object]
+                           current: object, nestings: list[ConfigNesting],
+                           read: NestedReadContext) -> dict[str, object]
 ```
 
 Construct selected dict values as nested Config objects.
+
+The dict has exactly the keys of the JSON dict. A declared value is
+parsed into the current value at the same key when there is one to
+parse into.
 
 **Arguments**:
 
 - `member_name` - Public parent member receiving the nested dict.
 - `json_data` - Parsed JSON value for the member.
+- `current` - Current value of the member.
 - `nestings` - Nested Config declarations for selected dict keys.
-- `stderr_file` - Stream used for user-facing diagnostics.
-- `auto_ch_hook` - Parent hook receiving the nested automatic changes.
-- `parent_path` - Reported path of the object holding the nested dict.
+- `read` - What the reads of the nested members share.
 
 
 **Returns**:
@@ -3431,22 +3616,26 @@ Return the single declaration for non-keyed nesting kinds.
 
 ```python
 def _nested_config_from_json(member_name: str, json_data: object,
-                             nestings: list[ConfigNesting],
-                             stderr_file: TextIO,
-                             auto_ch_hook: ConfigAutoChangeHook, *,
-                             parent_path: Optional[str]) -> object
+                             current: object, nestings: list[ConfigNesting],
+                             read: NestedReadContext) -> object
 ```
 
 Construct nested Config data from parsed JSON data.
+
+When ``read.ok_to_use_defaults`` is true, each nested object that the
+JSON data contains is completed with the values of the current nested
+object at the same place, parsed in place, or else with the defaults of
+its class. The JSON data decides which nested objects exist: list
+elements, dict keys and JSON ``null`` are exactly those of the JSON
+data.
 
 **Arguments**:
 
 - `member_name` - Public parent member receiving the nested data.
 - `json_data` - Parsed JSON value for the member.
+- `current` - Current value of the member.
 - `nestings` - Nested Config declarations for the member.
-- `stderr_file` - Stream used for user-facing diagnostics.
-- `auto_ch_hook` - Parent hook receiving the nested automatic changes.
-- `parent_path` - Reported path of the object holding the nested data.
+- `read` - What the reads of the nested members share.
 
 
 **Returns**:
@@ -4949,10 +5138,13 @@ called without it and warns that it should be changed.
 
 Parsing with ``ok_to_use_defaults`` true accepts JSON data that lacks
 required keys; the missing keys keep their current values, and
-:meth:`kept_value_paths` tells which ones they are. A derived class whose
-constructor should offer that accepts the keyword ``ok_to_use_defaults``
-and passes it on to ``super().__init__``. The library never passes it to
-a constructor, so a derived class that does not accept it keeps working.
+:meth:`kept_value_paths` tells which ones they are. This holds for
+nested Config objects too. A derived class whose constructor accepts the
+keyword ``ok_to_use_defaults`` should pass it on to ``super().__init__``.
+The library passes it to the constructor of a nested Config class that
+accepts it. A nested Config class that does not accept it is
+constructed from its class defaults, which must then be valid on their
+own, before the JSON data is parsed into it.
 
 <a id="config_as_json.config.Config.__init__"></a>
 
@@ -4996,6 +5188,7 @@ parsed data is applied to the same attributes instead.
   required keys, which then keep the default values assigned
   by the derived ``__init__``. See :meth:`parse_json` and
   :meth:`kept_value_paths`. Without JSON data it has no effect.
+  A derived ``__init__`` that accepts it should pass it on.
 
   Dict-valued members are checked against the default key set by the
   base class unless listed in ``_unchecked_dicts``; see the class
@@ -5569,8 +5762,14 @@ same points.
 - `ok_to_use_defaults` - Whether missing declared keys may remain at
   their already assigned default values. Missing keys of a
   checked dictionary member are filled with deep copies of
-  its current values. :meth:`kept_value_paths` then tells
-  which values were kept.
+  its current values. A nested Config that the JSON data
+  contains is parsed into the current nested object of the
+  declared class at the same place, or else constructed with
+  the defaults of its class, so its missing keys keep values
+  too. A nested object parsed in place is changed, also when
+  another object shares it, and a failing parse may leave it
+  partly updated. :meth:`kept_value_paths` then tells which
+  values were kept.
 - `stderr_file` - Stream used for user-facing diagnostics. Defaults to
   ``sys.stderr``.
 - `member_name` - Dotted and indexed path for reaching this object by
@@ -11506,30 +11705,6 @@ become the target's schema and no comparison can be made.
 - `TypeError` - ``source`` cannot be read, or ``target`` has a known
   public schema and ``source`` exposes a public attribute that
   ``target`` does not declare.
-
-<a id="config_as_json._config_initial_data._constructed_bridge"></a>
-
-#### \_constructed\_bridge
-
-```python
-def _constructed_bridge(config_type: 'type[Config]', path: str,
-                        stderr_file: TextIO) -> 'Config'
-```
-
-Construct one empty bridge Config instance.
-
-**Arguments**:
-
-- `config_type` - Bridge Config-derived class to construct.
-- `path` - Dotted and indexed path for reaching the wrapped value from
-  the top level of the configuration being constructed. It is the
-  ``member_name`` of the bridge that is built.
-- `stderr_file` - Stream used for user-facing diagnostics.
-
-
-**Returns**:
-
-  A new bridge Config instance holding its own default values.
 
 <a id="config_as_json._config_initial_data._wrap_one_value"></a>
 
