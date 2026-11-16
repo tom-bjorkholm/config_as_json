@@ -139,8 +139,15 @@ started:
   previous parse, not the constructor default.
 - In a nested Config that the JSON data contains but that had no current
   nested object at the same place to be parsed into (any list element, a
-  dict key that the current dict lacked, or an optional member that was
-  None), that is the default value of the nested Config class.
+  dict key that the current dict lacked, an optional member that was
+  None, or a current object of a subclass of the declared class), that is
+  the default value of the nested Config class.
+- In a nested Config declared with a ``factory_function``, that is the
+  default value of the class that the factory constructs, also when there
+  is a current nested object at the same place. The factory chooses the
+  class from the JSON data, so the JSON data is never parsed into the
+  current nested object, and the values of that object are not kept.
+  Declare the member by type, without a factory, when they should be kept.
 
 Defaults only complete nested objects that the JSON data contains. No
 list element, dict key or optional member is ever added because of them.
@@ -323,29 +330,55 @@ The second bug fix (point 1 above), for declarations without
 
 ## Step 5 — Factories and `config_factory_from_json`
 
-Status: **Not started**
+Status: **Reveiwed and committed.**
 
 - (Done in step 4: the signature check in `_deprecated_support.py` is
   generalised to `accepts_keyword(func, name)`.)
+- The warn-once logic of `use_member_name` is generalised to one private
+  core keyed by callable and keyword name; `use_defaults_keyword(func,
+  stacklevel)` sits next to `use_member_name`.
 - `ConfigFactory` protocol: keyword `ok_to_use_defaults: bool = False`,
   docstring and the `ConfigNesting` docstring updated.
 - `_constructed_by_factory`: with the flag true, a factory that accepts it
   gets it; one that does not is called without it (strict) and a
   `DeprecationWarning` is issued once per factory, saying that the factory
-  cannot keep default values until it accepts and forwards the keyword.
+  cannot keep default values until it accepts and forwards the keyword,
+  and that leaving it out will stop working in a future major release.
 - `config_factory_from_json` gains keyword-only `ok_to_use_defaults: bool =
   False`. With it true, `_constructed_match` constructs the selected class
   as decision 5 says: with the keyword when its constructor accepts it,
   else from class defaults followed by `wrap_parse_json(..., True, ...)`.
   So the selected class needs no change.
-- Update the factory in `e32` and the test factories only where a test
-  needs them to accept the keyword; the rest keep working unchanged.
+- Decision 5 is implemented once, in the new private module
+  `_config_construct.py` (`construct_config`), and used by
+  `_constructed_by_type`, `_constructed_match` and the factory returned by
+  `RadixNumber.factory()`. Each caller hands over a small closure calling
+  its constructor with its own other arguments.
+- `RadixNumber.__init__` and the factory returned by
+  `RadixNumber.factory()` accept and forward `ok_to_use_defaults`, so the
+  library never warns about its own factory. A subclass whose `__init__`
+  lacks the keyword gets the decision 5 fallback, also when the factory is
+  called directly with a file.
+- The ConfigFactory protocol change makes a factory without the keyword a
+  mypy error where it is passed as `factory_function`. The factories in the
+  tests (`TrackingFactory`, `WrongTypeFactory`, `PickingFactory`) and in
+  `e36` accept and forward it; factories that deliberately test the legacy
+  path keep `# type: ignore[arg-type]`.
+- `e32` (which has no `factory_function` factory) reads with
+  `config_factory_from_json(..., ok_to_use_defaults=True)` and prints the
+  kept values, showing that its classes need no change.
 
-**New tests:** a factory that accepts the flag keeps values; a factory
-that does not parses strictly and warns once; no warning and no
-introspection when the flag is false; `config_factory_from_json` with the
-flag, with text and with a file; kept paths through a factory-built nested
-object.
+**New tests** (`test_factory_defaults.py`): a factory that accepts the
+flag (named, `**kwargs`, or forwarding to `config_factory_from_json`) keeps
+the class defaults, with kept paths prefixed; the factory gets the flag
+only when it is true; a factory that does not accept it parses strictly
+and warns once; a factory lacking both keywords warns twice; no warning and
+no introspection when the flag is false; `config_factory_from_json` with
+the flag, with text and with a file, for a class that accepts the keyword
+and one that does not; invalid-alone defaults fail without the keyword;
+strict `config_factory_from_json`; the radix factory nested and called
+directly, for a class with and without the keyword. `e32` tests for a file
+lacking values.
 
 **Estimate:** about 90 source, 200 test lines.
 

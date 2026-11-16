@@ -147,7 +147,10 @@ class Config():
     The library passes it to the constructor of a nested Config class that
     accepts it. A nested Config class that does not accept it is
     constructed from its class defaults, which must then be valid on their
-    own, before the JSON data is parsed into it.
+    own, before the JSON data is parsed into it. A nested Config declared
+    with a ``factory_function`` is always constructed anew by the factory,
+    so its missing keys get the defaults of the class that the factory
+    constructs, never the values of the current nested object.
     """
 
     # pylint: disable-next=too-many-arguments
@@ -274,9 +277,17 @@ class Config():
           the previous parse, not the constructor default.
         - In a nested Config that the JSON data contains but that had no
           current nested object at the same place to be parsed into (any list
-          element, a dict key that the current dict lacked, or an optional
-          member that was None), that is the default value of the nested
-          Config class.
+          element, a dict key that the current dict lacked, an optional
+          member that was None, or a current object of a subclass of the
+          declared class), that is the default value of the nested Config
+          class.
+        - In a nested Config declared with a ``factory_function``, that is
+          the default value of the class that the factory constructs, also
+          when there is a current nested object at the same place. The
+          factory chooses the class from the JSON data, so the JSON data is
+          never parsed into the current nested object, and the values of
+          that object are not kept. Declare the member by type, without a
+          factory, when they should be kept.
 
         Defaults only complete nested objects that the JSON data contains. No
         list element, dict key or optional member is ever added because of
@@ -719,7 +730,12 @@ class Config():
                 contains is parsed into the current nested object of the
                 declared class at the same place, or else constructed with
                 the defaults of its class, so its missing keys keep values
-                too. A nested object parsed in place is changed, also when
+                too. A nested Config declared with a ``factory_function`` is
+                always constructed by the factory, so its missing keys get
+                the defaults of the class that the factory constructs, not
+                the values of the current nested object. See
+                :meth:`kept_value_paths`. A nested object parsed in place is
+                changed, also when
                 another object shares it, and a failing parse may leave it
                 partly updated. :meth:`kept_value_paths` then tells which
                 values were kept.

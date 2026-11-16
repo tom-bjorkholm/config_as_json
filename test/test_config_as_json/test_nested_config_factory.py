@@ -23,18 +23,21 @@ def _empty_plan(stderr_file: TextIO) -> ValidationPlan:
 class FactoryOutputConfig(Config):
     """Nested configuration used by factory-function tests."""
 
+    # pylint: disable-next=too-many-arguments
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 construction_label: str = 'type',
-                 member_name: Optional[str] = None) -> None:
+                 construction_label: str = 'type', *,
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Construct one output configuration."""
         self.name = 'default-output'
         self.format_name = 'CSV'
         self._construction_label = construction_label
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def construction_label(self) -> str:
         """Return which construction path created this object."""
@@ -55,13 +58,15 @@ class WrongOutputConfig(Config):
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Construct a wrong-type nested configuration."""
         self.format_name = 'CSV'
         self.name = 'wrong-output'
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def get_validation_plan(self, stderr_file: TextIO) -> ValidationPlan:
         """Return validation steps for this wrong-type configuration."""
@@ -82,21 +87,25 @@ class TrackingFactory:
         self.filenames: list[Optional[PathOrStr]] = []
         self.stderr_files: list[TextIO] = []
         self.member_names: list[Optional[str]] = []
+        self.defaults_flags: list[bool] = []
 
     def __call__(self, *, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> Config:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> Config:
         """Record the call and construct the configured nested type."""
         self.json_texts.append(from_json_data_text)
         self.filenames.append(from_json_filename)
         self.stderr_files.append(stderr_file)
         self.member_names.append(member_name)
+        self.defaults_flags.append(ok_to_use_defaults)
         return self._output_type(from_json_data_text=from_json_data_text,
                                  from_json_filename=from_json_filename,
                                  stderr_file=stderr_file,
                                  construction_label=self._construction_label,
-                                 member_name=member_name)
+                                 member_name=member_name,
+                                 ok_to_use_defaults=ok_to_use_defaults)
 
 
 # pylint: disable-next=too-few-public-methods
@@ -106,12 +115,14 @@ class WrongTypeFactory:
     def __call__(self, *, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> Config:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> Config:
         """Construct a Config object that is not the declared config_type."""
         return WrongOutputConfig(from_json_data_text=from_json_data_text,
                                  from_json_filename=from_json_filename,
                                  stderr_file=stderr_file,
-                                 member_name=member_name)
+                                 member_name=member_name,
+                                 ok_to_use_defaults=ok_to_use_defaults)
 
 
 class FactoryParentConfig(Config):

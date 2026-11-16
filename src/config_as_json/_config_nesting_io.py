@@ -23,7 +23,8 @@ the same place, when that is of the declared class. Otherwise it is
 constructed with the JSON text and ``ok_to_use_defaults`` when its
 constructor accepts that, or else constructed from its class defaults and
 then parsed. A declaration with a factory function is always constructed by
-the factory.
+the factory, with ``ok_to_use_defaults`` when the factory accepts it, and
+else strictly, with a warning.
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -32,15 +33,17 @@ the factory.
 from dataclasses import dataclass
 from enum import Enum, IntEnum
 import json
-from typing import Optional, TextIO, TYPE_CHECKING, TypedDict, cast
-from config_as_json.commontypes import JsonPath, JsonType
+from typing import Optional, TextIO, TYPE_CHECKING, Unpack, cast
+from config_as_json.commontypes import JsonPath, JsonType, PathOrStr
 from config_as_json.config_errors import ConfigKeysNotStrings, \
     ConfigMustBeList, ConfigNotDict, ConfigParseError
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigNesting, ConfigNestingKind
 from config_as_json._config_call_wrappers import wrap_as_json_string, \
     wrap_parse_json, wrap_validate
-from config_as_json._deprecated_support import accepts_keyword, \
+from config_as_json._config_construct import InitKeywords, \
+    construct_config, member_name_keywords
+from config_as_json._deprecated_support import use_defaults_keyword, \
     use_member_name
 from config_as_json.member_path import member_path, _indexed_path
 
@@ -57,13 +60,6 @@ class _NestedConfigEncoder(json.JSONEncoder):
         if isinstance(o, (Enum, IntEnum)):
             return str(o.name)
         return super().default(o)
-
-
-class _InitKeywords(TypedDict, total=False):
-    """Optional keyword arguments for constructing a nested Config."""
-
-    member_name: str
-    ok_to_use_defaults: bool
 
 
 @dataclass(frozen=True)
@@ -110,28 +106,6 @@ def _constructed_defaults(config_type: 'type[Config]', path: str,
                        stderr_file=stderr_file)
 
 
-def _init_keywords(config_type: 'type[Config]', name: str,
-                   ok_to_use_defaults: bool) -> _InitKeywords:
-    """Return the optional keyword arguments for a nested constructor.
-
-    Args:
-        config_type: Config-derived class to construct.
-        name: Path text for reaching the nested object. It is passed as
-            ``member_name`` when the constructor accepts it.
-        ok_to_use_defaults: Whether to pass ``ok_to_use_defaults=True``.
-            The caller has checked that the constructor accepts it.
-
-    Returns:
-        The keyword arguments that the constructor is to get.
-    """
-    keywords: _InitKeywords = {}
-    if use_member_name(config_type, stacklevel=4):
-        keywords['member_name'] = name
-    if ok_to_use_defaults:
-        keywords['ok_to_use_defaults'] = True
-    return keywords
-
-
 def _parsed_in_place(name: str, json_text: str, nested: 'Config',
                      stderr_file: TextIO) -> 'Config':
     """Parse JSON text into a nested Config, keeping its missing values.
@@ -174,36 +148,44 @@ def _constructed_by_type(name: str, json_text: str, nesting: ConfigNesting,
         The nested Config made by the declared type.
     """
     config_type = nesting.config_type
-    if read.ok_to_use_defaults and \
-            not accepts_keyword(config_type, 'ok_to_use_defaults'):
-        nested = _constructed_defaults(config_type, name, read.stderr_file)
-        return _parsed_in_place(name, json_text, nested, read.stderr_file)
-    keywords = _init_keywords(config_type, name, read.ok_to_use_defaults)
-    return config_type(from_json_data_text=json_text, from_json_filename=None,
-                       stderr_file=read.stderr_file, **keywords)
+
+    def make(text: Optional[str], filename: Optional[PathOrStr], /,
+             **keywords: Unpack[InitKeywords]) -> 'Config':
+        """Call the declared class the way a nested read calls it."""
+        return config_type(from_json_data_text=text,
+                           from_json_filename=filename,
+                           stderr_file=read.stderr_file, **keywords)
+    return construct_config(make, config_type, json_text, None,
+                            read.ok_to_use_defaults,
+                            stderr_file=read.stderr_file, member_name=name,
+                            stacklevel=3)
 
 
 def _constructed_by_factory(name: str, json_text: str, nesting: ConfigNesting,
-                            stderr_file: TextIO) -> 'Config':
+                            read: NestedReadContext) -> 'Config':
     """Construct one nested Config object with its declared factory.
+
+    When ``read.ok_to_use_defaults`` is true, a factory that accepts
+    ``ok_to_use_defaults`` is called with it. Another factory is called
+    without it, so it parses strictly, and it is warned about once.
 
     Args:
         name: Path text for reaching the nested object. It is handed to the
             constructed object as its ``member_name``.
         json_text: JSON text describing the nested Config.
         nesting: Nested Config declaration for the member.
-        stderr_file: Stream used for user-facing diagnostics.
+        read: What the reads of the nested members share.
 
     Returns:
         The nested Config made by the declared factory function.
     """
     factory = nesting.factory_function
     assert factory is not None
-    if use_member_name(factory, stacklevel=3):
-        return factory(from_json_data_text=json_text, from_json_filename=None,
-                       stderr_file=stderr_file, member_name=name)
+    keywords = member_name_keywords(factory, name, stacklevel=3)
+    if read.ok_to_use_defaults and use_defaults_keyword(factory, 3):
+        keywords['ok_to_use_defaults'] = True
     return factory(from_json_data_text=json_text, from_json_filename=None,
-                   stderr_file=stderr_file)
+                   stderr_file=read.stderr_file, **keywords)
 
 
 def _current_of_type(current: object,
@@ -250,8 +232,7 @@ def _constructed_nested(name: str, json_text: str, current: object,
     """
     if nesting.factory_function is not None:
         return _constructed_by_factory(name=name, json_text=json_text,
-                                       nesting=nesting,
-                                       stderr_file=read.stderr_file)
+                                       nesting=nesting, read=read)
     in_place = _current_of_type(current, nesting) \
         if read.ok_to_use_defaults else None
     if in_place is not None:

@@ -5,7 +5,7 @@
 # MIT License
 
 from typing import ClassVar, Generic, NamedTuple, NoReturn, Optional, \
-    TextIO, TypeVar
+    TextIO, TypeVar, Unpack
 import sys
 from enum import Enum
 from config_as_json.config import Config
@@ -13,7 +13,8 @@ from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.config_nesting import ConfigFactory
 from config_as_json.commontypes import PathOrStr
 from config_as_json.member_path import member_path
-from config_as_json._deprecated_support import use_member_name
+from config_as_json._config_construct import InitKeywords, \
+    construct_config
 from config_as_json.validator import InvalidConfiguration, ValidationPlan, \
     WholeConfigValidationStep, MemberValidationStep, WholeConfigValidator, \
     MemberValidator
@@ -348,7 +349,8 @@ class RadixNumber(Config, Generic[PrefixT]):
                  stderr_file: TextIO = sys.stderr, *,
                  value: Optional[int | str] = None,
                  prefix: Optional[PrefixT] = None, digits: int = 0,
-                 member_name: Optional[str] = None) -> None:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize the written number configuration value.
 
         Args:
@@ -375,6 +377,9 @@ class RadixNumber(Config, Generic[PrefixT]):
                 complete construction, such as ``limits[cpu].mask``. ``None``
                 means that this value is the top level and not a member of
                 anything.
+            ok_to_use_defaults: Whether the supplied JSON data may lack the
+                written member, which then keeps ``value``. See
+                :meth:`Config.parse_json` and :meth:`Config.kept_value_paths`.
 
         Raises:
             InvalidConfiguration: ``value`` is negative, or is a string that
@@ -397,7 +402,8 @@ class RadixNumber(Config, Generic[PrefixT]):
         if value is not None:
             self.set(value)
         super().__init__(from_json_data_text, from_json_filename, auto_ch_hook,
-                         stderr_file, member_name=member_name)
+                         stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def _write_text(self, text: str) -> None:
         """Store one written number in the public member of this value."""
@@ -509,6 +515,13 @@ class RadixNumber(Config, Generic[PrefixT]):
         be one that accepts ``prefix`` and ``digits``. A subclass that fixes
         its own format instead does not, and needs no factory.
 
+        A factory always constructs a new object. When a parse with
+        ``ok_to_use_defaults`` true finds no written value for the member,
+        the member therefore gets ``value``, the declared default, and not
+        the value that the member held before the parse. A member declared
+        by a subclass that supplies its format, without a factory, is
+        parsed into the object it holds, and keeps its value instead.
+
         Args:
             prefix: The prefix that constructed values are written with.
             digits: The smallest number of digits to write.
@@ -603,8 +616,12 @@ class _RadixFactory(Generic[PrefixT]):
     def __call__(self, *, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> 'RadixNumber[PrefixT]':
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> 'RadixNumber[PrefixT]':
         """Construct one written number with the declared format.
+
+        A class whose constructor does not accept ``ok_to_use_defaults`` is
+        constructed with ``value`` and then parsed, when the flag is true.
 
         Args:
             from_json_data_text: Optional JSON text to parse directly.
@@ -615,18 +632,23 @@ class _RadixFactory(Generic[PrefixT]):
                 the complete construction, such as ``limits[cpu].mask``.
                 ``None`` means that the constructed value is the top level
                 and not a member of anything.
+            ok_to_use_defaults: Whether the JSON data may lack the written
+                member, which then keeps the value of the factory.
 
         Returns:
             The constructed value.
         """
-        if use_member_name(self._config_type, stacklevel=2):
-            return self._config_type(from_json_data_text, from_json_filename,
-                                     None, stderr_file, value=self._value,
-                                     prefix=self._prefix, digits=self._digits,
-                                     member_name=member_name)
-        return self._config_type(from_json_data_text, from_json_filename, None,
-                                 stderr_file, value=self._value,
-                                 prefix=self._prefix, digits=self._digits)
+
+        def make(text: Optional[str], filename: Optional[PathOrStr], /,
+                 **keywords: Unpack[InitKeywords]) -> 'RadixNumber[PrefixT]':
+            """Call the class with the format of this factory."""
+            return self._config_type(text, filename, None, stderr_file,
+                                     value=self._value, prefix=self._prefix,
+                                     digits=self._digits, **keywords)
+        return construct_config(make, self._config_type, from_json_data_text,
+                                from_json_filename, ok_to_use_defaults,
+                                stderr_file=stderr_file,
+                                member_name=member_name, stacklevel=2)
 
 
 # pylint: disable-next=too-few-public-methods

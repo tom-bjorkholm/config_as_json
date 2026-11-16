@@ -133,3 +133,26 @@ def test_e41_bad_value(capsys: pytest.CaptureFixture[str],
     json_data[member] = {key: written}
     assert_print_validator_error(capsys, monkeypatch, E41_SPEC, json_data,
                                  [f'{member}.{key}', fragment])
+
+
+@pytest.mark.parametrize('name, kept', [
+    ('file_mode', 0o123), ('window_colour', 0o123),
+    ('umask', 0o022), ('feature_bits', 0x0000000f)])
+def test_e41_kept_value(capsys: pytest.CaptureFixture[str], name: str,
+                        kept: int) -> None:
+    """Test which value a member keeps when the file lacks it.
+
+    A member declared by its subclass is parsed in place and keeps the
+    value it held. A member declared by a factory is constructed anew and
+    gets the value given to factory().
+    """
+    config = ExampleConfig41()
+    getattr(config, name).set(0o123)
+    data = dict(DEFAULT_JSON)
+    data[name] = {}
+    config.parse_json(json.dumps(data), ok_to_use_defaults=True)
+    assert getattr(config, name).get() == kept
+    written = 'oct_str' if name in ('file_mode', 'umask') else 'hex_str'
+    assert config.kept_value_paths() == [(name, written)]
+    out, err = capsys.readouterr()
+    assert (out, err) == ('', '')

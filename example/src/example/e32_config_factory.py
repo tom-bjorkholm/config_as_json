@@ -10,6 +10,8 @@ This example teaches the small config factory pattern for that case:
 - register one matcher for each supported file shape
 - let each matcher inspect the raw JSON text
 - construct the configuration class selected by the first matching rule
+- let the file leave out values, which then keep the defaults of the
+  selected class, and tell which values those are
 """
 
 # Copyright (c) 2026 Tom Björkholm
@@ -116,20 +118,62 @@ MATCH_CONFIGS: MatchConfigSeq = [
 """Factory rules used to select the configuration class from JSON."""
 
 
+def _kept_values_text(config: Config) -> str:
+    """Return the names of the values that the file did not contain.
+
+    Args:
+        config: Configuration read with ``ok_to_use_defaults=True``.
+
+    Returns:
+        The names separated by commas, or ``none``.
+    """
+    # kept_value_paths() returns one JsonPath tuple for each value that the
+    # file did not contain, and that therefore kept its default value. A
+    # JsonPath is a tuple of keys and list indexes from the top of the JSON
+    # data. These classes have no nested configurations, so every path here
+    # is a single member name, such as ('show_shadows',). The order of the
+    # list is not guaranteed, so it is sorted to give a stable printout.
+    names = sorted('.'.join(str(part) for part in path)
+                   for path in config.kept_value_paths())
+    if not names:
+        return 'none'
+    return ', '.join(names)
+
+
 def e32_config_factory_print(config_file: PathOrStr) -> None:
     """Read a configuration file and show which class was selected.
 
-    Read a CAD configuration file through the config factory.
+    Read a CAD configuration file through the config factory. The file may
+    leave out values; they keep the defaults of the selected class.
+
     Args:
         config_file: Path to the configuration file to read.
     """
     # The configuration read here is the whole configuration, so it is
     # not a member of anything and its member_name is None.
+    #
+    # ok_to_use_defaults=True lets the file lack values. A file written by
+    # an older version of the program, or by hand, may for example lack
+    # show_shadows. Without the flag that is an error. With it, the value
+    # keeps the default that the constructor of the selected class assigns.
+    #
+    # Notice that Cad2DConfig and Cad3DConfig do not accept the keyword
+    # ok_to_use_defaults in their constructors. They do not have to. The
+    # factory then constructs the selected class with its default values,
+    # and parses the file into that object. Only a class whose default
+    # values are not valid on their own needs to accept ok_to_use_defaults
+    # and pass it on to super().__init__(). However, all Config classes
+    # are allowed to accept `ok_to_use_defaults` and pass it on to
+    # `super().__init__()`. It is a good habit to let the `__init__`
+    # method of your Config classes accept `ok_to_use_defaults`.
+    #
     config = config_factory_from_json(match_configs=MATCH_CONFIGS,
                                       auto_ch_hook=ConfigAutoChangeHook(),
                                       from_json_filename=config_file,
-                                      stderr_file=sys.stderr, member_name=None)
+                                      stderr_file=sys.stderr, member_name=None,
+                                      ok_to_use_defaults=True)
     print(f'Configuration read from {config_file}')
+    print(f'Values not in the file: {_kept_values_text(config)}')
     if isinstance(config, Cad2DConfig):
         print('Configuration class: Cad2DConfig')
         print(f'Selector mode: {config.mode}')

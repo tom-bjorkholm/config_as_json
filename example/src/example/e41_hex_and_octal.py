@@ -177,6 +177,14 @@ class ExampleConfig41(Config):
         # factory name the library class as the config_type, and give the
         # factory that supplies the format to the object the library builds
         # while it parses.
+        #
+        # The two ways differ when a file is read with
+        # ok_to_use_defaults=True and lacks the written value of a member.
+        # file_mode and window_colour are then parsed into the objects that
+        # this configuration holds, so they keep the values they held before
+        # the read. umask and feature_bits are always constructed anew by
+        # their factories, so they get the value given to factory(), which
+        # is 0o022 and 0xf here.
         return {
             'file_mode': ConfigNesting(kind=ConfigNestingKind.MEMBER,
                                        config_type=FileMode),

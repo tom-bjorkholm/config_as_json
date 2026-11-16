@@ -94,6 +94,7 @@ def test_e32_print_reads_3d_config_with_factory(
     assert err == ''
     assert out == '\n'.join([
         f'Configuration read from {config_file}',
+        'Values not in the file: none',
         'Configuration class: Cad3DConfig',
         'Selector space: 3D',
         'Project name: demo-part',
@@ -108,6 +109,7 @@ def test_e32_main_round_trip_prints_default_2d_values(
     """Round-trip default 2D values through the command line."""
     assert_rt_out(capsys, e32_main, 'cad.cfg', [],
                   [
+                      'Values not in the file: none',
                       'Configuration class: Cad2DConfig',
                       'Selector mode: 2D',
                       'Project name: demo-part',
@@ -129,6 +131,7 @@ def test_e32_main_round_trip_with_3d_overrides(
                       '0.5',
                   ],
                   [
+                      'Values not in the file: none',
                       'Configuration class: Cad3DConfig',
                       'Selector space: 3D',
                       'Project name: gearbox',
@@ -136,6 +139,31 @@ def test_e32_main_round_trip_with_3d_overrides(
                       'Default view: isometric',
                       'Show shadows: True',
                   ])
+
+
+@pytest.mark.parametrize('json_data, expected', [
+    ({'space': '3D', 'project_name': 'gearbox', 'grid_size_mm': 0.5},
+     ['Values not in the file: default_view, show_shadows',
+      'Configuration class: Cad3DConfig', 'Selector space: 3D',
+      'Project name: gearbox', 'Grid size: 0.5 mm',
+      'Default view: isometric', 'Show shadows: True']),
+    ({'mode': '2D', 'drawing_plane': 'XZ'},
+     ['Values not in the file: grid_size_mm, project_name',
+      'Configuration class: Cad2DConfig', 'Selector mode: 2D',
+      'Project name: demo-part', 'Grid size: 1.0 mm',
+      'Drawing plane: XZ'])])
+def test_e32_print_keeps_defaults(capsys: pytest.CaptureFixture[str],
+                                  json_data: dict[str, object],
+                                  expected: list[str]) -> None:
+    """Print a file that lacks values, which keep the class defaults."""
+    with TemporaryDirectory() as dirname:
+        config_file = dirname + '/cad.cfg'
+        write_json_file(config_file, json_data)
+        e32_config_factory_print(config_file)
+        out, err = capsys.readouterr()
+    assert err == ''
+    assert out == '\n'.join([f'Configuration read from {config_file}',
+                             *expected]) + '\n'
 
 
 @pytest.mark.parametrize('json_data',

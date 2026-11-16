@@ -126,14 +126,15 @@
   * [accepts\_keyword](#config_as_json._deprecated_support.accepts_keyword)
   * [\_callable\_name](#config_as_json._deprecated_support._callable_name)
   * [\_no\_member\_name\_message](#config_as_json._deprecated_support._no_member_name_message)
+  * [\_no\_defaults\_message](#config_as_json._deprecated_support._no_defaults_message)
+  * [\_use\_keyword](#config_as_json._deprecated_support._use_keyword)
   * [use\_member\_name](#config_as_json._deprecated_support.use_member_name)
+  * [use\_defaults\_keyword](#config_as_json._deprecated_support.use_defaults_keyword)
 * [config\_as\_json.\_config\_nesting\_io](#config_as_json._config_nesting_io)
   * [\_NestedConfigEncoder](#config_as_json._config_nesting_io._NestedConfigEncoder)
     * [default](#config_as_json._config_nesting_io._NestedConfigEncoder.default)
-  * [\_InitKeywords](#config_as_json._config_nesting_io._InitKeywords)
   * [NestedReadContext](#config_as_json._config_nesting_io.NestedReadContext)
   * [\_constructed\_defaults](#config_as_json._config_nesting_io._constructed_defaults)
-  * [\_init\_keywords](#config_as_json._config_nesting_io._init_keywords)
   * [\_parsed\_in\_place](#config_as_json._config_nesting_io._parsed_in_place)
   * [\_constructed\_by\_type](#config_as_json._config_nesting_io._constructed_by_type)
   * [\_constructed\_by\_factory](#config_as_json._config_nesting_io._constructed_by_factory)
@@ -438,6 +439,15 @@
   * [DictKeyValueTypesValidator](#config_as_json.dict_validators.DictKeyValueTypesValidator)
     * [\_\_init\_\_](#config_as_json.dict_validators.DictKeyValueTypesValidator.__init__)
     * [validate\_member](#config_as_json.dict_validators.DictKeyValueTypesValidator.validate_member)
+* [config\_as\_json.\_config\_construct](#config_as_json._config_construct)
+  * [ConfigT\_co](#config_as_json._config_construct.ConfigT_co)
+  * [InitKeywords](#config_as_json._config_construct.InitKeywords)
+  * [ConfigMaker](#config_as_json._config_construct.ConfigMaker)
+    * [\_\_call\_\_](#config_as_json._config_construct.ConfigMaker.__call__)
+  * [member\_name\_keywords](#config_as_json._config_construct.member_name_keywords)
+  * [\_one\_source](#config_as_json._config_construct._one_source)
+  * [\_read\_into](#config_as_json._config_construct._read_into)
+  * [construct\_config](#config_as_json._config_construct.construct_config)
 * [config\_as\_json.file\_extension](#config_as_json.file_extension)
   * [fix\_file\_extension](#config_as_json.file_extension.fix_file_extension)
 * [config\_as\_json.rocf\_change](#config_as_json.rocf_change)
@@ -2947,13 +2957,15 @@ Validate one member if it is not None.
 
 Support compatibility shims for the API migrations of this package.
 
-Two migrations are supported here. A renamed hook is supported by calling
-the old name when a subclass overrides it. A method or a constructor of an
-application that does not accept the ``member_name`` argument is supported
-by calling it without that argument. Both warn that the old way is
-deprecated.
+Three migrations are supported here. A renamed hook is supported by
+calling the old name when a subclass overrides it. A method or a constructor
+of an application that does not accept the ``member_name`` argument is
+supported by calling it without that argument. A factory function of an
+application that does not accept the ``ok_to_use_defaults`` argument is
+supported by calling it without that argument, so that it parses strictly.
+All of them warn that the old way is deprecated.
 
-The signature check behind the second migration also tells whether a
+The signature check behind the last two migrations also tells whether a
 constructor accepts ``ok_to_use_defaults``, see :func:`accepts_keyword`.
 
 <a id="config_as_json._deprecated_support.DeprecatedHook"></a>
@@ -3094,6 +3106,45 @@ def _no_member_name_message(func: Callable[..., object]) -> str
 
 Return the message about a callable that omits ``member_name``.
 
+<a id="config_as_json._deprecated_support._no_defaults_message"></a>
+
+#### \_no\_defaults\_message
+
+```python
+def _no_defaults_message(func: Callable[..., object]) -> str
+```
+
+Return the message about a factory that omits ``ok_to_use_defaults``.
+
+<a id="config_as_json._deprecated_support._use_keyword"></a>
+
+#### \_use\_keyword
+
+```python
+def _use_keyword(func: Callable[..., object], name: str,
+                 message: Callable[[Callable[..., object]],
+                                   str], stacklevel: int) -> bool
+```
+
+Return whether a keyword argument should be passed to a callable.
+
+Warn about a callable that does not accept the argument, once for each
+function, each class and each keyword argument that has to be added, so
+that an application overriding two methods learns about both of them.
+
+**Arguments**:
+
+- `func` - Callable that the library is about to call.
+- `name` - Name of the keyword argument.
+- `message` - Returns the warning message about the callable.
+- `stacklevel` - Stack level that the warning is attributed to, counted
+  from the caller of this function.
+
+
+**Returns**:
+
+  Whether the keyword argument can be passed to the callable.
+
 <a id="config_as_json._deprecated_support.use_member_name"></a>
 
 #### use\_member\_name
@@ -3104,9 +3155,7 @@ def use_member_name(func: Callable[..., object], stacklevel: int) -> bool
 
 Return whether ``member_name`` should be passed to a callable.
 
-Warn about a callable that does not accept the argument, once for each
-function and each class that has to be changed, so that an application
-overriding two methods learns about both of them.
+Warn once per function and per class that does not accept it.
 
 **Arguments**:
 
@@ -3118,6 +3167,31 @@ overriding two methods learns about both of them.
 **Returns**:
 
   Whether ``member_name`` can be passed to the callable.
+
+<a id="config_as_json._deprecated_support.use_defaults_keyword"></a>
+
+#### use\_defaults\_keyword
+
+```python
+def use_defaults_keyword(func: Callable[..., object], stacklevel: int) -> bool
+```
+
+Return whether ``ok_to_use_defaults`` should be passed to a factory.
+
+Warn once per factory that does not accept it. Call this only when the
+flag is true, so that a strict parse neither reads the signature nor
+warns.
+
+**Arguments**:
+
+- `func` - Factory function that the library is about to call.
+- `stacklevel` - Stack level that the warning is attributed to, counted
+  from the caller of this function.
+
+
+**Returns**:
+
+  Whether ``ok_to_use_defaults`` can be passed to the factory.
 
 <a id="config_as_json._config_nesting_io"></a>
 
@@ -3147,7 +3221,8 @@ the same place, when that is of the declared class. Otherwise it is
 constructed with the JSON text and ``ok_to_use_defaults`` when its
 constructor accepts that, or else constructed from its class defaults and
 then parsed. A declaration with a factory function is always constructed by
-the factory.
+the factory, with ``ok_to_use_defaults`` when the factory accepts it, and
+else strictly, with a warning.
 
 <a id="config_as_json._config_nesting_io._NestedConfigEncoder"></a>
 
@@ -3168,16 +3243,6 @@ def default(o: object) -> object
 ```
 
 Serialize enum members using their symbolic names.
-
-<a id="config_as_json._config_nesting_io._InitKeywords"></a>
-
-## \_InitKeywords Objects
-
-```python
-class _InitKeywords(TypedDict)
-```
-
-Optional keyword arguments for constructing a nested Config.
 
 <a id="config_as_json._config_nesting_io.NestedReadContext"></a>
 
@@ -3225,30 +3290,6 @@ Construct one Config instance holding its class defaults.
 **Returns**:
 
   A new Config instance holding its own default values.
-
-<a id="config_as_json._config_nesting_io._init_keywords"></a>
-
-#### \_init\_keywords
-
-```python
-def _init_keywords(config_type: 'type[Config]', name: str,
-                   ok_to_use_defaults: bool) -> _InitKeywords
-```
-
-Return the optional keyword arguments for a nested constructor.
-
-**Arguments**:
-
-- `config_type` - Config-derived class to construct.
-- `name` - Path text for reaching the nested object. It is passed as
-  ``member_name`` when the constructor accepts it.
-- `ok_to_use_defaults` - Whether to pass ``ok_to_use_defaults=True``.
-  The caller has checked that the constructor accepts it.
-
-
-**Returns**:
-
-  The keyword arguments that the constructor is to get.
 
 <a id="config_as_json._config_nesting_io._parsed_in_place"></a>
 
@@ -3313,10 +3354,14 @@ then validated on their own, and the JSON text is parsed into it.
 
 ```python
 def _constructed_by_factory(name: str, json_text: str, nesting: ConfigNesting,
-                            stderr_file: TextIO) -> 'Config'
+                            read: NestedReadContext) -> 'Config'
 ```
 
 Construct one nested Config object with its declared factory.
+
+When ``read.ok_to_use_defaults`` is true, a factory that accepts
+``ok_to_use_defaults`` is called with it. Another factory is called
+without it, so it parses strictly, and it is warned about once.
 
 **Arguments**:
 
@@ -3324,7 +3369,7 @@ Construct one nested Config object with its declared factory.
   constructed object as its ``member_name``.
 - `json_text` - JSON text describing the nested Config.
 - `nesting` - Nested Config declaration for the member.
-- `stderr_file` - Stream used for user-facing diagnostics.
+- `read` - What the reads of the nested members share.
 
 
 **Returns**:
@@ -5144,7 +5189,10 @@ keyword ``ok_to_use_defaults`` should pass it on to ``super().__init__``.
 The library passes it to the constructor of a nested Config class that
 accepts it. A nested Config class that does not accept it is
 constructed from its class defaults, which must then be valid on their
-own, before the JSON data is parsed into it.
+own, before the JSON data is parsed into it. A nested Config declared
+with a ``factory_function`` is always constructed anew by the factory,
+so its missing keys get the defaults of the class that the factory
+constructs, never the values of the current nested object.
 
 <a id="config_as_json.config.Config.__init__"></a>
 
@@ -5250,9 +5298,17 @@ value assigned by the constructor.
 the previous parse, not the constructor default.
 - In a nested Config that the JSON data contains but that had no
 current nested object at the same place to be parsed into (any list
-element, a dict key that the current dict lacked, or an optional
-member that was None), that is the default value of the nested
-Config class.
+element, a dict key that the current dict lacked, an optional
+member that was None, or a current object of a subclass of the
+declared class), that is the default value of the nested Config
+class.
+- In a nested Config declared with a ``factory_function``, that is
+the default value of the class that the factory constructs, also
+when there is a current nested object at the same place. The
+factory chooses the class from the JSON data, so the JSON data is
+never parsed into the current nested object, and the values of
+that object are not kept. Declare the member by type, without a
+factory, when they should be kept.
 
 Defaults only complete nested objects that the JSON data contains. No
 list element, dict key or optional member is ever added because of
@@ -5766,7 +5822,12 @@ same points.
   contains is parsed into the current nested object of the
   declared class at the same place, or else constructed with
   the defaults of its class, so its missing keys keep values
-  too. A nested object parsed in place is changed, also when
+  too. A nested Config declared with a ``factory_function`` is
+  always constructed by the factory, so its missing keys get
+  the defaults of the class that the factory constructs, not
+  the values of the current nested object. See
+  :meth:`kept_value_paths`. A nested object parsed in place is
+  changed, also when
   another object shares it, and a failing parse may leave it
   partly updated. :meth:`kept_value_paths` then tells which
   values were kept.
@@ -6567,7 +6628,8 @@ def __init__(from_json_data_text: Optional[str] = None,
              value: Optional[int | str] = None,
              prefix: Optional[PrefixT] = None,
              digits: int = 0,
-             member_name: Optional[str] = None) -> None
+             member_name: Optional[str] = None,
+             ok_to_use_defaults: bool = False) -> None
 ```
 
 Initialize the written number configuration value.
@@ -6597,6 +6659,9 @@ Initialize the written number configuration value.
   complete construction, such as ``limits[cpu].mask``. ``None``
   means that this value is the top level and not a member of
   anything.
+- `ok_to_use_defaults` - Whether the supplied JSON data may lack the
+  written member, which then keeps ``value``. See
+  :meth:`Config.parse_json` and :meth:`Config.kept_value_paths`.
 
 
 **Raises**:
@@ -6781,6 +6846,13 @@ The class this is called on is the class constructed, so it has to
 be one that accepts ``prefix`` and ``digits``. A subclass that fixes
 its own format instead does not, and needs no factory.
 
+A factory always constructs a new object. When a parse with
+``ok_to_use_defaults`` true finds no written value for the member,
+the member therefore gets ``value``, the declared default, and not
+the value that the member held before the parse. A member declared
+by a subclass that supplies its format, without a factory, is
+parsed into the object it holds, and keeps its value instead.
+
 **Arguments**:
 
 - `prefix` - The prefix that constructed values are written with.
@@ -6902,10 +6974,14 @@ def __call__(*,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
              stderr_file: TextIO = sys.stderr,
-             member_name: Optional[str] = None) -> 'RadixNumber[PrefixT]'
+             member_name: Optional[str] = None,
+             ok_to_use_defaults: bool = False) -> 'RadixNumber[PrefixT]'
 ```
 
 Construct one written number with the declared format.
+
+A class whose constructor does not accept ``ok_to_use_defaults`` is
+constructed with ``value`` and then parsed, when the flag is true.
 
 **Arguments**:
 
@@ -6917,6 +6993,8 @@ Construct one written number with the declared format.
   the complete construction, such as ``limits[cpu].mask``.
   ``None`` means that the constructed value is the top level
   and not a member of anything.
+- `ok_to_use_defaults` - Whether the JSON data may lack the written
+  member, which then keeps the value of the factory.
 
 
 **Returns**:
@@ -10068,6 +10146,163 @@ value_validator. An empty dict is considered valid.
 - `InvalidConfigurationValue` - If a supplied validator raised
   ``InvalidConfigurationValue``.
 
+<a id="config_as_json._config_construct"></a>
+
+# config\_as\_json.\_config\_construct
+
+Construct a Config object of a known class on behalf of the library.
+
+The library constructs a Config class itself for a nested Config declared
+by type, in ``config_factory_from_json``, and in the factory returned by
+``RadixNumber.factory()``. Each of them passes its own other arguments, so
+each hands over a :class:`ConfigMaker` that calls the constructor, and this
+module decides about the keyword arguments that came later in the API:
+
+- ``member_name`` is passed when the constructor accepts it, and a
+  constructor that does not accept it warns that it should be changed.
+- ``ok_to_use_defaults`` is only considered when the flag is true. A
+  constructor that accepts it is called with it. Another one is constructed
+  from its class defaults, which are validated on their own, and the JSON
+  data is then read into it with ``ok_to_use_defaults`` true. So no derived
+  class has to accept the keyword unless its defaults are not valid on
+  their own.
+
+<a id="config_as_json._config_construct.ConfigT_co"></a>
+
+#### ConfigT\_co
+
+The class of the Config object that a :class:`ConfigMaker` constructs.
+
+<a id="config_as_json._config_construct.InitKeywords"></a>
+
+## InitKeywords Objects
+
+```python
+class InitKeywords(TypedDict)
+```
+
+Optional keyword arguments for constructing a Config object.
+
+<a id="config_as_json._config_construct.ConfigMaker"></a>
+
+## ConfigMaker Objects
+
+```python
+class ConfigMaker(Protocol[ConfigT_co])
+```
+
+Call the constructor of one Config class with its JSON source.
+
+<a id="config_as_json._config_construct.ConfigMaker.__call__"></a>
+
+#### \_\_call\_\_
+
+```python
+def __call__(json_text: Optional[str], json_filename: Optional[PathOrStr],
+             **keywords: Unpack[InitKeywords]) -> ConfigT_co
+```
+
+Construct one Config object.
+
+**Arguments**:
+
+- `json_text` - Optional JSON text, for ``from_json_data_text``.
+- `json_filename` - Optional JSON file, for ``from_json_filename``.
+- `keywords` - The optional keyword arguments to pass on.
+
+
+**Returns**:
+
+  The constructed Config object.
+
+<a id="config_as_json._config_construct.member_name_keywords"></a>
+
+#### member\_name\_keywords
+
+```python
+def member_name_keywords(func: Callable[...,
+                                        object], member_name: Optional[str],
+                         stacklevel: int) -> InitKeywords
+```
+
+Return ``member_name`` as keyword arguments, if a callable takes it.
+
+**Arguments**:
+
+- `func` - Class or factory function that the library is about to call.
+- `member_name` - Dotted and indexed path for reaching the constructed
+  object from the top level of the complete construction.
+- `stacklevel` - Stack level that a warning is attributed to, counted
+  from the caller of this function.
+
+
+**Returns**:
+
+  The keyword arguments holding ``member_name``, or none.
+
+<a id="config_as_json._config_construct._one_source"></a>
+
+#### \_one\_source
+
+```python
+def _one_source(json_text: Optional[str],
+                json_filename: Optional[PathOrStr]) -> bool
+```
+
+Return whether exactly one JSON source is given.
+
+<a id="config_as_json._config_construct._read_into"></a>
+
+#### \_read\_into
+
+```python
+def _read_into(config: 'Config', json_text: Optional[str],
+               json_filename: Optional[PathOrStr], stderr_file: TextIO,
+               member_name: Optional[str]) -> None
+```
+
+Read the one given JSON source into a Config, keeping its values.
+
+<a id="config_as_json._config_construct.construct_config"></a>
+
+#### construct\_config
+
+```python
+def construct_config(make: ConfigMaker[ConfigT_co],
+                     config_type: type['Config'], json_text: Optional[str],
+                     json_filename: Optional[PathOrStr],
+                     ok_to_use_defaults: bool, *, stderr_file: TextIO,
+                     member_name: Optional[str],
+                     stacklevel: int) -> ConfigT_co
+```
+
+Construct one Config object, keeping defaults when asked to.
+
+With ``ok_to_use_defaults`` false the constructor is called exactly as
+without the flag, and its signature is not checked for it. The flag
+is also not passed on without exactly one JSON source, since then it
+has no effect, and two sources are left to the constructor to reject.
+
+**Arguments**:
+
+- `make` - Calls the constructor of ``config_type``.
+- `config_type` - The class that ``make`` constructs.
+- `json_text` - Optional JSON text to construct from.
+- `json_filename` - Optional JSON file to construct from.
+- `ok_to_use_defaults` - Whether the JSON data may lack required keys,
+  which then keep the default values of the class.
+- `stderr_file` - Stream used for user-facing diagnostics.
+- `member_name` - Dotted and indexed path for reaching the constructed
+  object from the top level of the complete construction. ``None``
+  means that the constructed object is the top level.
+- `stacklevel` - Stack level that a warning is attributed to, counted
+  from the caller of this function.
+
+
+**Returns**:
+
+  The constructed Config object.
+
 <a id="config_as_json.file_extension"></a>
 
 # config\_as\_json.file\_extension
@@ -10601,7 +10836,8 @@ case-insensitively and all other JSON values with ``==``.
 ```python
 def _constructed_match(config_class: type[Config], json_text: str,
                        auto_ch_hook: ConfigAutoChangeHook, stderr_file: TextIO,
-                       *, member_name: Optional[str]) -> Config
+                       *, member_name: Optional[str],
+                       ok_to_use_defaults: bool) -> Config
 ```
 
 Construct the configuration class that accepted the JSON input.
@@ -10616,6 +10852,8 @@ Construct the configuration class that accepted the JSON input.
   by traversing nested attributes from the top level of the
   complete construction. ``None`` means that the created object is
   the top level and not a member of anything.
+- `ok_to_use_defaults` - Whether the JSON data may lack required keys,
+  which then keep the default values of ``config_class``.
 
 
 **Returns**:
@@ -10633,7 +10871,8 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
                              from_json_data_text: Optional[str] = None,
                              stderr_file: TextIO = sys.stderr,
                              *,
-                             member_name: Optional[str] = None) -> Config
+                             member_name: Optional[str] = None,
+                             ok_to_use_defaults: bool = False) -> Config
 ```
 
 Create the first configuration class whose matcher accepts the input.
@@ -10641,6 +10880,13 @@ Create the first configuration class whose matcher accepts the input.
 The function is intended for applications that support several related
 configuration schemas and want to decide which ``Config`` subclass to use
 by inspecting the input document itself.
+
+With ``ok_to_use_defaults`` true, the selected class is constructed with
+``ok_to_use_defaults=True`` when its constructor accepts it. Another
+class is constructed from its class defaults, which are then validated
+on their own, and the JSON data is then parsed into it. Either way
+:meth:`Config.kept_value_paths` of the result tells which values were
+kept.
 
 **Arguments**:
 
@@ -10656,6 +10902,9 @@ by inspecting the input document itself.
   complete construction, such as ``outputs[1].section``. ``None``
   means that the created object is the top level and not a member
   of anything.
+- `ok_to_use_defaults` - Whether the JSON data may lack required keys,
+  which then keep the default values of the selected class. See
+  :meth:`Config.parse_json` and :meth:`Config.kept_value_paths`.
 
 
 **Returns**:
@@ -13703,10 +13952,24 @@ def __call__(*,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
              stderr_file: TextIO = sys.stderr,
-             member_name: Optional[str] = None) -> 'Config'
+             member_name: Optional[str] = None,
+             ok_to_use_defaults: bool = False) -> 'Config'
 ```
 
 Construct one nested Config object.
+
+A factory is expected to pass every argument on to the constructor
+of the class that it chooses, so that class has to accept
+``ok_to_use_defaults`` as well.
+
+The library calls the factory for every nested object that the JSON
+data contains, also when the object being parsed already holds a
+nested object at the same place. A factory chooses the class from
+the JSON data, so the library never parses the JSON data into the
+current nested object. With ``ok_to_use_defaults`` true, the keys
+that the JSON data lacks therefore keep the default values of the
+class that the factory constructs, not the values of the current
+nested object.
 
 **Arguments**:
 
@@ -13718,6 +13981,10 @@ Construct one nested Config object.
   the complete construction, such as ``outputs[1].section``.
   ``None`` means that the constructed object is the top level
   and not a member of anything.
+- `ok_to_use_defaults` - Whether the JSON data may lack required
+  keys, which then keep the default values of the constructed
+  class. See :meth:`Config.parse_json` and
+  :meth:`Config.kept_value_paths`.
 
 
 **Returns**:
@@ -13742,8 +14009,28 @@ class when it reads a nested JSON object. A class or a factory that does
 not accept ``member_name`` is called without it and warns that it should
 be changed. If ``factory_function`` is set, that callable is used instead
 of the ``config_type`` constructor. The factory must accept the same
-keyword arguments and must return an instance of ``config_type`` or a
-subclass.
+keyword arguments, should accept ``ok_to_use_defaults`` as well, see
+:class:`ConfigFactory`, and must return an instance of ``config_type`` or
+a subclass.
+
+When the parent is parsed with ``ok_to_use_defaults`` true, a nested
+class is constructed with ``ok_to_use_defaults=True`` if its constructor
+accepts it. Another class is constructed from its class defaults, which
+are then validated on their own, and the JSON data is then parsed into
+it. Only a class whose defaults are not valid on their own needs to
+accept ``ok_to_use_defaults`` and pass it on to ``super().__init__``. A
+factory is called with ``ok_to_use_defaults=True`` if it accepts it. A
+factory that does not accept it is called without it, so it parses
+strictly, and warns that it should be changed.
+
+A member declared with ``factory_function`` is never parsed into its
+current nested object, since the factory chooses the class from the
+JSON data. With ``ok_to_use_defaults`` true, its missing keys keep the
+default values of the class that the factory constructs, not the values
+of the current nested object. Without a factory, a nested object of
+exactly ``config_type`` that is a ``MEMBER``, an ``OPTIONAL_MEMBER`` or a
+dict value is parsed into in place, and keeps its values. See
+:meth:`Config.kept_value_paths`.
 
 **Attributes**:
 

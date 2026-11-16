@@ -10,12 +10,14 @@ and creates the appropriate configuration object.
 # Copyright (c) 2024-2026 Tom Björkholm
 # MIT License
 
-from typing import Optional, NamedTuple, Sequence, Callable, TextIO, NoReturn
+from typing import Optional, NamedTuple, Sequence, Callable, TextIO, \
+    NoReturn, Unpack
 from json import loads as json_loads
 from json import JSONDecodeError
 import sys
 from config_as_json.config import Config
-from config_as_json._deprecated_support import use_member_name
+from config_as_json._config_construct import InitKeywords, \
+    construct_config
 from config_as_json.config_auto_change_hook import ConfigAutoChangeHook
 from config_as_json.file_must_exist import file_must_exist
 from config_as_json.commontypes import PathOrStr, JsonType
@@ -158,9 +160,11 @@ class JsonValueMatcher:
         return value_at_key == expected_value
 
 
+# pylint: disable-next=too-many-arguments
 def _constructed_match(config_class: type[Config], json_text: str,
                        auto_ch_hook: ConfigAutoChangeHook, stderr_file: TextIO,
-                       *, member_name: Optional[str]) -> Config:
+                       *, member_name: Optional[str],
+                       ok_to_use_defaults: bool) -> Config:
     """Construct the configuration class that accepted the JSON input.
 
     Args:
@@ -172,16 +176,23 @@ def _constructed_match(config_class: type[Config], json_text: str,
             by traversing nested attributes from the top level of the
             complete construction. ``None`` means that the created object is
             the top level and not a member of anything.
+        ok_to_use_defaults: Whether the JSON data may lack required keys,
+            which then keep the default values of ``config_class``.
 
     Returns:
         The constructed configuration object.
     """
-    if use_member_name(config_class, stacklevel=2):
-        return config_class(from_json_data_text=json_text,
-                            from_json_filename=None, auto_ch_hook=auto_ch_hook,
-                            stderr_file=stderr_file, member_name=member_name)
-    return config_class(from_json_data_text=json_text, from_json_filename=None,
-                        auto_ch_hook=auto_ch_hook, stderr_file=stderr_file)
+
+    def make(text: Optional[str], filename: Optional[PathOrStr], /,
+             **keywords: Unpack[InitKeywords]) -> Config:
+        """Call the selected class with the hook of the factory."""
+        return config_class(from_json_data_text=text,
+                            from_json_filename=filename,
+                            auto_ch_hook=auto_ch_hook, stderr_file=stderr_file,
+                            **keywords)
+    return construct_config(make, config_class, json_text, None,
+                            ok_to_use_defaults, stderr_file=stderr_file,
+                            member_name=member_name, stacklevel=2)
 
 
 # pylint: disable-next=too-many-arguments
@@ -190,12 +201,20 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
                              from_json_filename: Optional[PathOrStr] = None,
                              from_json_data_text: Optional[str] = None,
                              stderr_file: TextIO = sys.stderr, *,
-                             member_name: Optional[str] = None) -> Config:
+                             member_name: Optional[str] = None,
+                             ok_to_use_defaults: bool = False) -> Config:
     """Create the first configuration class whose matcher accepts the input.
 
     The function is intended for applications that support several related
     configuration schemas and want to decide which ``Config`` subclass to use
     by inspecting the input document itself.
+
+    With ``ok_to_use_defaults`` true, the selected class is constructed with
+    ``ok_to_use_defaults=True`` when its constructor accepts it. Another
+    class is constructed from its class defaults, which are then validated
+    on their own, and the JSON data is then parsed into it. Either way
+    :meth:`Config.kept_value_paths` of the result tells which values were
+    kept.
 
     Args:
         match_configs: Ordered matcher/class pairs. The first matcher that
@@ -210,6 +229,9 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
             complete construction, such as ``outputs[1].section``. ``None``
             means that the created object is the top level and not a member
             of anything.
+        ok_to_use_defaults: Whether the JSON data may lack required keys,
+            which then keep the default values of the selected class. See
+            :meth:`Config.parse_json` and :meth:`Config.kept_value_paths`.
 
     Returns:
         An instance of the selected ``Config`` subclass populated from the
@@ -229,7 +251,8 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
                                       json_text=text,
                                       auto_ch_hook=auto_ch_hook,
                                       stderr_file=stderr_file,
-                                      member_name=member_name)
+                                      member_name=member_name,
+                                      ok_to_use_defaults=ok_to_use_defaults)
     msg = 'No matching config class found'
     if member_name is not None:
         msg += f' for {member_name}'

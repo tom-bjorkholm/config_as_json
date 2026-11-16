@@ -1188,6 +1188,18 @@ The `print` command passes `MATCH_CONFIGS` to `config_factory_from_json()`.
 The user does not need to tell the command which mode the file contains; the
 file content selects the class.
 
+The `print` command also passes `ok_to_use_defaults=True`, so the file may
+leave out values. They keep the defaults of the selected class, and the
+command prints the names that `kept_value_paths()` reports for them. Neither
+class accepts `ok_to_use_defaults` in its constructor, and neither needs to:
+the factory then constructs the selected class with its default values and
+parses the file into it. Only a class whose default values are not valid on
+their own needs to accept `ok_to_use_defaults` and pass it on to
+`super().__init__()`. However, all Config classes are allowed to accept
+`ok_to_use_defaults` and pass it on to `super().__init__()`.
+It is a good habit to let the `__init__` method of your Config classes
+accept `ok_to_use_defaults`.
+
 The `set` command is only there to write small files for the example. It uses
 the same command-line helper as most earlier examples and accepts `--mode`,
 `--project-name`, and `--grid-size-mm`. The mode argument is optional and
@@ -1253,13 +1265,30 @@ those paths look like in a real diagnostic.
 If construction needs application-specific logic, keep `config_type` as the
 expected runtime type and add `factory_function` to the `ConfigNesting`
 declaration. The factory must accept the same keyword arguments and must
-return an instance of `config_type` or a subclass:
+return an instance of `config_type` or a subclass. It should also accept
+`ok_to_use_defaults: bool = False` and pass it on, as the factory of
+`e36_dict_by_key_nested_configs` does. The base class passes
+`ok_to_use_defaults=True` when the parent is parsed with it, so that the
+nested object can keep default values for keys that its JSON data lacks. A
+factory that does not accept it is called without it, so it parses strictly,
+and a `DeprecationWarning` says that it should be changed:
 
 ```python
 ConfigNesting(kind=ConfigNestingKind.MEMBER,
               config_type=OutputConfig,
               factory_function=create_output_config)
 ```
+
+The factory is called for every nested object that the JSON data contains,
+also when the parent already holds a nested object at the same place. A
+factory chooses the class from the JSON data, so the base class never parses
+the JSON data into the object that the parent holds. With
+`ok_to_use_defaults=True` the keys that the JSON data lacks therefore get the
+default values of the class that the factory constructs, not the values of
+the nested object that the parent held before the parse. A `MEMBER`, an
+`OPTIONAL_MEMBER` or a dict value declared by type, without a factory, is
+instead parsed into the nested object that the parent holds, when that object
+is of exactly the declared class, and keeps its values.
 
 The same factory form can be used with `ConfigNestingKind.LIST_ELEMENT`;
 the factory is then called once for every JSON object in the list. It can
@@ -1776,9 +1805,16 @@ ways of saying them:
   value with that same format.
 
 Both ways matter, because the base class constructs a fresh nested object
-every time JSON is parsed. A declaration that says nothing about the format
-would be rebuilt with the default format, which is no prefix and as few
-digits as the value needs.
+every time JSON is parsed strictly. A declaration that says nothing about the
+format would be rebuilt with the default format, which is no prefix and as
+few digits as the value needs.
+
+The two ways differ when a file is read with `ok_to_use_defaults=True` and
+lacks the written value of a member. A member declared by its subclass is
+then parsed into the object that the configuration holds, and keeps the value
+that it held before the read. A member declared by a factory is always
+constructed anew by the factory, and gets the `value` given to `factory()`,
+the declared default.
 
 The octal prefixes are `Prefix.NONE`, `Prefix.ZERO_O` for the `0o755` of
 Python, and `Prefix.ZERO` for the `0755` of the chmod documentation. The

@@ -106,13 +106,14 @@ class PickingFactory:
     def __call__(self, *, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 member_name: Optional[str] = None) -> Config:
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> Config:
         """Construct the nested Config that the JSON data selects."""
         return config_factory_from_json(
             match_configs=MATCH_PARTS, auto_ch_hook=ConfigAutoChangeHook(),
             from_json_filename=from_json_filename,
             from_json_data_text=from_json_data_text, stderr_file=stderr_file,
-            member_name=member_name)
+            member_name=member_name, ok_to_use_defaults=ok_to_use_defaults)
 
 
 class PickingParent(Config):

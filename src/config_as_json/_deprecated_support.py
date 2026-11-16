@@ -1,13 +1,15 @@
 #! /usr/local/bin/python3
 """Support compatibility shims for the API migrations of this package.
 
-Two migrations are supported here. A renamed hook is supported by calling
-the old name when a subclass overrides it. A method or a constructor of an
-application that does not accept the ``member_name`` argument is supported
-by calling it without that argument. Both warn that the old way is
-deprecated.
+Three migrations are supported here. A renamed hook is supported by
+calling the old name when a subclass overrides it. A method or a constructor
+of an application that does not accept the ``member_name`` argument is
+supported by calling it without that argument. A factory function of an
+application that does not accept the ``ok_to_use_defaults`` argument is
+supported by calling it without that argument, so that it parses strictly.
+All of them warn that the old way is deprecated.
 
-The signature check behind the second migration also tells whether a
+The signature check behind the last two migrations also tells whether a
 constructor accepts ``ok_to_use_defaults``, see :func:`accepts_keyword`.
 """
 
@@ -111,7 +113,7 @@ def _remembered_for(func: Callable[..., object]) -> Optional[object]:
 
 
 _KEYWORD_TAKERS: dict[tuple[object, str], bool] = {}
-_MEMBER_NAME_WARNED: set[object] = set()
+_KEYWORD_WARNED: set[tuple[object, str]] = set()
 
 
 def accepts_keyword(func: Callable[..., object], name: str) -> bool:
@@ -160,12 +162,51 @@ def _no_member_name_message(func: Callable[..., object]) -> str:
     return msg
 
 
+def _no_defaults_message(func: Callable[..., object]) -> str:
+    """Return the message about a factory that omits ``ok_to_use_defaults``."""
+    msg = f'{_callable_name(func)}() does not accept the ok_to_use_defaults '
+    msg += "keyword argument. Add 'ok_to_use_defaults: bool = False' to it "
+    msg += 'and pass the value on, so that the nested configuration that it '
+    msg += 'constructs can keep default values for keys that the JSON data '
+    msg += 'lacks. Until then it parses strictly. Leaving out '
+    msg += 'ok_to_use_defaults will stop working in a future major release.'
+    return msg
+
+
+def _use_keyword(func: Callable[..., object], name: str,
+                 message: Callable[[Callable[..., object]], str],
+                 stacklevel: int) -> bool:
+    """Return whether a keyword argument should be passed to a callable.
+
+    Warn about a callable that does not accept the argument, once for each
+    function, each class and each keyword argument that has to be added, so
+    that an application overriding two methods learns about both of them.
+
+    Args:
+        func: Callable that the library is about to call.
+        name: Name of the keyword argument.
+        message: Returns the warning message about the callable.
+        stacklevel: Stack level that the warning is attributed to, counted
+            from the caller of this function.
+
+    Returns:
+        Whether the keyword argument can be passed to the callable.
+    """
+    if accepts_keyword(func, name):
+        return True
+    key = _remembered_for(func)
+    if key is not None:
+        if (key, name) in _KEYWORD_WARNED:
+            return False
+        _KEYWORD_WARNED.add((key, name))
+    warnings.warn(message(func), DeprecationWarning, stacklevel=stacklevel + 1)
+    return False
+
+
 def use_member_name(func: Callable[..., object], stacklevel: int) -> bool:
     """Return whether ``member_name`` should be passed to a callable.
 
-    Warn about a callable that does not accept the argument, once for each
-    function and each class that has to be changed, so that an application
-    overriding two methods learns about both of them.
+    Warn once per function and per class that does not accept it.
 
     Args:
         func: Callable that the library is about to call.
@@ -175,13 +216,24 @@ def use_member_name(func: Callable[..., object], stacklevel: int) -> bool:
     Returns:
         Whether ``member_name`` can be passed to the callable.
     """
-    if accepts_keyword(func, 'member_name'):
-        return True
-    key = _remembered_for(func)
-    if key is not None:
-        if key in _MEMBER_NAME_WARNED:
-            return False
-        _MEMBER_NAME_WARNED.add(key)
-    warnings.warn(_no_member_name_message(func), DeprecationWarning,
-                  stacklevel=stacklevel + 1)
-    return False
+    return _use_keyword(func, 'member_name', _no_member_name_message,
+                        stacklevel + 1)
+
+
+def use_defaults_keyword(func: Callable[..., object], stacklevel: int) -> bool:
+    """Return whether ``ok_to_use_defaults`` should be passed to a factory.
+
+    Warn once per factory that does not accept it. Call this only when the
+    flag is true, so that a strict parse neither reads the signature nor
+    warns.
+
+    Args:
+        func: Factory function that the library is about to call.
+        stacklevel: Stack level that the warning is attributed to, counted
+            from the caller of this function.
+
+    Returns:
+        Whether ``ok_to_use_defaults`` can be passed to the factory.
+    """
+    return _use_keyword(func, 'ok_to_use_defaults', _no_defaults_message,
+                        stacklevel + 1)

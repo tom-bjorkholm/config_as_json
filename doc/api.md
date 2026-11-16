@@ -2689,7 +2689,10 @@ keyword ``ok_to_use_defaults`` should pass it on to ``super().__init__``.
 The library passes it to the constructor of a nested Config class that
 accepts it. A nested Config class that does not accept it is
 constructed from its class defaults, which must then be valid on their
-own, before the JSON data is parsed into it.
+own, before the JSON data is parsed into it. A nested Config declared
+with a ``factory_function`` is always constructed anew by the factory,
+so its missing keys get the defaults of the class that the factory
+constructs, never the values of the current nested object.
 
 <a id="config_as_json.config.Config.__init__"></a>
 
@@ -2795,9 +2798,17 @@ value assigned by the constructor.
 the previous parse, not the constructor default.
 - In a nested Config that the JSON data contains but that had no
 current nested object at the same place to be parsed into (any list
-element, a dict key that the current dict lacked, or an optional
-member that was None), that is the default value of the nested
-Config class.
+element, a dict key that the current dict lacked, an optional
+member that was None, or a current object of a subclass of the
+declared class), that is the default value of the nested Config
+class.
+- In a nested Config declared with a ``factory_function``, that is
+the default value of the class that the factory constructs, also
+when there is a current nested object at the same place. The
+factory chooses the class from the JSON data, so the JSON data is
+never parsed into the current nested object, and the values of
+that object are not kept. Declare the member by type, without a
+factory, when they should be kept.
 
 Defaults only complete nested objects that the JSON data contains. No
 list element, dict key or optional member is ever added because of
@@ -3083,7 +3094,12 @@ same points.
   contains is parsed into the current nested object of the
   declared class at the same place, or else constructed with
   the defaults of its class, so its missing keys keep values
-  too. A nested object parsed in place is changed, also when
+  too. A nested Config declared with a ``factory_function`` is
+  always constructed by the factory, so its missing keys get
+  the defaults of the class that the factory constructs, not
+  the values of the current nested object. See
+  :meth:`kept_value_paths`. A nested object parsed in place is
+  changed, also when
   another object shares it, and a failing parse may leave it
   partly updated. :meth:`kept_value_paths` then tells which
   values were kept.
@@ -3603,7 +3619,8 @@ def __init__(from_json_data_text: Optional[str] = None,
              value: Optional[int | str] = None,
              prefix: Optional[PrefixT] = None,
              digits: int = 0,
-             member_name: Optional[str] = None) -> None
+             member_name: Optional[str] = None,
+             ok_to_use_defaults: bool = False) -> None
 ```
 
 Initialize the written number configuration value.
@@ -3633,6 +3650,9 @@ Initialize the written number configuration value.
   complete construction, such as ``limits[cpu].mask``. ``None``
   means that this value is the top level and not a member of
   anything.
+- `ok_to_use_defaults` - Whether the supplied JSON data may lack the
+  written member, which then keeps ``value``. See
+  :meth:`Config.parse_json` and :meth:`Config.kept_value_paths`.
 
 
 **Raises**:
@@ -3756,6 +3776,13 @@ the default and every later parse.
 The class this is called on is the class constructed, so it has to
 be one that accepts ``prefix`` and ``digits``. A subclass that fixes
 its own format instead does not, and needs no factory.
+
+A factory always constructs a new object. When a parse with
+``ok_to_use_defaults`` true finds no written value for the member,
+the member therefore gets ``value``, the declared default, and not
+the value that the member held before the parse. A member declared
+by a subclass that supplies its format, without a factory, is
+parsed into the object it holds, and keeps its value instead.
 
 **Arguments**:
 
@@ -5903,7 +5930,8 @@ def config_factory_from_json(match_configs: MatchConfigSeq,
                              from_json_data_text: Optional[str] = None,
                              stderr_file: TextIO = sys.stderr,
                              *,
-                             member_name: Optional[str] = None) -> Config
+                             member_name: Optional[str] = None,
+                             ok_to_use_defaults: bool = False) -> Config
 ```
 
 Create the first configuration class whose matcher accepts the input.
@@ -5911,6 +5939,13 @@ Create the first configuration class whose matcher accepts the input.
 The function is intended for applications that support several related
 configuration schemas and want to decide which ``Config`` subclass to use
 by inspecting the input document itself.
+
+With ``ok_to_use_defaults`` true, the selected class is constructed with
+``ok_to_use_defaults=True`` when its constructor accepts it. Another
+class is constructed from its class defaults, which are then validated
+on their own, and the JSON data is then parsed into it. Either way
+:meth:`Config.kept_value_paths` of the result tells which values were
+kept.
 
 **Arguments**:
 
@@ -5926,6 +5961,9 @@ by inspecting the input document itself.
   complete construction, such as ``outputs[1].section``. ``None``
   means that the created object is the top level and not a member
   of anything.
+- `ok_to_use_defaults` - Whether the JSON data may lack required keys,
+  which then keep the default values of the selected class. See
+  :meth:`Config.parse_json` and :meth:`Config.kept_value_paths`.
 
 
 **Returns**:
@@ -7377,10 +7415,24 @@ def __call__(*,
              from_json_data_text: Optional[str] = None,
              from_json_filename: Optional[PathOrStr] = None,
              stderr_file: TextIO = sys.stderr,
-             member_name: Optional[str] = None) -> 'Config'
+             member_name: Optional[str] = None,
+             ok_to_use_defaults: bool = False) -> 'Config'
 ```
 
 Construct one nested Config object.
+
+A factory is expected to pass every argument on to the constructor
+of the class that it chooses, so that class has to accept
+``ok_to_use_defaults`` as well.
+
+The library calls the factory for every nested object that the JSON
+data contains, also when the object being parsed already holds a
+nested object at the same place. A factory chooses the class from
+the JSON data, so the library never parses the JSON data into the
+current nested object. With ``ok_to_use_defaults`` true, the keys
+that the JSON data lacks therefore keep the default values of the
+class that the factory constructs, not the values of the current
+nested object.
 
 **Arguments**:
 
@@ -7392,6 +7444,10 @@ Construct one nested Config object.
   the complete construction, such as ``outputs[1].section``.
   ``None`` means that the constructed object is the top level
   and not a member of anything.
+- `ok_to_use_defaults` - Whether the JSON data may lack required
+  keys, which then keep the default values of the constructed
+  class. See :meth:`Config.parse_json` and
+  :meth:`Config.kept_value_paths`.
 
 
 **Returns**:
@@ -7416,8 +7472,28 @@ class when it reads a nested JSON object. A class or a factory that does
 not accept ``member_name`` is called without it and warns that it should
 be changed. If ``factory_function`` is set, that callable is used instead
 of the ``config_type`` constructor. The factory must accept the same
-keyword arguments and must return an instance of ``config_type`` or a
-subclass.
+keyword arguments, should accept ``ok_to_use_defaults`` as well, see
+:class:`ConfigFactory`, and must return an instance of ``config_type`` or
+a subclass.
+
+When the parent is parsed with ``ok_to_use_defaults`` true, a nested
+class is constructed with ``ok_to_use_defaults=True`` if its constructor
+accepts it. Another class is constructed from its class defaults, which
+are then validated on their own, and the JSON data is then parsed into
+it. Only a class whose defaults are not valid on their own needs to
+accept ``ok_to_use_defaults`` and pass it on to ``super().__init__``. A
+factory is called with ``ok_to_use_defaults=True`` if it accepts it. A
+factory that does not accept it is called without it, so it parses
+strictly, and warns that it should be changed.
+
+A member declared with ``factory_function`` is never parsed into its
+current nested object, since the factory chooses the class from the
+JSON data. With ``ok_to_use_defaults`` true, its missing keys keep the
+default values of the class that the factory constructs, not the values
+of the current nested object. Without a factory, a nested object of
+exactly ``config_type`` that is a ``MEMBER``, an ``OPTIONAL_MEMBER`` or a
+dict value is parsed into in place, and keeps its values. See
+:meth:`Config.kept_value_paths`.
 
 **Attributes**:
 

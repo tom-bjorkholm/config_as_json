@@ -34,11 +34,13 @@ from .e34_list_nested_configs import ReportOutputConfig
 class WebhookOutputConfig(Config):
     """Configuration for one webhook report delivery."""
 
+    # pylint: disable-next=too-many-arguments
     def __init__(self, from_json_data_text: Optional[str] = None,
                  from_json_filename: Optional[PathOrStr] = None,
                  stderr_file: TextIO = sys.stderr,
-                 created_by_factory: bool = False,
-                 member_name: Optional[str] = None) -> None:
+                 created_by_factory: bool = False, *,
+                 member_name: Optional[str] = None,
+                 ok_to_use_defaults: bool = False) -> None:
         """Initialize one webhook output configuration.
 
         Args:
@@ -49,6 +51,8 @@ class WebhookOutputConfig(Config):
             member_name: Path for reaching this object from the top level
                 configuration. ``None`` means that this object is the whole
                 configuration and not a member of anything.
+            ok_to_use_defaults: Whether the JSON data may lack keys, which
+                then keep the default values assigned below.
         """
         # These public attributes are the settings that will be written to
         # JSON. The private flag is only here so the example can demonstrate
@@ -59,7 +63,8 @@ class WebhookOutputConfig(Config):
         self._created_by_factory = created_by_factory
         super().__init__(from_json_data_text=from_json_data_text,
                          from_json_filename=from_json_filename,
-                         stderr_file=stderr_file, member_name=member_name)
+                         stderr_file=stderr_file, member_name=member_name,
+                         ok_to_use_defaults=ok_to_use_defaults)
 
     def created_by_factory(self) -> bool:
         """Return whether the example factory constructed this object."""
@@ -77,7 +82,8 @@ class WebhookOutputConfig(Config):
 def _webhook_output_factory(*, from_json_data_text: Optional[str] = None,
                             from_json_filename: Optional[PathOrStr] = None,
                             stderr_file: TextIO = sys.stderr,
-                            member_name: Optional[str] = None) -> Config:
+                            member_name: Optional[str] = None,
+                            ok_to_use_defaults: bool = False) -> Config:
     """Construct the webhook nested Config for DICT_VALUE_BY_KEY.
 
     Args:
@@ -86,6 +92,8 @@ def _webhook_output_factory(*, from_json_data_text: Optional[str] = None,
         stderr_file: Stream used for user-facing diagnostics.
         member_name: Path for reaching the constructed object from the top
             level configuration, such as ``reports[audit]``.
+        ok_to_use_defaults: Whether the JSON data may lack keys, which then
+            keep their default values.
 
     Returns:
         The webhook output configuration created by this factory.
@@ -95,11 +103,24 @@ def _webhook_output_factory(*, from_json_data_text: Optional[str] = None,
     # a subclass, inject dependencies, or translate old construction rules.
     # The member_name is part of that call shape, and is passed on so that
     # a diagnostic about the nested object names the whole path to it.
+    # So is ok_to_use_defaults. The library passes it as True when the
+    # parent is parsed with ok_to_use_defaults=True, for example when an
+    # editor reads an incomplete file. Passing it on lets the nested object
+    # keep its default values for the keys that the JSON data lacks. A
+    # factory that does not accept it parses strictly, and the library
+    # warns about that.
+    #
+    # Notice that the defaults kept are those of the class constructed here,
+    # WebhookOutputConfig, and not the values of the webhook object that the
+    # parent configuration held before the parse. A factory may choose the
+    # class from the JSON data, so the library always lets the factory
+    # construct a new object, and never parses into the object it held.
     return WebhookOutputConfig(from_json_data_text=from_json_data_text,
                                from_json_filename=from_json_filename,
                                stderr_file=stderr_file,
                                created_by_factory=True,
-                               member_name=member_name)
+                               member_name=member_name,
+                               ok_to_use_defaults=ok_to_use_defaults)
 
 
 def _default_reports(stderr_file: TextIO) -> dict[str, object]:
