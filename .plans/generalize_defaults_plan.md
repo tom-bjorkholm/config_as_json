@@ -403,23 +403,10 @@ Status: **Reviewed and committed.**
 
 ## Step 7 — Verify the downstream libraries
 
-Status: **Not started**
+Status: **Verified. OK to do release.**
 
 `edit-cfg-json`, `edit-cfg-json-tk` and `edit-cfg-json-textual` are the
 intended users. Build them against this version, check that nothing
 changed for them in strict mode, and record whether they want to adopt
 `ok_to_use_defaults` and `kept_value_paths()`. Decide whether any of it
 changes this plan. No release before this is done.
-
-## Step 8 — Release
-
-Status: **Not started**
-
-- Run the tests with Python 3.12, 3.13, 3.14 and 3.15.
-- Version bump in `setup.py`. The API change is additive and the
-  behaviour changes are bug fixes of what `ok_to_use_defaults=True`
-  promises, so this is a minor release. The release notes name the two
-  bug fixes, since an application that relied on missing dict keys being
-  dropped will see them filled.
-- Whether a factory without `ok_to_use_defaults` stops being supported is
-  decided together with step 12 of `planned_steps.md` (2.0.0), not here.
