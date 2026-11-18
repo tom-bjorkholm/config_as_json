@@ -153,9 +153,13 @@ def e32_config_factory_print(config_file: PathOrStr) -> None:
     # not a member of anything and its member_name is None.
     #
     # ok_to_use_defaults=True lets the file lack values. A file written by
-    # an older version of the program, or by hand, may for example lack
-    # show_shadows. Without the flag that is an error. With it, the value
-    # keeps the default that the constructor of the selected class assigns.
+    # hand, may for example lack show_shadows. Without the flag that is
+    # an error. With it, the value keeps the default that the constructor
+    # of the selected class assigns.
+    #
+    # A file from an older version belongs to 'Read Old Configuration
+    # File' (ROCF). Using ok_to_use_defaults to read an old file would
+    # hide the differences instead of migrating them.
     #
     # Notice that Cad2DConfig and Cad3DConfig do not accept the keyword
     # ok_to_use_defaults in their constructors. They do not have to. The
